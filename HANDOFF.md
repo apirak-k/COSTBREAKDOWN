@@ -1,3 +1,16 @@
+# Phase 2 Round 4B Implementation — 2026-10-24
+
+- **Status:** `IMPLEMENTED / INTERNAL VERIFICATION PASSED / AWAITING EXTERNAL AUDIT`.
+- **Branch / worktree:** `feat/selected-value-ux` / `E:\COSTBREAKDOWN\.worktrees\SIMULATION-FINALIZED`.
+- **Starting local and remote HEAD:** `bda01edddcef4d14b75ca318974a64570db32647`.
+- **Gate:** the pre-Round-4B corrective pass is externally accepted and closed; human visual acceptance passed. This implementation is Round 4B only; it does not close Round 4.
+- **Integration:** Simulation Result Before/After/Change/% finite values use shared read-only `SelectedNumber`; the five Economic inputs use shared `useSelectedValueSource`; Economic outcomes and Break-even Quantity use `SelectedNumber` when selectable; the native Break-even Batch Size marker shares the editable source with the Economic input.
+- **Source identities:** Result identities include the active product, comparison roles and snapshot IDs, metric, and column. Economic identities include the active product, After role/snapshot, and input/outcome. This keeps sources scoped to the live Simulation context.
+- **History:** the shared editable source contract gained optional begin/commit callbacks so Header Value edits enter and close the existing owning Simulation history transaction. Existing NumericInput and domain writers remain authoritative.
+- **Preserved boundaries:** no calculation, formula, data, role, persistence, graph drawing, Story Graph, Simulation BOM/Routing parameter table, or global direct-edit blue-value behavior changed. Round 5 remains not started.
+- **Verification:** Round 4B browser checks passed 41/41; NumericInput unit/browser checks passed 344/344 and 2365/2365; Master Data selected-value browser checks passed 161/161; CBD selected-value browser checks passed 306/306; Simulation regression script exited 0; TypeScript and production build passed; `git diff --check` and verifier syntax checks passed. The regression script emitted transient Vite WebSocket port-in-use messages while nested servers started, but exited successfully. Build retained existing ExcelJS/fast-csv browser-externalization and large-chunk warnings.
+- **Delivery:** no merge; push to `feat/selected-value-ux` after final diff review.
+
 # Final Narrow Corrective Pass After External Audit — 2026-10-24
 
 - **Branch / worktree:** `feat/selected-value-ux` / `E:\COSTBREAKDOWN\.worktrees\SIMULATION-FINALIZED`

@@ -9,6 +9,7 @@ try {
   const engine = await vite.ssrLoadModule('/src/features/simulation/simulation-engine.ts')
   const history = await vite.ssrLoadModule('/src/features/simulation/simulation-history.ts')
   const { SimulationPage } = await vite.ssrLoadModule('/src/features/simulation/SimulationPage.tsx')
+  const { SelectedValueProvider } = await vite.ssrLoadModule('/src/shared/ui/selected-value.tsx')
   const snapshot = {
     id: 'current', product: { productCode: 'P', productDescription: 'Correction fixture', uom: 'SET', customer: '', effectiveDate: '', sellingPrice: 250, sgaPercent: 8 },
     effectiveDate: '', sourceRef: 'fixture', status: 'draft',
@@ -76,7 +77,8 @@ try {
     role, workspace.getEffectiveSimulationDataset(sources, state, role)
   ]))
   const active = effectiveDatasets[state.activeDataset]
-  const markup = renderToStaticMarkup(React.createElement(SimulationPage, {
+  const markup = renderToStaticMarkup(React.createElement(SelectedValueProvider, { scopeKey: 'simulation-corrections-verifier' }, React.createElement(SimulationPage, {
+    productId: 'simulation-corrections-fixture',
     state: active,
     workingSelection: active.workingSelection,
     analysisBeforeDataset: effectiveDatasets.current,
@@ -85,7 +87,7 @@ try {
     onSelectActiveDataset() {}, onChangeComparison() {}, onSend() {}, onSendAll() {},
     onReset() {}, onResetAll() {}, onUpdateParameter() {}, onToggleWorkingTarget() {}, onSetWorkingSelection() {},
     onUpdateEconomicInput() {}, onBeginEdit() {}, onCommitEdit() {}
-  }))
+  })))
   assert.match(markup, /role="checkbox" aria-checked="mixed"/)
   assert.match(markup, /role="checkbox" aria-checked="false"/)
   assert.ok(markup.indexOf('Deselect BOM row 3: MAT-3') < markup.indexOf('Select BOM row 1: MAT-1'),

@@ -4,6 +4,7 @@ import { resolve } from 'node:path'
 import React from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import type { CostSnapshot, MasterDataRole } from '../src/core/types'
+import { SelectedValueProvider } from '../src/shared/ui/selected-value.tsx'
 import { calculateEconomicSimulation } from '../src/features/simulation/simulation-economics.ts'
 import { calculateParameterSimulation, updateSimulationParameter } from '../src/features/simulation/simulation-engine.ts'
 import {
@@ -130,7 +131,8 @@ assert.deepEqual(view(state, 'custom').snapshot.rates, sources.custom.rates)
 const { SimulationPage } = await import('../src/features/simulation/SimulationPage.tsx')
 const referenceEditor = setSimulationActiveDataset(createEmptySimulationState(sources), 'reference')
 const referenceEditorView = view(referenceEditor, 'reference')
-const tableMarkup = renderToStaticMarkup(React.createElement(SimulationPage, {
+const tableMarkup = renderToStaticMarkup(React.createElement(SelectedValueProvider, { scopeKey: 'simulation-phase3-verifier' }, React.createElement(SimulationPage, {
+  productId: 'simulation-phase3-fixture',
   state: referenceEditorView,
   workingSelection: referenceEditorView.workingSelection,
   analysisBeforeDataset: view(referenceEditor, 'reference'),
@@ -148,7 +150,7 @@ const tableMarkup = renderToStaticMarkup(React.createElement(SimulationPage, {
   onUpdateEconomicInput() {},
   onBeginEdit() {},
   onCommitEdit() {}
-}))
+})))
 const referenceBomTable = tableMarkup.match(/<section data-simulation-table="bom"[\s\S]*?<\/section>/)?.[0] ?? ''
 assert.ok(referenceBomTable, 'Reference active dataset renders its BOM editor')
 assert.doesNotMatch(referenceBomTable, /Current-only material/,

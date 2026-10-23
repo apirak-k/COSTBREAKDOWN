@@ -13,6 +13,10 @@ const vite = await createServer({
 
 try {
   const { SimulationPage } = await vite.ssrLoadModule('/src/features/simulation/SimulationPage.tsx')
+  const { SelectedValueProvider } = await vite.ssrLoadModule('/src/shared/ui/selected-value.tsx')
+  const renderWithSelectedValueProvider = (element: React.ReactNode) => renderToStaticMarkup(
+    React.createElement(SelectedValueProvider, { scopeKey: 'simulation-result-verifier' }, element)
+  )
   const {
     createEmptySimulationState,
     getEffectiveSimulationDataset,
@@ -90,7 +94,8 @@ try {
       role, getEffectiveSimulationDataset(sources, workspace, role)
     ])) as Record<MasterDataRole, ReturnType<typeof getEffectiveSimulationDataset>>
     const active = effectiveDatasets[workspace.activeDataset]
-    return renderToStaticMarkup(React.createElement(SimulationPage, {
+    return renderWithSelectedValueProvider(React.createElement(SimulationPage, {
+      productId: 'simulation-result-fixture',
       state: active,
       workingSelection: active.workingSelection,
       analysisBeforeDataset: effectiveDatasets[before],
@@ -165,7 +170,8 @@ try {
       role, getEffectiveSimulationDataset(zeroSources, zeroChanged, role)
     ])) as Record<MasterDataRole, ReturnType<typeof getEffectiveSimulationDataset>>
     const active = effectiveDatasets[zeroChanged.activeDataset]
-    return renderToStaticMarkup(React.createElement(SimulationPage, {
+    return renderWithSelectedValueProvider(React.createElement(SimulationPage, {
+      productId: 'simulation-result-fixture',
       state: active, workingSelection: active.workingSelection,
       analysisBeforeDataset: effectiveDatasets.reference, analysisAfterDataset: effectiveDatasets.custom,
       effectiveDatasets,
@@ -186,7 +192,8 @@ try {
     role, getEffectiveSimulationDataset(missingSources, missingState, role)
   ])) as Record<MasterDataRole, ReturnType<typeof getEffectiveSimulationDataset>>
   const missingActive = missingDatasets[missingState.activeDataset]
-  const missingMarkup = renderToStaticMarkup(React.createElement(SimulationPage, {
+  const missingMarkup = renderWithSelectedValueProvider(React.createElement(SimulationPage, {
+    productId: 'simulation-result-fixture',
     state: missingActive, workingSelection: missingActive.workingSelection,
     analysisBeforeDataset: missingDatasets.current, analysisAfterDataset: missingDatasets.custom,
     effectiveDatasets: missingDatasets,

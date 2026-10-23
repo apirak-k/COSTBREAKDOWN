@@ -4,6 +4,7 @@ import { resolve } from 'node:path'
 import React from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import type { CostSnapshot, MasterDataRole, ScenarioFinancialResult } from '../src/core/types'
+import { SelectedValueProvider } from '../src/shared/ui/selected-value.tsx'
 import { calculateParameterSimulation, updateSimulationParameter } from '../src/features/simulation/simulation-engine.ts'
 import { calculateEconomicSimulation } from '../src/features/simulation/simulation-economics.ts'
 import { createScenarioFinancialResult, createScenarioStory } from '../src/core/calculations/scenario-story.ts'
@@ -202,7 +203,8 @@ const renderPage = (
   const analysisBeforeDataset = view(workspace, beforeRole)
   const analysisAfterDataset = view(workspace, afterRole)
   const effectiveDatasets = Object.fromEntries(roles.map(role => [role, view(workspace, role)])) as Record<MasterDataRole, ReturnType<typeof view>>
-  return renderToStaticMarkup(React.createElement(SimulationPage, {
+  return renderToStaticMarkup(React.createElement(SelectedValueProvider, { scopeKey: 'simulation-phase4-verifier' }, React.createElement(SimulationPage, {
+    productId: 'simulation-phase4-fixture',
     state: active,
     workingSelection: active.workingSelection,
     analysisBeforeDataset,
@@ -220,7 +222,7 @@ const renderPage = (
     onUpdateEconomicInput() {},
     onBeginEdit() {},
     onCommitEdit() {}
-  }))
+  })))
 }
 const resultPanel = (markup: string) =>
   markup.match(/<section[^>]*aria-labelledby="simulation-result-title"[\s\S]*?<\/section>/)?.[0] ?? ''
@@ -411,20 +413,21 @@ assert.match(graphSource, /onClick=\{\(\) => onSelectActiveDataset\(category\.ro
   '[source contract] graph role controls select activeDataset')
 assert.match(pageSource, /onChange=\{role => onChangeComparison\(role, afterRole\)\}[\s\S]*?onChange=\{role => onChangeComparison\(beforeRole, role\)\}/,
   '[source contract] Before and After selectors update only their own comparison side')
-assert.match(pageSource, /data-simulation-layout-root="true"[^>]*xl:flex-col/,
-  '[source contract] the desktop Simulation workspace stacks upper and lower regions vertically')
-const upperWorkspaceStart = pageSource.indexOf('<div className="grid min-w-0 gap-2 xl:min-h-0 xl:flex-[7_1_0%]')
-const upperWorkspaceEnd = pageSource.indexOf('<div className="grid min-w-0 gap-2 xl:min-h-0 xl:flex-[3_1_0%]', upperWorkspaceStart)
-const upperWorkspaceSource = upperWorkspaceStart >= 0 && upperWorkspaceEnd > upperWorkspaceStart
-  ? pageSource.slice(upperWorkspaceStart, upperWorkspaceEnd)
+assert.match(pageSource, /data-simulation-layout-root="true"[^>]*xl:grid-rows-\[auto_minmax\(0,1fr\)\][^>]*xl:overflow-hidden/,
+  '[source contract] the desktop Simulation workspace sizes its upper content naturally and gives the tables the remaining height')
+assert.doesNotMatch(pageSource, /xl:flex-\[(?:7|3)_1_0%\]/,
+  '[source contract] desktop Simulation no longer fixes the upper and lower regions to a 70/30 ratio')
+const upperWorkspaceStart = pageSource.indexOf('<div className="grid min-w-0 gap-2 xl:min-h-0 xl:grid-cols-[')
+const lowerWorkspaceStart = pageSource.indexOf('<div className="grid min-w-0 gap-2 xl:min-h-0 xl:grid-cols-2 xl:grid-rows-1 xl:items-stretch">', upperWorkspaceStart)
+const upperWorkspaceSource = upperWorkspaceStart >= 0 && lowerWorkspaceStart > upperWorkspaceStart
+  ? pageSource.slice(upperWorkspaceStart, lowerWorkspaceStart)
   : ''
 assert.ok(upperWorkspaceSource, '[source contract] desktop upper workspace source is present')
-assert.match(upperWorkspaceSource, /xl:flex-\[7_1_0%\]/,
-  '[source contract] the upper desktop workspace receives seven parts of the vertical layout')
 assert.match(upperWorkspaceSource, /xl:grid-cols-\[minmax\(0,[\d.]+fr\)_minmax\(0,[\d.]+fr\)_minmax\(max-content,[\d.]+fr\)\]/,
   '[source contract] graph, Result/Break-even, and Business/Economic retain their established desktop column order and proportions')
-assert.match(pageSource.slice(upperWorkspaceEnd), /xl:flex-\[3_1_0%\][\s\S]*?<SimulationParameterTable/,
-  '[source contract] the BOM and Routing workspace receives three parts of the vertical layout')
+const lowerWorkspaceSource = lowerWorkspaceStart >= 0 ? pageSource.slice(lowerWorkspaceStart) : ''
+assert.match(lowerWorkspaceSource, /xl:grid-cols-2 xl:grid-rows-1 xl:items-stretch[\s\S]*?<SimulationParameterTable[\s\S]*?<SimulationParameterTable/,
+  '[source contract] BOM and Routing share the flexible lower workspace without a fixed vertical ratio')
 const resultColumnSource = upperWorkspaceSource.match(/<div data-simulation-layout-column="result-and-break-even"[\s\S]*?<EconomicSimulationPanel/)?.[0] ?? ''
 assert.match(resultColumnSource, /<ResultPanel[\s\S]*?<EconomicBreakEvenGraphPanel[\s\S]*?<\/div>\s*<EconomicSimulationPanel/,
   '[source contract] Result sits above Break-even in the middle column before far-right Business/Economic')

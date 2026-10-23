@@ -34,6 +34,7 @@ async function unusedPort() {
 const delay = ms => new Promise(resolveDelay => setTimeout(resolveDelay, ms))
 const repository = process.cwd()
 const finalCorrectionsOnly = process.argv.includes('--final-corrections-only')
+const selectedValueOnly = process.argv.includes('--selected-value-only')
 const numericLayoutOnly = process.argv.includes('--numeric-layout-only')
 const rulerOnly = process.argv.includes('--ruler-only')
 const visibleTotalsOnly = process.argv.includes('--visible-totals-only')
@@ -108,7 +109,7 @@ try {
   client.addEventListener('message', event => {
     const message = JSON.parse(String(event.data))
     if (message.method === 'Runtime.exceptionThrown') {
-      browserErrors.push(message.params.exceptionDetails.text)
+      browserErrors.push(message.params.exceptionDetails.exception?.description ?? message.params.exceptionDetails.text)
       browserErrorDetails.push({ type: 'exception', details: message.params.exceptionDetails })
     }
     if (message.method === 'Runtime.consoleAPICalled' && message.params.type === 'error') {
@@ -246,7 +247,20 @@ try {
   await waitVisible('section[data-simulation-table="bom"]', 'BOM Simulation table')
   await waitVisible('figure[aria-labelledby="simulation-story-title"]', 'Cost Structure graph card')
   await clickRole('Current')
-  await waitFor(() => evaluate(`Boolean([...document.querySelectorAll('input')].some(e=>e.getClientRects().length&&/Price in (SIM|Custom|Current)$/.test(e.getAttribute('aria-label')||'')))`), 'Simulation numeric row input')
+  try {
+    await waitFor(() => evaluate(`Boolean([...document.querySelectorAll('input')].some(e=>e.getClientRects().length&&/Price in (SIM|Custom|Current)$/.test(e.getAttribute('aria-label')||'')))`), 'Simulation numeric row input')
+  } catch (error) {
+    const simulationState = await evaluate(`(()=>({
+      title:document.title,url:location.href,
+      headings:[...document.querySelectorAll('h1,h2,h3,[role="heading"]')].filter(e=>e.getClientRects().length).map(e=>e.innerText.trim()),
+      buttons:[...document.querySelectorAll('button')].filter(e=>e.getClientRects().length).slice(0,35).map(e=>({label:e.getAttribute('aria-label'),text:e.innerText.trim(),pressed:e.getAttribute('aria-pressed')})),
+      rows:{bom:document.querySelectorAll('section[data-simulation-table="bom"] tbody tr[data-simulation-row-index]').length,routing:document.querySelectorAll('section[data-simulation-table="routing"] tbody tr[data-simulation-row-index]').length},
+      inputs:[...document.querySelectorAll('input')].map(e=>({label:e.getAttribute('aria-label'),visible:Boolean(e.getClientRects().length),disabled:e.disabled})),
+      visibleStatus:[...document.querySelectorAll('[role="status"], [role="alert"]')].filter(e=>e.getClientRects().length).map(e=>e.textContent.trim()),
+      body:document.body.innerText.slice(0,1400)
+    }))()`)
+    throw new Error(`${error.message}\nSimulation state after selecting Current: ${JSON.stringify(simulationState)}\nBrowser errors so far: ${JSON.stringify(browserErrors)}`)
+  }
   await waitFor(() => evaluate(`Boolean(document.querySelector('section[data-simulation-table="bom"] tbody tr[data-simulation-row-index]')&&document.querySelector('section[data-simulation-table="routing"] tbody tr[data-simulation-row-index]'))`), 'Simulation BOM and Routing data rows')
   await clickSelector('button[aria-label="Before dataset, Current"]')
   await clickComparisonOption('Before', 'Reference')
@@ -254,6 +268,179 @@ try {
   await delay(800)
   await screenshot('simulation-seeded-1440-before-expansion')
 
+  if (selectedValueOnly) {
+    const moveTo = async selector => {
+      const point = await evaluate(`(()=>{const e=document.querySelector(${JSON.stringify(selector)});if(!e||!e.getClientRects().length)return null;e.scrollIntoView({block:'center',inline:'nearest'});const r=e.getBoundingClientRect();return{x:r.left+r.width/2,y:r.top+r.height/2}})()`)
+      if (!point) throw new Error(`No visible hover target: ${selector}`)
+      await send('Input.dispatchMouseEvent', { type: 'mouseMoved', ...point })
+      return point
+    }
+    const visibleHeader = () => evaluate(`(()=>{const input=document.querySelector('[data-header-numeric-zone] input[aria-label="Selected value"]');if(input)return{kind:'input',value:input.value,source:input.getAttribute('data-selected-value-source')};const output=document.querySelector('[data-header-numeric-zone] [data-selected-value-output]');return output?{kind:'output',value:output.textContent.trim(),title:output.title}:null})()`)
+    const hoverSelectedNumber = async (selector, dwell = 420) => {
+      await moveTo(selector)
+      await delay(dwell)
+      return visibleHeader()
+    }
+    const materialBefore = 'button[data-selected-number][aria-label="Material Before"]'
+    const materialAfter = 'button[data-selected-number][aria-label="Material After"]'
+    const materialChange = 'button[data-selected-number][aria-label="Material Change"]'
+    const materialLabel = await evaluate(`(()=>[...document.querySelectorAll('[data-simulation-result-body] th[scope="row"]')].find(cell=>cell.textContent.trim()==='Material')?.textContent.trim()??null)()`)
+    const initialCellHover = await evaluate(`(()=>{const cell=[...document.querySelectorAll('[data-simulation-result-body] th[scope="row"]')].find(item=>item.textContent.trim()==='Material');if(!cell)return null;cell.scrollIntoView({block:'center',inline:'nearest'});const r=cell.getBoundingClientRect();return{x:r.left+r.width/2,y:r.top+r.height/2}})()`)
+    if (initialCellHover) await send('Input.dispatchMouseEvent', { type: 'mouseMoved', ...initialCellHover })
+    await delay(450)
+    const rowHoverHeader = await visibleHeader()
+    check('Result row hover alone does not preview a numeric value', Boolean(materialLabel === 'Material' && (!rowHoverHeader || rowHoverHeader.value === '—')), { rowHoverHeader, initialCellHover })
+
+    const beforePreview = await hoverSelectedNumber(materialBefore)
+    const beforePreviewValue = await evaluate(`document.querySelector(${JSON.stringify(materialBefore)})?.textContent.trim()??null`)
+    check('Finite Result Before direct hover previews through the shared Header dwell', Boolean(beforePreview?.kind === 'output' && beforePreview.value !== '—' && beforePreviewValue), { beforePreview, beforePreviewValue })
+    await clickSelector(materialBefore)
+    const beforePinned = await evaluate(`document.querySelector(${JSON.stringify(materialBefore)})?.getAttribute('aria-pressed')`)
+    const afterPreview = await hoverSelectedNumber(materialAfter)
+    const afterPreviewValue = await evaluate(`document.querySelector(${JSON.stringify(materialAfter)})?.textContent.trim()??null`)
+    check('Finite Result After direct hover previews while preserving the prior Before pin', Boolean(beforePinned === 'true' && afterPreview?.kind === 'output' && afterPreview.value !== '—' && afterPreviewValue), { beforePinned, afterPreview, afterPreviewValue })
+    await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 1437, y: 897 })
+    await delay(140)
+    const restoredPin = await visibleHeader()
+    check('Leaving Preview restores the existing Result Before pin', Boolean(restoredPin?.kind === 'output' && restoredPin.value === beforePreview?.value && await evaluate(`document.querySelector(${JSON.stringify(materialBefore)})?.getAttribute('aria-pressed')`) === 'true'), { before: beforePreview?.value, restoredPin })
+    await clickSelector(materialBefore)
+    check('Activating the same Result value again removes its pin', await evaluate(`document.querySelector(${JSON.stringify(materialBefore)})?.getAttribute('aria-pressed')`) === 'false')
+    await clickSelector(materialAfter)
+    await clickSelector(materialChange)
+    check('Result Change pin transfers directly between numeric sources', Boolean(
+      await evaluate(`document.querySelector(${JSON.stringify(materialAfter)})?.getAttribute('aria-pressed')`) === 'false'
+      && await evaluate(`document.querySelector(${JSON.stringify(materialChange)})?.getAttribute('aria-pressed')`) === 'true'
+    ))
+    const unavailableResultCells = await evaluate(`(()=>[...document.querySelectorAll('[data-simulation-result-body] td')].filter(cell=>cell.textContent.trim()==='—').map(cell=>({text:cell.textContent.trim(),selectable:!!cell.querySelector('button[data-selected-number]')})))()`)
+    check('Unavailable Result em-dash values have no SelectedNumber target', unavailableResultCells.every(cell => !cell.selectable), unavailableResultCells)
+    await clickSelector(materialChange)
+
+    const variableBodySelector = 'input[aria-label="Variable Action Cost / Unit"]'
+    const replaceInput = async (ariaLabel, value) => typeIntoInput(ariaLabel, value)
+    const focusInput = async ariaLabel => {
+      await evaluate(`(()=>{const input=[...document.querySelectorAll('input')].find(item=>item.getAttribute('aria-label')===${JSON.stringify(ariaLabel)}&&item.getClientRects().length);if(!input)return false;input.focus();return true})()`)
+      await delay(180)
+      return evaluate(`([...document.querySelectorAll('input')].find(item=>item.getAttribute('aria-label')===${JSON.stringify(ariaLabel)}&&item.getClientRects().length)?.value??null)`)
+    }
+    const variableInitial = await replaceInput('Variable Action Cost / Unit', '12.3456789')
+    const variableSource = await evaluate(`document.querySelector(${JSON.stringify(variableBodySelector)})?.getAttribute('data-selected-value-source')??null`)
+    const headerSource = await evaluate(`document.querySelector('[data-header-numeric-zone] input[aria-label="Selected value"]')?.getAttribute('data-selected-value-source')??null`)
+    check('Economic body focus publishes the selected After-role source to the Header', Boolean(variableInitial === '12.3456789' && variableSource?.includes(':economic:current:') && headerSource === variableSource), { variableInitial, variableSource, headerSource })
+
+    for (const [ariaLabel, field] of [
+      ['Variable Action Cost / Unit', 'variableActionCostPerPiece'],
+      ['Fixed Action Cost', 'fixedActionCost'],
+      ['Batch Size', 'batchSize'],
+      ['Selling Price', 'sellingPriceOverride'],
+      ['SG&A %', 'sgaPercentOverride']
+    ]) {
+      const editableValue = await focusInput(ariaLabel)
+      const bodySource = await evaluate(`([...document.querySelectorAll('input')].find(item=>item.getAttribute('aria-label')===${JSON.stringify(ariaLabel)}&&item.getClientRects().length)?.getAttribute('data-selected-value-source')??null)`)
+      const selectedHeaderSource = await evaluate(`document.querySelector('[data-header-numeric-zone] input[aria-label="Selected value"]')?.getAttribute('data-selected-value-source')??null`)
+      check(`${ariaLabel} native focus owns its matching After-role Header writer`, Boolean(editableValue !== null
+        && bodySource?.includes(`:economic:current:`) && bodySource?.endsWith(`:input:${field}`)
+        && selectedHeaderSource === bodySource), { ariaLabel, field, bodySource, selectedHeaderSource, editableValue })
+    }
+    await focusInput('Variable Action Cost / Unit')
+
+    const previewWhileFocused = await hoverSelectedNumber(materialBefore)
+    check('Hover Preview temporarily replaces the Header display without transferring the focused writer', Boolean(previewWhileFocused?.kind === 'output'))
+    await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 1437, y: 897 })
+    await delay(140)
+    const writerRestored = await visibleHeader()
+    check('Clearing Preview restores the same focused editable source', Boolean(writerRestored?.kind === 'input' && writerRestored.source === variableSource))
+
+    const exactAccepted = '123456789012345.123456789'
+    const exactBodyValue = await replaceInput('Variable Action Cost / Unit', exactAccepted)
+    const headerRestoresBodyValue = await focusInput('Selected value')
+    check('Economic Header restores the exact high-magnitude decimal entered in the body', Boolean(exactBodyValue === exactAccepted && headerRestoresBodyValue === exactAccepted), { exactBodyValue, headerRestoresBodyValue })
+    const exactHeaderExpected = '987654321098765.987654321'
+    const exactHeaderValue = await replaceInput('Selected value', exactHeaderExpected)
+    const bodyRestored = await focusInput('Variable Action Cost / Unit')
+    check('Economic Header writer preserves every accepted digit when refocusing the body input', Boolean(exactHeaderValue === exactHeaderExpected && bodyRestored === exactHeaderExpected), { exactHeaderValue, bodyRestored })
+    const undoButton = 'button[aria-label="Undo"]'
+    await clickSelector(undoButton)
+    const afterUndo = await focusInput('Variable Action Cost / Unit')
+    check('Simulation toolbar Undo records Header edits through the source history path', afterUndo === exactAccepted, { afterUndo })
+    await clickSelector('button[aria-label="Redo"]')
+    const afterRedo = await focusInput('Variable Action Cost / Unit')
+    check('Simulation toolbar Redo reapplies the exact Header edit', afterRedo === exactHeaderExpected, { afterRedo })
+    const invalidMinimum = await replaceInput('Variable Action Cost / Unit', '-1')
+    check('Economic Variable Action Cost keeps its zero minimum', invalidMinimum === exactHeaderExpected, { invalidMinimum })
+    await replaceInput('Variable Action Cost / Unit', '0')
+    await replaceInput('Fixed Action Cost', '100')
+    await replaceInput('Selling Price', '200')
+
+    const sgaBeforeInvalid = await focusInput('SG&A %')
+    const invalidSgaMaximum = await replaceInput('SG&A %', '101')
+    check('Business SG&A input rejects values above 100%', invalidSgaMaximum === sgaBeforeInvalid, { sgaBeforeInvalid, invalidSgaMaximum })
+    const validSga = await replaceInput('SG&A %', '20.5')
+    check('Business SG&A accepts a valid decimal within its domain', validSga === '20.5', { validSga })
+    const batchBeforeInvalid = await focusInput('Batch Size')
+    const invalidBatchDraft = await replaceInput('Batch Size', '12.5')
+    check('Economic Batch Size remains integer-only', invalidBatchDraft === batchBeforeInvalid, { batchBeforeInvalid, invalidBatchDraft })
+    const validBatch = await replaceInput('Batch Size', '25')
+    const batchMarker = '[role="slider"][aria-label="Batch Size"]'
+    const markerAfterBodyEdit = await evaluate(`document.querySelector(${JSON.stringify(batchMarker)})?.getAttribute('aria-valuenow')??null`)
+    check('Economic Batch Size body input and graph marker share the same underlying value', Boolean(validBatch === '25' && markerAfterBodyEdit === '25'), { validBatch, markerAfterBodyEdit })
+    const batchBodySource = await evaluate(`document.querySelector('input[aria-label="Batch Size"]')?.getAttribute('data-selected-value-source')??null`)
+    const batchHeaderEdit = await replaceInput('Selected value', '27')
+    const markerAfterHeaderEdit = await evaluate(`document.querySelector(${JSON.stringify(batchMarker)})?.getAttribute('aria-valuenow')??null`)
+    check('Header editing of Batch Size updates the connected graph marker', Boolean(batchHeaderEdit === '27' && markerAfterHeaderEdit === '27' && batchBodySource?.includes(':economic:current:')), { batchHeaderEdit, markerAfterHeaderEdit, batchBodySource })
+
+    await evaluate(`document.querySelector(${JSON.stringify(batchMarker)})?.focus()`)
+    await delay(180)
+    const markerHeaderSource = await evaluate(`document.querySelector('[data-header-numeric-zone] input[aria-label="Selected value"]')?.getAttribute('data-selected-value-source')??null`)
+    await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'ArrowUp', code: 'ArrowUp' })
+    await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'ArrowUp', code: 'ArrowUp' })
+    await delay(220)
+    const markerAfterKeyboard = await evaluate(`document.querySelector(${JSON.stringify(batchMarker)})?.getAttribute('aria-valuenow')??null`)
+    const batchBodyAfterKeyboard = await focusInput('Batch Size')
+    check('Native graph marker keeps keyboard editing connected to the Body input and Header source', Boolean(markerHeaderSource?.includes(':break-even:batch-size-marker') && markerAfterKeyboard === '28' && batchBodyAfterKeyboard === '28'), { markerHeaderSource, markerAfterKeyboard, batchBodyAfterKeyboard })
+
+    await evaluate(`document.querySelector(${JSON.stringify(batchMarker)})?.focus()`)
+    await delay(120)
+    const dragPoints = await evaluate(`(()=>{
+      const svg=document.querySelector('figure[aria-labelledby="break-even-graph-title"] svg'),marker=svg?.querySelector('[role="slider"][aria-label="Batch Size"]'),line=marker?.querySelector('line[stroke="transparent"]')
+      if(!svg||!marker||!line)return null
+      const x=Number(line.getAttribute('x1')),y=(Number(line.getAttribute('y1'))+Number(line.getAttribute('y2')))/2
+      const project=(px,py)=>{const point=svg.createSVGPoint();point.x=px;point.y=py;const r=point.matrixTransform(svg.getScreenCTM());return{x:r.x,y:r.y}}
+      return{start:project(x,y),end:project(x+60,y)}
+    })()`)
+    if (dragPoints) {
+      await send('Input.dispatchMouseEvent', { type: 'mouseMoved', ...dragPoints.start })
+      await send('Input.dispatchMouseEvent', { type: 'mousePressed', ...dragPoints.start, button: 'left', clickCount: 1 })
+      await send('Input.dispatchMouseEvent', { type: 'mouseMoved', ...dragPoints.end, button: 'left', buttons: 1 })
+      await send('Input.dispatchMouseEvent', { type: 'mouseReleased', ...dragPoints.end, button: 'left', clickCount: 1 })
+      await delay(220)
+    }
+    const markerAfterDrag = await evaluate(`document.querySelector(${JSON.stringify(batchMarker)})?.getAttribute('aria-valuenow')??null`)
+    const bodyAfterDrag = await focusInput('Batch Size')
+    check('Break-even Batch Size marker remains draggable and writes the same value to the Economic input', Boolean(dragPoints && markerAfterDrag && markerAfterDrag !== '28' && bodyAfterDrag === markerAfterDrag), { dragPoints, markerAfterDrag, bodyAfterDrag })
+
+    const finiteOutputs = await evaluate(`(()=>[...document.querySelectorAll('div[aria-label="Economic and Business"] [role="group"][aria-label]')].filter(group=>['Parameter Saving / Unit','Required Saving / Unit','Economic Margin / Unit','Operating Profit / Unit'].includes(group.getAttribute('aria-label'))).map(group=>({label:group.getAttribute('aria-label'),button:!!group.querySelector('button[data-selected-number]'),value:group.textContent.trim()})))()`)
+    check('Finite Economic outcomes use shared SelectedNumber inspection behavior', Boolean(finiteOutputs.length === 4 && finiteOutputs.every(output => output.button)), finiteOutputs)
+    const breakEvenOutput = await evaluate(`(()=>{const group=document.querySelector('[role="group"][aria-label="Break-even Quantity"]');return group?{button:!!group.querySelector('button[data-selected-number]'),text:group.textContent.trim()}:null})()`)
+    check('Break-even Quantity selects only a finite safe integer and keeps Not achieved unavailable', Boolean(breakEvenOutput && (breakEvenOutput.button
+      ? /^\d+(?:,\d{3})*(?:\s|$)/.test(breakEvenOutput.text)
+      : /Not achieved|—/.test(breakEvenOutput.text))), breakEvenOutput)
+    if (finiteOutputs[1]?.button) {
+      const requiredSaving = '[role="group"][aria-label="Required Saving / Unit"] button[data-selected-number]'
+      const outcomePreview = await hoverSelectedNumber(requiredSaving)
+      check('Economic Outcome direct hover previews with the shared delay', Boolean(outcomePreview?.kind === 'output' && outcomePreview.value !== '—'), { outcomePreview })
+      await clickSelector(requiredSaving)
+      check('Economic Outcome pins through the shared SelectedNumber control', await evaluate(`document.querySelector(${JSON.stringify(requiredSaving)})?.getAttribute('aria-pressed')`) === 'true')
+      await clickSelector(requiredSaving)
+    }
+
+    const afterTrigger = await evaluate(`([...document.querySelectorAll('button[aria-label^="After dataset,"]')].find(button=>button.getClientRects().length)?.getAttribute('aria-label'))`)
+    await clickSelector(`button[aria-label=${JSON.stringify(afterTrigger)}]`)
+    await clickComparisonOption('After', 'Custom')
+    await waitVisible('button[aria-label="After dataset, Custom"]', 'Custom After comparison role')
+    const unavailableCustomCells = await evaluate(`(()=>[...document.querySelectorAll('[data-simulation-result-body] td')].filter(cell=>cell.textContent.trim()==='—').map(cell=>({label:cell.closest('tr')?.querySelector('th[scope="row"]')?.textContent.trim()??null,selectable:!!cell.querySelector('button[data-selected-number]')})))()`)
+    check('Unavailable Custom Result values remain non-selectable', unavailableCustomCells.length > 0 && unavailableCustomCells.every(cell => !cell.selectable), unavailableCustomCells)
+    await screenshot('simulation-round4b-selected-value')
+  } else {
   let routingReferenceYieldBaseline = null
   if (!finalCorrectionsOnly) {
     await clickRole('Reference')
@@ -1373,6 +1560,7 @@ try {
       }
     }
   }
+  if (!selectedValueOnly) {
   await setViewport(1024, 768)
   await evaluate('(()=>window.scrollTo({top:0,left:0,behavior:"instant"}))()')
   const tabletLayout = await evaluate(`(()=>({
@@ -1381,13 +1569,15 @@ try {
   }))()`)
   check('Simulation 1024x768 keeps both tables visible in the page layout without horizontal overflow',
     tabletLayout.documentWidth <= 1025 && tabletLayout.sections.length === 2 && tabletLayout.sections.every(section => section.visible && section.left >= 0 && section.right <= 1025 && section.expanded === 'true'), tabletLayout)
+  }
   await setViewport(1440, 900)
+  }
 
   check('Browser page produced no console errors or uncaught exceptions', browserErrors.length === 0, browserErrorDetails)
   process.stdout.write(`Evidence screenshots: ${evidenceDir}\n`)
   process.stdout.write(`Browser URL: ${baseUrl}\n`)
   const failed = results.filter(result => !result.passed)
-  process.stdout.write(`${finalCorrectionsOnly ? 'Final corrections' : numericLayoutOnly ? 'Numeric layout' : visibleTotalsOnly ? 'Visible totals' : rulerOnly ? 'Ruler' : 'Round 4A'} browser checks: ${results.length - failed.length}/${results.length} PASS; exit=${failed.length ? 1 : 0}\n`)
+  process.stdout.write(`${selectedValueOnly ? 'Round 4B Selected Value' : finalCorrectionsOnly ? 'Final corrections' : numericLayoutOnly ? 'Numeric layout' : visibleTotalsOnly ? 'Visible totals' : rulerOnly ? 'Ruler' : 'Round 4A'} browser checks: ${results.length - failed.length}/${results.length} PASS; exit=${failed.length ? 1 : 0}\n`)
   if (failed.length) process.exitCode = 1
 } finally {
   if (client && client.readyState < WebSocket.CLOSING) client.close()

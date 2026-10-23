@@ -20,6 +20,7 @@ import type {
 import { Tooltip } from '../../shared/ui/Tooltip'
 import { COMPARISON_ROLE_LABELS, ComparisonRoleSelector } from '../../shared/ui/ComparisonRoleSelector'
 import { BusinessNumber } from '../../shared/ui/BusinessNumber'
+import { SelectedNumber } from '../../shared/ui/selected-value'
 import { formatBusinessNumber } from '../../shared/ui/numeric-display'
 import { NumericInput } from '../../shared/ui/NumericInput'
 import { NumericColumnHeader } from '../../shared/ui/NumericColumnHeader'
@@ -37,6 +38,7 @@ import { calculateParameterSimulation } from './simulation-engine'
 import { simulationParameterStatus, simulationWorkingTargetKey, type SimulationDatasetView, type SimulationParameter } from './simulation-state'
 
 interface SimulationPageProps {
+  productId: string
   state: SimulationDatasetView
   workingSelection: string[]
   analysisBeforeDataset: SimulationDatasetView
@@ -72,10 +74,6 @@ type EffectValues = ReturnType<typeof calculateMultiplicativeCostAttribution>
 
 function displayMoney(value: number | null, numericColumn = false) {
   return <BusinessNumber value={value} numericColumn={numericColumn} />
-}
-
-function displayResultDelta(value: number | null, percent = false) {
-  return <BusinessNumber value={value} signPositive percent={percent} numericColumn />
 }
 
 type ResultSemantic = 'cost' | 'neutral' | 'profit'
@@ -1091,6 +1089,7 @@ function SimulationParameterTable({
 }
 
 function ResultPanel({
+  selectionContext,
   beforeRole,
   afterRole,
   beforeCost,
@@ -1100,6 +1099,7 @@ function ResultPanel({
   onChangeComparison,
   actions
 }: {
+  selectionContext: string
   beforeRole: MasterDataRole
   afterRole: MasterDataRole
   beforeCost: SnapshotCost
@@ -1136,6 +1136,7 @@ function ResultPanel({
   const renderRows = (items: typeof costRows | typeof formattedBusinessRows) => items.map(row => {
     const subtotal = 'subtotal' in row && row.subtotal
     const padding = subtotal ? 'py-0.5' : 'py-px'
+    const sourceId = (column: string) => `simulation:${selectionContext}:result:${row.label}:${column}`
     return (
       <tr key={row.label} className={
         'total' in row && row.total
@@ -1145,13 +1146,19 @@ function ResultPanel({
             : 'text-slate-700'
       }>
         <th scope="row" className={`whitespace-nowrap ${padding} text-left`}>{row.label}</th>
-        <td className={`whitespace-nowrap px-px ${padding} text-right font-mono tabular-nums`}>{displayMoney(row.before, true)}</td>
-        <td className={`whitespace-nowrap px-px ${padding} text-right font-mono tabular-nums`}>{displayMoney(row.after, true)}</td>
+        <td className={`whitespace-nowrap px-px ${padding} text-right font-mono tabular-nums`}>
+          <SelectedNumber value={row.before} numericColumn selectionId={sourceId('before')} aria-label={`${row.label} Before`} />
+        </td>
+        <td className={`whitespace-nowrap px-px ${padding} text-right font-mono tabular-nums`}>
+          <SelectedNumber value={row.after} numericColumn selectionId={sourceId('after')} aria-label={`${row.label} After`} />
+        </td>
         <td className={`px-0.5 ${padding} text-right font-mono tabular-nums ${resultChangeClass(row.change, row.semantic)}`}>
-          {displayResultDelta(row.change)}
+          <SelectedNumber value={row.change} signPositive numericColumn selectionId={sourceId('change')} aria-label={`${row.label} Change`} />
         </td>
         <td className={`${padding} text-right font-mono tabular-nums ${resultChangeClass(row.percent === null ? null : row.change, row.semantic)}`}>
-          {row.percent === null ? '—' : displayResultDelta(row.percent, true)}
+          {row.percent === null ? '—' : (
+            <SelectedNumber value={row.percent} percentage signPositive numericColumn selectionId={sourceId('percent')} aria-label={`${row.label} percent change`} />
+          )}
         </td>
       </tr>
     )
@@ -1232,6 +1239,7 @@ function createStory(effectiveDatasets: Record<MasterDataRole, SimulationDataset
 }
 
 export const SimulationPage: React.FC<SimulationPageProps> = ({
+  productId,
   state,
   workingSelection,
   analysisBeforeDataset,
@@ -1286,6 +1294,8 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
   }
 
   const unit = resolveSimulationCostUnit(analysisBeforeDataset.snapshot, analysisAfterDataset.snapshot)
+  const resultSelectionContext = `${productId}:comparison:${analysisBeforeDataset.role}:${analysisBeforeDataset.snapshot.id}:${analysisAfterDataset.role}:${analysisAfterDataset.snapshot.id}`
+  const economicSelectionContext = `${productId}:economic:${analysisAfterDataset.role}:${analysisAfterDataset.snapshot.id}`
 
   const actionMenus = (
     <>
@@ -1312,6 +1322,7 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
         <SimulationStoryGraph story={story} unit={unit} activeRole={state.role} onSelectActiveDataset={onSelectActiveDataset} />
         <div data-simulation-layout-column="result-and-break-even" className="grid min-w-0 gap-2 xl:min-h-0 xl:grid-rows-[auto_minmax(0,1fr)]">
           <ResultPanel
+            selectionContext={resultSelectionContext}
             beforeRole={analysisBeforeDataset.role}
             afterRole={analysisAfterDataset.role}
             beforeCost={analysisResult.beforeCost}
@@ -1324,12 +1335,15 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
           <EconomicBreakEvenGraphPanel
             result={economicResult}
             unit={unit}
+            batchSizeExactValue={analysisAfterDataset.economicInputs.batchSize}
+            selectionContext={economicSelectionContext}
             onBatchSizeChange={value => onUpdateEconomicInput(analysisAfterDataset.role, 'batchSize', value)}
             onBeginEdit={() => onBeginEdit(analysisAfterDataset.role)}
             onCommitEdit={onCommitEdit}
           />
         </div>
         <EconomicSimulationPanel
+          selectionContext={economicSelectionContext}
           result={economicResult}
           draft={analysisAfterDataset.economicInputs}
           afterSnapshot={analysisAfterDataset.snapshot}

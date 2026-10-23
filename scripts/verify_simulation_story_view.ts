@@ -18,6 +18,10 @@ try {
   const { SimulationStoryGraph, buildVisibleStack, buildVisibleStandardCost, buildGraphScale, positionGraphTooltip,
     positionGapTotalLabel, WIDE_GRAPH_LABEL_METRICS, NARROW_GRAPH_LABEL_METRICS } = await vite.ssrLoadModule('/src/features/simulation/SimulationStoryGraph.tsx')
   const { SimulationPage } = await vite.ssrLoadModule('/src/features/simulation/SimulationPage.tsx')
+  const { SelectedValueProvider } = await vite.ssrLoadModule('/src/shared/ui/selected-value.tsx')
+  const renderWithSelectedValueProvider = (element: React.ReactNode) => renderToStaticMarkup(
+    React.createElement(SelectedValueProvider, { scopeKey: 'simulation-story-view-verifier' }, element)
+  )
   const { parameterEffectPresentation } = await vite.ssrLoadModule('/src/features/simulation/parameter-effect-presentation.ts')
 
   assert.deepEqual(parameterEffectPresentation(2.35), { text: '+2.35', className: 'text-rose-700' },
@@ -759,7 +763,8 @@ try {
     const renderPage = (workspace: typeof fresh) => {
       const effectiveDatasets = effectiveDatasetsFor(workspace)
       const active = effectiveDatasets[workspace.activeDataset]
-      return renderToStaticMarkup(React.createElement(SimulationPage, {
+      return renderWithSelectedValueProvider(React.createElement(SimulationPage, {
+        productId: 'simulation-story-view-fixture',
         state: active,
         workingSelection: active.workingSelection,
         analysisBeforeDataset: effectiveDatasets[workspace.comparisonBefore],

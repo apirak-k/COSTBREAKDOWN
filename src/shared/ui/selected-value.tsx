@@ -18,6 +18,8 @@ export type SelectedValueSource = SelectedValueBase & (
     editable: true
     domain: NumericInputDomain
     onValueChange: (value: number | null, exactValue?: string) => void
+    onBeginEdit?: () => void
+    onCommitEdit?: () => void
     allowSubMinimumDraft?: boolean
     stopAtMinimum?: boolean
   }

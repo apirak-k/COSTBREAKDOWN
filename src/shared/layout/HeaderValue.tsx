@@ -33,7 +33,9 @@ export function HeaderValue({ inDialog = false }: { inDialog?: boolean }) {
             showStepper
             stepperButtonClassName={inDialog ? undefined : '!text-slate-200 hover:!text-white'}
             data-selected-value-source={selection.id}
+            onFocus={() => selection.onBeginEdit?.()}
             onBlur={event => {
+              selection.onCommitEdit?.()
               const sourceId = event.relatedTarget instanceof Element
                 ? event.relatedTarget.getAttribute('data-selected-value-source')
                 : null

@@ -14,19 +14,22 @@ const vite = await createServer({
 
 let panelModule: any
 let economicsModule: any
-let numericInputModule: any
+let selectedValueModule: any
 try {
-  ;[panelModule, economicsModule, numericInputModule] = await Promise.all([
+  ;[panelModule, economicsModule, selectedValueModule] = await Promise.all([
     vite.ssrLoadModule('/src/features/simulation/EconomicSimulationPanel.tsx'),
     vite.ssrLoadModule('/src/features/simulation/simulation-economics.ts'),
-    vite.ssrLoadModule('/src/shared/ui/NumericInput.tsx')
+    vite.ssrLoadModule('/src/shared/ui/selected-value.tsx')
   ])
 } finally {
   await vite.close()
 }
 
 const { EconomicBreakEvenGraphPanel, EconomicSimulationPanel } = panelModule
-const { NumericInput } = numericInputModule
+const { SelectedValueProvider } = selectedValueModule
+const renderWithSelectedValueProvider = (element: React.ReactNode) => renderToStaticMarkup(
+  React.createElement(SelectedValueProvider, { scopeKey: 'simulation-economics-verifier' }, element)
+)
 const { calculateEconomicSimulation, createEconomicSimulationDraft, updateEconomicSimulationDraft } = economicsModule
 const assertClose = (actual: number | null, expected: number, label: string) => {
   assert.ok(actual !== null && Math.abs(actual - expected) < 1e-12,
@@ -41,18 +44,21 @@ const withInputs = (fields: Record<string, string>) => Object.entries(fields).re
   createEconomicSimulationDraft()
 )
 const renderPanel = (result: ReturnType<typeof calculateEconomicSimulation>, draft = createEconomicSimulationDraft(currentSnapshot)) => [
-  renderToStaticMarkup(React.createElement(EconomicSimulationPanel, {
+  renderWithSelectedValueProvider(React.createElement(EconomicSimulationPanel, {
     result,
     draft,
     afterSnapshot: currentSnapshot,
     unit: 'PC',
+    selectionContext: 'verifier:current:snapshot',
     onUpdate() {},
     onBeginEdit() {},
     onCommitEdit() {}
   })),
-  renderToStaticMarkup(React.createElement(EconomicBreakEvenGraphPanel, {
+  renderWithSelectedValueProvider(React.createElement(EconomicBreakEvenGraphPanel, {
     result,
     unit: 'PC',
+    batchSizeExactValue: result.batchSize === null ? '' : String(result.batchSize),
+    selectionContext: 'verifier:current:snapshot',
     onBatchSizeChange() {},
     onBeginEdit() {},
     onCommitEdit() {}
@@ -251,15 +257,15 @@ const fractionalPoint = fractionalMarkup.match(/aria-label="Break-even Quantity:
 assert.ok(fractionalPoint, 'precise intersection remains accessible')
 const expectedPointX = 52 + (higherVariableCost.preciseBreakEvenQuantity / (higherVariableCost.preciseBreakEvenQuantity * 1.12)) * (544 - 52)
 assert.equal(Number(fractionalPoint[1]), expectedPointX, 'intersection geometry uses precise quantity rather than rounded threshold')
-const customUnitMarkup = renderToStaticMarkup(React.createElement(EconomicSimulationPanel, {
-  result: baseResult, draft: worked, afterSnapshot: currentSnapshot, unit: 'KG', onUpdate() {}, onBeginEdit() {}, onCommitEdit() {}
+const customUnitMarkup = renderWithSelectedValueProvider(React.createElement(EconomicSimulationPanel, {
+  result: baseResult, draft: worked, afterSnapshot: currentSnapshot, unit: 'KG', selectionContext: 'verifier:current:snapshot', onUpdate() {}, onBeginEdit() {}, onCommitEdit() {}
 }))
 assert.match(customUnitMarkup, /<span>THB\/KG<\/span>/, 'Outcome uses the resolved dynamic product UOM')
 assert.match(customUnitMarkup, /aria-label="Break-even Quantity"[^>]*>[\s\S]*?>2500 KG<\/span>/,
   'Economic Outcome quantity uses the resolved dynamic product UOM')
 for (const [unit, resolvedUnit] of [['KG', 'KG'], ['   ', 'Unit']]) {
-  const graph = renderToStaticMarkup(React.createElement(EconomicBreakEvenGraphPanel, {
-    result: baseResult, unit, onBatchSizeChange() {}, onBeginEdit() {}, onCommitEdit() {}
+  const graph = renderWithSelectedValueProvider(React.createElement(EconomicBreakEvenGraphPanel, {
+    result: baseResult, unit, batchSizeExactValue: '5000', selectionContext: 'verifier:current:snapshot', onBatchSizeChange() {}, onBeginEdit() {}, onCommitEdit() {}
   }))
   assert.ok(graph.includes(`(2,500 ${resolvedUnit})`), 'graph heading uses the resolved UOM or Unit fallback')
   assert.ok(graph.includes(`>QTY (${resolvedUnit})</text>`), 'QTY uses the resolved UOM or Unit fallback')
@@ -298,6 +304,19 @@ for (const [label, value] of [
   assert.doesNotMatch(input, /placeholder="Current"/, `${label} does not use a Current placeholder`)
 }
 assert.doesNotMatch(initialMarkup, /placeholder="Current"/, 'business defaults are visible values rather than placeholder text')
+for (const [label, min, max, integer] of [
+  ['Fixed Action Cost', '0', null, false],
+  ['Variable Action Cost / Unit', '0', null, false],
+  ['Batch Size', '1', null, true],
+  ['Selling Price', '0', null, false],
+  ['SG&amp;A %', '0', '100', false]
+] as const) {
+  const input = renderedInput(label)
+  assert.ok(input.includes(`aria-valuemin="${min}"`), `${label} keeps its rendered minimum domain`)
+  if (max === null) assert.doesNotMatch(input, /aria-valuemax=/, `${label} has no added maximum domain`)
+  else assert.ok(input.includes(`aria-valuemax="${max}"`), `${label} keeps its rendered maximum domain`)
+  assert.ok(input.includes(`inputMode="${integer ? 'numeric' : 'decimal'}"`), `${label} keeps its ${integer ? 'integer' : 'decimal'} input mode`)
+}
 const blankBusinessDraft = { ...initialDraft, sellingPriceOverride: '', sgaPercentOverride: '' }
 const blankBusinessMarkup = renderPanel(calculateEconomicSimulation(currentSnapshot, simulationCost, null, blankBusinessDraft), blankBusinessDraft)
 for (const [label, value] of [['Selling Price', '250.00'], ['SG&amp;A %', '8.00']]) {
@@ -305,22 +324,6 @@ for (const [label, value] of [['Selling Price', '250.00'], ['SG&amp;A %', '8.00'
   assert.ok(input.includes(`value="${value}"`), `${label} blank semantics continue displaying the Current value`)
 }
 
-const panelTree = EconomicSimulationPanel({
-  result: calculateEconomicSimulation(currentSnapshot, simulationCost, null, initialDraft),
-  draft: initialDraft,
-  afterSnapshot: currentSnapshot,
-  unit: 'PC',
-  onUpdate() {},
-  onBeginEdit() {},
-  onCommitEdit() {}
-})
-function collectNumericInputs(node: any): any[] {
-  if (Array.isArray(node)) return node.flatMap(collectNumericInputs)
-  if (!React.isValidElement(node)) return []
-  const current = node.type === NumericInput ? [node.props] : []
-  return [...current, ...collectNumericInputs(node.props.children)]
-}
-const economicInputProps = new Map(collectNumericInputs(panelTree).map(props => [props['aria-label'], props]))
 const stepCases = [
   ['Fixed Action Cost', 2, [2, 1, 0, null]],
   ['Variable Action Cost / Unit', 2, [2, 1, 0, null]],
@@ -329,19 +332,15 @@ const stepCases = [
   ['SG&A %', 2, [2, 1, 0, null]]
 ] as const
 for (const [label, start, expected] of stepCases) {
-  const input = economicInputProps.get(label)
-  assert.ok(input, `${label} uses a Simulation numeric input`)
-  assert.equal(input.stopAtMinimum, undefined, `${label} does not stop at its minimum`)
-  assert.equal(input.min, label === 'Batch Size' ? 1 : 0, `${label} retains its valid minimum`)
-  assert.equal(Boolean(input.integer), label === 'Batch Size', `${label} retains its integer rule`)
+  const integer = label === 'Batch Size'
+  const min = integer ? 1 : 0
   const sequence: Array<number | null> = [start]
   let value: number | null = start
   while (value !== null && sequence.length < expected.length) {
     value = stepNumericValue(value, -1, 1, {
-      min: input.min,
-      max: input.max,
-      integer: input.integer,
-      precision: input.precision
+      min,
+      integer,
+      precision: integer ? 0 : 2
     })
     sequence.push(value)
   }

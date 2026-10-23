@@ -5,6 +5,8 @@ import type { CostSnapshot } from '../../core/types'
 import { BusinessNumber } from '../../shared/ui/BusinessNumber'
 import { formatBusinessNumber } from '../../shared/ui/numeric-display'
 import { NumericInput } from '../../shared/ui/NumericInput'
+import type { NumericInputProps } from '../../shared/ui/NumericInput'
+import { SelectedNumber, useSelectedValueSource } from '../../shared/ui/selected-value'
 import { SimulationHistoryInputBoundary } from './SimulationHistoryInputBoundary'
 import type { EconomicSimulationDraft, EconomicSimulationResult, EconomicSimulationField } from './simulation-economics'
 
@@ -18,6 +20,49 @@ interface EconomicSimulationPanelProps {
   onUpdate: (field: EconomicSimulationField, value: string) => void
   onBeginEdit: () => void
   onCommitEdit: () => void
+  selectionContext: string
+}
+
+interface EconomicNumericInputProps extends NumericInputProps {
+  selectionId: string
+  onBeginEdit: () => void
+  onCommitEdit: () => void
+}
+
+function EconomicNumericInput({ selectionId, onBeginEdit, onCommitEdit, onValueChange, ...inputProps }: EconomicNumericInputProps) {
+  const source = useSelectedValueSource({
+    value: inputProps.value,
+    exactValue: inputProps.exactValue,
+    editable: true,
+    domain: {
+      integer: inputProps.integer,
+      min: inputProps.min,
+      max: inputProps.max,
+      minExclusive: inputProps.minExclusive
+    },
+    onValueChange,
+    onBeginEdit,
+    onCommitEdit,
+    allowSubMinimumDraft: inputProps.allowSubMinimumDraft,
+    stopAtMinimum: inputProps.stopAtMinimum
+  }, selectionId)
+
+  return (
+    <NumericInput
+      {...inputProps}
+      onValueChange={onValueChange}
+      data-selected-value-source={selectionId}
+      onPointerEnter={source.preview}
+      onPointerLeave={source.clearPreview}
+      onFocus={source.focus}
+      onBlur={event => {
+        const nextSourceId = event.relatedTarget instanceof Element
+          ? event.relatedTarget.getAttribute('data-selected-value-source')
+          : null
+        if (nextSourceId !== selectionId) source.blur()
+      }}
+    />
+  )
 }
 
 function formatValue(value: number | null): string {
@@ -48,11 +93,19 @@ function effectiveInputValue(
 function BreakEvenGraph({
   result,
   unit,
-  onBatchSizeChange
+  onBatchSizeChange,
+  batchSizeExactValue,
+  selectionContext,
+  onBeginEdit,
+  onCommitEdit
 }: {
   result: EconomicSimulationResult
   unit: string
   onBatchSizeChange: (value: string) => void
+  batchSizeExactValue: string
+  selectionContext: string
+  onBeginEdit: () => void
+  onCommitEdit: () => void
 }) {
   const [markerFocused, setMarkerFocused] = useState(false)
   const [dragScaleMax, setDragScaleMax] = useState<number | null>(null)
@@ -114,6 +167,16 @@ function BreakEvenGraph({
   const finiteBreakEvenValue = breakEvenValue !== null && Number.isFinite(breakEvenValue) ? breakEvenValue : null
   const markerX = batchSize === null ? null : toX(batchSize)
   const batchMax = Math.min(Number.MAX_SAFE_INTEGER, Math.max(1, Math.ceil(xMax)))
+  const markerSourceId = `simulation:${selectionContext}:break-even:batch-size-marker`
+  const markerSource = useSelectedValueSource({
+    value: batchSize,
+    exactValue: batchSizeExactValue,
+    editable: true,
+    domain: { integer: true, min: 1, max: batchMax },
+    onValueChange: (value, exactValue) => onBatchSizeChange(exactValue ?? (value === null ? '' : String(value))),
+    onBeginEdit,
+    onCommitEdit
+  }, markerSourceId)
 
   const getPointerSvgX = (event: PointerEvent<SVGGElement>) => {
     const svg = event.currentTarget.ownerSVGElement
@@ -226,6 +289,7 @@ function BreakEvenGraph({
           <g
             role="slider"
             tabIndex={0}
+            data-selected-value-source={markerSourceId}
             aria-label="Batch Size"
             aria-orientation="horizontal"
             aria-valuemin={1}
@@ -242,6 +306,8 @@ function BreakEvenGraph({
               dragStartRef.current = { pointerId: event.pointerId, pointerRatio: (pointerX - plot.left) / plotWidth, batchSize, xMax }
               setDragScaleMax(xMax)
             }}
+            onPointerEnter={markerSource.preview}
+            onPointerLeave={markerSource.clearPreview}
             onPointerMove={updateBatchFromPointer}
             onPointerUp={event => {
               updateBatchFromPointer(event)
@@ -255,8 +321,17 @@ function BreakEvenGraph({
               if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId)
             }}
             onKeyDown={handleBatchKeyDown}
-            onFocus={() => setMarkerFocused(true)}
-            onBlur={() => setMarkerFocused(false)}
+            onFocus={() => {
+              setMarkerFocused(true)
+              markerSource.focus()
+            }}
+            onBlur={event => {
+              setMarkerFocused(false)
+              const nextSourceId = event.relatedTarget instanceof Element
+                ? event.relatedTarget.getAttribute('data-selected-value-source')
+                : null
+              if (nextSourceId !== markerSourceId) markerSource.blur()
+            }}
             className="cursor-ew-resize touch-none outline-none focus-visible:outline-none"
           >
             <line x1={markerX} x2={markerX} y1={plot.top} y2={plot.bottom} stroke="transparent" strokeWidth="12" pointerEvents="stroke" />
@@ -280,24 +355,36 @@ function BreakEvenGraph({
 export function EconomicBreakEvenGraphPanel({
   result,
   unit,
+  batchSizeExactValue,
+  selectionContext,
   onBatchSizeChange,
   onBeginEdit,
   onCommitEdit
 }: {
   result: EconomicSimulationResult
   unit: string
+  batchSizeExactValue: string
+  selectionContext: string
   onBatchSizeChange: (value: string) => void
   onBeginEdit: () => void
   onCommitEdit: () => void
 }) {
   return (
     <SimulationHistoryInputBoundary onBegin={onBeginEdit} onCommit={onCommitEdit}>
-      <BreakEvenGraph result={result} unit={unit.trim() || 'Unit'} onBatchSizeChange={onBatchSizeChange} />
+      <BreakEvenGraph
+        result={result}
+        unit={unit.trim() || 'Unit'}
+        onBatchSizeChange={onBatchSizeChange}
+        batchSizeExactValue={batchSizeExactValue}
+        selectionContext={selectionContext}
+        onBeginEdit={onBeginEdit}
+        onCommitEdit={onCommitEdit}
+      />
     </SimulationHistoryInputBoundary>
   )
 }
 
-export function EconomicSimulationPanel({ result, draft, afterSnapshot, unit, onUpdate, onBeginEdit, onCommitEdit }: EconomicSimulationPanelProps) {
+export function EconomicSimulationPanel({ result, draft, afterSnapshot, unit, onUpdate, onBeginEdit, onCommitEdit, selectionContext }: EconomicSimulationPanelProps) {
   const normalizedUnit = unit.trim() || 'Unit'
   const inputs: Array<{
     field: EconomicSimulationField
@@ -353,7 +440,9 @@ export function EconomicSimulationPanel({ result, draft, afterSnapshot, unit, on
     label: 'Break-even Quantity',
     ariaLabel: 'Break-even Quantity',
     formula: 'Fixed Action Cost ÷ (Parameter Saving / Unit − Variable Action Cost / Unit)',
-    value: null,
+    value: !result.breakEvenNotAchievable && result.breakEvenQuantity !== null && Number.isSafeInteger(result.breakEvenQuantity)
+      ? result.breakEvenQuantity
+      : null,
     displayValue: result.breakEvenNotAchievable ? 'Not achieved' : result.breakEvenQuantity === null || !Number.isSafeInteger(result.breakEvenQuantity) ? '—' : `${formatBusinessNumber(result.breakEvenQuantity, { integer: true })} ${normalizedUnit}`,
     className: 'text-slate-600'
   })
@@ -367,7 +456,10 @@ export function EconomicSimulationPanel({ result, draft, afterSnapshot, unit, on
                 <span>{label}<span className="ml-1 font-normal text-slate-500">{fieldUnit}</span></span>
                 <span className="w-full min-w-0">
                   <SimulationHistoryInputBoundary onBegin={onBeginEdit} onCommit={onCommitEdit}>
-                    <NumericInput
+                    <EconomicNumericInput
+                      selectionId={`simulation:${selectionContext}:input:${field}`}
+                      onBeginEdit={onBeginEdit}
+                      onCommitEdit={onCommitEdit}
                       value={effectiveInputValue(field, draft, afterSnapshot)}
                       min={min}
                       max={max}
@@ -391,7 +483,10 @@ export function EconomicSimulationPanel({ result, draft, afterSnapshot, unit, on
                 <span>{label}<span className="ml-1 font-normal text-slate-500">{fieldUnit}</span></span>
                 <span className="w-full min-w-0">
                   <SimulationHistoryInputBoundary onBegin={onBeginEdit} onCommit={onCommitEdit}>
-                    <NumericInput
+                    <EconomicNumericInput
+                      selectionId={`simulation:${selectionContext}:input:${field}`}
+                      onBeginEdit={onBeginEdit}
+                      onCommitEdit={onCommitEdit}
                       value={effectiveInputValue(field, draft, afterSnapshot)}
                       integer={integer}
                       min={min}
@@ -415,7 +510,15 @@ export function EconomicSimulationPanel({ result, draft, afterSnapshot, unit, on
               {economicOutputs.map(({ label, ariaLabel, formula, value, displayValue, className }) => (
                 <div key={label} role="group" aria-label={ariaLabel} className={`flex min-w-0 items-baseline justify-between gap-1 py-0.5 xl:py-0 ${label === 'Break-even Quantity' || label === 'Operating Profit' ? 'mt-1 border-t border-slate-200 pt-1' : ''}`} title={formula}>
                   <span className="text-[9px] text-slate-600">{label}</span>
-                  <span className={`shrink-0 font-mono text-[10px] font-semibold tabular-nums ${className}`}>{displayValue ?? <BusinessNumber value={value} />}</span>
+                  <SelectedNumber
+                    value={value}
+                    integer={label === 'Break-even Quantity'}
+                    selectionId={`simulation:${selectionContext}:outcome:${label}`}
+                    className={`shrink-0 font-mono text-[10px] font-semibold tabular-nums ${className}`}
+                    aria-label={ariaLabel}
+                  >
+                    {displayValue ?? <BusinessNumber value={value} integer={label === 'Break-even Quantity'} />}
+                  </SelectedNumber>
                 </div>
               ))}
             </div>

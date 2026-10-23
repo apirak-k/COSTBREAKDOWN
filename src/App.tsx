@@ -470,6 +470,7 @@ const AppRouter: React.FC = () => {
         <div hidden={activeTab !== 'simulation'} className={activeTab === 'simulation' ? 'xl:flex xl:h-full xl:min-h-0 xl:min-w-0 xl:flex-col' : undefined}>
           <SimulationPage
             key={activeProductId}
+            productId={activeProductId}
             state={activeSimulationDataset}
             workingSelection={activeSimulationDataset.workingSelection}
             analysisBeforeDataset={analysisBeforeDataset}

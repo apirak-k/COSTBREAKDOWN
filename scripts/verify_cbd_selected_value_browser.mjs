@@ -1317,7 +1317,7 @@ try {
   verify(finalConsole.length === 0, 'browser has no uncaught runtime exceptions, console errors, or warnings', finalConsole)
   process.stdout.write(`\nEvidence directory: ${evidenceDir}\n`)
   process.stdout.write(`Browser: ${baseUrl} in isolated Chrome; exercised Reference → Current, Current → Custom, Custom → Reference at 1440/1024/768/390/320px.\n`)
-  process.stdout.write('Active no-focus callers covered: Master Data Selling Price and SG&A; source inventory found no SelectedNumber callers in Simulation.\n')
+  process.stdout.write('This regression covers Cost Breakdown values, Candidate values, and the Master Data Selling Price and SG&A no-focus sources.\n')
   process.stdout.write(`Checks: ${checks.filter(check => check.passed).length}/${checks.length} passed.\n`)
 } catch (error) {
   process.stderr.write(`\nEvidence directory: ${evidenceDir}\n`)
