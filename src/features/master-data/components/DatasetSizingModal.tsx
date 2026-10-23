@@ -51,8 +51,8 @@ export const DatasetSizingModal: React.FC<DatasetSizingModalProps> = ({
 
   const [productName, setProductName] = useState(product.productName || '')
   const [uom, setUom] = useState(product.uom || '')
-  const [sellingPrice, setSellingPrice] = useState(product.sellingPrice == null ? '' : String(product.sellingPrice))
-  const [sgaPercent, setSgaPercent] = useState(product.sgaPercent == null ? '' : String(product.sgaPercent))
+  const [sellingPrice, setSellingPrice] = useState(product.exactDecimalInputs?.sellingPrice ?? (product.sellingPrice == null ? '' : String(product.sellingPrice)))
+  const [sgaPercent, setSgaPercent] = useState(product.exactDecimalInputs?.sgaPercent ?? (product.sgaPercent == null ? '' : String(product.sgaPercent)))
   const [remark, setRemark] = useState(snapshot.remark || '')
   const [sizingError, setSizingError] = useState('')
   const dialogRef = useDialogFocus(isOpen, onClose)
@@ -63,8 +63,8 @@ export const DatasetSizingModal: React.FC<DatasetSizingModalProps> = ({
     setRoutingCount(currentCount(currentSizing.routingCount, snapshot.routing.length))
     setProductName(product.productName || '')
     setUom(product.uom || '')
-    setSellingPrice(product.sellingPrice == null ? '' : String(product.sellingPrice))
-    setSgaPercent(product.sgaPercent == null ? '' : String(product.sgaPercent))
+    setSellingPrice(product.exactDecimalInputs?.sellingPrice ?? (product.sellingPrice == null ? '' : String(product.sellingPrice)))
+    setSgaPercent(product.exactDecimalInputs?.sgaPercent ?? (product.sgaPercent == null ? '' : String(product.sgaPercent)))
     setRemark(snapshot.remark || '')
     setSizingError('')
   }, [currentSizing, product, snapshot.bom.length, snapshot.rates.length, snapshot.routing.length, snapshot.remark, isOpen])
@@ -90,13 +90,15 @@ export const DatasetSizingModal: React.FC<DatasetSizingModalProps> = ({
       productDescription: nextProductName,
       uom: uom.trim(),
       sellingPrice: parseOptionalNumber(sellingPrice, 'Selling Price', 'sellingPrice'),
-      sgaPercent: parseOptionalNumber(sgaPercent, 'SG&A', 'sgaPercent')
+      sgaPercent: parseOptionalNumber(sgaPercent, 'SG&A', 'sgaPercent'),
+      exactDecimalInputs: { ...product.exactDecimalInputs, sellingPrice, sgaPercent }
     }
     const previousProductFields = {
       productName: product.productName || '',
       uom: product.uom || '',
       sellingPrice: product.sellingPrice ?? null,
-      sgaPercent: product.sgaPercent ?? null
+      sgaPercent: product.sgaPercent ?? null,
+      exactDecimalInputs: product.exactDecimalInputs ?? {}
     }
     return { nextSizing, nextProduct, previousProductFields }
   }
@@ -118,6 +120,7 @@ export const DatasetSizingModal: React.FC<DatasetSizingModalProps> = ({
       }
       if (
         hasDatasetMetadataChanged(previousProductFields, nextProductFields) ||
+        JSON.stringify(previousProductFields.exactDecimalInputs) !== JSON.stringify(nextProduct.exactDecimalInputs ?? {}) ||
         product.productDescription !== nextProduct.productDescription
       ) {
         onUpdateProduct(nextProduct)
@@ -242,7 +245,8 @@ export const DatasetSizingModal: React.FC<DatasetSizingModalProps> = ({
                     id="dataset-sizing-selling-price"
                     aria-label="Selling Price (THB)"
                     value={sellingPrice === '' ? null : Number(sellingPrice)}
-                    onValueChange={value => { setSellingPrice(value === null ? '' : String(value)); setSizingError('') }}
+                    exactValue={sellingPrice}
+                    onValueChange={(value, exactValue) => { setSellingPrice(exactValue ?? (value === null ? '' : String(value))); setSizingError('') }}
                     selectionId={sizingValueSourceId('sizing-metadata', 'product', 'sellingPrice')}
                     {...getMasterDataNumericInputDomain('sellingPrice')}
                     className={`${metadataNumericEditorClass} [&+span]:right-1`}
@@ -257,7 +261,8 @@ export const DatasetSizingModal: React.FC<DatasetSizingModalProps> = ({
                     id="dataset-sizing-sga-percent"
                     aria-label="SG&A"
                     value={sgaPercent === '' ? null : Number(sgaPercent)}
-                    onValueChange={value => { setSgaPercent(value === null ? '' : String(value)); setSizingError('') }}
+                    exactValue={sgaPercent}
+                    onValueChange={(value, exactValue) => { setSgaPercent(exactValue ?? (value === null ? '' : String(value))); setSizingError('') }}
                     selectionId={sizingValueSourceId('sizing-metadata', 'product', 'sgaPercent')}
                     percentage
                     {...getMasterDataNumericInputDomain('sgaPercent')}

@@ -4,8 +4,12 @@ import { prepareSpreadsheetBatch } from '../src/features/master-data/hooks/useSp
 interface TestRow {
   id: string
   value: string
+  price?: number | null
+  loss?: number | null
+  consumption?: number | null
   note?: string
   isGeneratedSizingPlaceholder?: boolean
+  exactDecimalInputs?: Partial<Record<'price' | 'loss' | 'consumption', string>>
 }
 
 const rows: TestRow[] = [
@@ -47,5 +51,47 @@ const focusedSingleCellPaste = prepareSpreadsheetBatch(rows, [
 ])
 assert.deepEqual(focusedSingleCellPaste, [{ id: 'row-c', changes: { value: 'single value' } }],
   'single-cell paste updates only the focused row')
+
+const criticalDecimal = '123456789012345.123456789'
+const decimalRows: TestRow[] = [{
+  id: 'decimal-row',
+  value: 'old',
+  exactDecimalInputs: { price: '9.500', loss: '1.250' }
+}]
+const exactPaste = prepareSpreadsheetBatch(decimalRows, [
+  { id: 'decimal-row', changes: { price: Number(criticalDecimal) }, exactDecimalUpdates: { price: criticalDecimal } },
+  { id: 'decimal-row', changes: { consumption: Number('0.00000123456789'), note: 'same batch' }, exactDecimalUpdates: { consumption: '0.00000123456789' } }
+])
+assert.deepEqual(exactPaste[0].changes, {
+  price: Number(criticalDecimal),
+  consumption: Number('0.00000123456789'),
+  note: 'same batch',
+  exactDecimalInputs: { price: criticalDecimal, loss: '1.250', consumption: '0.00000123456789' }
+}, 'exact decimal sidecars merge with row edits and preserve other fields')
+const exactCut = prepareSpreadsheetBatch(decimalRows, [
+  { id: 'decimal-row', changes: { price: null }, exactDecimalUpdates: { price: null } }
+])
+assert.deepEqual(exactCut[0].changes.exactDecimalInputs, { loss: '1.250' },
+  'cutting a numeric field removes only that field exact sidecar')
+const clearLastExact = prepareSpreadsheetBatch(decimalRows, [
+  { id: 'decimal-row', changes: { price: null, loss: null }, exactDecimalUpdates: { price: null, loss: null } }
+])
+assert.equal(clearLastExact[0].changes.exactDecimalInputs, undefined,
+  'empty rows do not retain an empty exact decimal sidecar')
+const validPercentagePaste = prepareSpreadsheetBatch(decimalRows, [
+  { id: 'decimal-row', changes: { loss: 0.123456789 }, exactDecimalUpdates: { loss: '12.3456789' } }
+])
+assert.equal(validPercentagePaste[0].changes.exactDecimalInputs?.loss, '12.3456789',
+  'percentage inputs keep exact text while validating against their stored fractional value')
+const invalidDecimalPaste = prepareSpreadsheetBatch(decimalRows, [
+  { id: 'decimal-row', changes: { price: -1 }, exactDecimalUpdates: { price: '-1' } }
+])
+assert.equal(invalidDecimalPaste[0].changes.exactDecimalInputs, undefined,
+  'a rejected numeric paste cannot persist a mismatched exact sidecar')
+const invalidPercentagePaste = prepareSpreadsheetBatch(decimalRows, [
+  { id: 'decimal-row', changes: { loss: 1.2 }, exactDecimalUpdates: { loss: '120' } }
+])
+assert.equal(invalidPercentagePaste[0].changes.exactDecimalInputs, undefined,
+  'a rejected percentage paste cannot persist a mismatched exact sidecar')
 
 console.log('Master Data spreadsheet batch verification passed')

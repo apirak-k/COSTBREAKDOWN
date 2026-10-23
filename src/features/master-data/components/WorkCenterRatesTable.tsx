@@ -159,7 +159,9 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
       else if (cell.field === 'laborRate') changes = { laborRate: parseNumber(cell.value) }
       else if (cell.field === 'burdenRate') changes = { burdenRate: parseNumber(cell.value) }
       else if (cell.field === 'note') changes = { note: cell.value }
-      return changes ? [{ id: cell.rowId, changes }] : []
+      const exactField = ['laborRate', 'burdenRate'].includes(cell.field) ? cell.field : null
+      const exactText = exactField && cell.value.trim() !== '' ? cell.value.trim() : null
+      return changes ? [{ id: cell.rowId, changes, ...(exactField ? { exactDecimalUpdates: { [exactField]: exactText } } : {}) }] : []
     })
     applyPasteUpdates(updates)
     identityEditorDrafts.clearValues(cells.filter(cell => cell.field === 'workCenterCode').map(cell => cell.rowId))
@@ -172,7 +174,8 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
       else if (cell.field === 'laborRate') changes = { laborRate: null }
       else if (cell.field === 'burdenRate') changes = { burdenRate: null }
       else if (cell.field === 'note') changes = { note: '' }
-      return changes ? [{ id: cell.rowId, changes }] : []
+      const exactField = ['laborRate', 'burdenRate'].includes(cell.field) ? cell.field : null
+      return changes ? [{ id: cell.rowId, changes, ...(exactField ? { exactDecimalUpdates: { [exactField]: null } } : {}) }] : []
     })
     applyCutUpdates(updates)
     identityEditorDrafts.clearValues(cells.filter(cell => cell.field === 'workCenterCode').map(cell => cell.rowId))
@@ -422,7 +425,8 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
                       <div className="relative ml-auto w-full max-w-[8.5rem]">
                         <MasterDataNumericInput
                           value={rate.laborRate}
-                          onValueChange={value => applyCellUpdate(rate.id, { laborRate: value })}
+                          exactValue={rate.exactDecimalInputs?.laborRate}
+                          onValueChange={(value, exactValue) => applyCellUpdate(rate.id, { laborRate: value }, { field: 'laborRate', value: exactValue ?? null })}
                           selectionId={valueSourceId(rate.id, 'laborRate')}
                           {...getMasterDataNumericInputDomain('laborRate')}
                           reserveMarker
@@ -454,7 +458,8 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
                       <div className="relative ml-auto w-full max-w-[8.5rem]">
                         <MasterDataNumericInput
                           value={rate.burdenRate}
-                          onValueChange={value => applyCellUpdate(rate.id, { burdenRate: value })}
+                          exactValue={rate.exactDecimalInputs?.burdenRate}
+                          onValueChange={(value, exactValue) => applyCellUpdate(rate.id, { burdenRate: value }, { field: 'burdenRate', value: exactValue ?? null })}
                           selectionId={valueSourceId(rate.id, 'burdenRate')}
                           {...getMasterDataNumericInputDomain('burdenRate')}
                           reserveMarker

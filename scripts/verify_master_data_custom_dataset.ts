@@ -68,7 +68,7 @@ const savedCustomSession: ProductSession = {
     sizing: { bomCount: 4 },
     bom: [{
       id: 'custom-bom-1', itemCode: 'MAT-CUSTOM', description: 'Custom material', consumption: 1,
-      unit: 'PC', price: 10, loss: 0, confidence: {}
+      unit: 'PC', price: 10, loss: 0, exactDecimalInputs: { price: '10.000000001' }, confidence: {}
     }]
   },
   customLastSavedMasterData: lastSaved,
@@ -78,6 +78,8 @@ const clearedCustom = clearMasterDataDatasetState(savedCustomSession, 'custom')
 assert.equal(clearedCustom.customMasterData?.bom.length, 1, 'Clear preserves Custom Working row count')
 assert.equal(clearedCustom.customMasterData?.bom[0].id, 'custom-bom-1', 'Clear preserves Custom Working row identity')
 assert.equal(clearedCustom.customMasterData?.bom[0].itemCode, '', 'Clear blanks Custom Working row values')
+assert.equal(clearedCustom.customMasterData?.bom[0].exactDecimalInputs, undefined,
+  'Clear removes the exact decimal sidecar when blanking the row value')
 assert.deepEqual(clearedCustom.customDatasetSizing, { bomCount: 4 }, 'Clear preserves Custom sizing')
 assert.strictEqual(clearedCustom.customLastSavedMasterData, lastSaved, 'Clear retains Custom Last Saved')
 assert.strictEqual(clearedCustom.snapshotPair?.reference, reference)
@@ -121,7 +123,16 @@ const sourceReference = {
 }
 const sourceCurrent = {
   ...snapshot('source-current'),
-  product: { ...snapshot('source-current').product, productCode: 'CURRENT-SOURCE' },
+  product: {
+    ...snapshot('source-current').product,
+    productCode: 'CURRENT-SOURCE',
+    sellingPrice: 123456789012345.12,
+    exactDecimalInputs: { sellingPrice: '123456789012345.123456789' }
+  },
+  bom: [{
+    id: 'source-current-bom', itemCode: 'MAT-CURRENT', description: 'Precise material', consumption: 1,
+    unit: 'PC', price: 123456789012345.12, loss: 0, exactDecimalInputs: { price: '123456789012345.123456789' }, confidence: {}
+  }],
   sizing: { wcCount: 5, bomCount: 6, routingCount: 7 }
 }
 const sourceCustom = {
@@ -162,6 +173,10 @@ for (const [sourceRole, destinationRole] of cloneDirections) {
   const copied = getMasterDataSnapshot(cloned, cloned.snapshotPair!, destinationRole)
   assert.equal(copied.product.productCode, sourceBefore.product.productCode,
     `${sourceRole} → ${destinationRole} copies the source Working content`)
+  assert.deepEqual(copied.product.exactDecimalInputs, sourceBefore.product.exactDecimalInputs,
+    `${sourceRole} → ${destinationRole} copies the exact product decimal sidecar`)
+  assert.deepEqual(copied.bom.map(row => row.exactDecimalInputs), sourceBefore.bom.map(row => row.exactDecimalInputs),
+    `${sourceRole} → ${destinationRole} copies the exact row decimal sidecar`)
   assert.notStrictEqual(copied, sourceBefore, `${sourceRole} → ${destinationRole} creates an independent destination copy`)
   assert.deepEqual(getMasterDataSizing(cloned, copied, destinationRole), sizingBefore,
     `${sourceRole} → ${destinationRole} copies source sizing`)

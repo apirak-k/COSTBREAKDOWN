@@ -129,7 +129,11 @@ export const BOMTable: React.FC<BOMTableProps> = ({
       else if (cell.field === 'price') changes = { price: parseNumber(cell.value) }
       else if (cell.field === 'loss') changes = { loss: parsePercentage(cell.value) }
       else if (cell.field === 'note') changes = { note: cell.value }
-      return changes ? [{ id: cell.rowId, changes }] : []
+      const exactField = ['consumption', 'price', 'loss'].includes(cell.field) ? cell.field : null
+      const exactText = exactField && cell.value.trim() !== ''
+        ? cell.field === 'loss' ? cell.value.trim().replace(/%$/, '').trim() : cell.value.trim()
+        : null
+      return changes ? [{ id: cell.rowId, changes, ...(exactField ? { exactDecimalUpdates: { [exactField]: exactText } } : {}) }] : []
     })
     applyPasteUpdates(updates)
     identityEditorDrafts.clearValues(cells.filter(cell => cell.field === 'description').map(cell => cell.rowId))
@@ -144,7 +148,8 @@ export const BOMTable: React.FC<BOMTableProps> = ({
       else if (cell.field === 'price') changes = { price: null }
       else if (cell.field === 'loss') changes = { loss: null }
       else if (cell.field === 'note') changes = { note: '' }
-      return changes ? [{ id: cell.rowId, changes }] : []
+      const exactField = ['consumption', 'price', 'loss'].includes(cell.field) ? cell.field : null
+      return changes ? [{ id: cell.rowId, changes, ...(exactField ? { exactDecimalUpdates: { [exactField]: null } } : {}) }] : []
     })
     applyCutUpdates(updates)
     identityEditorDrafts.clearValues(cells.filter(cell => cell.field === 'description').map(cell => cell.rowId))
@@ -391,7 +396,8 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                       <div className="relative ml-auto w-full max-w-[8.5rem]">
                         <MasterDataNumericInput
                           value={item.consumption}
-                          onValueChange={value => applyCellUpdate(item.id, { consumption: value })}
+                          exactValue={item.exactDecimalInputs?.consumption}
+                          onValueChange={(value, exactValue) => applyCellUpdate(item.id, { consumption: value }, { field: 'consumption', value: exactValue ?? null })}
                           selectionId={valueSourceId(item.id, 'consumption')}
                           {...getMasterDataNumericInputDomain('consumption')}
                           reserveMarker
@@ -444,7 +450,8 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                       <div className="relative ml-auto w-full max-w-[8.5rem]">
                         <MasterDataNumericInput
                           value={item.price}
-                          onValueChange={value => applyCellUpdate(item.id, { price: value })}
+                          exactValue={item.exactDecimalInputs?.price}
+                          onValueChange={(value, exactValue) => applyCellUpdate(item.id, { price: value }, { field: 'price', value: exactValue ?? null })}
                           selectionId={valueSourceId(item.id, 'price')}
                           {...getMasterDataNumericInputDomain('price')}
                           reserveMarker
@@ -477,7 +484,8 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                         <div className="relative flex h-8 min-w-0 flex-1 items-center">
                           <MasterDataNumericInput
                             value={item.loss === null ? null : item.loss * 100}
-                            onValueChange={value => applyCellUpdate(item.id, { loss: value === null ? null : value / 100 })}
+                            exactValue={item.exactDecimalInputs?.loss}
+                            onValueChange={(value, exactValue) => applyCellUpdate(item.id, { loss: value === null ? null : value / 100 }, { field: 'loss', value: exactValue ?? null })}
                             selectionId={valueSourceId(item.id, 'loss')}
                             percentage
                             {...getMasterDataNumericInputDomain('loss', true)}

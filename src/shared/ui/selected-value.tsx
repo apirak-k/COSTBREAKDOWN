@@ -7,6 +7,7 @@ import { isSafeWorkspaceDismissTarget } from './transient-interactions'
 
 interface SelectedValueBase {
   value: number | null | undefined
+  exactValue?: string | null
   percentage?: boolean
 }
 
@@ -16,7 +17,7 @@ export type SelectedValueSource = SelectedValueBase & (
   | {
     editable: true
     domain: NumericInputDomain
-    onValueChange: (value: number | null) => void
+    onValueChange: (value: number | null, exactValue?: string) => void
     allowSubMinimumDraft?: boolean
     stopAtMinimum?: boolean
   }
@@ -80,7 +81,7 @@ const ADDITIONAL_PIN_PRESERVING_TARGET = [
   '[tabindex]:not([tabindex="-1"])'
 ].join(',')
 const asReadOnlyPreview = (source: SelectedValue): SelectedValue => source.editable
-  ? { id: source.id, value: source.value, editable: false, domain: source.domain, percentage: source.percentage }
+  ? { id: source.id, value: source.value, exactValue: source.exactValue, editable: false, domain: source.domain, percentage: source.percentage }
   : source
 
 export function SelectedValueProvider({ children, scopeKey }: { children: ReactNode; scopeKey?: string }) {
@@ -266,9 +267,9 @@ export function useSelectedValueSource(source: SelectedValueSource, sourceId?: s
   current.current.scopeKey = scopeKey
   current.current.focusedId = focusedSelection?.id
 
-  const write = useCallback((value: number | null) => {
+  const write = useCallback((value: number | null, exactValue?: string) => {
     const latest = current.current
-    if (latest.mounted && latest.id === id && latest.focusedId === id && latest.scopeKey === scopeKey && latest.source.editable) latest.source.onValueChange(value)
+    if (latest.mounted && latest.id === id && latest.focusedId === id && latest.scopeKey === scopeKey && latest.source.editable) latest.source.onValueChange(value, exactValue)
   }, [id, scopeKey])
   const snapshot = useCallback((): SelectedValue => {
     const latest = current.current.source
@@ -285,7 +286,7 @@ export function useSelectedValueSource(source: SelectedValueSource, sourceId?: s
 
   useBrowserLayoutEffect(() => {
     syncSelection(snapshot())
-  }, [syncSelection, snapshot, source.value, source.editable, source.percentage, integer, min, max, minExclusive, allowSubMinimumDraft, stopAtMinimum])
+  }, [syncSelection, snapshot, source.value, source.exactValue, source.editable, source.percentage, integer, min, max, minExclusive, allowSubMinimumDraft, stopAtMinimum])
 
   useBrowserLayoutEffect(() => {
     current.current.mounted = true

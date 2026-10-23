@@ -355,7 +355,7 @@ const AppRouter: React.FC = () => {
     updateSimulationState(role, state => setSimulationEconomicInput(state, field, value, role))
   }
 
-  const updateParameter = (recordId: string, parameter: SimulationParameter, value: number | null) => {
+  const updateParameter = (recordId: string, parameter: SimulationParameter, value: number | null, exactValue?: string) => {
     const role = simulationState.activeDataset
     updateSimulationState(role, state => updateSimulationParameter(
       state,
@@ -363,7 +363,8 @@ const AppRouter: React.FC = () => {
       recordId,
       parameter,
       value,
-      role
+      role,
+      exactValue
     ))
   }
 

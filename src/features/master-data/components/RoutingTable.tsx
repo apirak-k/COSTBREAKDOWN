@@ -135,7 +135,11 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
       else if (cell.field === 'capacity') changes = { capacity: parseNumber(cell.value) }
       else if (cell.field === 'yield') changes = { yield: parsePercentage(cell.value) }
       else if (cell.field === 'note') changes = { note: cell.value }
-      return changes ? [{ id: cell.rowId, changes }] : []
+      const exactField = ['manning', 'capacity', 'yield'].includes(cell.field) ? cell.field : null
+      const exactText = exactField && cell.value.trim() !== ''
+        ? cell.field === 'yield' ? cell.value.trim().replace(/%$/, '').trim() : cell.value.trim()
+        : null
+      return changes ? [{ id: cell.rowId, changes, ...(exactField ? { exactDecimalUpdates: { [exactField]: exactText } } : {}) }] : []
     })
     applyPasteUpdates(updates)
     identityEditorDrafts.clearValues(cells.filter(cell => cell.field === 'processName').map(cell => cell.rowId))
@@ -150,7 +154,8 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
       else if (cell.field === 'capacity') changes = { capacity: null }
       else if (cell.field === 'yield') changes = { yield: null }
       else if (cell.field === 'note') changes = { note: '' }
-      return changes ? [{ id: cell.rowId, changes }] : []
+      const exactField = ['manning', 'capacity', 'yield'].includes(cell.field) ? cell.field : null
+      return changes ? [{ id: cell.rowId, changes, ...(exactField ? { exactDecimalUpdates: { [exactField]: null } } : {}) }] : []
     })
     applyCutUpdates(updates)
     identityEditorDrafts.clearValues(cells.filter(cell => cell.field === 'processName').map(cell => cell.rowId))
@@ -427,7 +432,8 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
                       <div className="relative ml-auto w-full max-w-[8.5rem]">
                         <MasterDataNumericInput
                           value={step.manning}
-                          onValueChange={value => applyCellUpdate(step.id, { manning: value })}
+                          exactValue={step.exactDecimalInputs?.manning}
+                          onValueChange={(value, exactValue) => applyCellUpdate(step.id, { manning: value }, { field: 'manning', value: exactValue ?? null })}
                           selectionId={valueSourceId(step.id, 'manning')}
                           {...getMasterDataNumericInputDomain('manning')}
                           reserveMarker
@@ -459,7 +465,8 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
                       <div className="relative ml-auto w-full max-w-[8.5rem]">
                         <MasterDataNumericInput
                           value={step.capacity}
-                          onValueChange={value => applyCellUpdate(step.id, { capacity: value })}
+                          exactValue={step.exactDecimalInputs?.capacity}
+                          onValueChange={(value, exactValue) => applyCellUpdate(step.id, { capacity: value }, { field: 'capacity', value: exactValue ?? null })}
                           selectionId={valueSourceId(step.id, 'capacity')}
                           {...getMasterDataNumericInputDomain('capacity')}
                           allowSubMinimumDraft
@@ -493,7 +500,8 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
                         <div className="relative flex h-8 min-w-0 flex-1 items-center">
                           <MasterDataNumericInput
                             value={step.yield === null ? null : step.yield * 100}
-                            onValueChange={value => applyCellUpdate(step.id, { yield: value === null ? null : value / 100 })}
+                            exactValue={step.exactDecimalInputs?.yield}
+                            onValueChange={(value, exactValue) => applyCellUpdate(step.id, { yield: value === null ? null : value / 100 }, { field: 'yield', value: exactValue ?? null })}
                             selectionId={valueSourceId(step.id, 'yield')}
                             percentage
                             {...getMasterDataNumericInputDomain('yield', true)}

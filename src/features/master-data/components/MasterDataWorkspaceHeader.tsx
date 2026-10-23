@@ -598,7 +598,12 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
               {isEditMode ? (
                 <MasterDataNumericInput
                   value={product.sellingPrice}
-                  onValueChange={sellingPrice => onUpdateProduct({ ...product, sellingPrice })}
+                  exactValue={product.exactDecimalInputs?.sellingPrice}
+                  onValueChange={(sellingPrice, exactValue) => onUpdateProduct({
+                    ...product,
+                    sellingPrice,
+                    exactDecimalInputs: { ...product.exactDecimalInputs, sellingPrice: exactValue ?? '' }
+                  })}
                   selectionId={metadataValueSourceId('sellingPrice')}
                   {...getMasterDataNumericInputDomain('sellingPrice')}
                   aria-label="Selling Price (THB)"
@@ -625,7 +630,12 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
               {isEditMode ? (
                 <MasterDataNumericInput
                   value={product.sgaPercent}
-                  onValueChange={sgaPercent => onUpdateProduct({ ...product, sgaPercent })}
+                  exactValue={product.exactDecimalInputs?.sgaPercent}
+                  onValueChange={(sgaPercent, exactValue) => onUpdateProduct({
+                    ...product,
+                    sgaPercent,
+                    exactDecimalInputs: { ...product.exactDecimalInputs, sgaPercent: exactValue ?? '' }
+                  })}
                   selectionId={metadataValueSourceId('sgaPercent')}
                   percentage
                   {...getMasterDataNumericInputDomain('sgaPercent')}

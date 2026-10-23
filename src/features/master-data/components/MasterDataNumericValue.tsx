@@ -29,6 +29,7 @@ export function MasterDataNumericInput({ selectionId, percentage = false, ...pro
   const { clearFocus } = useSelectedValue()
   const { focus, preview, clearPreview } = useSelectedValueSource({
     value: props.value,
+    exactValue: props.exactValue,
     editable: true,
     domain: {
       integer: props.integer,

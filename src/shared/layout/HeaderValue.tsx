@@ -24,6 +24,7 @@ export function HeaderValue({ inDialog = false }: { inDialog?: boolean }) {
             key={selection.id}
             aria-label="Selected value"
             value={selection.value}
+            exactValue={selection.exactValue}
             onValueChange={selection.onValueChange}
             {...selection.domain}
             allowSubMinimumDraft={selection.allowSubMinimumDraft}

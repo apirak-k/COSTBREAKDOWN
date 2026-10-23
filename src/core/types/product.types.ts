@@ -2,6 +2,8 @@ export interface ProductMaster {
   /** Canonical Master Data identity. Legacy fields below remain for old session adapters. */
   productName?: string
   sellingPrice?: number | null
+  /** Exact accepted editor text; numeric values remain the calculation representation. */
+  exactDecimalInputs?: Partial<Record<'sellingPrice' | 'sgaPercent', string>>
   /** Percentage of Selling Price, stored as entered (e.g. 8 means 8%). */
   sgaPercent?: number | null
   productCode: string

@@ -33,9 +33,9 @@ export const AddRoutingModal: React.FC<AddRoutingModalProps> = ({ isOpen, onClos
     setSequence(textNumber(initialData?.sequence))
     setProcessName(initialData?.processName || '')
     setWorkCenterId(initialData?.workCenterId || '')
-    setManning(textNumber(initialData?.manning))
-    setCapacity(textNumber(initialData?.capacity))
-    setYieldPercent(initialData?.yield === null || initialData?.yield === undefined ? '' : String(initialData.yield * 100))
+    setManning(initialData?.exactDecimalInputs?.manning ?? textNumber(initialData?.manning))
+    setCapacity(initialData?.exactDecimalInputs?.capacity ?? textNumber(initialData?.capacity))
+    setYieldPercent(initialData?.exactDecimalInputs?.yield ?? (initialData?.yield === null || initialData?.yield === undefined ? '' : String(initialData.yield * 100)))
     setNote(initialData?.note || '')
     setError('')
   }, [initialData, isOpen])
@@ -61,6 +61,7 @@ export const AddRoutingModal: React.FC<AddRoutingModalProps> = ({ isOpen, onClos
       manning: m,
       capacity: cap,
       yield: yieldValue === null ? null : yieldValue / 100,
+      exactDecimalInputs: { ...initialData?.exactDecimalInputs, manning, capacity, yield: yieldPercent },
       note: note.trim() || undefined
     })
     onClose()
@@ -82,11 +83,11 @@ export const AddRoutingModal: React.FC<AddRoutingModalProps> = ({ isOpen, onClos
           <label className="block font-medium text-slate-800">Process Name<input value={processName} onChange={event => setProcessName(event.target.value)} className="mt-1 min-h-10 w-full rounded-sm border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-200" /></label>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <label className="font-medium text-slate-800">Work Center Code<select value={workCenterId} onChange={event => setWorkCenterId(event.target.value)} className="mt-1 min-h-10 w-full rounded-sm border border-slate-300 bg-white px-3 py-2 font-mono text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-200"><option value="">Not linked / missing</option>{rates.map(rate => <option key={rate.id} value={rate.workCenterCode}>{rate.workCenterCode} — {rate.description}</option>)}</select></label>
-            <label className="font-medium text-slate-800">Manning<NumericInput value={manning === '' ? null : Number(manning)} onValueChange={value => setManning(value === null ? '' : String(value))} min={0} placeholder="blank = missing" className="mt-1 h-10 w-full rounded-sm border border-slate-300 bg-white px-3 py-2 text-left text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-200" /></label>
+            <label className="font-medium text-slate-800">Manning<NumericInput value={manning === '' ? null : Number(manning)} exactValue={manning} onValueChange={(value, exactValue) => setManning(exactValue ?? (value === null ? '' : String(value)))} min={0} placeholder="blank = missing" className="mt-1 h-10 w-full rounded-sm border border-slate-300 bg-white px-3 py-2 text-left text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-200" /></label>
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <label className="font-medium text-slate-800">Capacity<NumericInput value={capacity === '' ? null : Number(capacity)} onValueChange={value => setCapacity(value === null ? '' : String(value))} min={0} minExclusive allowSubMinimumDraft placeholder="blank = missing" className="mt-1 h-10 w-full rounded-sm border border-slate-300 bg-white px-3 py-2 text-left text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-200" /></label>
-            <label className="font-medium text-slate-800">Yield %<NumericInput value={yieldPercent === '' ? null : Number(yieldPercent)} onValueChange={value => setYieldPercent(value === null ? '' : String(value))} min={0} minExclusive max={100} allowSubMinimumDraft placeholder="blank = missing" className="mt-1 h-10 w-full rounded-sm border border-slate-300 bg-white px-3 py-2 text-left text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-200" /></label>
+            <label className="font-medium text-slate-800">Capacity<NumericInput value={capacity === '' ? null : Number(capacity)} exactValue={capacity} onValueChange={(value, exactValue) => setCapacity(exactValue ?? (value === null ? '' : String(value)))} min={0} minExclusive allowSubMinimumDraft placeholder="blank = missing" className="mt-1 h-10 w-full rounded-sm border border-slate-300 bg-white px-3 py-2 text-left text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-200" /></label>
+            <label className="font-medium text-slate-800">Yield %<NumericInput value={yieldPercent === '' ? null : Number(yieldPercent)} exactValue={yieldPercent} onValueChange={(value, exactValue) => setYieldPercent(exactValue ?? (value === null ? '' : String(value)))} min={0} minExclusive max={100} allowSubMinimumDraft placeholder="blank = missing" className="mt-1 h-10 w-full rounded-sm border border-slate-300 bg-white px-3 py-2 text-left text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-200" /></label>
           </div>
           <label className="block font-medium text-slate-800">Note<textarea rows={3} value={note} onChange={event => setNote(event.target.value)} className="mt-1 min-h-24 w-full resize-y rounded-sm border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-200" /></label>
           <div className="flex flex-wrap items-center justify-end gap-2 border-t border-slate-200 pt-4"><button type="button" onClick={onClose} className="min-h-10 rounded-sm border border-slate-300 px-4 text-sm font-medium text-slate-700 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 cursor-pointer">Cancel</button><button type="submit" className="flex min-h-10 items-center gap-1.5 rounded-sm bg-slate-900 px-4 text-sm font-semibold text-white hover:bg-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 cursor-pointer"><Check className="h-4 w-4" /> Save</button></div>

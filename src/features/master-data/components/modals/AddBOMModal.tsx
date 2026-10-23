@@ -31,10 +31,10 @@ export const AddBOMModal: React.FC<AddBOMModalProps> = ({ isOpen, onClose, onSav
     if (!isOpen) return
     setItemCode(initialData?.itemCode || '')
     setDescription(initialData?.description || '')
-    setConsumption(textNumber(initialData?.consumption))
+    setConsumption(initialData?.exactDecimalInputs?.consumption ?? textNumber(initialData?.consumption))
     setUnit(initialData?.unit || uomList[0] || '')
-    setPrice(textNumber(initialData?.price))
-    setLoss(initialData?.loss === null || initialData?.loss === undefined ? '' : String(initialData.loss * 100))
+    setPrice(initialData?.exactDecimalInputs?.price ?? textNumber(initialData?.price))
+    setLoss(initialData?.exactDecimalInputs?.loss ?? (initialData?.loss === null || initialData?.loss === undefined ? '' : String(initialData.loss * 100)))
     setNote(initialData?.note || '')
     setError('')
   }, [initialData, isOpen, uomList])
@@ -57,6 +57,7 @@ export const AddBOMModal: React.FC<AddBOMModalProps> = ({ isOpen, onClose, onSav
       unit: unit.trim(),
       price: p,
       loss: l === null ? null : l / 100,
+      exactDecimalInputs: { ...initialData?.exactDecimalInputs, consumption, price, loss },
       note: note.trim() || undefined
     })
     onClose()
@@ -77,9 +78,9 @@ export const AddBOMModal: React.FC<AddBOMModalProps> = ({ isOpen, onClose, onSav
           </div>
           <label className="block font-medium text-slate-800">Description<input value={description} onChange={event => setDescription(event.target.value)} className="mt-1 min-h-10 w-full rounded-sm border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-200" /></label>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <label className="font-medium text-slate-800">Consumption<NumericInput value={consumption === '' ? null : Number(consumption)} onValueChange={value => setConsumption(value === null ? '' : String(value))} min={0} placeholder="blank = missing" className="mt-1 h-10 w-full rounded-sm border border-slate-300 bg-white px-3 py-2 text-left text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-200" /></label>
-            <label className="font-medium text-slate-800">Price<NumericInput value={price === '' ? null : Number(price)} onValueChange={value => setPrice(value === null ? '' : String(value))} min={0} placeholder="blank = missing" className="mt-1 h-10 w-full rounded-sm border border-slate-300 bg-white px-3 py-2 text-left text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-200" /></label>
-            <label className="font-medium text-slate-800">Loss %<NumericInput value={loss === '' ? null : Number(loss)} onValueChange={value => setLoss(value === null ? '' : String(value))} min={0} placeholder="blank = missing" className="mt-1 h-10 w-full rounded-sm border border-slate-300 bg-white px-3 py-2 text-left text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-200" /></label>
+            <label className="font-medium text-slate-800">Consumption<NumericInput value={consumption === '' ? null : Number(consumption)} exactValue={consumption} onValueChange={(value, exactValue) => setConsumption(exactValue ?? (value === null ? '' : String(value)))} min={0} placeholder="blank = missing" className="mt-1 h-10 w-full rounded-sm border border-slate-300 bg-white px-3 py-2 text-left text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-200" /></label>
+            <label className="font-medium text-slate-800">Price<NumericInput value={price === '' ? null : Number(price)} exactValue={price} onValueChange={(value, exactValue) => setPrice(exactValue ?? (value === null ? '' : String(value)))} min={0} placeholder="blank = missing" className="mt-1 h-10 w-full rounded-sm border border-slate-300 bg-white px-3 py-2 text-left text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-200" /></label>
+            <label className="font-medium text-slate-800">Loss %<NumericInput value={loss === '' ? null : Number(loss)} exactValue={loss} onValueChange={(value, exactValue) => setLoss(exactValue ?? (value === null ? '' : String(value)))} min={0} placeholder="blank = missing" className="mt-1 h-10 w-full rounded-sm border border-slate-300 bg-white px-3 py-2 text-left text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-200" /></label>
           </div>
           <label className="block font-medium text-slate-800">Note<textarea rows={3} value={note} onChange={event => setNote(event.target.value)} className="mt-1 min-h-24 w-full resize-y rounded-sm border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-200" /></label>
           <div className="flex flex-wrap items-center justify-end gap-2 border-t border-slate-200 pt-4"><button type="button" onClick={onClose} className="min-h-10 rounded-sm border border-slate-300 px-4 text-sm font-medium text-slate-700 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 cursor-pointer">Cancel</button><button type="submit" className="flex min-h-10 items-center gap-1.5 rounded-sm bg-slate-900 px-4 text-sm font-semibold text-white hover:bg-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 cursor-pointer"><Check className="h-4 w-4" /> Save</button></div>

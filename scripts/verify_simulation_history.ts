@@ -14,6 +14,7 @@ try {
   const {
     createEmptySimulationState,
     getEffectiveSimulationDataset,
+    reconcileSimulationState,
     resetSimulationParameters,
     setSimulationActiveDataset,
     setSimulationComparison,
@@ -30,6 +31,7 @@ try {
     redoSimulationHistory,
     undoSimulationHistory
   } = await vite.ssrLoadModule('/src/features/simulation/simulation-history.ts')
+  const { calculateEconomicSimulation } = await vite.ssrLoadModule('/src/features/simulation/simulation-economics.ts')
 
   const sourcePair = createCompleteMasterDataMockPair()
   const sources = { ...sourcePair, custom: { ...sourcePair.current, id: 'synthetic-custom' } }
@@ -48,6 +50,44 @@ try {
   const currentBasis = view(base).basisFingerprint
   const emptyHistory = createSimulationHistory(currentBasis)
   const baseValues = captureSimulationEditableSnapshot(sources, base, 'current')
+
+  const criticalDecimal = '123456789012345.123456789'
+  const exactEdit = updateSimulationParameter(base, sources, firstBom.id, 'bom.price', Number(criticalDecimal), 'current', criticalDecimal)
+  assert.equal(view(exactEdit).snapshot.bom[0].price, Number(criticalDecimal),
+    'Simulation calculations retain the existing JavaScript number representation')
+  assert.equal(view(exactEdit).snapshot.bom[0].exactDecimalInputs?.price, criticalDecimal,
+    'Simulation snapshot carries the exact accepted price independently of the number')
+  const reconstructedExact = reconcileSimulationState(JSON.parse(JSON.stringify(exactEdit)), sources)
+  assert.equal(view(reconstructedExact).snapshot.bom[0].exactDecimalInputs?.price, criticalDecimal,
+    'Simulation state reconstruction retains every authoritative decimal digit')
+  const exactBefore = captureSimulationEditableSnapshot(sources, base, 'current')
+  const exactAfter = captureSimulationEditableSnapshot(sources, exactEdit, 'current')
+  const exactHistory = recordSimulationHistory(emptyHistory, exactBefore, exactAfter)
+  const exactUndo = undoSimulationHistory(exactHistory, exactAfter)
+  assert.ok(exactUndo.snapshot && isSimulationEditableSnapshotEqual(exactUndo.snapshot, exactBefore),
+    'Simulation Undo snapshot retains exact decimal edit state')
+  const exactUndone = applySimulationEditableSnapshot(sources, exactEdit, exactUndo.snapshot!, 'current')
+  assert.ok(exactUndone)
+  const exactRedo = redoSimulationHistory(exactUndo.history, exactUndo.snapshot!)
+  assert.ok(exactRedo.snapshot && isSimulationEditableSnapshotEqual(exactRedo.snapshot, exactAfter),
+    'Simulation Redo snapshot restores the exact decimal string')
+  const exactRedone = applySimulationEditableSnapshot(sources, exactUndone, exactRedo.snapshot!, 'current')
+  assert.ok(exactRedone)
+  assert.equal(view(exactRedone).snapshot.bom[0].exactDecimalInputs?.price, criticalDecimal,
+    'Redo reapplies every exact decimal digit to the reconstructed Simulation row')
+
+  const exactSellingPriceDraft = setSimulationEconomicInput(base, 'sellingPriceOverride', criticalDecimal, 'current')
+  const exactEconomicView = view(exactSellingPriceDraft)
+  const exactEconomicCalculation = calculateEconomicSimulation(
+    exactEconomicView.snapshot,
+    calculateParameterSimulation(exactEconomicView.baselineSnapshot, exactEconomicView.snapshot).afterCost,
+    null,
+    exactEconomicView.economicInputs
+  )
+  assert.equal(exactEconomicView.economicInputs.sellingPriceOverride, criticalDecimal,
+    'Economic editor application state retains the accepted selling price text')
+  assert.equal(exactEconomicCalculation.business.sellingPrice, Number(criticalDecimal),
+    'Economic calculations continue to use the numeric representation of the exact text')
 
   const unchanged = recordSimulationHistory(emptyHistory, baseValues, baseValues)
   assert.equal(unchanged.undo.length, 0, 'a no-op edit does not create a history entry')
@@ -249,7 +289,7 @@ try {
   assert.equal(clearSimulationHistory(usageHistory, 'new-current-basis').undo.length, 0,
     'a changed Master dataset basis clears old role history')
 
-  console.log('PASS: Simulation history covers chronology, Reset, branching, stable IDs, product and role scope, independent After economics, rates, selection, validation, and recalculation.')
+  console.log('PASS: Simulation history covers exact decimal reconstruction, Undo/Redo, calculation values, chronology, Reset, branching, product and role scope, economics, rates, selection, validation, and recalculation.')
 } finally {
   await vite.close()
 }

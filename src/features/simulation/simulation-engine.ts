@@ -14,6 +14,7 @@ import {
   getEffectiveSimulationDataset,
   type SimulationSources,
   type SimulationParameter,
+  type SimulationParameterExactInputs,
   type SimulationWorkspaceState
 } from './simulation-state'
 
@@ -120,7 +121,8 @@ export function updateSimulationParameter(
   simulationRecordId: string,
   parameter: SimulationParameter,
   value: number | null,
-  role = state.activeDataset
+  role = state.activeDataset,
+  exactValue?: string | null
 ): SimulationWorkspaceState {
   const configuration = PARAMETER_FIELDS[parameter]
   if (!configuration || !isSimulationParameterInputValid(parameter, value)) return state
@@ -138,7 +140,23 @@ export function updateSimulationParameter(
 
   const currentValue = (matches[0] as unknown as Record<string, unknown>)[configuration.field] as number | null | undefined
   const baselineValue = (baselineMatches[0] as unknown as Record<string, unknown>)[configuration.field] as number | null | undefined
-  if (areNumericValuesEquivalent(currentValue, value)) return state
+  const exactDecimalInputs: SimulationParameterExactInputs = { ...(dataset.exactDecimalInputs ?? {}) }
+  const parameterExactInputs = { ...(exactDecimalInputs[parameter] ?? {}) }
+  const previousExactValue = parameterExactInputs[simulationRecordId]
+  const numericChanged = !areNumericValuesEquivalent(currentValue, value)
+  if (exactValue !== undefined) {
+    if (exactValue === null) delete parameterExactInputs[simulationRecordId]
+    else parameterExactInputs[simulationRecordId] = exactValue
+  } else if (numericChanged) {
+    parameterExactInputs[simulationRecordId] = value === null ? '' : String(value)
+  }
+  const nextExactValue = exactValue === null ? undefined : exactValue
+  const exactValueChanged = exactValue !== undefined
+    ? previousExactValue !== nextExactValue
+    : numericChanged && previousExactValue !== (value === null ? '' : String(value))
+  if (Object.keys(parameterExactInputs).length) exactDecimalInputs[parameter] = parameterExactInputs
+  else delete exactDecimalInputs[parameter]
+  if (!numericChanged && !exactValueChanged) return state
 
   const parameterValues = { ...(dataset.parameterOverrides[parameter] ?? {}) }
   if (areNumericValuesEquivalent(baselineValue, value)) delete parameterValues[simulationRecordId]
@@ -154,6 +172,7 @@ export function updateSimulationParameter(
       [role]: {
         basisFingerprint: dataset.basisFingerprint,
         parameterOverrides,
+        exactDecimalInputs,
         economicInputs: dataset.economicInputs,
         workingSelection: dataset.workingSelection
       }

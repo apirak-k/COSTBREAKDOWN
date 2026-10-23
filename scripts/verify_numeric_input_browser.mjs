@@ -412,8 +412,7 @@ try {
     assert.ok(Math.abs(view.width-edit.width)<=1, `Master Data View/Edit use the same fixed shell (${view.width}/${edit.width})`)
     await clickButton(`document.querySelector('button[role="switch"]')`)
     await clickInput(masterAria)
-    const remountedValue = value.includes('.') ? value.padEnd(value.indexOf('.') + 3, '0') : value + '.00'
-    assert.equal(await inputValue(masterAria),remountedValue, 'switching View/Edit remounts the editor from the authoritative model value with its existing focused format')
+    assert.equal(await inputValue(masterAria),value, 'switching View/Edit remounts the editor from the exact authoritative edit string')
     fitResults.push({area:'Master Data Edit/View',value,edit,view})
   }
   await typeInto(masterAria,masterOriginal); await blurNumeric()

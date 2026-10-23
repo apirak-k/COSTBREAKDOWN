@@ -18,7 +18,9 @@ import {
 
 export interface NumericInputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'type' | 'value' | 'onChange' | 'min' | 'max'>, NumericInputDomain {
   value: number | null | undefined
-  onValueChange: (value: number | null) => void
+  /** Durable exact editor text supplied by the owning application state. */
+  exactValue?: string | null
+  onValueChange: (value: number | null, exactValue?: string) => void
   allowSubMinimumDraft?: boolean
   stopAtMinimum?: boolean
   showStepper?: boolean
@@ -35,6 +37,7 @@ const useIsomorphicLayoutEffect = typeof window === 'undefined' ? useEffect : us
 
 export function NumericInput({
   value,
+  exactValue,
   onValueChange,
   className,
   integer,
@@ -72,7 +75,8 @@ export function NumericInput({
   const currentValueRef = useRef(value)
   const onValueChangeRef = useRef(onValueChange)
   const lastEmittedValueRef = useRef(value)
-  const authoritativeDraftRef = useRef(formatFocusedNumericValue(value, integer))
+  const authoritativeDraftRef = useRef(exactValue ?? formatFocusedNumericValue(value, integer))
+  const authoritativeSourceRef = useRef(exactValue)
   const authoritativeDraftValueRef = useRef(value)
   const previousValueRef = useRef(value)
   const previousFormattedValueRef = useRef(formatValue(value))
@@ -93,8 +97,9 @@ export function NumericInput({
   const emitValue = (next: number | null, authoritativeDraft = formatFocusedNumericValue(next, integer)) => {
     lastEmittedValueRef.current = next
     authoritativeDraftRef.current = authoritativeDraft
+    authoritativeSourceRef.current = authoritativeDraft
     authoritativeDraftValueRef.current = next
-    onValueChangeRef.current(next)
+    onValueChangeRef.current(next, authoritativeDraft)
   }
 
   const stopArrowRepeat = useCallback((pointerId?: number) => {
@@ -167,29 +172,38 @@ export function NumericInput({
   useEffect(() => {
     const formattedValue = formatValue(value)
     const valueChanged = !Object.is(previousValueRef.current, value)
+    const exactValueChanged = exactValue !== undefined && !Object.is(authoritativeSourceRef.current, exactValue)
+    const editorFocused = inputRef.current !== null && document.activeElement === inputRef.current
 
-    // The numeric prop remains the calculation representation. Keep the last
-    // accepted edit string authoritative across our own numeric emissions, and
-    // rehydrate it only when an external source actually changes the value.
+    // The numeric prop remains the calculation representation. The owning model
+    // supplies exactValue so the accepted decimal survives editor reconstruction.
     if (valueChanged && !Object.is(value, lastEmittedValueRef.current)) {
-      authoritativeDraftRef.current = formatFocusedNumericValue(value, integer)
+      authoritativeDraftRef.current = exactValue ?? formatFocusedNumericValue(value, integer)
+      authoritativeSourceRef.current = exactValue
+      authoritativeDraftValueRef.current = value
+    } else if (exactValueChanged) {
+      authoritativeDraftRef.current = exactValue ?? formatFocusedNumericValue(value, integer)
+      authoritativeSourceRef.current = exactValue
       authoritativeDraftValueRef.current = value
     }
 
     // Clipboard edits update the parent value without going through this input's
     // onChange handler. Keep the focused editor in sync when it still shows the
     // previous committed value, while preserving an in-progress numeric draft.
-    if (!focused || (valueChanged && (
+    if (!editorFocused || exactValueChanged || (valueChanged && (
       draft === previousFormattedValueRef.current
       || draft === formatFocusedNumericValue(previousValueRef.current, integer)
+      || exactValueChanged
       || (displayMode === 'full' && !Object.is(value, lastEmittedValueRef.current))
     ))) {
-      setDraft(focused && !inputProps.readOnly ? formatFocusedNumericValue(value, integer) : formattedValue)
+      setDraft(editorFocused && !inputProps.readOnly
+        ? (exactValue ?? authoritativeDraftRef.current ?? formatFocusedNumericValue(value, integer))
+        : formattedValue)
     }
 
     previousValueRef.current = value
     previousFormattedValueRef.current = formattedValue
-  }, [draft, focused, value, integer, min, max, minExclusive, displayMode, integerDigits, inputProps.readOnly, numericColumn, columnMetrics.width, columnMetrics.font, columnMetrics.letterSpacing, columnMetrics.fontRevision])
+  }, [draft, focused, value, exactValue, integer, min, max, minExclusive, displayMode, integerDigits, inputProps.readOnly, numericColumn, columnMetrics.width, columnMetrics.font, columnMetrics.letterSpacing, columnMetrics.fontRevision])
 
   useIsomorphicLayoutEffect(() => {
     const exponent = restorePlaceRef.current
@@ -220,14 +234,14 @@ export function NumericInput({
       setDraft('')
     } else {
       const nextDraft = formatFocusedNumericValue(next, integer)
-      if (nextDraft === raw) {
+      if (Object.is(next, currentValueRef.current) || nextDraft === raw) {
         preservedPlaceRef.current = { raw, caret: selectionStart, place: activePlace }
         restorePlaceRef.current = null
       } else {
         restorePlaceRef.current = activePlace.exponent
+        emitValue(next, nextDraft)
+        setDraft(nextDraft)
       }
-      emitValue(next, nextDraft)
-      setDraft(nextDraft)
     }
     inputRef.current?.focus()
   }
@@ -321,10 +335,13 @@ export function NumericInput({
           preservedPlaceRef.current = null
           // Editing starts from the authoritative value, never its formatted presentation.
           if (!inputProps.readOnly || /[eE]/.test(event.currentTarget.value)) {
-            const authoritativeDraft = Object.is(authoritativeDraftValueRef.current, currentValueRef.current)
-              ? authoritativeDraftRef.current
-              : formatFocusedNumericValue(currentValueRef.current, integer)
+            const authoritativeDraft = exactValue === null
+              ? formatFocusedNumericValue(currentValueRef.current, integer)
+              : exactValue ?? (Object.is(authoritativeDraftValueRef.current, currentValueRef.current)
+                ? authoritativeDraftRef.current
+                : formatFocusedNumericValue(currentValueRef.current, integer))
             authoritativeDraftRef.current = authoritativeDraft
+            authoritativeSourceRef.current = exactValue
             authoritativeDraftValueRef.current = currentValueRef.current
             setDraft(authoritativeDraft)
           }

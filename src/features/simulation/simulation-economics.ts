@@ -33,15 +33,17 @@ export interface EconomicSimulationResult {
 export function createEconomicSimulationDraft(sourceSnapshot?: CostSnapshot): EconomicSimulationDraft {
   const sellingPrice = sourceSnapshot?.product.sellingPrice
   const sgaPercent = sourceSnapshot?.product.sgaPercent
+  const exactSellingPrice = sourceSnapshot?.product.exactDecimalInputs?.sellingPrice
+  const exactSGAPercent = sourceSnapshot?.product.exactDecimalInputs?.sgaPercent
   return {
     fixedActionCost: '',
     variableActionCostPerPiece: '',
     batchSize: '',
     sellingPriceOverride: sellingPrice != null && isMasterDataNumericValueValid('sellingPrice', sellingPrice)
-      ? String(sellingPrice)
+      ? exactSellingPrice ?? String(sellingPrice)
       : '',
     sgaPercentOverride: sgaPercent != null && isMasterDataNumericValueValid('sgaPercent', sgaPercent)
-      ? String(sgaPercent)
+      ? exactSGAPercent ?? String(sgaPercent)
       : ''
   }
 }

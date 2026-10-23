@@ -16,12 +16,14 @@ export const SIMULATION_PARAMETERS = [
   'routing.manning', 'routing.capacity', 'routing.yield'
 ] as const
 export type SimulationParameter = typeof SIMULATION_PARAMETERS[number]
+export type SimulationParameterExactInputs = Partial<Record<SimulationParameter, Record<string, string>>>
 
 export type SimulationParameterOverrides = Partial<Record<SimulationParameter, Record<string, number | null>>>
 
 export interface SimulationDatasetState {
   basisFingerprint: string
   parameterOverrides: SimulationParameterOverrides
+  exactDecimalInputs?: SimulationParameterExactInputs
   economicInputs: EconomicSimulationDraft
   workingSelection: string[]
 }
@@ -106,6 +108,7 @@ function createEmptyDataset(role: MasterDataRole, sources: SimulationSources): S
   return {
     basisFingerprint: simulationBasisFingerprint(role, sources),
     parameterOverrides: {},
+    exactDecimalInputs: {},
     economicInputs: createEconomicSimulationDraft(sources[role]),
     workingSelection: []
   }
@@ -124,13 +127,14 @@ export function getEffectiveSimulationDataset(
   const dataset = stored?.basisFingerprint === simulationBasisFingerprint(role, sources)
     ? {
         ...stored,
-        parameterOverrides: normalizeParameterOverrides(stored.parameterOverrides, sources[role])
+        parameterOverrides: normalizeParameterOverrides(stored.parameterOverrides, sources[role]),
+        exactDecimalInputs: normalizeExactDecimalInputs(stored.exactDecimalInputs, sources[role])
       }
     : createEmptyDataset(role, sources)
   return {
     ...dataset,
     role,
-    snapshot: applyParameterOverrides(sources[role], dataset.parameterOverrides),
+    snapshot: applyParameterOverrides(sources[role], dataset.parameterOverrides, dataset.exactDecimalInputs),
     baselineSnapshot: sources[role]
   }
 }
@@ -318,6 +322,7 @@ function toDatasetState(dataset: SimulationDatasetView): SimulationDatasetState 
   return {
     basisFingerprint: dataset.basisFingerprint,
     parameterOverrides: dataset.parameterOverrides,
+    exactDecimalInputs: dataset.exactDecimalInputs,
     economicInputs: dataset.economicInputs,
     workingSelection: dataset.workingSelection
   }
@@ -355,7 +360,8 @@ function reconcileDataset(value: unknown, role: MasterDataRole, sources: Simulat
   if (!isRecord(value) || value.basisFingerprint !== fresh.basisFingerprint) return fresh
 
   const parameterOverrides = normalizeParameterOverrides(value.parameterOverrides, sources[role])
-  const snapshot = applyParameterOverrides(sources[role], parameterOverrides)
+  const exactDecimalInputs = normalizeExactDecimalInputs(value.exactDecimalInputs, sources[role])
+  const snapshot = applyParameterOverrides(sources[role], parameterOverrides, exactDecimalInputs)
   const selection = Array.isArray(value.workingSelection)
     ? [...new Set(value.workingSelection.filter((item): item is string => typeof item === 'string'))]
     : []
@@ -364,6 +370,7 @@ function reconcileDataset(value: unknown, role: MasterDataRole, sources: Simulat
   return {
     basisFingerprint: fresh.basisFingerprint,
     parameterOverrides,
+    exactDecimalInputs,
     economicInputs: normalizeEconomicInputs(value.economicInputs, sources[role]),
     workingSelection
   }
@@ -415,20 +422,57 @@ function normalizeParameterOverrides(value: unknown, baseline: CostSnapshot): Si
   return result
 }
 
-function applyParameterOverrides(baseline: CostSnapshot, overrides: SimulationParameterOverrides): CostSnapshot {
+function normalizeExactDecimalInputs(value: unknown, baseline: CostSnapshot): SimulationParameterExactInputs {
+  if (!isRecord(value)) return {}
+  const result: SimulationParameterExactInputs = {}
+  for (const parameter of SIMULATION_PARAMETERS) {
+    const entries = value[parameter]
+    if (!isRecord(entries)) continue
+    const { kind } = PARAMETER_FIELDS[parameter]
+    const rows = kind === 'bom' ? baseline.bom : baseline.routing
+    const valid: Record<string, string> = {}
+    for (const [recordId, candidate] of Object.entries(entries)) {
+      if (typeof candidate !== 'string' || rows.filter(row => row.id === recordId).length !== 1) continue
+      valid[recordId] = candidate
+    }
+    if (Object.keys(valid).length) result[parameter] = valid
+  }
+  return result
+}
+
+function applyParameterOverrides(
+  baseline: CostSnapshot,
+  overrides: SimulationParameterOverrides,
+  exactDecimalInputs: SimulationParameterExactInputs = {}
+): CostSnapshot {
   const snapshot = structuredClone(baseline)
   for (const parameter of SIMULATION_PARAMETERS) {
     const { kind, field } = PARAMETER_FIELDS[parameter]
     const values = overrides[parameter]
-    if (!values) continue
+    const exactValues = exactDecimalInputs[parameter]
+    if (!values && !exactValues) continue
     if (kind === 'bom') {
-      snapshot.bom = snapshot.bom.map(row => Object.prototype.hasOwnProperty.call(values, row.id)
-        ? { ...row, [field]: values[row.id] }
-        : row)
+      snapshot.bom = snapshot.bom.map(row => {
+        const hasValue = values && Object.prototype.hasOwnProperty.call(values, row.id)
+        const exactValue = exactValues?.[row.id]
+        if (!hasValue && exactValue === undefined) return row
+        return {
+          ...row,
+          ...(hasValue ? { [field]: values[row.id] } : {}),
+          ...(exactValue === undefined ? {} : { exactDecimalInputs: { ...row.exactDecimalInputs, [field]: exactValue } })
+        }
+      })
     } else {
-      snapshot.routing = snapshot.routing.map(row => Object.prototype.hasOwnProperty.call(values, row.id)
-        ? { ...row, [field]: values[row.id] }
-        : row)
+      snapshot.routing = snapshot.routing.map(row => {
+        const hasValue = values && Object.prototype.hasOwnProperty.call(values, row.id)
+        const exactValue = exactValues?.[row.id]
+        if (!hasValue && exactValue === undefined) return row
+        return {
+          ...row,
+          ...(hasValue ? { [field]: values[row.id] } : {}),
+          ...(exactValue === undefined ? {} : { exactDecimalInputs: { ...row.exactDecimalInputs, [field]: exactValue } })
+        }
+      })
     }
   }
   return snapshot

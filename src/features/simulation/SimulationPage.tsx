@@ -48,7 +48,7 @@ interface SimulationPageProps {
   onSendAll: () => void
   onReset: () => void
   onResetAll: () => void
-  onUpdateParameter: (recordId: string, parameter: SimulationParameter, value: number | null) => void
+  onUpdateParameter: (recordId: string, parameter: SimulationParameter, value: number | null, exactValue?: string) => void
   onToggleWorkingTarget: (kind: 'bom' | 'routing', recordId: string) => void
   onSetWorkingSelection: (selection: readonly string[]) => void
   onUpdateEconomicInput: (role: MasterDataRole, field: EconomicSimulationField, value: string) => void
@@ -453,7 +453,7 @@ function SimulationParameterTable({
   workingSelection: string[]
   onToggleWorkingTarget: (kind: 'bom' | 'routing', recordId: string) => void
   onSetWorkingSelection: (selection: readonly string[]) => void
-  onUpdate: (recordId: string, parameter: SimulationParameter, value: number | null) => void
+  onUpdate: (recordId: string, parameter: SimulationParameter, value: number | null, exactValue?: string) => void
   onBeginEdit: () => void
   onCommitEdit: () => void
 }) {
@@ -796,6 +796,9 @@ function SimulationParameterTable({
                         ? (simulationRecord as unknown as Record<string, number | null>)[parameter.field] ?? null
                         : null
                       const value = recordValue === null ? null : recordValue * parameter.scale
+                      const exactValue = simulationRecord
+                        ? (simulationRecord as unknown as { exactDecimalInputs?: Record<string, string> }).exactDecimalInputs?.[parameter.field]
+                        : undefined
                       return (
                         <td key={parameter.parameter} className={`py-1 text-right ${groupEndClass}`} style={{ paddingLeft: parameter.scale === 100 ? 6 : 5, paddingRight: parameter.scale === 100 ? 2 : 5 }}>
                           {!simulationRecord ? '—' : canEdit ? (
@@ -810,14 +813,15 @@ function SimulationParameterTable({
                                   <>
                                     <NumericInput
                                       value={value}
+                                      exactValue={exactValue}
                                       numericColumn
                                       min={0}
                                       minExclusive={parameter.parameter === 'routing.capacity' || parameter.parameter === 'routing.yield'}
                                       max={parameter.parameter === 'routing.yield' || parameter.parameter === 'bom.loss' ? 100 : undefined}
                                       allowSubMinimumDraft={parameter.parameter === 'routing.capacity' || parameter.parameter === 'routing.yield'}
                                       stopAtMinimum
-                                      onValueChange={next => {
-                                        if (next !== null) onUpdate(simulationRecord.id, parameter.parameter, next / parameter.scale)
+                                      onValueChange={(next, exact) => {
+                                        if (next !== null) onUpdate(simulationRecord.id, parameter.parameter, next / parameter.scale, exact)
                                       }}
                                       className="relative z-10 h-8 w-full min-w-0 rounded-sm border border-transparent bg-transparent pl-1.5 pr-0 text-right font-mono text-xs tabular-nums text-slate-900 transition-colors"
                                       style={{
@@ -969,6 +973,9 @@ function SimulationParameterTable({
                     ? (simulationRecord as unknown as Record<string, number | null>)[parameter.field] ?? null
                     : null
                   const value = recordValue === null ? null : recordValue * parameter.scale
+                  const exactValue = simulationRecord
+                    ? (simulationRecord as unknown as { exactDecimalInputs?: Record<string, string> }).exactDecimalInputs?.[parameter.field]
+                    : undefined
                   return (
                     <label key={parameter.parameter} className="block min-w-0 text-[10px] font-medium text-slate-600">
                       <span className="block pl-1.5"><span className={parameter.scale === 100 ? 'grid grid-cols-[minmax(0,1fr)_0.6rem] gap-1' : 'block'}><NumericColumnHeader>{parameter.label}</NumericColumnHeader>{parameter.scale === 100 && <span aria-hidden="true" />}</span></span>
@@ -977,6 +984,7 @@ function SimulationParameterTable({
                           <SimulationHistoryInputBoundary onBegin={onBeginEdit} onCommit={onCommitEdit}>
                             <NumericInput
                               value={value}
+                              exactValue={exactValue}
                               numericColumn
                               percentSuffix={parameter.scale === 100}
                               min={0}
@@ -984,8 +992,8 @@ function SimulationParameterTable({
                               max={parameter.parameter === 'routing.yield' || parameter.parameter === 'bom.loss' ? 100 : undefined}
                               allowSubMinimumDraft={parameter.parameter === 'routing.capacity' || parameter.parameter === 'routing.yield'}
                               stopAtMinimum
-                              onValueChange={next => {
-                                if (next !== null) onUpdate(simulationRecord.id, parameter.parameter, next / parameter.scale)
+                              onValueChange={(next, exact) => {
+                                if (next !== null) onUpdate(simulationRecord.id, parameter.parameter, next / parameter.scale, exact)
                               }}
                               className="h-8 w-full min-w-0 rounded-sm border border-transparent bg-transparent px-1.5 text-right font-mono text-xs tabular-nums text-slate-900 transition-colors hover:border-slate-200 hover:bg-slate-50 focus:!border-transparent focus:bg-white focus:!outline focus:!outline-2 focus:!outline-blue-700 focus:!outline-offset-[-2px]"
                               aria-label={`${row.name} ${parameter.label} in ${roleLabel(activeRole)}`}

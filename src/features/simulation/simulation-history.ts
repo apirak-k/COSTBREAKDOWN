@@ -5,6 +5,7 @@ import {
   setSimulationEconomicInput,
   type SimulationSources,
   type SimulationParameter,
+  type SimulationParameterExactInputs,
   type SimulationWorkspaceState
 } from './simulation-state'
 import type { EconomicSimulationDraft, EconomicSimulationField } from './simulation-economics'
@@ -15,6 +16,7 @@ type EditableRoutingValues = { manning: number | null; capacity: number | null; 
 export interface SimulationEditableSnapshot {
   bom: Record<string, EditableBOMValues>
   routing: Record<string, EditableRoutingValues>
+  exactDecimalInputs?: SimulationParameterExactInputs
   economicInputs: EconomicSimulationDraft
 }
 
@@ -51,6 +53,7 @@ function cloneSnapshot(snapshot: SimulationEditableSnapshot): SimulationEditable
   return {
     bom: Object.fromEntries(Object.entries(snapshot.bom).map(([id, values]) => [id, { ...values }])),
     routing: Object.fromEntries(Object.entries(snapshot.routing).map(([id, values]) => [id, { ...values }])),
+    exactDecimalInputs: Object.fromEntries(Object.entries(snapshot.exactDecimalInputs ?? {}).map(([parameter, values]) => [parameter, { ...values }])),
     economicInputs: { ...snapshot.economicInputs }
   }
 }
@@ -94,7 +97,12 @@ export function captureSimulationEditableSnapshot(
       }
     }
   }
-  return { bom, routing, economicInputs: { ...dataset.economicInputs } }
+  return {
+    bom,
+    routing,
+    exactDecimalInputs: Object.fromEntries(Object.entries(dataset.exactDecimalInputs ?? {}).map(([parameter, values]) => [parameter, { ...values }])),
+    economicInputs: { ...dataset.economicInputs }
+  }
 }
 
 export function isSimulationEditableSnapshotEqual(
@@ -103,6 +111,7 @@ export function isSimulationEditableSnapshotEqual(
 ): boolean {
   return equalRecord(left.bom, right.bom)
     && equalRecord(left.routing, right.routing)
+    && equalRecord(left.exactDecimalInputs ?? {}, right.exactDecimalInputs ?? {})
     && ECONOMIC_FIELDS.every(field => left.economicInputs[field] === right.economicInputs[field])
 }
 
@@ -169,12 +178,16 @@ export function applySimulationEditableSnapshot(
   let next = state
   for (const [id, values] of Object.entries(target.bom)) {
     for (const { field, parameter } of BOM_FIELDS) {
-      next = updateSimulationParameter(next, sources, id, parameter, values[field], role)
+      const exactValues = target.exactDecimalInputs?.[parameter]
+      next = updateSimulationParameter(next, sources, id, parameter, values[field], role,
+        exactValues && Object.prototype.hasOwnProperty.call(exactValues, id) ? exactValues[id] : null)
     }
   }
   for (const [id, values] of Object.entries(target.routing)) {
     for (const { field, parameter } of ROUTING_FIELDS) {
-      next = updateSimulationParameter(next, sources, id, parameter, values[field], role)
+      const exactValues = target.exactDecimalInputs?.[parameter]
+      next = updateSimulationParameter(next, sources, id, parameter, values[field], role,
+        exactValues && Object.prototype.hasOwnProperty.call(exactValues, id) ? exactValues[id] : null)
     }
   }
   for (const field of ECONOMIC_FIELDS) next = setSimulationEconomicInput(next, field, target.economicInputs[field], role)
