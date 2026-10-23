@@ -167,6 +167,24 @@ All product requirements and lifecycle boundaries are complete under the finaliz
 - **Must preserve:** all data, identity, calculation, validation, history, and selection semantics outside the stated filtered search scope; graph dimensions and all non-ruler geometry; the Result/Break-even vertical split; responsive layouts; no Master Data footer in Simulation.
 - **Related contract:** [`SIMULATION.md`](specs/SIMULATION.md), [`Simulation_BOM_RTG_Final_Requirements.md`](161069/Simulation_BOM_RTG_Final_Requirements.md), [`Simulation_Graph_Final_Requirements.md`](161069/Simulation_Graph_Final_Requirements.md), and [`HANDOFF.md`](../HANDOFF.md).
 
+### P-016 — Pre-Round-4B layout, column track, and table minimum geometry
+
+- **Status:** `PROVISIONAL — AI CHOICE`
+- **Choice:** concrete implementation geometry used during pre-Round-4B work:
+  1. Simulation desktop table column tracks (e.g. `5% | 16.5% | 10.6% | 13.5% | 13.5% | 17% | 18.9% | 5%` or earlier iterations).
+  2. Simulation upper workspace grid split and Result/Break-even vertical split (e.g. `1.4:1` or `58% / 42%`).
+  3. Cost Breakdown summary table minimum widths (`624px` / `652px`) and Candidate table minimum widths (`1240px` BOM, `1260px` Routing).
+- **Why:** these provisional values were chosen by AI to address functional layout targets: single-line BOM/Routing headers, Status gutter `>= 8px`, four-fraction ordinary decimal reserve, signed scientific Total floor, and local panel scrolling without page overflow.
+- **Must preserve:**
+  - Invariant: `actual rendered header text center = numeric slot/input frame center = ordinary decimal anchor`.
+  - Result containment: at normal desktop/tablet layout, Result must NOT have internal horizontal or vertical scrollbars merely to fit the workspace, and must NEVER overflow vertically into or overlap Break-even. Any ratio or layout that causes Result to overlap Break-even is unacceptable.
+  - Hierarchy: Main Graph remains largest; Business/Economic remains compact with readable labels; Result and Break-even share the middle column.
+  - Ordinary-first presentation: ordinary values (such as `4.00`, `5.00`, `8.00`, `12.00`, `15.00`, `5.00 %`, `84.00 %`, `90.00 %`, `97.00 %`, `98.00 %`) must remain in ordinary notation whenever the rendered region has room, and must never fall back to scientific notation merely due to conservative reservations or fit calculation errors.
+  - No horizontal page overflow.
+- **Reversible:** all exact column percentages, grid ratios, and table pixel minimums remain reversible AI implementation choices. Implementation may statically rebalance the split or adjust track widths while preserving the required hierarchy and invariants. They do NOT become canonical user requirements merely because they were committed or shipped.
+- **Review trigger:** external visual audit findings, layout clipping, Result↔Break-even overlap, or unnecessary scrollbars.
+- **Related contracts:** [`CROSS_CUTTING.md`](specs/CROSS_CUTTING.md), [`SIMULATION.md`](specs/SIMULATION.md), and [`COST_BREAKDOWN.md`](specs/COST_BREAKDOWN.md).
+
 ## Human Review Checkpoint
 
 Human visual review is an implementation verification checkpoint. It does not make the explicit Simulation decisions above provisional.

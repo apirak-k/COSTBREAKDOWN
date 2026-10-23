@@ -1,6 +1,35 @@
-# Pre-Round-4B Regression Cleanup — 2026-10-23
+# Pre-Round-4B Regression Audit & Status Reconciliation — 2026-10-23
 
-- **Status:** Round 1 CLOSED; Round 2 CLOSED; Round 3 CLOSED; Round 4A CLOSED; Pre-Round-4B Regression Cleanup **COMPLETED / READY FOR USER VISUAL REVIEW**; Round 4B **NOT STARTED / NEXT**; Round 5 **NOT STARTED**.
+- **Branch:** `feat/selected-value-ux`
+- **Audited remote HEAD:** `3af57b05e8518d7777d921f6b31ef50bce6ebf76`
+- **Status:** **PRE-4B EXTERNAL AUDIT FAILED / CORRECTION REQUIRED**
+- **Round 4B:** **NOT STARTED / BLOCKED** (strictly gated until this pre-4B cleanup is corrected, verified, and accepted)
+- **External Audit Classification:**
+  - **PRESERVE:**
+    * SG&A duplicate `%` removal (unit indicated in label "SG&A %").
+    * One-line "Bill of Materials" and "Routing Process" identity-header target.
+    * CBD footer Total localization approach (same-baseline annotation outside numeric fit/suffix geometry).
+    * Accepted numeric centerline principles (header text center = numeric slot/frame center = ordinary decimal anchor).
+    * Existing formulas, business logic, and dataset lifecycle.
+    * Master `#` visual-weight intent, subject to CBD/Simulation caller preservation.
+  - **PARTIAL / REPAIR:**
+    * Result scrollbar removal: Keep no-scroll goal, but repair vertical containment so Result NEVER overflows vertically into or overlaps the Break-even panel; removing scrollbars and letting content spill over into Break-even is unacceptable.
+    * Numeric noise concept: Keep semantic-equivalence goal, but replace unsafe implementation with sound precision handling; do not write rounded presentation back to storage or collapse real user differences.
+    * Ordinary/scientific fit: Repair actual fit behavior; ensure values like `4.00`, `5.00`, `8.00`, `12.00`, `15.00`, `5.00 %`, `84.00 %`, `90.00 %`, `97.00 %`, `98.00 %` remain ordinary whenever they fit without premature scientific fallback.
+    * CBD Δ Loss suffix change: Implementation changed but visual outcome still fails external audit; `%` must sit naturally adjacent (`5.00 %`) rather than appearing detached in a separate distant column.
+  - **REVERT / REVIEW COLLATERAL:**
+    * Unrequested Economic Outcome green shade change (`text-emerald-700` back to standard semantic treatment).
+    * Any shared `RowSelectionButton` visual regression in CBD or Simulation callers from the shared `font-mono font-semibold` class.
+  - **KNOWN VERIFIER GAPS:**
+    * Result verifier did not detect vertical overlap with Break-even.
+    * Numeric checks allowed short ordinary values to become scientific in real presentation paths.
+    * CBD Δ Loss verifier became too weak: non-overlap is insufficient to prove acceptable visual gap.
+    * Floating-noise coverage did not catch decomposition residual `-8.88E-16`.
+- **Note on Historical Verification:** Tests passed in the previous test run, but test coverage was insufficient for the externally observed regressions. Corrective implementation and tightened verifiers are required before Round 4B can proceed.
+
+# Historical Pre-Round-4B Regression Cleanup Attempt — 2026-10-23 (Superseded Operationally)
+
+- **Status:** Historical attempt superseded operationally by the audit checkpoint above (**PRE-4B EXTERNAL AUDIT FAILED / CORRECTION REQUIRED**); Round 4B **NOT STARTED / BLOCKED**; Round 5 **NOT STARTED**.
 - **Scope & Invariants:** Strictly scoped pre-4B cleanup. No feature additions, no global blue changed-value indicators, no arbitrary refactoring. Restores historical good behavior and addresses root causes.
 - **WP1 — Simulation Result Container & Scroll:** Restored card padding `xl:px-1` (from `xl:px-0.5`) to give comparison selectors comfortable breathing room; removed `overflow-y-auto` and `min-h-0` on `[data-simulation-result-body]` eliminating internal vertical scrollbars.
 - **WP2 — Simulation BOM/RTG Header Geometry & Identity Track Width:** Balanced column tracks to `5% | 16.5% | 10.6% | 13.5% | 13.5% | 17% | 18.9% | 5%`. "Bill of Materials" and "Routing Process" fit on a single line (`whitespace-nowrap`); Status gutter preserves `>= 8px` and container gutter `>= 5.5px`; Percentage inputs retain `>= 76.5px` width avoiding scientific fallback; Calculated-cost headers stay on one line at 1280px without clipping or horizontal page overflow, and expanded Total preserves full supported scientific floor.
@@ -11,7 +40,7 @@
 - **WP7 — CBD Candidate BOM Width & Sizing:** Audited and preserved `min-w-[1240px]` for BOM candidate table and `min-w-[1260px]` for Routing candidate table to prevent column compression and premature scientific fallback at 1024px.
 - **WP8 — Master Data Visual Weight & Geometry Audit:** Aligned visual weight and font geometry of column header `#` in `RowSelectionButton.tsx` (`font-mono font-semibold`) with row selector buttons `[1]`, `[2]`. Audited 136px / 81rem Master Data table width; verified it is required for warning/blocker star clearance outside the stable numeric axis without shifting decimal centerlines.
 - **WP9 — Verifier Suite Reconciled:** Updated `round4a-correction-geometry.mjs`, `verify_cbd_selected_value_browser.mjs`, and `verify_numeric_input_browser.mjs` to test verified invariants (coexisting Total annotation without 36px column padding shift, standard percentage slot for Loss, and no duplicate % suffix on SG&A).
-- **Verification Results (All Pass, Exit Code 0):**
+- **Verification Results (Previous run — note verifier gaps above):**
   - `node scripts/verify_numeric_input.mjs`: 313/313 assertions PASS.
   - `npx tsx scripts/verify_simulation_result.ts`: PASS.
   - `npx tsx scripts/verify_simulation_economics.ts`: PASS.
@@ -23,6 +52,7 @@
   - `node scripts/verify_cbd_selected_value_browser.mjs`: 296/296 browser checks PASS.
   - `node scripts/verify_numeric_input_browser.mjs`: PASS.
   - `npm run build`: Production build passes cleanly with 0 TypeScript errors.
+  *(Note: tests passed, but coverage was insufficient for the externally observed regressions.)*
 
 # Final Round 4A / pre-Round-4B correction — 2026-10-23
 
