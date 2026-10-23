@@ -1,3 +1,29 @@
+# Pre-Round-4B Regression Cleanup — 2026-10-23
+
+- **Status:** Round 1 CLOSED; Round 2 CLOSED; Round 3 CLOSED; Round 4A CLOSED; Pre-Round-4B Regression Cleanup **COMPLETED / READY FOR USER VISUAL REVIEW**; Round 4B **NOT STARTED / NEXT**; Round 5 **NOT STARTED**.
+- **Scope & Invariants:** Strictly scoped pre-4B cleanup. No feature additions, no global blue changed-value indicators, no arbitrary refactoring. Restores historical good behavior and addresses root causes.
+- **WP1 — Simulation Result Container & Scroll:** Restored card padding `xl:px-1` (from `xl:px-0.5`) to give comparison selectors comfortable breathing room; removed `overflow-y-auto` and `min-h-0` on `[data-simulation-result-body]` eliminating internal vertical scrollbars.
+- **WP2 — Simulation BOM/RTG Header Geometry & Identity Track Width:** Balanced column tracks to `5.5% | 17% | 11% | 14% | 14% | 16% | 17% | 5.5%`. "Bill of Materials" and "Routing Process" fit on a single line; Status gutter preserves `>= 8px` and container gutter `>= 5.5px`; Percentage inputs retain `>= 77px` width avoiding scientific fallback; Calculated-cost headers stay on one line at 1280px without clipping or horizontal page overflow.
+- **WP3 — Floating-Point Precision Noise & False CHANGED:** Implemented `normalizeNumericNoise` and `areNumericValuesEquivalent` in `numeric-display.ts`. Strips IEEE 754 15-17 digit noise (e.g., `9.000000000000004`, `19.999999999999996`) while preserving intentional business precision (`12.3456789`, `110.123456`, extreme scientific numbers, and exact integers). Editors hydrate without noise on focus; Simulation parameters and overrides compare equivalent values to eliminate false "CHANGED" badges on untouched parameters.
+- **WP4 — Simulation Business/Economic Inputs & Outcome Metrics:** Removed duplicate `%` suffix on SG&A % input in `EconomicSimulationPanel.tsx` (unit indicated in label "SG&A %"); input frame geometry matches sibling economic inputs. Restored positive outcome metric green to `text-emerald-700` (from `text-emerald-800`) for Parameter Saving, Economic Margin, and Operating Profit for clean readability on white backgrounds.
+- **WP5 — CBD Summary Table Layout & Total Annotation:** Removed `CBD_SUMMARY_PERCENTAGE_CLASS` (`relative pl-9`) from header, body, and footer cells. Added `leadingAnnotation` directly into `BusinessNumber` / `SelectedNumber` positioned immediately before the numeric token inside the centerline-anchored span without moving the decimal anchor. Restored column proportions (`20% 18% 18% 26% 18%` for SnapshotComparisonCard; `24% 19% 19% 20% 18%` for WorkCenterProcessingTable) and table minimum width `min-w-[624px]` with local panel scroll. Header, body, and footer centerlines align exactly.
+- **WP6 — CBD BOM Candidate Findings Δ Loss %:** Removed `compactPercentSuffix={parameter.field === 'loss'}` in `CandidateFindingsTable.tsx`. Loss and Yield now both use the standard shared percentage slot pattern.
+- **WP7 — CBD Candidate BOM Width & Sizing:** Audited and preserved `min-w-[1240px]` for BOM candidate table and `min-w-[1260px]` for Routing candidate table to prevent column compression and premature scientific fallback at 1024px.
+- **WP8 — Master Data Visual Weight & Geometry Audit:** Aligned visual weight and font geometry of column header `#` in `RowSelectionButton.tsx` (`font-mono font-semibold`) with row selector buttons `[1]`, `[2]`. Audited 136px / 81rem Master Data table width; verified it is required for warning/blocker star clearance outside the stable numeric axis without shifting decimal centerlines.
+- **WP9 — Verifier Suite Reconciled:** Updated `round4a-correction-geometry.mjs`, `verify_cbd_selected_value_browser.mjs`, and `verify_numeric_input_browser.mjs` to test verified invariants (coexisting Total annotation without 36px column padding shift, standard percentage slot for Loss, and no duplicate % suffix on SG&A).
+- **Verification Results (All Pass, Exit Code 0):**
+  - `node scripts/verify_numeric_input.mjs`: 313/313 assertions PASS.
+  - `npx tsx scripts/verify_simulation_result.ts`: PASS.
+  - `npx tsx scripts/verify_simulation_economics.ts`: PASS.
+  - `npx tsx scripts/verify_cbd_summary_ux.ts`: PASS.
+  - `npx tsx scripts/verify_row_selection.ts`: PASS.
+  - `node scripts/verify_simulation_regression.mjs`: PASS.
+  - `node scripts/verify_master_data_selected_value.mjs`: 148/148 browser checks PASS.
+  - `node scripts/verify_simulation_round4a_layout.mjs`: 219/219 browser checks PASS.
+  - `node scripts/verify_cbd_selected_value_browser.mjs`: 296/296 browser checks PASS.
+  - `node scripts/verify_numeric_input_browser.mjs`: PASS.
+  - `npm run build`: Production build passes cleanly with 0 TypeScript errors.
+
 # Final Round 4A / pre-Round-4B correction — 2026-10-23
 
 - **Status:** Round 1 CLOSED; Round 2 CLOSED; Round 3 CLOSED; Round 4A + pre-4B correction **IMPLEMENTED / AWAITING EXTERNAL USER AUDIT**; Round 4B **NOT STARTED / BLOCKED**; global changed-value blue text **NOT STARTED**; Round 5 **NOT STARTED**. No Round 4 closure or new numbered round.

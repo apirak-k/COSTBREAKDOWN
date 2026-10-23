@@ -1,4 +1,5 @@
 import type { CostSnapshot, MasterDataRole } from '../../core/types'
+import { areNumericValuesEquivalent, normalizeNumericNoise } from '../../shared/ui/numeric-display'
 import { calculateParameterSimulation, isSimulationParameterInputValid } from './simulation-engine'
 import {
   createEconomicSimulationDraft,
@@ -196,7 +197,11 @@ export function simulationParameterStatus(
   if (matches.length !== 1 || baselineMatches.length !== 1) return null
   const fields = kind === 'bom' ? ['price', 'consumption', 'loss'] as const : ['manning', 'capacity', 'yield'] as const
   return fields.every(field =>
-    matches[0][field as keyof typeof matches[0]] === baselineMatches[0][field as keyof typeof baselineMatches[0]])
+    areNumericValuesEquivalent(
+      matches[0][field as keyof typeof matches[0]] as number | null | undefined,
+      baselineMatches[0][field as keyof typeof baselineMatches[0]] as number | null | undefined
+    )
+  )
     ? 'UNCHANGED' : 'CHANGED'
 }
 
@@ -402,8 +407,8 @@ function normalizeParameterOverrides(value: unknown, baseline: CostSnapshot): Si
       const matches = rows.filter(row => row.id === recordId)
       if (!recordId || matches.length !== 1 || (candidate !== null && typeof candidate !== 'number')) continue
       if (!isSimulationParameterInputValid(parameter, candidate as number | null)) continue
-      if (Object.is((matches[0] as unknown as Record<string, unknown>)[field], candidate)) continue
-      valid[recordId] = candidate as number | null
+      if (areNumericValuesEquivalent((matches[0] as unknown as Record<string, unknown>)[field] as number | null | undefined, candidate as number | null | undefined)) continue
+      valid[recordId] = normalizeNumericNoise(candidate as number | null)
     }
     if (Object.keys(valid).length) result[parameter] = valid
   }

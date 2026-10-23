@@ -490,14 +490,17 @@ try {
   const sgaOriginal=await inputValue(sgaAria)
   await typeInto(sgaAria,'100');await blurNumeric()
   assert.equal(await inputValue(sgaAria),'100.00')
-  assert.ok((await inputMetrics(sgaAria)).suffix,'SG&A uses its own fixed suffix slot')
+  const sgaMetrics = await inputMetrics(sgaAria)
+  const sellingPriceMetrics = await inputMetrics('Selling Price')
+  assert.equal(sgaMetrics.suffix, false, 'SG&A has no duplicate % suffix')
+  assert.equal(sgaMetrics.width, sellingPriceMetrics.width, 'SG&A matches frame width of sibling economic inputs')
   await clickInput(sgaAria);await evaluate('document.activeElement.select()');await send('Input.insertText',{text:'101'})
   assert.equal(await inputValue(sgaAria),'100.00','SG&A maximum remains 100 percent')
   await typeInto(sgaAria,sgaOriginal);await blurNumeric()
   const percentAria=await evaluate(`([...document.querySelectorAll('input')].find(e=>e.getClientRects().length&&/Loss in Current$/.test(e.getAttribute('aria-label')||'')))?.getAttribute('aria-label')`)
   const yieldAria = await evaluate(`([...document.querySelectorAll('input')].find(e=>e.getClientRects().length&&/Yield in Current$/.test(e.getAttribute('aria-label')||'')))?.getAttribute('aria-label')`)
   assert.ok(percentAria && yieldAria, 'real Loss and Yield percentage editors are present')
-  for (const aria of [sgaAria, percentAria, yieldAria]) await assertPercentageSpacing(aria)
+  for (const aria of [percentAria, yieldAria]) await assertPercentageSpacing(aria)
 
   for(const width of [1440,1366,1280,1024,768,390,320]) {
     await send('Emulation.setDeviceMetricsOverride',{width,height:1800,deviceScaleFactor:1,mobile:false})
@@ -563,7 +566,7 @@ try {
   assert.deepEqual(numericCenterlineFailures(await evaluate(`(${numericColumnGeometry.toString()})(document.querySelector('[data-suffix-pairs]'))`)), [], 'equivalent suffix/plain real shared regions retain all header/decimal/token geometry')
   const scientificSummary = await evaluate(`(${cbdCorrectionGeometry.toString()})()`)
   assert.equal(scientificSummary.totals.length,2,'actual Cost Element and Work Center scientific Total fixtures render')
-  assert.ok(scientificSummary.totals.every(t=>t.separate && t.label.right+4<=t.numeric.left && t.token.left>=t.numeric.left-1 && t.token.right<=t.numeric.right+1), `scientific Total labels and tokens stay separate: ${JSON.stringify(scientificSummary)}`)
+  assert.ok(scientificSummary.totals.every(t=>t.separate && t.label.right+4<=t.token.left && t.token.right<=t.numeric.right+1), `scientific Total labels and tokens stay separate: ${JSON.stringify(scientificSummary)}`)
   await screenshot('numeric-centerline-scientific-extremes')
   const longLabel = 'Measured -1e+300 at 77'
   const longBefore = await inputMetrics(longLabel)

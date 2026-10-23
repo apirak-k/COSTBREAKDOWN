@@ -2,7 +2,7 @@ import type { CSSProperties } from 'react'
 
 // Both summaries use the same grid sizing; native table layout must not redistribute row heights.
 export const CBD_SUMMARY_PANEL_CLASS = 'min-w-0 overflow-x-auto border border-slate-300 bg-white lg:min-h-44 lg:overflow-y-hidden'
-export const CBD_SUMMARY_TABLE_CLASS = 'grid min-w-[652px] grid-rows-[28px_114px_32px] text-left text-xs leading-4'
+export const CBD_SUMMARY_TABLE_CLASS = 'grid min-w-[624px] grid-rows-[28px_114px_32px] text-left text-xs leading-4'
 export const CBD_SUMMARY_ROW_CLASS = 'grid grid-cols-[var(--cbd-summary-columns)] items-center'
 export const CBD_SUMMARY_HEADER_GROUP_CLASS = 'overflow-hidden border-b border-slate-700 bg-slate-800'
 export const CBD_SUMMARY_HEADER_ROW_CLASS = 'h-full bg-slate-800 font-semibold text-white'
@@ -28,6 +28,3 @@ export const CBD_SUMMARY_FOOTER_GROUP_CLASS = 'overflow-hidden border-t-2 border
 export const CBD_SUMMARY_FOOTER_ROW_CLASS = 'h-full bg-slate-100 font-semibold font-mono tabular-nums text-xs leading-4'
 export const CBD_SUMMARY_FOOTER_LABEL_CLASS = 'min-w-0 px-2 py-1.5 align-middle text-left font-sans font-semibold'
 export const CBD_SUMMARY_FOOTER_VALUE_CLASS = 'min-w-0 px-2 py-1.5 align-middle text-right'
-
-// Reserve the footer annotation beside, never inside, the unchanged numeric region.
-export const CBD_SUMMARY_PERCENTAGE_CLASS = 'relative pl-9'

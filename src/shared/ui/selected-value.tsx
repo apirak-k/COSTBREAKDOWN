@@ -317,15 +317,16 @@ export interface SelectedNumberProps extends Omit<ButtonHTMLAttributes<HTMLButto
   numericColumn?: boolean
   compactPercentSuffix?: boolean
   signPositive?: boolean
+  leadingAnnotation?: ReactNode
   children?: ReactNode
 }
 
-export function SelectedNumber({ value, integer, percentage, selectionId, children, className, style, numericColumn = false, compactPercentSuffix = false, signPositive, stopKeyboardPropagation = true, onKeyDown, onKeyUp, ...props }: SelectedNumberProps) {
+export function SelectedNumber({ value, integer, percentage, selectionId, children, className, style, numericColumn = false, compactPercentSuffix = false, signPositive, leadingAnnotation, stopKeyboardPropagation = true, onKeyDown, onKeyUp, ...props }: SelectedNumberProps) {
   const { isPinned, preview, clearPreview, pin } = useSelectedValueSource({ value, editable: false, domain: { integer }, percentage }, selectionId)
-  const content = children ?? <BusinessNumber value={value} integer={integer} percent={percentage} />
+  const content = children ?? <BusinessNumber value={value} integer={integer} percent={percentage} leadingAnnotation={leadingAnnotation} />
   if (value == null || !Number.isFinite(value)) return numericColumn
-    ? <BusinessNumber numericColumn value={value} integer={integer} percent={percentage} className={className} />
-    : <span className={className} style={style}>{content}</span>
+    ? <BusinessNumber numericColumn value={value} integer={integer} percent={percentage} leadingAnnotation={leadingAnnotation} className={className} />
+    : <span className={className} style={style}>{leadingAnnotation ? <span className="mr-1.5 whitespace-nowrap pointer-events-none">{leadingAnnotation}</span> : null}{content}</span>
 
   const renderButton = (token: ReactNode) => (
     <button
@@ -361,6 +362,6 @@ export function SelectedNumber({ value, integer, percentage, selectionId, childr
     </button>
   )
   return numericColumn
-    ? <BusinessNumber numericColumn className={className} value={value} integer={integer} percent={percentage} compactPercentSuffix={compactPercentSuffix} signPositive={signPositive} renderToken={renderButton} />
+    ? <BusinessNumber numericColumn className={className} value={value} integer={integer} percent={percentage} compactPercentSuffix={compactPercentSuffix} signPositive={signPositive} leadingAnnotation={leadingAnnotation} renderToken={renderButton} />
     : renderButton(content)
 }

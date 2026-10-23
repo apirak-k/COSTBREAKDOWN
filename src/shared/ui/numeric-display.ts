@@ -63,9 +63,36 @@ export function formatFullNumericValue(value: number | null | undefined): string
   return `${sign}${digits.slice(0, point)}.${digits.slice(point)}`
 }
 
+/** Normalize IEEE 754 machine representation noise while preserving intentional business precision. */
+export function normalizeNumericNoise<T extends number | null | undefined>(value: T): T {
+  if (value == null || !Number.isFinite(value as number)) return value
+  const num = value as number
+  if (num === 0) return 0 as T
+  // Do not alter extreme scientific numbers, tiny underflows, or exact integers
+  if (Math.abs(num) >= 1e15 || (Math.abs(num) > 0 && Math.abs(num) < 1e-12) || Number.isInteger(num)) {
+    return value
+  }
+  // Check if string representation contains 5+ consecutive zeros or nines near machine precision (e.g. 9.000000000000004, 19.999999999999996)
+  const str = num.toString()
+  if (/(?:0{5,}\d{1,2}|9{5,}\d{1,2})$/.test(str)) {
+    const normalized = Number(num.toPrecision(12))
+    return (Object.is(normalized, -0) ? 0 : normalized) as T
+  }
+  return value
+}
+
+/** Semantic equivalence for numbers: equivalent if they only differ by floating-point representation noise. */
+export function areNumericValuesEquivalent(a: number | null | undefined, b: number | null | undefined): boolean {
+  if (Object.is(a, b)) return true
+  if (typeof a !== 'number' || typeof b !== 'number') return false
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return a === b
+  return normalizeNumericNoise(a) === normalizeNumericNoise(b)
+}
+
 /** Hydrate a committed editor without rounding away authoritative precision. */
 export function formatFocusedNumericValue(value: number | null | undefined, integer = false): string {
-  const full = formatFullNumericValue(value)
+  const normalized = normalizeNumericNoise(value)
+  const full = formatFullNumericValue(normalized)
   if (!full || integer) return full
   const [whole, fraction = ''] = full.split('.')
   return `${whole}.${fraction.padEnd(2, '0')}`

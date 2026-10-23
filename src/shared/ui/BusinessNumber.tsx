@@ -11,11 +11,12 @@ interface BusinessNumberProps extends NumericDisplayOptions {
   numericColumnSigned?: boolean
   numericColumnReserveEnd?: number
   prefix?: string
+  leadingAnnotation?: ReactNode
   renderToken?: (content: ReactNode) => ReactNode
 }
 
 /** Fixed column centerline is opt-in; graph and toolbar tokens retain their existing layout. */
-export function BusinessNumber({ value, className, numericColumn = false, compactPercentSuffix = false, numericColumnSigned = true, numericColumnReserveEnd = 0, prefix = '', renderToken, ...options }: BusinessNumberProps) {
+export function BusinessNumber({ value, className, numericColumn = false, compactPercentSuffix = false, numericColumnSigned = true, numericColumnReserveEnd = 0, prefix = '', leadingAnnotation, renderToken, ...options }: BusinessNumberProps) {
   const regionRef = useRef<HTMLSpanElement>(null)
   const metrics = useNumericColumnMetrics(regionRef, numericColumn)
   const measure = (text: string) => measureNumericText(text, metrics.font, metrics.letterSpacing)
@@ -35,8 +36,9 @@ export function BusinessNumber({ value, className, numericColumn = false, compac
         data-numeric-fit-inset="2" data-numeric-reserve-end={numericColumnReserveEnd}
         data-numeric-fit={presentation.notation}
         data-numeric-fit-floor={metrics.width + 0.5 >= numericScientificFitFloor(measure, numericColumnSigned, prefix) + 2 * numericColumnReserveEnd ? 'adequate' : 'insufficient'}
-        className={`block min-w-0 ${compactPercentSuffix ? 'overflow-visible' : 'overflow-hidden'} text-left`}>
+        className={`block min-w-0 ${compactPercentSuffix || leadingAnnotation ? 'overflow-visible' : 'overflow-hidden'} text-left`}>
         <span className="relative inline-block" style={{ left: '50%', transform: ordinary ? `translateX(-${wholeWidth}px)` : 'translateX(-50%)' }}>
+          {leadingAnnotation && <span className="absolute right-full top-1/2 -translate-y-1/2 mr-1.5 whitespace-nowrap pointer-events-none">{leadingAnnotation}</span>}
           {renderToken ? renderToken(token) : token}
           {options.percent && compactPercentSuffix && presentation.notation !== 'unavailable' && <span data-numeric-suffix="true" className="absolute left-full ml-1">%</span>}
         </span>
@@ -46,6 +48,7 @@ export function BusinessNumber({ value, className, numericColumn = false, compac
 
   return <span data-numeric-presentation={presentation.notation} data-numeric-fraction-digits={presentation.fractionDigits}
     className={`inline-flex max-w-full items-baseline justify-end whitespace-nowrap font-mono tabular-nums ${className ?? ''}`}>
+    {leadingAnnotation && <span className="mr-1.5 whitespace-nowrap pointer-events-none">{leadingAnnotation}</span>}
     {renderToken ? renderToken(token) : token}
     {options.percent && presentation.notation !== 'unavailable' && <span data-numeric-suffix="true" style={{ width: '1ch', marginLeft: '0.25ch' }}>%</span>}
   </span>

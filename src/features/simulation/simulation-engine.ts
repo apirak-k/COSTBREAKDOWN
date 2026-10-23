@@ -1,4 +1,5 @@
 import { compareSnapshots, safeAdd } from '../../core'
+import { areNumericValuesEquivalent, normalizeNumericNoise } from '../../shared/ui/numeric-display'
 import { isMasterDataNumericValueValid, type MasterDataNumericField } from '../../core/utils/master-data-validation'
 import type {
   ComparisonFinding,
@@ -135,13 +136,13 @@ export function updateSimulationParameter(
     .find(record => record.kind === configuration.kind && record.afterRecordId === simulationRecordId)
   if (!row || !row.status || row.status === 'REMOVED' || row.identityIssue) return state
 
-  const currentValue = (matches[0] as unknown as Record<string, unknown>)[configuration.field]
-  const baselineValue = (baselineMatches[0] as unknown as Record<string, unknown>)[configuration.field]
-  if (Object.is(currentValue, value)) return state
+  const currentValue = (matches[0] as unknown as Record<string, unknown>)[configuration.field] as number | null | undefined
+  const baselineValue = (baselineMatches[0] as unknown as Record<string, unknown>)[configuration.field] as number | null | undefined
+  if (areNumericValuesEquivalent(currentValue, value)) return state
 
   const parameterValues = { ...(dataset.parameterOverrides[parameter] ?? {}) }
-  if (Object.is(baselineValue, value)) delete parameterValues[simulationRecordId]
-  else parameterValues[simulationRecordId] = value
+  if (areNumericValuesEquivalent(baselineValue, value)) delete parameterValues[simulationRecordId]
+  else parameterValues[simulationRecordId] = normalizeNumericNoise(value) ?? null
   const parameterOverrides = { ...dataset.parameterOverrides }
   if (Object.keys(parameterValues).length) parameterOverrides[parameter] = parameterValues
   else delete parameterOverrides[parameter]

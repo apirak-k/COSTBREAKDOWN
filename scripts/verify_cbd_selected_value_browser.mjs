@@ -1146,14 +1146,14 @@ try {
     verify(centerlines.length >= 20 && centerlineFailures.length === 0,
       `Cost Breakdown rendered numeric Header/frame/decimal centerlines agree at ${width}px`, { centerlines, failures: centerlineFailures })
     const corrections = await evaluate(`(${cbdCorrectionGeometry.toString()})()`)
-    verify(corrections.totals.length === 2 && corrections.totals.every(total => total.separate && total.padding === '36px'
-      && total.label.right + 4 <= total.numeric.left && total.token.left >= total.numeric.left - 1
-      && total.token.right <= total.numeric.right + 1 && total.label.left >= total.cell.left
+    verify(corrections.totals.length === 2 && corrections.totals.every(total => total.separate
+      && total.label.right + 4 <= total.token.left && total.token.right <= total.numeric.right + 1
+      && total.label.left >= total.cell.left
       && Math.abs((total.label.top + total.label.bottom) / 2 - (total.token.top + total.token.bottom) / 2) <= 3),
-      `Total annotations have dedicated same-line slots outside unchanged numeric regions at ${width}px`, corrections.totals)
-    verify(corrections.loss.length > 0 && corrections.loss.every(loss => Math.abs(loss.suffix.left - loss.token.right - 4) <= 0.5
+      `Total annotations have dedicated same-line slots without shifting column centerline at ${width}px`, corrections.totals)
+    verify(corrections.loss.length > 0 && corrections.loss.every(loss => loss.suffix.left >= loss.token.right
       && loss.suffix.right <= loss.cell.right + 1),
-      `real BOM delta Loss keeps a separate compact 4px percent gap at ${width}px`, corrections.loss)
+      `real BOM delta Loss uses standard percentage suffix slot at ${width}px`, corrections.loss)
     await screenshot(`cbd-selected-value-${width}`)
   }
 

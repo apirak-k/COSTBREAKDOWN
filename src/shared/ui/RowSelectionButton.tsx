@@ -39,7 +39,7 @@ export const RowSelectionButton = forwardRef<HTMLButtonElement, RowSelectionButt
       aria-label={label}
       onClick={onClick}
       disabled={disabled}
-      className={`mx-auto grid ${size === 32 ? 'h-8 w-8' : 'h-7 w-7'} shrink-0 place-items-center rounded-sm p-0 text-[11px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] ${variant === 'light' ? 'focus-visible:outline-blue-700' : 'focus-visible:outline-white'} ${stateClass} disabled:cursor-default disabled:opacity-40`}
+      className={`mx-auto grid ${size === 32 ? 'h-8 w-8' : 'h-7 w-7'} shrink-0 place-items-center rounded-sm p-0 font-mono text-[11px] font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] ${variant === 'light' ? 'focus-visible:outline-blue-700' : 'focus-visible:outline-white'} ${stateClass} disabled:cursor-default disabled:opacity-40`}
     >#</button>
   )
 })

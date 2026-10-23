@@ -35,9 +35,9 @@ export function cbdCorrectionGeometry() {
     return { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom, width: rect.width }
   }
   const totals = [...document.querySelectorAll('[data-cbd-total-annotation]')].map(label => {
-    const cell = label.parentElement, numeric = cell.querySelector('[data-numeric-region]'), token = cell.querySelector('[data-numeric-token]'), suffix = cell.querySelector('[data-numeric-suffix]')
-    return { label: bounds(label), numeric: bounds(numeric), token: bounds(token), suffix: suffix ? bounds(suffix) : null,
-      separate: !numeric.contains(label), cell: bounds(cell), padding: getComputedStyle(cell).paddingLeft }
+    const cell = label.closest('td, [role="cell"]'), numeric = cell?.querySelector('[data-numeric-region]'), token = cell?.querySelector('[data-numeric-token]'), suffix = cell?.querySelector('[data-numeric-suffix]')
+    return { label: bounds(label), numeric: numeric ? bounds(numeric) : null, token: token ? bounds(token) : null, suffix: suffix ? bounds(suffix) : null,
+      separate: Boolean(token && !token.contains(label)), cell: cell ? bounds(cell) : null, padding: cell ? getComputedStyle(cell).paddingLeft : '0px' }
   })
   const loss = [...document.querySelectorAll('tr[data-candidate-reorder-row] > td:nth-child(6)')]
     .filter(cell => cell.querySelector('[data-numeric-suffix]') && cell.closest('table').querySelector('caption')?.textContent.includes('Bill of Material'))
