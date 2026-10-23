@@ -143,6 +143,29 @@ try {
   const click = async selector => {
     await evaluate(`(()=>{const target=document.querySelector(${JSON.stringify(selector)});if(!target)throw Error('Missing ${selector}');target.focus();target.click();return true})()`)
   }
+  const clickAt = async selector => {
+    const point = await evaluate(`(()=>{const target=document.querySelector(${JSON.stringify(selector)});if(!target)throw Error('Missing ${selector}');target.scrollIntoView({block:'center',inline:'nearest'});const rect=target.getBoundingClientRect();return {x:rect.x+rect.width/2,y:rect.y+rect.height/2}})()`)
+    await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: point.x, y: point.y })
+    await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: point.x, y: point.y, button: 'left', clickCount: 1 })
+    await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: point.x, y: point.y, button: 'left', clickCount: 1 })
+    await delay(100)
+  }
+  const press = async key => {
+    const code = key === 'ArrowUp' ? 38 : 40
+    await send('Input.dispatchKeyEvent', { type: 'keyDown', key, code: key, windowsVirtualKeyCode: code })
+    await send('Input.dispatchKeyEvent', { type: 'keyUp', key, code: key, windowsVirtualKeyCode: code })
+    await delay(80)
+  }
+  const setCaret = async (selector, index) => {
+    await evaluate(`(()=>{const input=document.querySelector(${JSON.stringify(selector)});if(!input)throw Error('Missing numeric editor');input.focus();return true})()`)
+    await delay(80)
+    await evaluate(`(()=>{const input=document.querySelector(${JSON.stringify(selector)});input.setSelectionRange(${index},${index});return true})()`)
+  }
+  const wheel = async (selector, deltaY) => {
+    const point = await evaluate(`(()=>{const input=document.querySelector(${JSON.stringify(selector)});if(!input)throw Error('Missing numeric editor');const rect=input.getBoundingClientRect();return {x:rect.x+rect.width/2,y:rect.y+rect.height/2}})()`)
+    await send('Input.dispatchMouseEvent', { type: 'mouseWheel', ...point, deltaX: 0, deltaY })
+    await delay(100)
+  }
   const nextPageLoad = () => new Promise(resolveLoad => {
     const handler = event => {
       if (JSON.parse(String(event.data)).method !== 'Page.loadEventFired') return
@@ -189,14 +212,59 @@ try {
   const horizontalState = await evaluate(`(()=>{const input=document.querySelector(${JSON.stringify(inputSelector)});return {scrollLeft:input.scrollLeft,clientWidth:input.clientWidth,selectionStart:input.selectionStart,value:input.value}})()`)
   check(horizontalState.scrollLeft > 0 && horizontalState.selectionStart === `${critical}7`.length, 'Native input scrolls horizontally to keep the long caret visible', horizontalState)
   await replaceInput(inputSelector, critical)
-  await evaluate(`(()=>{const input=document.querySelector(${JSON.stringify(inputSelector)});input.setSelectionRange(input.value.length,input.value.length);return true})()`)
-  await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'ArrowUp', code: 'ArrowUp', windowsVirtualKeyCode: 38 })
-  await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'ArrowUp', code: 'ArrowUp', windowsVirtualKeyCode: 38 })
+  const unitStepped = '123456789012346.123456789'
+  const subPrecisionStepped = '123456789012345.123456790'
+  const unitsIndex = critical.indexOf('.') - 1
+  await setCaret(inputSelector, unitsIndex)
+  await press('ArrowUp')
+  await waitUntil(`JSON.parse(document.querySelector('[data-testid="exact-decimal-state"]').textContent).exact===${JSON.stringify(unitStepped)}`, 'Arrow Up exact unit-place increment')
+  state = await readState()
+  check(state.exact === unitStepped && state.calculation === Number(unitStepped)
+    && await evaluate(`document.querySelector(${JSON.stringify(inputSelector)}).value`) === unitStepped,
+  'Arrow Up changes only the unit digit and preserves all fractional digits in state and editor', state)
+  await press('ArrowDown')
+  await waitUntil(`JSON.parse(document.querySelector('[data-testid="exact-decimal-state"]').textContent).exact===${JSON.stringify(critical)}`, 'Arrow Down exact unit-place decrement')
+  check((await readState()).exact === critical, 'Arrow Down restores the exact large decimal')
+
+  await setCaret(inputSelector, critical.length - 1)
+  await press('ArrowUp')
+  await waitUntil(`JSON.parse(document.querySelector('[data-testid="exact-decimal-state"]').textContent).exact===${JSON.stringify(subPrecisionStepped)}`, 'sub-Number-precision Arrow Up')
+  state = await readState()
+  check(state.exact === subPrecisionStepped && state.calculation === Number(critical)
+    && Object.is(state.calculation, Number(subPrecisionStepped)),
+  'last decimal digit steps even when the calculation Number is unchanged', state)
+  await press('ArrowDown')
+  await waitUntil(`JSON.parse(document.querySelector('[data-testid="exact-decimal-state"]').textContent).exact===${JSON.stringify(critical)}`, 'sub-Number-precision Arrow Down')
+  check((await readState()).exact === critical, 'sub-precision Arrow Down restores the exact previous decimal')
+
+  await setCaret(inputSelector, unitsIndex)
+  await wheel(inputSelector, -100)
+  await waitUntil(`JSON.parse(document.querySelector('[data-testid="exact-decimal-state"]').textContent).exact===${JSON.stringify(unitStepped)}`, 'mouse wheel up exact increment')
+  check((await readState()).exact === unitStepped, 'mouse wheel up increments from the authoritative decimal')
+  await wheel(inputSelector, 100)
+  await waitUntil(`JSON.parse(document.querySelector('[data-testid="exact-decimal-state"]').textContent).exact===${JSON.stringify(critical)}`, 'mouse wheel down exact decrement')
+  check((await readState()).exact === critical, 'mouse wheel down restores the exact decimal')
+
+  const headerSelector = 'header input[aria-label="Selected value"]'
+  await focusInput(headerSelector, critical)
+  check(await evaluate(`document.querySelector(${JSON.stringify(headerSelector)}).value`) === critical,
+    'Header Value editor reads the same exact decimal as the grid')
+  await setCaret(headerSelector, unitsIndex)
+  await clickAt('header button[aria-label="Increase Selected value"]')
+  await waitUntil(`JSON.parse(document.querySelector('[data-testid="exact-decimal-state"]').textContent).exact===${JSON.stringify(unitStepped)}`, 'Header stepper exact increment')
+  check(await evaluate(`document.querySelector(${JSON.stringify(headerSelector)}).value`) === unitStepped,
+    'Header stepper updates the shared authoritative exact value')
+  await clickAt('header button[aria-label="Decrease Selected value"]')
+  await waitUntil(`JSON.parse(document.querySelector('[data-testid="exact-decimal-state"]').textContent).exact===${JSON.stringify(critical)}`, 'Header stepper exact decrement')
+  check((await readState()).exact === critical, 'Header stepper down restores the exact decimal')
+
+  await setCaret(inputSelector, unitsIndex)
+  await press('ArrowUp')
   await delay(120)
   state = await readState()
-  const subUlpStepState = await evaluate(`(()=>{const input=document.querySelector(${JSON.stringify(inputSelector)});return {value:input?.value,start:input?.selectionStart,end:input?.selectionEnd,active:document.activeElement===input}})()`)
-  check(state.exact === critical && subUlpStepState.value === critical,
-    'A sub-ULP step cannot replace the exact edit text', { state, input: subUlpStepState })
+  const steppedState = await evaluate(`(()=>{const input=document.querySelector(${JSON.stringify(inputSelector)});const header=document.querySelector(${JSON.stringify(headerSelector)});return {inputValue:input?.value,selectionStart:input?.selectionStart,activeElement:document.activeElement?.getAttribute('aria-label'),headerValue:header?.value}})()`)
+  check(state.exact === unitStepped && steppedState.inputValue === unitStepped,
+    'store exact stepped value before lifecycle reconstruction', { state, input: steppedState })
 
   await evaluate(`window.__exactDecimalOriginalInput=document.querySelector(${JSON.stringify(inputSelector)});true`)
   await click('button[data-testid="exact-role-reference"]')
@@ -207,8 +275,9 @@ try {
   inputSelector = selectorForState(state)
   await waitUntil(`Boolean(document.querySelector(${JSON.stringify(inputSelector)}))`, 'Current editor reconstructed after dataset switch')
   check(await evaluate(`document.querySelector(${JSON.stringify(inputSelector)})!==window.__exactDecimalOriginalInput`), 'Dataset switch reconstructs the editor from application state')
-  await focusInput(inputSelector, critical)
-  check((await readState()).exact === critical, 'Current to Reference to Current preserves exact digits')
+  await focusInput(inputSelector, unitStepped)
+  check((await readState()).exact === unitStepped, 'dataset reconstruction retains the exact stepped value')
+  await replaceInput(inputSelector, critical)
 
   await click('button[data-testid="exact-product-away"]')
   await waitUntil(`JSON.parse(document.querySelector('[data-testid="exact-decimal-state"]').textContent).productId!==JSON.parse(document.querySelector('[data-testid="exact-decimal-state"]').textContent).originalProductId`, 'switch to another product context')
@@ -260,7 +329,7 @@ try {
     'Redo clears the value without changing row structure', state)
 
   check(browserErrors.length === 0, 'Browser reports no runtime errors', browserErrors)
-  console.log(`PASS exact decimal lifecycle: ${assertionCount} assertions; exact ${critical}; dataset, product, remount/reload, ordinary values, calculation representation, and native horizontal editing verified.`)
+  console.log(`PASS exact decimal lifecycle/stepping: ${assertionCount} assertions; exact unit/sub-precision Arrow steps, wheel, Header steppers, shared state reconstruction, lifecycle, calculation representation, and native horizontal editing verified.`)
 } finally {
   client?.close()
   await stopChild(chrome)

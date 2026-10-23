@@ -55,7 +55,8 @@ try {
     parseNumericDraft,
     resolveNumericWheelStepDirection,
     resolveNumericStepPlace,
-    stepNumericValue
+    stepNumericValue,
+    stepNumericDraftValue
   } = await vite.ssrLoadModule('/src/shared/ui/numeric-input-rules.ts')
   const {
     filterInvalidMasterDataNumericChanges,
@@ -222,6 +223,25 @@ try {
   assert.equal(stepNumericValue(12.34, -1, 1), 11.34)
   assert.equal(stepNumericValue(12.34, 1, 0.01), 12.35)
   assert.equal(stepNumericValue(12.34, -1, 0.01), 12.33)
+  const exactLarge = '123456789012345.123456789'
+  const exactUnitUp = stepNumericDraftValue(exactLarge, 1, 0, { min: 0 })
+  assert.equal(exactUnitUp?.draft, '123456789012346.123456789', 'exact unit-place stepping preserves every fractional digit')
+  assert.equal(exactUnitUp?.value, Number('123456789012346.123456789'), 'exact stepping still emits the calculation Number')
+  assert.equal(stepNumericDraftValue(exactUnitUp.draft, -1, 0, { min: 0 })?.draft, exactLarge,
+    'exact unit-place decrement restores the original decimal')
+  const exactSubPrecisionUp = stepNumericDraftValue(exactLarge, 1, -9, { min: 0 })
+  assert.equal(exactSubPrecisionUp?.draft, '123456789012345.123456790', 'last-digit stepping changes exact text below Number precision')
+  assert.equal(exactSubPrecisionUp?.value, Number(exactLarge), 'sub-precision exact changes may share the existing calculation Number')
+  assert.equal(stepNumericDraftValue(exactSubPrecisionUp.draft, -1, -9, { min: 0 })?.draft, exactLarge,
+    'sub-precision decrement restores every accepted digit')
+  assert.equal(stepNumericDraftValue('12.3456789', 1, -2, { min: 0 })?.draft, '12.3556789',
+    'ordinary exact stepping keeps untouched digits')
+  assert.equal(stepNumericDraftValue('0.00000123456789', 1, -9, { min: 0 })?.draft, '0.00000123556789',
+    'small exact decimals retain their untouched digits while stepping')
+  assert.equal(stepNumericDraftValue('12.3400', 1, -2, { min: 0 })?.draft, '12.3500',
+    'exact stepping preserves accepted trailing zeroes')
+  assert.equal(stepNumericDraftValue('125', 1, 1, { integer: true })?.draft, '135',
+    'integer stepping retains its caret-selected tens place')
   assert.equal(resolveNumericWheelStepDirection(-1), 1, 'negative deltaY means wheel up and increments')
   assert.equal(resolveNumericWheelStepDirection(1), -1, 'positive deltaY means wheel down and decrements')
   assert.equal(stepNumericValue(3, 1, 1, { integer: true }), 4)

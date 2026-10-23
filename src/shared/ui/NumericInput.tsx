@@ -11,6 +11,7 @@ import {
   parseNumericDraft,
   resolveNumericWheelStepDirection,
   resolveNumericStepPlace,
+  stepNumericDraftValue,
   stepNumericValue,
   type NumericInputDomain,
   type NumericStepPlace
@@ -226,21 +227,38 @@ export function NumericInput({
     const activePlace = !hasSelection && preservedPlace?.raw === raw && preservedPlace.caret === selectionStart
       ? preservedPlace.place
       : resolveNumericStepPlace(raw, hasSelection ? null : selectionStart, domain)
-    const next = stepNumericValue(currentValueRef.current, direction, activePlace.step, domain, { stopAtMinimum })
-    if (next === null) {
-      preservedPlaceRef.current = null
-      restorePlaceRef.current = null
-      emitValue(null, '')
-      setDraft('')
-    } else {
-      const nextDraft = formatFocusedNumericValue(next, integer)
-      if (Object.is(next, currentValueRef.current) || nextDraft === raw) {
+    const exactCurrent = Object.is(authoritativeDraftValueRef.current, currentValueRef.current)
+      ? authoritativeDraftRef.current
+      : null
+    const exactNext = exactCurrent === null
+      ? null
+      : stepNumericDraftValue(exactCurrent, direction, activePlace.exponent, domain)
+    if (exactNext) {
+      if (exactNext.draft === exactCurrent) {
         preservedPlaceRef.current = { raw, caret: selectionStart, place: activePlace }
         restorePlaceRef.current = null
       } else {
         restorePlaceRef.current = activePlace.exponent
-        emitValue(next, nextDraft)
-        setDraft(nextDraft)
+        emitValue(exactNext.value, exactNext.draft)
+        setDraft(exactNext.draft)
+      }
+    } else {
+      const next = stepNumericValue(currentValueRef.current, direction, activePlace.step, domain, { stopAtMinimum })
+      if (next === null) {
+        preservedPlaceRef.current = null
+        restorePlaceRef.current = null
+        emitValue(null, '')
+        setDraft('')
+      } else {
+        const nextDraft = formatFocusedNumericValue(next, integer)
+        if (Object.is(next, currentValueRef.current) || nextDraft === raw) {
+          preservedPlaceRef.current = { raw, caret: selectionStart, place: activePlace }
+          restorePlaceRef.current = null
+        } else {
+          restorePlaceRef.current = activePlace.exponent
+          emitValue(next, nextDraft)
+          setDraft(nextDraft)
+        }
       }
     }
     inputRef.current?.focus()

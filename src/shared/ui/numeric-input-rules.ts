@@ -74,13 +74,32 @@ function firstAllowedAtOrBelowMax(domain: NumericInputDomain): number | undefine
   return domain.integer ? Math.floor(domain.max) : domain.max
 }
 
-function decimalParts(value: number): { coefficient: bigint; exponent: number } {
-  const [significand, exponentText] = value.toString().toLowerCase().split('e')
+function decimalParts(value: number | string): { coefficient: bigint; exponent: number } {
+  const [significand, exponentText] = String(value).toLowerCase().split('e')
   const [whole, fraction = ''] = significand.split('.')
   return {
-    coefficient: BigInt(`${whole}${fraction}`),
+    coefficient: BigInt(`${whole}${fraction}` || '0'),
     exponent: Number(exponentText ?? 0) - fraction.length
   }
+}
+
+function formatDecimalParts({ coefficient, exponent }: { coefficient: bigint; exponent: number }): string {
+  const negative = coefficient < 0n
+  let digits = (negative ? -coefficient : coefficient).toString()
+  if (exponent >= 0) return `${negative ? '-' : ''}${digits}${'0'.repeat(exponent)}`
+  digits = `${'0'.repeat(Math.max(0, -exponent - digits.length + 1))}${digits}`
+  const decimalIndex = digits.length + exponent
+  return `${negative ? '-' : ''}${digits.slice(0, decimalIndex)}.${digits.slice(decimalIndex)}`
+}
+
+function compareDecimalParts(
+  left: { coefficient: bigint; exponent: number },
+  right: { coefficient: bigint; exponent: number }
+): -1 | 0 | 1 {
+  const exponent = Math.min(left.exponent, right.exponent)
+  const leftValue = left.coefficient * 10n ** BigInt(left.exponent - exponent)
+  const rightValue = right.coefficient * 10n ** BigInt(right.exponent - exponent)
+  return leftValue < rightValue ? -1 : leftValue > rightValue ? 1 : 0
 }
 
 function addDecimals(left: number, right: number): number {
@@ -119,6 +138,36 @@ export function resolveNumericStepPlace(
     : decimalIndex - activeIndex
   const step = 10 ** exponent
   return Number.isFinite(step) && step > 0 ? { exponent, step } : unitPlace
+}
+
+/** Steps an editable decimal string without round-tripping through its Number value. */
+export function stepNumericDraftValue(
+  raw: string,
+  direction: 1 | -1,
+  exponent: number,
+  domain: NumericInputDomain = {}
+): { draft: string; value: number } | null {
+  if (!Number.isSafeInteger(exponent) || parseNumericDraft(raw, domain).kind !== 'valid') return null
+
+  const current = decimalParts(raw)
+  const resultExponent = Math.min(current.exponent, exponent)
+  const currentCoefficient = current.coefficient * 10n ** BigInt(current.exponent - resultExponent)
+  const increment = 10n ** BigInt(exponent - resultExponent)
+  const result = {
+    coefficient: currentCoefficient + BigInt(direction) * increment,
+    exponent: resultExponent
+  }
+  const draft = formatDecimalParts(result)
+  const value = Number(draft)
+  if (!Number.isFinite(value) || !isNumericValueAllowed(value, domain)) return null
+  if (domain.integer && result.exponent < 0
+    && result.coefficient % (10n ** BigInt(-result.exponent)) !== 0n) return null
+  if (Number.isFinite(domain.min)) {
+    const comparison = compareDecimalParts(result, decimalParts(domain.min!))
+    if (comparison < 0 || (domain.minExclusive && comparison === 0)) return null
+  }
+  if (Number.isFinite(domain.max) && compareDecimalParts(result, decimalParts(domain.max!)) > 0) return null
+  return { draft, value }
 }
 
 export function numericCaretForPlace(raw: string, exponent: number, integer = false): number {
