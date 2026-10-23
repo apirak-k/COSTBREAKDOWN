@@ -259,9 +259,10 @@ export function NumericInput({
   }
 
   const presentation = numericColumn ? columnPresentation(value) : businessNumberPresentation(value, { integer, integerDigits })
-  const ordinaryDecimal = displayMode === 'compact' && !integer && !/[eE]/.test(draft) && draft !== ''
+  const activelyEditing = focused && !inputProps.readOnly
+  const ordinaryDecimal = !activelyEditing && displayMode === 'compact' && !integer && !/[eE]/.test(draft) && draft !== ''
   const wholeGlyphs = draft.split('.')[0].length
-  const columnOrdinary = numericColumn && draft !== '' && !/[eE]/.test(draft)
+  const columnOrdinary = !activelyEditing && numericColumn && draft !== '' && !/[eE]/.test(draft)
   const columnWholeWidth = numericDecimalPrefixWidth(draft, measure)
   const presentationPadding = presentation.notation === 'ordinary' && presentation.fractionDigits === 2 ? '2ch' : '0ch'
   const rightPadding = displayMode === 'header' ? '2.25rem' : reserveMarker
@@ -326,18 +327,27 @@ export function NumericInput({
         className={`${defaultInputClassName} ${className ?? ''}`.trim()}
         style={{
           ...style,
-          // Keep the decimal axis fixed; additional focused precision grows rightward.
-          textAlign: ordinaryDecimal ? 'left' : style?.textAlign,
-          paddingLeft: ordinaryDecimal
-            ? `max(0.375rem, calc(100% - 2px - ${typeof rightPadding === 'number' ? `${rightPadding}px` : rightPadding} - ${wholeGlyphs + 5}ch))`
-            : style?.paddingLeft,
-          paddingRight: ordinaryDecimal ? 0 : displayMode === 'compact'
-            ? `calc(${typeof rightPadding === 'number' ? `${rightPadding}px` : rightPadding} + ${focused && !inputProps.readOnly ? '0ch' : presentationPadding})`
-            : displayMode === 'header' || reserveMarker || showStepper ? rightPadding : style?.paddingRight,
+          // Focused editors use the fixed frame's full interior. Compact display
+          // anchoring and its reserved decimal positions apply only when unfocused.
+          textAlign: activelyEditing ? 'left' : ordinaryDecimal ? 'left' : style?.textAlign,
+          paddingLeft: activelyEditing
+            ? style?.paddingLeft ?? '0.375rem'
+            : ordinaryDecimal
+              ? `max(0.375rem, calc(100% - 2px - ${typeof rightPadding === 'number' ? `${rightPadding}px` : rightPadding} - ${wholeGlyphs + 5}ch))`
+              : style?.paddingLeft,
+          paddingRight: activelyEditing
+            ? style?.paddingRight ?? (numericColumn && columnReserveEnd > 0 ? columnReserveEnd : rightPadding)
+            : ordinaryDecimal ? 0 : displayMode === 'compact'
+              ? `calc(${typeof rightPadding === 'number' ? `${rightPadding}px` : rightPadding} + ${presentationPadding})`
+              : displayMode === 'header' || reserveMarker || showStepper ? rightPadding : style?.paddingRight,
           ...(numericColumn && displayMode === 'compact' ? {
-            textAlign: columnOrdinary ? 'left' : 'center',
-            paddingLeft: columnOrdinary ? Math.max(0, columnMetrics.width / 2 - columnMetrics.borderLeft - columnWholeWidth) : columnReserveEnd || 1,
-            paddingRight: columnOrdinary ? columnReserveEnd : columnReserveEnd || 1
+            textAlign: activelyEditing ? 'left' : columnOrdinary ? 'left' : 'center',
+            paddingLeft: activelyEditing
+              ? style?.paddingLeft ?? '0.375rem'
+              : columnOrdinary ? Math.max(0, columnMetrics.width / 2 - columnMetrics.borderLeft - columnWholeWidth) : columnReserveEnd || 1,
+            paddingRight: activelyEditing
+              ? style?.paddingRight ?? (columnReserveEnd || '0.375rem')
+              : columnOrdinary ? columnReserveEnd : columnReserveEnd || 1
           } : {})
         }}
         data-numeric-column={numericColumn ? 'true' : undefined}

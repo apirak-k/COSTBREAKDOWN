@@ -1,6 +1,6 @@
 # Phase 2 — Selected Value / Decimal UX Execution Plan
 
-**Status:** Round 1 is CLOSED; Round 2 — Master Data is CLOSED; Round 3 — Cost Breakdown is CLOSED; original Round 4A historical UI polish is CLOSED; pre-Round-4B corrective gate is **IMPLEMENTED / VERIFIED (AWAITING USER ACCEPTANCE TO CLOSE)**; Global authoritative-full-value-on-edit is IMPLEMENTED / EXTERNALLY ACCEPTED; Round 4B — Simulation Selected Value / Decimal UX is **NOT STARTED / READY UPON GATE CLOSURE**; Global direct-edit blue-value indicator is NOT STARTED; Round 5 is NOT STARTED.
+**Status:** Round 1 is CLOSED; Round 2 — Master Data is CLOSED; Round 3 — Cost Breakdown is CLOSED; original Round 4A historical UI polish is CLOSED; the final pre-Round-4B corrective pass is **IMPLEMENTED / AWAITING EXTERNAL AUDIT**; Global authoritative-full-value-on-edit is IMPLEMENTED / EXTERNALLY ACCEPTED; Round 4B — Simulation Selected Value / Decimal UX is **NOT STARTED / BLOCKED**; Global direct-edit blue-value indicator is NOT STARTED; Round 5 is NOT STARTED.
 **Execution branch:** `feat/selected-value-ux`
 **Repository:** `https://github.com/apirak-k/COSTBREAKDOWN`
 
@@ -29,38 +29,38 @@ Do not overlap implementation rounds or add numbered sub-phases. A failing accep
 | Round 1 — Shared Foundation | Shared numeric source lifecycle, Header Value, SelectedNumber inspection primitive, exact model-value handling, and shared browser/runtime verification. | **CLOSED** | Shared focus/preview/pin model, source lifecycle, stale-writer guards, existing formatting/stepping/domain contracts, and runtime checks pass. Unpinned pointer hover has a frame/ring with no added fill and unchanged geometry; keyboard focus has a clear ring without the pinned fill; pin remains stronger. Final correction commit is recorded in the current Handoff. |
 | Round 2 — Master Data | Integrate the shared model into Master Data without changing its data, formulas, validation domains, dataset lifecycle, history, or spreadsheet semantics. Preserve the accepted native View-mode focus recovery and apply the later finalized hover/Header precision contract and final geometry polish. | **CLOSED** | Native grid focus owns View numeric values; source Preview uses a cancellable 350ms dwell; Focus/Pin remains anchored; only focused editable sources own Header writers; Header displays at most 8 decimals and keeps stable numeric / `%` / spinner regions and direct-interaction affordance; actual Chrome, regression, source audit, build, and diff checks pass. |
 | Round 3 — Cost Breakdown | Integrate eligible Cost Breakdown values and interactions with the shared Header/source model, retaining the finalized Candidate, detail, tooltip, row, ordering, and comparison behavior. | **CLOSED** | Shared no-focus `SelectedNumber` is transparent at rest, `#E9EEF4` on direct hover, and `blue-100` when pinned; Candidate row hover is independent. CHANGED-row cell whitespace expands/collapses while actual numeric, `#`, and reorder controls keep their own action. Targeted Chrome, Round 2 / Round 3 browser gates, build, source audit, and diff checks pass; no calculation or comparison semantics change. Implementation: `9536da7edec07d29e808bec8af8c45a16e8be621`. |
-| Round 4 — Simulation | 4A: the original five desktop UI polish items are closed. Pre-Round-4B corrective gate is implemented and verified across all 6 gates; Round 4B: integrate eligible Simulation Result, Economic, and Break-even numeric interactions while retaining role/basis ownership, editable domains, economics, histories, reset/send behavior, and graph interaction contracts. | **Original five 4A items CLOSED; pre-4B corrective gate IMPLEMENTED / VERIFIED (AWAITING USER ACCEPTANCE TO CLOSE); 4B NOT STARTED / READY UPON GATE CLOSURE** | Pre-4B correction verified: (1) Result panel containment without vertical overflow into Break-even or internal scrollbars; (2) ordinary-first numeric fit without premature scientific fallback for values like 4.00, 5.00, 12.00, 84.00%, etc.; (3) floating-point noise equivalence without false CHANGED badges, preserving intentional user precision; (4) Parameter Cost Effect Total label/value separation (neutral label, semantic value); (5) CBD BOM Δ Loss `%` visual spacing; (6) collateral cleanup (Economic Outcome green shade restored to emerald-800, shared `#` caller preservation). Round 4B begins once this corrective gate is accepted. |
+| Round 4 — Simulation | 4A: the original five desktop UI polish items are closed. The final pre-Round-4B corrective pass is implemented; Round 4B will integrate eligible Simulation Result, Economic, and Break-even numeric interactions while retaining role/basis ownership, editable domains, economics, histories, reset/send behavior, and graph interaction contracts. | **Original five 4A items CLOSED; pre-4B corrective pass IMPLEMENTED / AWAITING EXTERNAL AUDIT; 4B NOT STARTED / BLOCKED** | External audit and acceptance of the current corrective implementation are required before Round 4B. The pass corrects focused full-value editing, CBD BOM Loss suffix placement, Simulation Result metric layout and BOM/Routing tracks, residual ownership in expanded effects, same-line neutral Total annotation, and global numeric precision/equivalence. |
 | Round 5 — Final Cross-page Regression | Run the final shared + Master Data + Cost Breakdown + Simulation regression and verify that state does not leak across pages/scopes. | **NOT STARTED** | Rounds 1–3, all of Round 4 (4A and 4B), and both preceding global numeric UX items have passed their audit/acceptance gates; full cross-page regression, browser checks, build, and diff review pass. |
 
 ## Agreed next-work order
 
-These are workflow steps inside the existing five-round Phase 2 plan, not new numbered rounds. Follow this order **after the current pre-Round-4B correction is externally accepted**. Future items marked NOT STARTED have not been implemented in the correction.
+These are workflow steps inside the existing five-round Phase 2 plan, not new numbered rounds. Follow this order after the current corrective pass is externally audited and accepted. Future items marked NOT STARTED have not been implemented in this correction.
 
 1. GLOBAL authoritative-full-value-on-edit correction — implemented in the separate prior correction.
 2. Audit and accept that global numeric correction — externally accepted.
-3. Correct and verify open pre-Round-4B regression items (Result containment, ordinary-first fit, floating-point noise, Total label neutrality, Δ Loss `%` spacing, collateral preservation).
-4. External visual audit and user acceptance of pre-Round-4B correction.
-5. Implement Round 4B — Simulation Selected Value / Decimal UX.
-6. Audit / accept and close Round 4.
-7. Implement the GLOBAL direct-edit blue-value indicator.
-8. Audit and accept that global UX item.
-9. Run Round 5 — Final Cross-page Regression.
-10. After Phase 2: Excel validation → real-world usage test → portable distribution.
+3. External audit and acceptance of the completed pre-Round-4B corrective implementation.
+4. Implement Round 4B — Simulation Selected Value / Decimal UX.
+5. Audit / accept and close Round 4.
+6. Implement the GLOBAL direct-edit blue-value indicator.
+7. Audit and accept that global UX item.
+8. Run Round 5 — Final Cross-page Regression.
+9. After Phase 2: Excel validation → real-world usage test → portable distribution.
 
-Current statuses: pre-Round-4B corrective gate **IMPLEMENTED / VERIFIED (AWAITING USER ACCEPTANCE TO CLOSE)**; Global authoritative-full-value-on-edit **IMPLEMENTED / EXTERNALLY ACCEPTED**; Round 4B **NOT STARTED / READY UPON GATE CLOSURE**; Global direct-edit blue-value indicator **NOT STARTED**; Round 5 **NOT STARTED**.
+Current statuses: pre-Round-4B corrective pass **IMPLEMENTED / AWAITING EXTERNAL AUDIT**; Global authoritative-full-value-on-edit **IMPLEMENTED / EXTERNALLY ACCEPTED**; Round 4B **NOT STARTED / BLOCKED**; Global direct-edit blue-value indicator **NOT STARTED**; Round 5 **NOT STARTED**.
 
 ## Pre-Round-4B Finite Correction Gate — 2026-10-23
 
-- **Status:** **PRE-4B CORRECTIVE PASS COMPLETE / VERIFIED (AWAITING USER ACCEPTANCE TO CLOSE)**
-- **Starting audited remote:** `a70517d9e5351052e8ab9b226e351595ebe1c8c7` on branch `feat/selected-value-ux`.
+- **Status:** **IMPLEMENTED / AWAITING EXTERNAL AUDIT**
+- **Starting audited remote:** `170699bfcecb0f726d489e3111617f51f8d649de` on branch `feat/selected-value-ux`.
 - **Finite gate items:**
-  1. **Simulation Result & Break-even containment:** At normal desktop/tablet layout, Result must not have unnecessary internal vertical or horizontal scrollbars, and must NEVER overflow vertically into or overlap the Break-even panel. Removing a scrollbar and letting content spill over into Break-even is unacceptable. Content must not be clipped or hidden to fake a fit. Spacing/ratios may be rebalanced while preserving established hierarchy.
-  2. **Ordinary-first numeric presentation:** Ordinary notation is the default. Values such as `4.00`, `5.00`, `8.00`, `12.00`, `15.00`, `5.00 %`, `84.00 %`, `90.00 %`, `97.00 %`, and `98.00 %` must remain ordinary whenever the rendered region has room, and must never fall back to scientific notation (`4.00E+0`, `1.20E+1`, `5.00E+0`) merely due to conservative capacity reservations or fit miscalculations.
-  3. **Floating-point machine noise vs meaningful precision:** Machine residue (e.g. `9.000000000000004` -> 9; `0.09` vs `0.09000000000000004` UNCHANGED vs `0.091` CHANGED; decomposition residual `Δ Loss -8.88E-16` -> `0.00`) must not create false CHANGED states or fake effects. Meaningful user precision (`12.3456789`) must remain preserved on focus and editing. Blanket destructive methods (`toFixed`, global epsilon) are prohibited.
-  4. **Simulation Total label/value semantic separation:** Semantic green/red color applies to the numeric Total value only; the word `Total` remains neutral text.
-  5. **CBD BOM Δ Loss `%` visual spacing:** The `%` suffix must sit naturally adjacent to the number with a small, stable visual gap (`5.00 %`), matching the calm visual rhythm of Yield and %GAP. The latest external audit confirms current spacing remains NOT ACCEPTED.
-  6. **Collateral cleanup & preservation:** Review and restore the unrequested Outcome green shade change (`emerald-700` back to standard semantic treatment); ensure shared `#` selection typography does not introduce visual regressions for CBD or Simulation callers.
-- Round 4B remains blocked until this finite gate is corrected, verified, and externally accepted. No new numbered Phase 2 round is added.
+  1. **Shared numeric editing:** Focus hydrates the authoritative full value and uses the full interior of the existing fixed input frame. Long drafts use native internal scrolling; no focus/blur/value length may resize or reposition the frame. Blur returns to compact display without writing rounded presentation to authoritative state.
+  2. **CBD BOM percentage suffix:** Reduce BOM number-to-`%` spacing to match the existing good Routing rhythm in both main and expanded Reference/Current rows. Preserve every numeric centerline, keep the suffix external, and do not put `%` on monetary Parameter Cost Effect values.
+  3. **Simulation Result rows:** Keep each metric label and Before/After/Change/% on one visual row at desktop/tablet widths. Reflow only for genuinely narrow viewports; retain containment, avoid unnecessary Result scrollbars, prevent overlap with Break-even, and preserve useful Break-even height.
+  4. **Simulation parameter geometry:** Restore balanced equal sibling parameter tracks at 14.5% each and calculated-cost tracks at 19.4%. Loss/Yield do not widen because they have a suffix; Identity, Status, hierarchy, and page-overflow behavior remain readable.
+  5. **Expanded Simulation effects:** Use the same parent/detail column geometry and numeric centerlines. Assign reconciliation residue only to a changed factor; untouched trailing Loss/Yield remain exact zero, and unsafe reconciliation is unavailable.
+  6. **Simulation Total presentation:** Keep neutral `Total` and its signed semantic value on one visual line and baseline, without moving the numeric axis or increasing row height.
+  7. **Floating-point noise and precision:** Use narrow semantic equivalence for comparison, context-specific residue handling, and presentation-only formatting. Preserve meaningful precision and legitimate tiny authoritative values; never globally normalize or round values in storage, editing, calculations, or persistence.
+- Round 4B remains blocked until this implementation is externally audited and accepted. No new numbered Phase 2 round is added.
 
 ## Current numeric centerline correction — 2026-10-23
 

@@ -6,6 +6,7 @@ import { existsSync } from 'node:fs'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import net from 'node:net'
 
 if (typeof WebSocket !== 'function') throw new Error('This verifier requires Node.js with built-in WebSocket support.')
@@ -35,12 +36,13 @@ async function unusedPort() {
 const delay = ms => new Promise(resolveDelay => setTimeout(resolveDelay, ms))
 const repository = process.cwd()
 const configuredBaseUrl = process.env.COSTBREAKDOWN_BROWSER_BASE_URL
+const viteCliPath = fileURLToPath(new URL('../../bin/vite.js', import.meta.resolve('vite')))
 const vitePort = configuredBaseUrl ? null : await unusedPort()
 const debugPort = await unusedPort()
 const profile = await mkdtemp(join(tmpdir(), 'costbreakdown-master-selected-value-'))
 const evidenceDir = await mkdtemp(join(tmpdir(), 'costbreakdown-master-selected-evidence-'))
 const vite = configuredBaseUrl ? null : spawn(process.execPath, [
-  resolve(repository, 'node_modules/vite/bin/vite.js'), '--host', '127.0.0.1', '--port', String(vitePort), '--strictPort'
+  viteCliPath, '--host', '127.0.0.1', '--port', String(vitePort), '--strictPort'
 ], { cwd: repository, stdio: ['ignore', 'pipe', 'pipe'] })
 const viteOutput = []
 for (const stream of [vite?.stdout, vite?.stderr]) stream?.on('data', chunk => viteOutput.push(String(chunk)))
@@ -569,7 +571,8 @@ try {
     if(!input)return null
     const measurement=(${numericColumnGeometry.toString()})(input.parentElement)[0]
     const rect=input.getBoundingClientRect()
-    return {...measurement,inputPaddingRight:getComputedStyle(input).paddingRight,stepperCount:input.closest('td')?.querySelectorAll('[data-numeric-stepper]').length??0,rect:{x:rect.x,width:rect.width,right:rect.right}}
+    const inputStyle=getComputedStyle(input)
+    return {...measurement,inputTextAlign:inputStyle.textAlign,inputPaddingLeft:inputStyle.paddingLeft,inputPaddingRight:inputStyle.paddingRight,stepperCount:input.closest('td')?.querySelectorAll('[data-numeric-stepper]').length??0,rect:{x:rect.x,width:rect.width,right:rect.right}}
   })()`)
   const displayAxis = async spec => geometry(`(()=>{
     const e=document.querySelector(${JSON.stringify(`section[aria-label="${spec.section} rows"] tbody tr:first-child [data-grid-field="${spec.field}"]`)});if(!e)return null
@@ -590,7 +593,7 @@ try {
     const afterFocus = await editorAxis(spec)
     editorAxes[spec.field] = afterFocus
     verify(Boolean(beforeFocus && afterFocus && JSON.stringify(beforeFocus.rect) === JSON.stringify(afterFocus.rect) && Math.abs(beforeFocus.center-afterFocus.center)<=0.6 && Math.abs(beforeFocus.headerCenter-afterFocus.headerCenter)<=0.6), `${spec.label} numeric text axis does not shift on focus`, { before: beforeFocus, after: afterFocus })
-    verify(Boolean(afterFocus && Math.abs(afterFocus.headerCenter-afterFocus.center)<=1 && (!afterFocus.tokenFits || afterFocus.scientific || Math.abs(afterFocus.decimal-afterFocus.center)<=0.6)), `${spec.label} actual Header text and fitting focused decimal share the fixed region center`, afterFocus)
+    verify(Boolean(afterFocus && afterFocus.focused && Math.abs(afterFocus.headerCenter-afterFocus.center)<=1 && afterFocus.inputTextAlign==='left' && afterFocus.inputPaddingLeft==='6px' && Number.parseFloat(afterFocus.inputPaddingRight)<=24), `${spec.label} focused editor uses the full fixed frame without compact decimal anchoring`, afterFocus)
     verify(Boolean(afterFocus && afterFocus.stepperCount === 0 && Number.parseFloat(afterFocus.inputPaddingRight) <= 24), `${spec.label} body editor has no visible spinner or spinner-only gutter`, afterFocus)
   }
 

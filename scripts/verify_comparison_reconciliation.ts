@@ -58,6 +58,46 @@ const curSnapshot: CostSnapshot = {
 
 const comparison = compareSnapshots(refSnapshot, curSnapshot)
 
+const machineNoiseComparison = compareSnapshots(
+  {
+    ...refSnapshot,
+    id: 'machine-noise-reference',
+    rates: [],
+    routing: [],
+    bom: [{ ...refSnapshot.bom[0], price: 9 }]
+  },
+  {
+    ...curSnapshot,
+    id: 'machine-noise-current',
+    rates: [],
+    routing: [],
+    bom: [{ ...curSnapshot.bom[0], price: 9.000000000000004 }]
+  }
+)
+const machineNoiseFinding = machineNoiseComparison.bomFindings[0]
+assert.equal(machineNoiseFinding.matchStatus, 'matched')
+assert.deepEqual(machineNoiseFinding.fieldDiffs, {}, 'ULP-equivalent business numbers remain unchanged in snapshot comparison')
+assert.equal(machineNoiseFinding.costEffect?.gap.total, 0, 'ULP-equivalent cost values do not expose a false monetary gap')
+
+const meaningfulPrecisionComparison = compareSnapshots(
+  {
+    ...refSnapshot,
+    id: 'meaningful-precision-reference',
+    rates: [],
+    routing: [],
+    bom: [{ ...refSnapshot.bom[0], price: 0.09 }]
+  },
+  {
+    ...curSnapshot,
+    id: 'meaningful-precision-current',
+    rates: [],
+    routing: [],
+    bom: [{ ...curSnapshot.bom[0], price: 0.091 }]
+  }
+)
+assert.ok(meaningfulPrecisionComparison.bomFindings[0].fieldDiffs.price,
+  'meaningful 0.09 versus 0.091 price precision remains a real comparison change')
+
 // Legacy Routing metadata is excluded from the approved dataset schema and must
 // not create a changed Work Center processing finding by itself.
 const legacyRoutingMetadataComparison = compareSnapshots(

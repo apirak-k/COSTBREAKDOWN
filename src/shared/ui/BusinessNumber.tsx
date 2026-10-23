@@ -12,11 +12,12 @@ interface BusinessNumberProps extends NumericDisplayOptions {
   numericColumnReserveEnd?: number
   prefix?: string
   leadingAnnotation?: ReactNode
+  sameLineAnnotation?: ReactNode
   renderToken?: (content: ReactNode) => ReactNode
 }
 
 /** Fixed column centerline is opt-in; graph and toolbar tokens retain their existing layout. */
-export function BusinessNumber({ value, className, numericColumn = false, compactPercentSuffix = false, numericColumnSigned = true, numericColumnReserveEnd = 0, prefix = '', leadingAnnotation, renderToken, ...options }: BusinessNumberProps) {
+export function BusinessNumber({ value, className, numericColumn = false, compactPercentSuffix = false, numericColumnSigned = true, numericColumnReserveEnd = 0, prefix = '', leadingAnnotation, sameLineAnnotation, renderToken, ...options }: BusinessNumberProps) {
   const regionRef = useRef<HTMLSpanElement>(null)
   const metrics = useNumericColumnMetrics(regionRef, numericColumn)
   const measure = (text: string) => measureNumericText(text, metrics.font, metrics.letterSpacing)
@@ -36,12 +37,22 @@ export function BusinessNumber({ value, className, numericColumn = false, compac
         data-numeric-fit-inset="2" data-numeric-reserve-end={numericColumnReserveEnd}
         data-numeric-fit={presentation.notation}
         data-numeric-fit-floor={metrics.width + 0.5 >= numericScientificFitFloor(measure, numericColumnSigned, prefix) + 2 * numericColumnReserveEnd ? 'adequate' : 'insufficient'}
-        className={`block min-w-0 ${compactPercentSuffix || leadingAnnotation ? 'overflow-visible' : 'overflow-hidden'} text-left`}>
-        <span className="relative inline-block" style={{ left: '50%', transform: ordinary ? `translateX(-${wholeWidth}px)` : 'translateX(-50%)' }}>
-          {leadingAnnotation && <span className="absolute right-full top-1/2 -translate-y-1/2 mr-1.5 whitespace-nowrap pointer-events-none">{leadingAnnotation}</span>}
-          {renderToken ? renderToken(token) : token}
-          {options.percent && compactPercentSuffix && presentation.notation !== 'unavailable' && <span data-numeric-suffix="true" className="absolute left-full ml-1">%</span>}
-        </span>
+        className={`block min-w-0 ${compactPercentSuffix || leadingAnnotation || sameLineAnnotation ? 'overflow-visible' : 'overflow-hidden'} text-left`}>
+        {sameLineAnnotation ? (
+          <span className="grid w-full grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-baseline">
+            <span data-numeric-inline-annotation="true" className="pointer-events-none mr-1.5 justify-self-end whitespace-nowrap">{sameLineAnnotation}</span>
+            <span className="justify-self-center whitespace-nowrap" style={{ transform: ordinary ? `translateX(${measure(text) / 2 - wholeWidth}px)` : undefined }}>
+              {renderToken ? renderToken(token) : token}
+            </span>
+            <span aria-hidden="true" />
+          </span>
+        ) : (
+          <span className="relative inline-block" style={{ left: '50%', transform: ordinary ? `translateX(-${wholeWidth}px)` : 'translateX(-50%)' }}>
+            {leadingAnnotation && <span className="absolute right-full top-1/2 -translate-y-1/2 mr-1.5 whitespace-nowrap pointer-events-none">{leadingAnnotation}</span>}
+            {renderToken ? renderToken(token) : token}
+            {options.percent && compactPercentSuffix && presentation.notation !== 'unavailable' && <span data-numeric-suffix="true" className="absolute left-full ml-1">%</span>}
+          </span>
+        )}
       </span>
     </NumericColumnSlot>
   }

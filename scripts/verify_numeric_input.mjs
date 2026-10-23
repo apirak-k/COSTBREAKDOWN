@@ -1,5 +1,6 @@
 import assertBase from 'node:assert/strict'
 let assertionCount = 0
+const regressionFailures = []
 const assert = new Proxy(assertBase, {
   get(target, key) {
     const member = target[key]
@@ -11,6 +12,20 @@ const assert = new Proxy(assertBase, {
     }
   }
 })
+
+function regressionEqual(actual, expected, message) {
+  assertionCount += 1
+  try {
+    assertBase.equal(actual, expected, message)
+  } catch (error) {
+    regressionFailures.push(`${message}: ${error.message}`)
+  }
+}
+
+function regressionTrue(actual, message) {
+  regressionEqual(actual, true, message)
+}
+
 import { readFileSync, readdirSync } from 'node:fs'
 import { resolve } from 'node:path'
 import React from 'react'
@@ -49,13 +64,16 @@ try {
     isMasterDataNumericValueValid
   } = await vite.ssrLoadModule('/src/core/utils/master-data-validation.ts')
   const { NumericInput } = await vite.ssrLoadModule('/src/shared/ui/NumericInput.tsx')
-  const { formatBusinessNumber, formatFullNumericValue, formatFocusedNumericValue, formatHeaderNumericValue, normalizeNumericNoise, areNumericValuesEquivalent } = await vite.ssrLoadModule('/src/shared/ui/numeric-display.ts')
-  assert.equal(normalizeNumericNoise(-8.881784197001252e-16), 0, 'IEEE 754 machine epsilon residual normalizes to 0')
-  assert.equal(formatBusinessNumber(-8.881784197001252e-16), '0.00', 'machine noise formats as ordinary zero rather than scientific')
-  assert.equal(normalizeNumericNoise(9.000000000000004), 9, 'trailing floating point noise normalizes to exact whole')
-  assert.equal(normalizeNumericNoise(20.000000000000004), 20, 'trailing floating point noise normalizes to exact whole')
-  assert.equal(normalizeNumericNoise(12.3456789), 12.3456789, 'intentional user precision is preserved exactly')
-  assert.ok(areNumericValuesEquivalent(-8.881784197001252e-16, 0), 'residual is equivalent to 0')
+  const { formatBusinessNumber, formatFullNumericValue, formatFocusedNumericValue, formatHeaderNumericValue, areNumericValuesEquivalent } = await vite.ssrLoadModule('/src/shared/ui/numeric-display.ts')
+  regressionEqual(formatFocusedNumericValue(5e-13), '0.0000000000005', 'focused NumericInput draft retains every significant digit of 5e-13')
+  regressionEqual(formatFocusedNumericValue(9.000000000000004), '9.000000000000004', 'focused NumericInput draft retains the authoritative whole-number precision')
+  regressionTrue(areNumericValuesEquivalent(9.000000000000004, 9), 'semantic comparison absorbs clear whole-number floating point noise')
+  regressionTrue(!areNumericValuesEquivalent(5e-13, 0), 'semantic comparison distinguishes a legitimate tiny value from zero')
+  regressionTrue(areNumericValuesEquivalent(-0, 0), 'semantic comparison preserves ordinary zero equivalence for negative zero')
+  regressionTrue(formatBusinessNumber(5e-13) !== '0.00', 'compact presentation preserves a legitimate tiny value instead of formatting it as zero')
+  regressionTrue(formatBusinessNumber(Number.MIN_VALUE) !== '0.00', 'compact presentation preserves the smallest positive finite value instead of formatting it as zero')
+  regressionTrue(!areNumericValuesEquivalent(Number.MIN_VALUE, 0), 'semantic comparison distinguishes the smallest positive finite value from zero')
+  regressionTrue(areNumericValuesEquivalent(20.000000000000004, 20), 'semantic comparison absorbs clear floating point noise around a whole number')
   assert.ok(areNumericValuesEquivalent(0.09, 0.09000000000000004), 'machine noise differences are equivalent (UNCHANGED)')
   assert.ok(!areNumericValuesEquivalent(0.09, 0.091), 'intentional differences are not equivalent (CHANGED)')
   for (const ordinaryVal of [4, 5, 8, 12, 15]) {
@@ -288,7 +306,7 @@ try {
   assert.deepEqual(getMasterDataSnapshotValidationErrors(importedPreciseSnapshot), [], 'import validation preserves valid source precision rather than rounding data')
 
   const { updateSimulationParameter } = await vite.ssrLoadModule('/src/features/simulation/simulation-engine.ts')
-  const { createEmptySimulationState, getEffectiveSimulationDataset, setSimulationActiveDataset } = await vite.ssrLoadModule('/src/features/simulation/simulation-state.ts')
+  const { createEmptySimulationState, getEffectiveSimulationDataset, reconcileSimulationState, setSimulationActiveDataset } = await vite.ssrLoadModule('/src/features/simulation/simulation-state.ts')
   const simulationSources = {
     reference: importedPreciseSnapshot,
     current: importedPreciseSnapshot,
@@ -308,6 +326,30 @@ try {
   const preciseUsageEdit = updateSimulationParameter(currentSimulationState, simulationSources, 'b1', 'bom.consumption', 1.23456789)
   assert.equal(getEffectiveSimulationDataset(simulationSources, preciseUsageEdit, 'current').snapshot.bom[0].consumption, 1.23456789,
     'Current Simulation stores high-precision Usage')
+  const tinySimulationEdit = updateSimulationParameter(currentSimulationState, simulationSources, 'b1', 'bom.price', 5e-13)
+  const tinySavedSimulationState = JSON.parse(JSON.stringify(tinySimulationEdit))
+  const tinyReloadedSimulationState = reconcileSimulationState(tinySavedSimulationState, simulationSources)
+  regressionEqual(getEffectiveSimulationDataset(simulationSources, tinyReloadedSimulationState, 'current').snapshot.bom[0].price, 5e-13,
+    'Current Simulation persists and reloads a legitimate tiny Price without zero-normalizing authoritative data')
+
+  const { calculateMultiplicativeCostAttribution } = await vite.ssrLoadModule('/src/core/calculations/multiplicative-cost-attribution.ts')
+  const residualAttribution = calculateMultiplicativeCostAttribution(21, 25.2, [
+    { key: 'price', baseline: 10, target: 12 },
+    { key: 'usage', baseline: 2, target: 2 },
+    { key: 'loss', baseline: 1.05, target: 1.05 }
+  ])
+  regressionEqual(residualAttribution.effects?.loss, 0,
+    'context-specific reconciliation does not assign floating-point residue to an untouched Loss factor')
+  const equivalentAttribution = calculateMultiplicativeCostAttribution(21, 21.000000000000004, [
+    { key: 'price', baseline: 9, target: 9.000000000000004 },
+    { key: 'usage', baseline: 2, target: 2 }
+  ])
+  regressionEqual(equivalentAttribution.totalEffect, 0, 'ULP-equivalent inputs suppress derived calculation residue without changing authoritative inputs')
+  regressionEqual(equivalentAttribution.effects?.price, 0, 'ULP-equivalent factor differences do not fabricate a multiplicative effect')
+  const unreconciledAttribution = calculateMultiplicativeCostAttribution(21, 25, [
+    { key: 'price', baseline: 9, target: 9 }
+  ])
+  regressionEqual(unreconciledAttribution.effects, null, 'unreconciled cost gaps without a changed factor are unavailable instead of assigned to an unchanged factor')
 
   const decimalMarkup = renderToStaticMarkup(React.createElement(NumericInput, { value: 12.5, onValueChange() {}, 'aria-label': 'Price' }))
   const integerMarkup = renderToStaticMarkup(React.createElement(NumericInput, { value: 3, integer: true, onValueChange() {}, 'aria-label': 'Rows' }))
@@ -344,6 +386,10 @@ try {
   assert.doesNotMatch(appSources, /<input\b[^>]*\btype\s*=\s*['"]number['"]/s, 'editable application numbers use the shared editor rather than native number inputs')
   assert.doesNotMatch(appSources, /type="number"/, 'no source component opts back into browser-native number controls')
 
+  if (regressionFailures.length > 0) {
+    for (const failure of regressionFailures) console.error(`FAIL ${failure}`)
+    throw new Error(`${regressionFailures.length} pre-round-4B numeric regression assertion(s) failed`)
+  }
   console.log(`Numeric input verification passed: ${assertionCount}/${assertionCount} assertions`)
 } finally {
   await vite.close()

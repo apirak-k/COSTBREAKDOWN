@@ -171,8 +171,8 @@ All product requirements and lifecycle boundaries are complete under the finaliz
 
 - **Status:** `PROVISIONAL — AI CHOICE`
 - **Choice:** concrete implementation geometry used during pre-Round-4B work:
-  1. Simulation desktop table column tracks (e.g. `5% | 16.5% | 10.6% | 13.5% | 13.5% | 17% | 18.9% | 5%` or earlier iterations).
-  2. Simulation upper workspace grid split and Result/Break-even vertical split (e.g. `1.4:1` or `58% / 42%`).
+  1. Simulation desktop table column tracks (current implementation: `5% | 16.5% | 10.6% | 14.5% | 14.5% | 14.5% | 19.4% | 5%`). Price/Usage/Loss and Manning/Capacity/Yield each receive equal tracks; the former oversized parameter track was rebalanced within the existing table width.
+  2. Simulation Result table column proportions (current implementation: `23% | 18% | 18% | 20% | 21%` for label, Before, After, Change, and %), and the upper workspace grid split / Result-to-Break-even vertical split (e.g. `1.4:1` or `58% / 42%`).
   3. Cost Breakdown summary table minimum widths (`624px` / `652px`) and Candidate table minimum widths (`1240px` BOM, `1260px` Routing).
 - **Why:** these provisional values were chosen by AI to address functional layout targets: single-line BOM/Routing headers, Status gutter `>= 8px`, four-fraction ordinary decimal reserve, signed scientific Total floor, and local panel scrolling without page overflow.
 - **Must preserve:**

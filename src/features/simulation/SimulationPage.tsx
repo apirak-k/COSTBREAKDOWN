@@ -20,7 +20,7 @@ import type {
 import { Tooltip } from '../../shared/ui/Tooltip'
 import { COMPARISON_ROLE_LABELS, ComparisonRoleSelector } from '../../shared/ui/ComparisonRoleSelector'
 import { BusinessNumber } from '../../shared/ui/BusinessNumber'
-import { formatBusinessNumber, normalizeNumericNoise } from '../../shared/ui/numeric-display'
+import { formatBusinessNumber } from '../../shared/ui/numeric-display'
 import { NumericInput } from '../../shared/ui/NumericInput'
 import { NumericColumnHeader } from '../../shared/ui/NumericColumnHeader'
 import { applyRowDragSelection, applyRowSelectionScope, getRowSelectionState } from '../../shared/selection/row-drag-selection'
@@ -462,7 +462,7 @@ function SimulationParameterTable({
   const navigationLabel = isBOM ? 'BOM' : 'Routing'
   const tableIdentity = isBOM ? 'Bill of Materials' : 'Routing Process'
   const parameters = isBOM ? BOM_PARAMETERS : RTG_PARAMETERS
-  const columnWidths = ['5%', '16.5%', '10.6%', '13.5%', '13.5%', '17%', '18.9%', '5%']
+  const columnWidths = ['5%', '16.5%', '10.6%', '14.5%', '14.5%', '14.5%', '19.4%', '5%']
   const renderColumnGroup = () => (
     <colgroup>
       {columnWidths.map((width, index) => (
@@ -796,7 +796,7 @@ function SimulationParameterTable({
                       const recordValue = simulationRecord
                         ? (simulationRecord as unknown as Record<string, number | null>)[parameter.field] ?? null
                         : null
-                      const value = recordValue === null ? null : (normalizeNumericNoise(recordValue * parameter.scale) ?? recordValue * parameter.scale)
+                      const value = recordValue === null ? null : recordValue * parameter.scale
                       return (
                         <td key={parameter.parameter} className={`py-1 text-right ${groupEndClass}`} style={{ paddingLeft: parameter.scale === 100 ? 6 : 5, paddingRight: parameter.scale === 100 ? 2 : 5 }}>
                           {!simulationRecord ? '—' : canEdit ? (
@@ -818,7 +818,7 @@ function SimulationParameterTable({
                                       allowSubMinimumDraft={parameter.parameter === 'routing.capacity' || parameter.parameter === 'routing.yield'}
                                       stopAtMinimum
                                       onValueChange={next => {
-                                        if (next !== null) onUpdate(simulationRecord.id, parameter.parameter, (normalizeNumericNoise(next / parameter.scale) ?? next / parameter.scale))
+                                        if (next !== null) onUpdate(simulationRecord.id, parameter.parameter, next / parameter.scale)
                                       }}
                                       className="relative z-10 h-8 w-full min-w-0 rounded-sm border border-transparent bg-transparent pl-1.5 pr-0 text-right font-mono text-xs tabular-nums text-slate-900 transition-colors"
                                       style={{
@@ -863,8 +863,13 @@ function SimulationParameterTable({
                       </th>
                       {detailParameters.map(parameter => <EffectCell key={parameter.parameter} amount={parameter.amount} percentage={parameter.scale === 100} />)}
                       <td aria-label={`Total ${formatBusinessNumber(analysis.effects.totalEffect, { signPositive: true, integerDigits: Infinity })}`} className="border-b border-slate-200 whitespace-nowrap py-1.5 pl-1 pr-2 text-right text-[10px] font-semibold">
-                        <span className="text-slate-600 font-normal">Total</span>{' '}
-                        <BusinessNumber value={analysis.effects.totalEffect} signPositive numericColumn className={totalEffect.className} />
+                        <BusinessNumber
+                          value={analysis.effects.totalEffect}
+                          signPositive
+                          numericColumn
+                          sameLineAnnotation={<span className="font-sans text-[10px] text-slate-600 font-normal">Total</span>}
+                          className={totalEffect.className}
+                        />
                       </td>
                       <td className="border-b border-slate-200 px-0.5 py-1" aria-hidden="true" />
                     </tr>
@@ -1165,9 +1170,9 @@ function ResultPanel({
         </div>
         <div className="ml-auto flex shrink-0 items-center gap-1.5">{actions}</div>
       </header>
-      <div data-simulation-result-body="true" className="mt-1 min-w-0" style={{ containerType: 'inline-size' }}>
+      <div data-simulation-result-body="true" className="mt-1 min-w-0">
         <style>{`
-          @container (max-width: 463px) {
+          @media (max-width: 767px) {
             [data-simulation-result-body] table,
             [data-simulation-result-body] thead,
             [data-simulation-result-body] tbody { display: block; }
@@ -1179,11 +1184,11 @@ function ResultPanel({
         `}</style>
         <table className="w-full table-fixed text-[9px] leading-3 xl:leading-[11px]">
           <colgroup>
-            <col className="w-[25%]" />
-            <col className="w-[19%]" />
-            <col className="w-[19%]" />
+            <col className="w-[23%]" />
+            <col className="w-[18%]" />
+            <col className="w-[18%]" />
+            <col className="w-[20%]" />
             <col className="w-[21%]" />
-            <col className="w-[16%]" />
           </colgroup>
           <thead className="text-[8px] text-slate-500">
             <tr>

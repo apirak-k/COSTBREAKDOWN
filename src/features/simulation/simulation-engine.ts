@@ -1,5 +1,5 @@
 import { compareSnapshots, safeAdd } from '../../core'
-import { areNumericValuesEquivalent, normalizeNumericNoise } from '../../shared/ui/numeric-display'
+import { areNumericValuesEquivalent } from '../../shared/ui/numeric-display'
 import { isMasterDataNumericValueValid, type MasterDataNumericField } from '../../core/utils/master-data-validation'
 import type {
   ComparisonFinding,
@@ -142,7 +142,7 @@ export function updateSimulationParameter(
 
   const parameterValues = { ...(dataset.parameterOverrides[parameter] ?? {}) }
   if (areNumericValuesEquivalent(baselineValue, value)) delete parameterValues[simulationRecordId]
-  else parameterValues[simulationRecordId] = normalizeNumericNoise(value) ?? null
+  else parameterValues[simulationRecordId] = value
   const parameterOverrides = { ...dataset.parameterOverrides }
   if (Object.keys(parameterValues).length) parameterOverrides[parameter] = parameterValues
   else delete parameterOverrides[parameter]

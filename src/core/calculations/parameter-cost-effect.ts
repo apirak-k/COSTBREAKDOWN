@@ -1,4 +1,4 @@
-import { safeAdd, safeDivide, safeMultiply } from '../utils/guards'
+import { areNumericValuesEquivalent, safeAdd, safeDivide, safeMultiply } from '../utils/guards'
 
 export interface BOMParameterCostEffectInput {
   usage: number | null
@@ -102,6 +102,7 @@ function lmdiEffect(
   exponent = 1
 ): number | null {
   if (!isPositiveFinite(referenceFactor) || !isPositiveFinite(currentFactor)) return null
+  if (areNumericValuesEquivalent(referenceFactor, currentFactor)) return 0
   const logRatio = logarithmicRatio(referenceFactor, currentFactor)
   if (logRatio === null) return null
   const result = safeMultiply(logMean, exponent, logRatio)
@@ -111,10 +112,25 @@ function lmdiEffect(
 function reconcileLastEffect<T extends object>(
   effects: T,
   orderedKeys: readonly (keyof T)[],
+  changedKeys: readonly (keyof T)[],
   targetGap: number
 ): T | null {
+  const reconciliationKey = [...orderedKeys].reverse().find(key => changedKeys.includes(key))
+  if (reconciliationKey === undefined) {
+    let total = 0
+    for (const key of orderedKeys) {
+      const value = effects[key]
+      if (typeof value !== 'number' || !Number.isFinite(value)) return null
+      const next = safeAdd(total, value)
+      if (next === null) return null
+      total = next
+    }
+    return total === targetGap ? effects : null
+  }
+
   let precedingEffects = 0
-  for (const key of orderedKeys.slice(0, -1)) {
+  for (const key of orderedKeys) {
+    if (key === reconciliationKey) continue
     const value = effects[key]
     if (typeof value !== 'number' || !Number.isFinite(value)) return null
     const next = safeAdd(precedingEffects, value)
@@ -122,10 +138,9 @@ function reconcileLastEffect<T extends object>(
     precedingEffects = next
   }
 
-  const lastKey = orderedKeys[orderedKeys.length - 1]
   const reconciledLastEffect = safeAdd(targetGap, -precedingEffects)
   if (reconciledLastEffect === null) return null
-  return { ...effects, [lastKey]: reconciledLastEffect } as T
+  return { ...effects, [reconciliationKey]: reconciledLastEffect } as T
 }
 
 /** Uses additive LMDI to split a matched BOM cost change across usage, price, and (1 + loss). */
@@ -146,8 +161,18 @@ export function calculateBOMParameterCostEffects(
 
   const referenceCost = safeMultiply(reference.usage, reference.price, referenceLossFactor)
   const currentCost = safeMultiply(current.usage, current.price, currentLossFactor)
-  const logMean = referenceCost === null || currentCost === null ? null : logarithmicMean(referenceCost, currentCost)
-  const targetGap = referenceCost === null || currentCost === null ? null : safeAdd(currentCost, -referenceCost)
+  if (referenceCost === null || currentCost === null) return UNAVAILABLE
+
+  const changedKeys = (['usage', 'price', 'loss'] as const)
+    .filter(key => !areNumericValuesEquivalent(reference[key], current[key]))
+  if (changedKeys.length === 0) {
+    return areNumericValuesEquivalent(referenceCost, currentCost)
+      ? { status: 'available', effects: { usage: 0, price: 0, loss: 0 } }
+      : UNAVAILABLE
+  }
+
+  const logMean = logarithmicMean(referenceCost, currentCost)
+  const targetGap = safeAdd(currentCost, -referenceCost)
   if (logMean === null || targetGap === null) return UNAVAILABLE
 
   const usageEffect = lmdiEffect(logMean, reference.usage, current.usage)
@@ -161,7 +186,7 @@ export function calculateBOMParameterCostEffects(
     loss: lossEffect
   }
 
-  const reconciled = reconcileLastEffect(effects, ['usage', 'price', 'loss'], targetGap)
+  const reconciled = reconcileLastEffect(effects, ['usage', 'price', 'loss'], changedKeys, targetGap)
   return reconciled ? { status: 'available', effects: reconciled } : UNAVAILABLE
 }
 
@@ -211,7 +236,13 @@ function calculateElementEffects(
   }
 
   const orderedKeys = ['manning', 'capacity', 'yield', rateKey] as (keyof RoutingCostEffects)[]
-  return reconcileLastEffect(effects, orderedKeys, targetGap)
+  const changedKeys = orderedKeys.filter(key => !areNumericValuesEquivalent(reference[key], current[key]))
+  if (changedKeys.length === 0) {
+    return areNumericValuesEquivalent(referenceCost, currentCost)
+      ? { manning: 0, capacity: 0, yield: 0, laborRate: 0, burdenRate: 0 }
+      : null
+  }
+  return reconcileLastEffect(effects, orderedKeys, changedKeys, targetGap)
 }
 
 /** Uses additive LMDI for Labor and Burden independently, then sums matching parameter effects into Conversion. */

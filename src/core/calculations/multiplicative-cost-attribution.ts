@@ -1,4 +1,4 @@
-import { safeAdd, safeDivide } from '../utils/guards'
+import { areNumericValuesEquivalent, safeAdd, safeDivide } from '../utils/guards'
 
 export interface MultiplicativeCostFactor {
   key: string
@@ -40,7 +40,7 @@ function zeroBoundaryEffects(
   if (!matchesCost(multiplier * baselineProduct, baselineCost)
     || !matchesCost(multiplier * targetProduct, targetCost)) return null
 
-  const changed = factors.flatMap((factor, index) => factor.baseline === factor.target ? [] : [index])
+  const changed = factors.flatMap((factor, index) => areNumericValuesEquivalent(factor.baseline, factor.target) ? [] : [index])
   const effects = factors.map(() => 0)
   let permutations = 0
   const applyOrders = (order: number[], remaining: number[]) => {
@@ -80,6 +80,14 @@ export function calculateMultiplicativeCostAttribution(
   const totalEffect = safeAdd(targetCost, -baselineCost)
   if (totalEffect === null) return { totalEffect: null, effects: null, shares: null }
 
+  const changedIndices = factors.flatMap((factor, index) => areNumericValuesEquivalent(factor.baseline, factor.target) ? [] : [index])
+  if (changedIndices.length === 0) {
+    if (areNumericValuesEquivalent(baselineCost, targetCost)) {
+      return { totalEffect: 0, effects: Object.fromEntries(factors.map(factor => [factor.key, 0])), shares: null }
+    }
+    return { totalEffect, effects: null, shares: null }
+  }
+
   let values: number[]
   if (baselineCost > 0 && targetCost > 0) {
     if (factors.some(factor => factor.baseline <= 0 || factor.target <= 0)) {
@@ -87,11 +95,13 @@ export function calculateMultiplicativeCostAttribution(
     }
     const weight = logMean(baselineCost, targetCost)
     if (weight === null) return { totalEffect, effects: null, shares: null }
-    values = factors.map(factor => weight * Math.log(factor.target / factor.baseline))
+    values = factors.map(factor => areNumericValuesEquivalent(factor.baseline, factor.target)
+      ? 0
+      : weight * Math.log(factor.target / factor.baseline))
   } else if (baselineCost === 0 && targetCost === 0) {
     values = factors.map(() => 0)
   } else {
-    const changed = factors.flatMap((factor, index) => factor.baseline === factor.target ? [] : [index])
+    const changed = changedIndices
     const index = changed[0]
     const singleZeroTransition = changed.length === 1 && index !== undefined
       && (baselineCost === 0
@@ -109,8 +119,10 @@ export function calculateMultiplicativeCostAttribution(
   if (values.some(value => !Number.isFinite(value))) return { totalEffect, effects: null, shares: null }
   const attributedTotal = safeAdd(...values)
   if (attributedTotal === null) return { totalEffect, effects: null, shares: null }
-  // Keep the published component values exactly reconciled despite floating-point rounding.
-  values[values.length - 1] = safeAdd(values[values.length - 1], totalEffect - attributedTotal) ?? values[values.length - 1]
+  // Assign floating-point reconciliation residue to the last factor that changed.
+  // An untouched trailing factor must retain an exact zero effect.
+  const reconciliationIndex = changedIndices[changedIndices.length - 1]
+  values[reconciliationIndex] = safeAdd(values[reconciliationIndex], totalEffect - attributedTotal) ?? values[reconciliationIndex]
   const effects = Object.fromEntries(factors.map((factor, index) => [factor.key, values[index]]))
   const shares = Object.fromEntries(factors.map((factor, index) => {
     const ratio = totalEffect === 0 ? null : safeDivide(values[index], totalEffect)

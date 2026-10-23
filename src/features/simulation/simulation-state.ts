@@ -1,5 +1,5 @@
 import type { CostSnapshot, MasterDataRole } from '../../core/types'
-import { areNumericValuesEquivalent, normalizeNumericNoise } from '../../shared/ui/numeric-display'
+import { areNumericValuesEquivalent } from '../../shared/ui/numeric-display'
 import { calculateParameterSimulation, isSimulationParameterInputValid } from './simulation-engine'
 import {
   createEconomicSimulationDraft,
@@ -408,7 +408,7 @@ function normalizeParameterOverrides(value: unknown, baseline: CostSnapshot): Si
       if (!recordId || matches.length !== 1 || (candidate !== null && typeof candidate !== 'number')) continue
       if (!isSimulationParameterInputValid(parameter, candidate as number | null)) continue
       if (areNumericValuesEquivalent((matches[0] as unknown as Record<string, unknown>)[field] as number | null | undefined, candidate as number | null | undefined)) continue
-      valid[recordId] = normalizeNumericNoise(candidate as number | null)
+      valid[recordId] = candidate as number | null
     }
     if (Object.keys(valid).length) result[parameter] = valid
   }

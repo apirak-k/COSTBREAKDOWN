@@ -2,6 +2,7 @@ import { numericColumnGeometry, numericCenterlineFailures } from './numeric-brow
 import { spawn, execFileSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { fileURLToPath } from 'node:url'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import net from 'node:net'
@@ -37,12 +38,13 @@ const numericLayoutOnly = process.argv.includes('--numeric-layout-only')
 const rulerOnly = process.argv.includes('--ruler-only')
 const visibleTotalsOnly = process.argv.includes('--visible-totals-only')
 const configuredBaseUrl = process.env.COSTBREAKDOWN_BROWSER_BASE_URL
+const viteCliPath = fileURLToPath(new URL('../../bin/vite.js', import.meta.resolve('vite')))
 const vitePort = configuredBaseUrl ? null : await unusedPort()
 const debugPort = await unusedPort()
 const profile = await mkdtemp(join(tmpdir(), 'costbreakdown-simulation-round4a-chrome-'))
 const evidenceDir = await mkdtemp(join(tmpdir(), 'costbreakdown-simulation-round4a-evidence-'))
 const vite = configuredBaseUrl ? null : spawn(process.execPath, [
-  resolve(repository, 'node_modules/vite/bin/vite.js'), '--host', '127.0.0.1', '--port', String(vitePort), '--strictPort'
+  viteCliPath, '--host', '127.0.0.1', '--port', String(vitePort), '--strictPort'
 ], { cwd: repository, stdio: ['ignore', 'pipe', 'pipe'] })
 const viteOutput = []
 for (const stream of [vite?.stdout, vite?.stderr]) stream?.on('data', chunk => viteOutput.push(String(chunk)))
@@ -252,6 +254,19 @@ try {
   await delay(800)
   await screenshot('simulation-seeded-1440-before-expansion')
 
+  let routingReferenceYieldBaseline = null
+  if (!finalCorrectionsOnly) {
+    await clickRole('Reference')
+    routingReferenceYieldBaseline = await evaluate(`(()=>{
+      const section=document.querySelector('section[data-simulation-table="routing"]')
+      const input=[...(section?.querySelectorAll('input[data-numeric-editor]')??[])].find(e=>e.getClientRects().length&&e.getAttribute('aria-label')?.endsWith('Yield in Reference'))
+      const slot=input?.closest('[data-simulation-input-wrapper="true"]')
+      const suffix=slot?.children[1]
+      return {value:input?.value??null,suffix:suffix?.textContent.trim()??null,suffixVisibility:suffix?getComputedStyle(suffix).visibility:null}
+    })()`)
+    await clickRole('Current')
+  }
+
   if (finalCorrectionsOnly) {
     for (const kind of ['bom','routing']) {
       const section=`section[data-simulation-table="${kind}"]`
@@ -307,8 +322,28 @@ try {
       })()`)
       check(`Result ${width}px fits card without horizontal scroll and retains four numeric headings`,state.scroll<=state.width+1&&state.table<=state.width+1&&state.inside&&state.header.length===5&&state.header[3]==='Change'&&state.header[4]==='%',state)
       check(`Result ${width}px numeric tokens stay inside individual columns without overlap`,state.numeric.length===32&&state.suffixFonts.length===8&&state.suffixFonts.every(f=>f.suffix===f.numeric)&&state.numeric.every(c=>c.tokens.every(t=>t.left>=c.left-1&&t.right<=c.right+1)),state.numeric)
-      check(`Result ${width}px intentionally reflows labels in narrow cards`,state.reflow===(state.width<464),{width:state.width,reflow:state.reflow})
+      check(`Result ${width}px intentionally reflows labels only below the mobile viewport breakpoint`,state.reflow===(width<768),{viewportWidth:width,bodyWidth:state.width,reflow:state.reflow})
       const axes=await evaluate(`(${numericColumnGeometry.toString()})(document.querySelector('[data-simulation-result-body]'))`)
+      const resultAxisDetails=await evaluate(`(()=>{
+        const body=document.querySelector('[data-simulation-result-body]')
+        const bodyWidth=body?.getBoundingClientRect().width??null
+        const regions=[...(body?.querySelectorAll('[data-numeric-region="true"]')??[])].filter(region=>{
+          const box=region.getBoundingClientRect()
+          return box.width>12&&box.height>5&&!region.closest('.sr-only,[hidden]')
+        })
+        return regions.map(region=>{
+          const regionBox=region.getBoundingClientRect()
+          const cell=region.closest('td,th,[role=cell],[role=rowheader]')
+          const columnBox=cell?.getBoundingClientRect()
+          const token=region.querySelector('[data-numeric-token]')??region
+          const range=document.createRange();range.selectNodeContents(token)
+          const tokenBoxes=[...range.getClientRects()]
+          const tokenWidth=tokenBoxes.length?Math.max(...tokenBoxes.map(box=>box.right))-Math.min(...tokenBoxes.map(box=>box.left)):null
+          const header=cell?.closest('table')?.querySelector('thead tr:not(.sr-only)')?.children[cell.cellIndex]?.textContent.trim()??null
+          return {bodyWidth,header,columnWidth:columnBox?.width??null,regionWidth:regionBox.width,tokenWidth,text:token.textContent.trim()}
+        })
+      })()`)
+      axes.forEach((metric,index)=>{metric.resultLayout=resultAxisDetails[index]??null})
       const axisFailures=numericCenterlineFailures(axes)
       check(`Result ${width}px headers, numeric regions and ordinary decimals retain common centers`,axes.length===32&&axisFailures.length===0,{count:axes.length,failures:axisFailures})
       if (width===320) {
@@ -623,6 +658,86 @@ try {
   })()`)
 
   const sameFrameRect = (left, right) => Boolean(left && right && ['left', 'right', 'top', 'bottom', 'width', 'height'].every(edge => Math.abs(left[edge] - right[edge]) <= 0.25))
+  const sameColumnRect = (left, right) => Boolean(left && right && ['left', 'right', 'width', 'headerLeft', 'headerRight'].every(edge => Math.abs(left[edge] - right[edge]) <= 0.25))
+
+  await setViewport(1440)
+  const precisePriceFixture = frameValueFixtures[0]
+  const originalPriceFrame = await readInputFrame('bom', 'Price')
+  const precisePriceDraft = await typeIntoInput(precisePriceFixture.ariaLabel, '12.3456789')
+  const preciseFocusedFrame = await readInputFrame('bom', 'Price')
+  await evaluate('document.activeElement?.blur()')
+  await delay(180)
+  const preciseBlurredValue = await evaluate(`([...document.querySelectorAll('input[data-numeric-editor]')].find(e=>e.getAttribute('aria-label')===${JSON.stringify(precisePriceFixture.ariaLabel)})?.value??null)`)
+  const preciseRefocusedValue = await authoritativeDraft(precisePriceFixture.ariaLabel)
+  const preciseRefocusedFrame = await readInputFrame('bom', 'Price')
+  check('Simulation Price preserves 12.3456789 through edit, blur, and focus in its fixed frame',
+    precisePriceDraft === '12.3456789' && preciseBlurredValue === '12.35' && preciseRefocusedValue === '12.3456789'
+      && sameFrameRect(originalPriceFrame?.frame, preciseFocusedFrame?.frame)
+      && sameFrameRect(originalPriceFrame?.frame, preciseRefocusedFrame?.frame),
+    { draft: precisePriceDraft, blurred: preciseBlurredValue, refocused: preciseRefocusedValue, frames: [originalPriceFrame?.frame, preciseFocusedFrame?.frame, preciseRefocusedFrame?.frame] })
+  await evaluate('document.activeElement?.blur()')
+
+  const tinyPriceDraft = await typeIntoInput(precisePriceFixture.ariaLabel, '0.0000000000005')
+  const tinyFocusedFrame = await readInputFrame('bom', 'Price')
+  await evaluate('document.activeElement?.blur()')
+  await delay(180)
+  const tinyBlurredValue = await evaluate(`([...document.querySelectorAll('input[data-numeric-editor]')].find(e=>e.getAttribute('aria-label')===${JSON.stringify(precisePriceFixture.ariaLabel)})?.value??null)`)
+  const tinyRefocusedValue = await authoritativeDraft(precisePriceFixture.ariaLabel)
+  const tinyRefocusedFrame = await readInputFrame('bom', 'Price')
+  check('Simulation Price preserves 5e-13 as authoritative data through edit, blur, and focus',
+    tinyPriceDraft === '0.0000000000005' && tinyBlurredValue === '5.00E-13' && tinyRefocusedValue === '0.0000000000005'
+      && sameFrameRect(originalPriceFrame?.frame, tinyFocusedFrame?.frame)
+      && sameFrameRect(originalPriceFrame?.frame, tinyRefocusedFrame?.frame),
+    { draft: tinyPriceDraft, blurred: tinyBlurredValue, refocused: tinyRefocusedValue, frames: [originalPriceFrame?.frame, tinyFocusedFrame?.frame, tinyRefocusedFrame?.frame] })
+  await typeIntoInput(precisePriceFixture.ariaLabel, precisePriceFixture.value)
+  await evaluate('document.activeElement?.blur()')
+  await delay(180)
+
+  const longValueFixtures = frameValueFixtures.map(fixture => ({
+    fixture,
+    value: fixture.label === 'Loss' || fixture.label === 'Yield' ? '99.123456789' : '123456789012345.123456'
+  }))
+  const longValueResults = []
+  for (const { fixture, value } of longValueFixtures) {
+    const original = await authoritativeDraft(fixture.ariaLabel)
+    const before = await readInputFrame(fixture.kind, fixture.label)
+    const actualDraft = await typeIntoInput(fixture.ariaLabel, value)
+    const focused = await readInputFrame(fixture.kind, fixture.label)
+    await evaluate('document.activeElement?.blur()')
+    await delay(120)
+    const blurred = await readInputFrame(fixture.kind, fixture.label)
+    longValueResults.push({
+      field: fixture.ariaLabel,
+      expected: value,
+      actualDraft,
+      focused: focused?.focused,
+      blurred: blurred?.focused,
+      fixedFrame: sameFrameRect(before?.frame, focused?.frame) && sameFrameRect(before?.frame, blurred?.frame),
+      fixedColumn: sameColumnRect(before?.column, focused?.column) && sameColumnRect(before?.column, blurred?.column),
+      original
+    })
+    await typeIntoInput(fixture.ariaLabel, original)
+    await evaluate('document.activeElement?.blur()')
+    await delay(100)
+  }
+  check('Price/Usage/Loss and Manning/Capacity/Yield tracks stay balanced through long-value focus and blur',
+    longValueResults.length === 6 && longValueResults.every(result => result.actualDraft === result.expected
+      && result.focused && !result.blurred && result.fixedFrame && result.fixedColumn && result.original !== null), longValueResults)
+
+  if (!finalCorrectionsOnly) {
+    await clickRole('Reference')
+    const routingReferenceYieldCurrent = await evaluate(`(()=>{
+      const section=document.querySelector('section[data-simulation-table="routing"]')
+      const input=[...(section?.querySelectorAll('input[data-numeric-editor]')??[])].find(e=>e.getClientRects().length&&e.getAttribute('aria-label')?.endsWith('Yield in Reference'))
+      const slot=input?.closest('[data-simulation-input-wrapper="true"]'),suffix=slot?.children[1]
+      return {value:input?.value??null,suffix:suffix?.textContent.trim()??null,suffixVisibility:suffix?getComputedStyle(suffix).visibility:null}
+    })()`)
+    check('Routing Reference Yield value and percent suffix remain unchanged through Current input edits',
+      Boolean(routingReferenceYieldBaseline && JSON.stringify(routingReferenceYieldCurrent) === JSON.stringify(routingReferenceYieldBaseline)),
+      { before: routingReferenceYieldBaseline, after: routingReferenceYieldCurrent })
+    await clickRole('Current')
+  }
+
   for (const width of [1440, 1024, 768]) {
     const label = ({ 1440: 'Price', 1024: 'Usage', 768: 'Loss' })[width]
     const fixture = frameValueFixtures.find(item => item.kind === 'bom' && item.label === label)
@@ -807,6 +922,25 @@ try {
         const axes=await evaluate(`(()=>{const section=document.querySelector('section[data-simulation-table="${kind}"]'),headers=[...section.querySelectorAll('table[role="presentation"] thead th')],main=section.querySelector('tbody tr[data-simulation-row-index]'),detail=main.nextElementSibling;return [3,4,5,6].map((column,index)=>{const cell=main.children[column],effect=detail?.children[index+2],h=headers[column]?.getBoundingClientRect(),m=cell.getBoundingClientRect(),d=effect?.getBoundingClientRect(),number=effect?.querySelector('[data-numeric-region]'),n=number?.getBoundingClientRect(),mainRegion=cell.querySelector('[data-numeric-region]')?.getBoundingClientRect();return{column,mainRight:m.right,headerRight:h?.right,effectRight:d?.right,effectNumberRight:n?.right,effectCenter:n?(n.left+n.right)/2:null,mainCenter:mainRegion?(mainRegion.left+mainRegion.right)/2:null,effectPadding:effect?parseFloat(getComputedStyle(effect).paddingRight):null,parameterBoundary:cell.querySelector('input')?.getBoundingClientRect().right-(column===5?5:17),calculatedReadOnly:column!==6||!cell.querySelector('input')}})})()`)
         check(`${width}px ${kind.toUpperCase()} expanded effects and calculated costs retain matching column anchors`,
           axes.every(axis=>Math.abs(axis.mainRight-axis.headerRight)<1&&Math.abs(axis.mainRight-axis.effectRight)<1&&axis.calculatedReadOnly&&Math.abs(axis.effectCenter-axis.mainCenter)<1), axes)
+        if (width === 1440 && kind === 'bom') {
+          const suffixMetrics = await evaluate(`(()=>{
+            const section=document.querySelector('section[data-simulation-table="bom"]')
+            const main=section?.querySelector('tbody tr[data-simulation-row-index]'),detail=main?.nextElementSibling
+            const mainSlot=main?.children[5]?.querySelector('[data-simulation-input-wrapper="true"]')
+            const effectSlot=detail?.children[4]?.querySelector('[data-numeric-slot="true"]')
+            const rect=e=>{if(!e)return null;const r=e.getBoundingClientRect();return{left:r.left,right:r.right,width:r.width,center:(r.left+r.right)/2}}
+            const mainNumber=mainSlot?.querySelector('input[data-numeric-region]'),mainSuffix=mainSlot?.children[1]
+            const effectNumber=effectSlot?.querySelector('[data-numeric-region]'),effectSuffix=effectSlot?.children[1]
+            return {expanded:main?.getAttribute('aria-expanded'),mainSuffix:mainSuffix?.textContent.trim()??null,mainSuffixVisibility:mainSuffix?getComputedStyle(mainSuffix).visibility:null,effectSuffix:effectSuffix?.textContent.trim()??null,effectSuffixVisibility:effectSuffix?getComputedStyle(effectSuffix).visibility:null,mainNumber:rect(mainNumber),mainSuffixBox:rect(mainSuffix),effectNumber:rect(effectNumber),effectSuffixBox:rect(effectSuffix),mainGap:mainNumber&&mainSuffix?mainSuffix.getBoundingClientRect().left-mainNumber.getBoundingClientRect().right:null,effectGap:effectNumber&&effectSuffix?effectSuffix.getBoundingClientRect().left-effectNumber.getBoundingClientRect().right:null}
+          })()`)
+          check('BOM Loss percent slots keep equal suffix spacing and numeric anchors in the main and expanded rows',
+            Boolean(suffixMetrics?.expanded==='true'
+              && suffixMetrics.mainSuffix==='%' && suffixMetrics.mainSuffixVisibility!=='hidden'
+              && suffixMetrics.effectSuffix==='%' && suffixMetrics.effectSuffixVisibility==='hidden'
+              && Math.abs(suffixMetrics.mainGap-suffixMetrics.effectGap)<=1
+              && Math.abs(suffixMetrics.mainSuffixBox.width-suffixMetrics.effectSuffixBox.width)<=1
+              && Math.abs(suffixMetrics.mainNumber.center-suffixMetrics.effectNumber.center)<=1), suffixMetrics)
+        }
         if (width===1440) await screenshot(`numeric-layout-${width}-${kind}-expanded`)
       }
     }
@@ -830,7 +964,7 @@ try {
         }
       }
     }
-    if (width >= 1280) {
+    if (width >= 768) {
       const containment = await evaluate(`(()=>{
         const result = document.querySelector('section[aria-labelledby="simulation-result-title"]');
         const breakEven = document.querySelector('figure[aria-labelledby="break-even-graph-title"]');
@@ -848,22 +982,74 @@ try {
       })()`);
       check(`${width}px Simulation Result panel is fully contained above Break-even without overlap or scrollbars`,
         Boolean(containment && !containment.overlaps && !containment.resultScrollable), containment);
+      const oneLineRows = await evaluate(`(()=>{
+        const section=document.querySelector('section[aria-labelledby="simulation-result-title"]')
+        return [...(section?.querySelectorAll('tbody tr')??[])].filter(row=>row.querySelector('th[scope="row"]')).map(row=>({
+          label:row.querySelector('th[scope="row"]')?.textContent.trim(),
+          cells:[...row.children].map(cell=>{
+            const range=document.createRange();range.selectNodeContents(cell)
+            const tops=[...range.getClientRects()].map(rect=>rect.top).sort((a,b)=>a-b)
+            const lineTops=tops.reduce((lines,top)=>{if(!lines.length||top-lines.at(-1)>2)lines.push(top);return lines},[])
+            return {tag:cell.tagName,text:cell.textContent.trim(),lineTops:lineTops.map(top=>Math.round(top*2)/2)}
+          })
+        }))
+      })()`)
+      check(`${width}px Simulation Result metrics each remain on one visual row`,
+        oneLineRows.length >= 8 && oneLineRows.every(row => row.cells.length >= 3 && row.cells.every(cell => cell.lineTops.length <= 1)), oneLineRows)
     }
     if (width === 1440) {
+      const totalPriceLabel = 'MAT-A Price in Current'
+      const originalTotalPrice = await authoritativeDraft(totalPriceLabel)
+      const originalTotalPriceNumber = Number(originalTotalPrice)
+      const positiveTotalPriceTarget = Math.max(100, originalTotalPriceNumber * 10 + 1).toFixed(2)
+      const positiveTotalPriceDraft = await typeIntoInput(totalPriceLabel, positiveTotalPriceTarget)
+      await evaluate('document.activeElement?.blur()')
+      await delay(160)
       const totalLabelCheck = await evaluate(`(()=>{
-        const totalCell = document.querySelector('tr[id^="simulation-detail-"] td[aria-label^="Total"]');
-        if (!totalCell) return null;
+        const effectRow = document.querySelector('tr[id^="bom-effect-"], tr[id^="routing-effect-"]');
+        if (!effectRow) return { effectRowExists: false };
+        const totalCell = effectRow.querySelector('td[aria-label^="Total"]');
+        if (!totalCell) return { effectRowExists: true, totalCellExists: false };
         const totalSpan = totalCell.querySelector('span.text-slate-600');
         const numberSpan = totalCell.querySelector('[data-numeric-region]');
+        const numericToken = numberSpan?.querySelector('[data-numeric-token]');
+        const numericText = numericToken?.textContent.trim() ?? '';
+        const lineTops = element => {
+          if (!element) return [];
+          const range = document.createRange(); range.selectNodeContents(element);
+          const tops = [...range.getClientRects()].map(rect => rect.top).sort((a, b) => a - b);
+          return tops.reduce((lines, top) => { if (!lines.length || top - lines.at(-1) > 2) lines.push(top); return lines; }, []).map(top => Math.round(top * 2) / 2);
+        };
         return {
+          effectRowExists: true,
+          totalCellExists: true,
           hasNeutralTotal: !!totalSpan && totalSpan.textContent.trim() === 'Total',
           hasNumber: !!numberSpan,
-          labelColor: totalSpan ? getComputedStyle(totalSpan).color : null
+          cellText: totalCell.textContent.trim(),
+          numericText,
+          positiveValue: numericText.startsWith('+') && Number(numericText.replace(/,/g, '')) > 0,
+          labelColor: totalSpan ? getComputedStyle(totalSpan).color : null,
+          totalLineTops: lineTops(totalSpan),
+          numberLineTops: lineTops(numberSpan),
+          scrollWidth: totalCell.scrollWidth,
+          clientWidth: totalCell.clientWidth
         };
       })()`);
-      if (totalLabelCheck) {
-        check('1440px Parameter Cost Effect Total label is neutral and separate from numeric delta',
-          Boolean(totalLabelCheck.hasNeutralTotal && totalLabelCheck.hasNumber), totalLabelCheck);
+      check('1440px expanded Simulation renders a real BOM or Routing effect row for Total',
+        Boolean(totalLabelCheck?.effectRowExists), totalLabelCheck);
+      check('1440px expanded Simulation effect row renders a Total cell',
+        Boolean(totalLabelCheck?.totalCellExists), totalLabelCheck);
+      check('1440px Parameter Cost Effect Total label is neutral and separate from numeric delta',
+        Boolean(totalLabelCheck?.hasNeutralTotal && totalLabelCheck.hasNumber), totalLabelCheck);
+      check('1440px expanded Total and positive value stay on one visual line',
+        Boolean(positiveTotalPriceDraft === positiveTotalPriceTarget && totalLabelCheck?.positiveValue
+          && totalLabelCheck.totalLineTops.length === 1 && totalLabelCheck.numberLineTops.length === 1
+          && Math.abs(totalLabelCheck.totalLineTops[0] - totalLabelCheck.numberLineTops[0]) <= 1
+          && totalLabelCheck.scrollWidth <= totalLabelCheck.clientWidth + 1), totalLabelCheck);
+      if (originalTotalPrice !== null) {
+        await typeIntoInput(totalPriceLabel, originalTotalPrice)
+        await evaluate('document.activeElement?.blur()')
+        await delay(100)
       }
       const ordinaryCheck = await evaluate(`(()=>{
         const inputs = [...document.querySelectorAll('section[data-simulation-table] tbody input')];

@@ -6,6 +6,7 @@ import { existsSync } from 'node:fs'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import net from 'node:net'
 
 if (typeof WebSocket !== 'function') throw new Error('This verifier requires Node.js with built-in WebSocket support.')
@@ -35,12 +36,13 @@ async function unusedPort() {
 const delay = ms => new Promise(resolveDelay => setTimeout(resolveDelay, ms))
 const repository = process.cwd()
 const configuredBaseUrl = process.env.COSTBREAKDOWN_BROWSER_BASE_URL
+const viteCliPath = fileURLToPath(new URL('../../bin/vite.js', import.meta.resolve('vite')))
 const vitePort = configuredBaseUrl ? null : await unusedPort()
 const debugPort = await unusedPort()
 const profile = await mkdtemp(join(tmpdir(), 'costbreakdown-cbd-selected-value-'))
 const evidenceDir = await mkdtemp(join(tmpdir(), 'costbreakdown-cbd-selected-evidence-'))
 const vite = configuredBaseUrl ? null : spawn(process.execPath, [
-  resolve(repository, 'node_modules/vite/bin/vite.js'), '--host', '127.0.0.1', '--port', String(vitePort), '--strictPort'
+  viteCliPath, '--host', '127.0.0.1', '--port', String(vitePort), '--strictPort'
 ], { cwd: repository, stdio: ['ignore', 'pipe', 'pipe'] })
 const viteOutput = []
 for (const stream of [vite?.stdout, vite?.stderr]) stream?.on('data', chunk => viteOutput.push(String(chunk)))
@@ -1151,10 +1153,31 @@ try {
       && total.label.left >= total.cell.left
       && Math.abs((total.label.top + total.label.bottom) / 2 - (total.token.top + total.token.bottom) / 2) <= 3),
       `Total annotations have dedicated same-line slots without shifting column centerline at ${width}px`, corrections.totals)
-    verify(corrections.loss.length > 0 && corrections.loss.every(loss => loss.suffix.left >= loss.token.right
+    const lossSuffixRows = corrections.loss.filter(loss => loss.label !== 'Parameter Cost Effect')
+    const lossGroups = new Map()
+    for (const loss of corrections.loss) {
+      const group = lossGroups.get(loss.recordId) ?? {}
+      if (loss.label === 'main') group.main = loss
+      else group[loss.label] = loss
+      lossGroups.set(loss.recordId, group)
+    }
+    verify(lossSuffixRows.length >= 3 && lossSuffixRows.every(loss => loss.suffix
+      && loss.suffix.left >= loss.token.right
       && loss.suffix.left - loss.token.right <= 12
       && loss.suffix.right <= loss.cell.right + 1),
-      `real BOM delta Loss uses adjacent percentage suffix rhythm at ${width}px`, corrections.loss)
+      `BOM main and expanded Reference/Current Loss keep an adjacent percent gap at ${width}px`, corrections.loss)
+    verify(lossGroups.size > 0 && [...lossGroups.values()].every(group => {
+      const rows = [group.main, group.Reference, group.Current]
+      const gaps = rows.map(row => row?.suffix?.left - row?.token?.right)
+      const centers = rows.map(row => (row?.numeric?.left + row?.numeric?.right) / 2)
+      return rows.every(row => row?.suffix && row.suffixVisibility !== 'hidden')
+        && gaps.every(gap => Number.isFinite(gap) && gap >= 0 && gap <= 12)
+        && Math.max(...gaps) - Math.min(...gaps) <= 1
+        && Math.max(...centers) - Math.min(...centers) <= 1
+        && group['Parameter Cost Effect']?.suffix === null
+        && !group['Parameter Cost Effect']?.text.includes('%')
+    }),
+    `BOM main and expanded Loss suffixes share one axis while monetary effects stay unmarked at ${width}px`, [...lossGroups.entries()])
     await screenshot(`cbd-selected-value-${width}`)
   }
 

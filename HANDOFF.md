@@ -1,24 +1,31 @@
-# Pre-Round-4B Corrective Gate Closed — 2026-10-23
+# Pre-Round-4B Corrective Implementation — 2026-10-23
 
 - **Branch:** `feat/selected-value-ux`
-- **Audited Starting Remote HEAD:** `a70517d9e5351052e8ab9b226e351595ebe1c8c7`
-- **Status:** **PRE-4B CORRECTIVE PASS COMPLETE / VERIFIED / READY FOR USER CLOSURE**
-- **Round 4B:** **NOT STARTED / READY UPON REVIEW**
-- **Changes Completed Across Finite 6 Gates:**
-  1. **Gate 1: Simulation Result Containment:** Changed `data-simulation-layout-column="result-and-break-even"` grid track from `xl:grid-rows-[minmax(0,1.4fr)_minmax(0,1fr)]` to `xl:grid-rows-[auto_minmax(0,1fr)]` in `SimulationPage.tsx`. ResultPanel sizes to its natural content height (`auto`) with 0 vertical scroll, 0 horizontal scroll, and zero bounding-box intersection with Break-even across viewports.
-  2. **Gate 2: Ordinary-First Numeric Fit:** In `numeric-column-layout.ts`, removed over-conservative `.0000` 4-decimal reserve on ordinary numbers (`fractionWidth = measure(fraction)`). Short ordinary values (`4.00`, `5.00`, `8.00`, `12.00`, `15.00` and `5.00 %`, `84.00 %`, `90.00 %`, `97.00 %`, `98.00 %`) stay ordinary after blur across all editable, read-only, and effect columns.
-  3. **Gate 3: Floating-Point Machine Noise:** In `numeric-display.ts`, updated `normalizeNumericNoise` so IEEE-754 machine residuals with magnitude `< 1e-12` (such as `-8.88E-16` from decomposition calculations) normalize to `0` and display as `0.00`, while preserving subnormal floats like `Number.MIN_VALUE` and intentional precision `12.3456789`. Semantic equivalence correctly equates machine noise without false CHANGED badges.
-  4. **Gate 4: Parameter Cost Effect Total Label:** In `SimulationPage.tsx`, decoupled the `Total` label (`text-slate-600 font-normal`) from the colored delta number in expanded Parameter Cost Effect rows.
-  5. **Gate 5: CBD BOM Δ Loss % Spacing:** Restored `compactPercentSuffix={parameter.field === 'loss'}` in `CandidateFindingsTable.tsx`. Δ Loss `%` sits naturally adjacent to the number (`5.00 %`) matching Yield and %GAP without changing the decimal anchor. Tightened verifier to assert `suffix.left - token.right <= 12`.
-  6. **Gate 6: Collateral Restoration / Preservation:**
-     - Restored Economic Simulation positive outcome text color from `text-emerald-700` back to `text-emerald-800` (pairing with `text-rose-800` for contrast).
-     - Verified `#`, `[1]`, `[2]` visual weight and styling across Master Data, CBD, and Simulation callers without collateral regression.
-- **Verification Results:**
-  - `node scripts/verify_numeric_input.mjs`: 326/326 PASS.
-  - `node scripts/verify_simulation_regression.mjs`: PASS.
-  - `node scripts/verify_simulation_round4a_layout.mjs`: 222/222 PASS.
-  - `node scripts/verify_cbd_selected_value_browser.mjs`: 296/296 PASS.
-  - `npm run build`: Production build passes cleanly with 0 TypeScript errors.
+- **Audited Starting Remote HEAD:** `170699bfcecb0f726d489e3111617f51f8d649de`
+- **Status:** **IMPLEMENTED / INTERNAL CORRECTIVE CHECKS PASSED / AWAITING EXTERNAL AUDIT**
+- **Round 4B:** **NOT STARTED / BLOCKED** until this corrective pass is externally audited and accepted.
+- **Scope:** Final corrective implementation only. No Round 4B work was started.
+- **Corrections completed:**
+  1. Focused NumericInput drafts preserve the authoritative full value and use the fixed frame's full interior with native horizontal scrolling; compact unfocused decimal alignment and outer geometry remain stable.
+  2. Cost Breakdown BOM Loss `%` suffix uses the compact shared axis/gap in both the main row and expanded Reference/Current values. Monetary Parameter Cost Effect rows keep no `%` suffix; Routing behavior is unchanged.
+  3. Simulation Result metrics stay on one visual row at desktop/tablet widths and reflow only below a 768px viewport. Result/Break-even vertical containment remains `xl:grid-rows-[auto_minmax(0,1fr)]`; narrow-panel container-query reflow was removed.
+  4. Simulation BOM/Routing Usage, Price, and Loss tracks are equal at 14.5%; the calculated-cost track is 19.4%, preserving existing User/Status gutters and hierarchy.
+  5. LMDI rounding residue is assigned only to a changed factor; untouched trailing Loss/Yield effects remain exact zero. If no changed factor can own unreconciled residue, effects are unavailable instead of fabricated.
+  6. Simulation Parameter Cost Effect Total places a neutral `Total` annotation and signed semantic value on one baseline. Its browser verifier targets the actual expanded `bom-effect-*` / `routing-effect-*` row.
+  7. Global numeric normalization was removed. Stored and calculated values retain full precision; comparison tolerance is limited to a few ULPs between nonzero values, while zero remains distinct from every nonzero value. Tiny finite values retain scientific presentation and survive editing/reload.
+- **Verification results:**
+  - `node scripts/verify_numeric_input.mjs`: 334/334 PASS.
+  - `node scripts/verify_numeric_input_browser.mjs`: 2342/2342 PASS.
+  - `node scripts/verify_master_data_selected_value.mjs`: 148/148 PASS.
+  - `node scripts/verify_cbd_selected_value_browser.mjs`: 301/301 PASS.
+  - `node scripts/verify_cbd_parameter_cost_effect.mjs`: PASS.
+  - `npx tsx scripts/verify_comparison_reconciliation.ts`: PASS, including ULP-equivalent and meaningful-precision comparisons.
+  - `node scripts/verify_simulation_round4a_layout.mjs --final-corrections-only`: 41/41 PASS.
+  - `node scripts/verify_simulation_round4a_layout.mjs --numeric-layout-only`: 149/149 PASS.
+  - `node scripts/verify_simulation_regression.mjs`: PASS; its Simulation, CBD, Master Data, comparison, and history suites passed.
+  - `node scripts/verify_simulation_round4a_layout.mjs`: 231/236 PASS. The five remaining failures are out-of-scope mobile Ruler checks at 390px / 320px: natural label width for 350.00 and 15,000.00, plus the 350.00 drag assertion at each width. The focused correction and numeric-layout suites pass independently; Ruler and graph code was not changed.
+  - `npm run build`: TypeScript and production build PASS. Vite reports ExcelJS Node built-in externalization and the existing large-bundle warning; build completes successfully.
+  - `git diff --check` and changed `.mjs` syntax checks: PASS. No lint script is defined in `package.json`.
 
 # Historical Pre-Round-4B Regression Audit & Status Reconciliation — 2026-10-23 (Superseded Operationally)
 

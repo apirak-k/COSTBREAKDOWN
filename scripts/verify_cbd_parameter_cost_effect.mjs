@@ -27,7 +27,31 @@ const vite = await createServer({
 })
 
 const { SelectedValueProvider } = await vite.ssrLoadModule('/src/shared/ui/selected-value.tsx')
-const visibleText = markup => markup.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
+const visibleText = markup => {
+  const voidTags = new Set(['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'param', 'source', 'track', 'wbr'])
+  const hiddenTags = []
+  let text = ''
+  for (const token of markup.match(/<[^>]*>|[^<]+/g) ?? []) {
+    if (!token.startsWith('<')) {
+      if (hiddenTags.length === 0) text += token
+      continue
+    }
+    const closingTag = token.match(/^<\/([a-z][\w:-]*)/i)?.[1]?.toLowerCase()
+    if (hiddenTags.length > 0) {
+      if (closingTag) {
+        const matchingIndex = hiddenTags.lastIndexOf(closingTag)
+        if (matchingIndex >= 0) hiddenTags.length = matchingIndex
+      } else {
+        const openingTag = token.match(/^<([a-z][\w:-]*)\b/i)?.[1]?.toLowerCase()
+        if (openingTag && !voidTags.has(openingTag) && !/\/\s*>$/.test(token)) hiddenTags.push(openingTag)
+      }
+      continue
+    }
+    const hiddenOpeningTag = token.match(/^<([a-z][\w:-]*)\b(?=[^>]*\baria-hidden=(?:"true"|'true'))/i)?.[1]?.toLowerCase()
+    if (hiddenOpeningTag && !voidTags.has(hiddenOpeningTag) && !/\/\s*>$/.test(token)) hiddenTags.push(hiddenOpeningTag)
+  }
+  return text.replace(/\s+/g, ' ').trim()
+}
 const renderToStaticMarkup = element => renderStaticMarkup(React.createElement(
   SelectedValueProvider,
   { scopeKey: 'cbd-verifier' },
@@ -55,6 +79,24 @@ function candidateMainRow(markup, identityHeader, identity, status) {
   const row = rows.find(candidate => candidate.includes(`aria-label="${identityHeader}: ${identity}; status ${status}`))
   assert.ok(row, `expected the ${identityHeader} main row for ${identity}`)
   return row
+}
+
+function assertExpansionRowContract(mainRow, identityHeader, identity, status, expandable) {
+  const rowAttributes = mainRow.match(/<tr\b[^>]*>/)?.[0] ?? ''
+  const rowLabel = rowAttributes.match(/\baria-label="([^"]*)"/)?.[1] ?? ''
+  assert.ok(rowAttributes, `expected a ${identityHeader} row element`)
+  assert.equal(rowAttributes.includes('aria-expanded="false"'), expandable,
+    `only CHANGED ${identityHeader} rows expose a collapsed expansion state (${status})`)
+  assert.equal(/\btabindex="0"/.test(rowAttributes), expandable,
+    `only CHANGED ${identityHeader} rows are keyboard-focusable expansion targets (${status})`)
+  assert.equal(rowLabel.includes('activate to expand detail'), expandable,
+    `only CHANGED ${identityHeader} rows announce their expansion action (${status})`)
+  if (expandable) {
+    assert.equal(rowLabel, `${identityHeader}: ${identity}; status ${status}; activate to expand detail`,
+      `${identityHeader} row label names its expand action`)
+  }
+  assert.doesNotMatch(mainRow, /<button\b[^>]*(?:aria-label|title)="[^"]*\b(?:expand|collapse)\b[^"]*"[^>]*>/i,
+    `${status} ${identityHeader} row does not add a separate expand/collapse button`)
 }
 
 function gridCellText(row) {
@@ -186,6 +228,22 @@ try {
   assertClose(sum(Object.values(bomPositive.effects)), 2.2, 'BOM effects must reconcile to the unrounded +2.2 gap')
   assert.ok(bomPositive.effects.usage > 2.2, 'BOM usage contribution must exceed the net gap when price offsets it')
   assert.ok(bomPositive.effects.price < 0, 'BOM price contribution must preserve an offsetting negative effect')
+  assert.equal(bomPositive.effects.loss, 0,
+    'BOM reconciliation residue must not be assigned to Loss when Loss is unchanged')
+
+  const bomMachineNoise = effects.calculateBOMParameterCostEffects(
+    bomReference,
+    { ...bomReference, price: 10.000000000000004 }
+  )
+  assert.equal(bomMachineNoise.status, 'available')
+  assert.deepEqual(bomMachineNoise.effects, { usage: 0, price: 0, loss: 0 },
+    'ULP-equivalent BOM inputs do not fabricate parameter cost effects')
+  const bomUnreconciledMachineNoise = effects.calculateBOMParameterCostEffects(
+    { usage: 1, price: 1, loss: 1 },
+    { usage: 1.0000000000000009, price: 1.0000000000000009, loss: 1.0000000000000009 }
+  )
+  assert.equal(bomUnreconciledMachineNoise.status, 'unavailable',
+    'BOM does not report zero effects when equivalent inputs produce an unreconciled cost gap')
 
   const bomNegative = effects.calculateBOMParameterCostEffects(
     bomReference,
@@ -219,6 +277,13 @@ try {
   assertClose(sum(Object.values(routingPositive.effects.labor)), 1, 'Routing labor factors must reconcile to +1')
   assertClose(sum(Object.values(routingPositive.effects.burden)), 0.5, 'Routing burden factors must reconcile to +0.5')
   assertClose(sum(Object.values(routingPositive.effects.conversion)), 1.5, 'Routing conversion factors must reconcile to +1.5')
+
+  const routingUnreconciledMachineNoise = effects.calculateRoutingParameterCostEffects(
+    { manning: 1, capacity: 1, yield: 1, laborRate: 1, burdenRate: 1 },
+    { manning: 1.0000000000000009, capacity: 1, yield: 1, laborRate: 1.0000000000000009, burdenRate: 1.0000000000000009 }
+  )
+  assert.equal(routingUnreconciledMachineNoise.status, 'unavailable',
+    'Routing does not report zero effects when equivalent inputs produce an unreconciled cost gap')
 
   const routingNegative = effects.calculateRoutingParameterCostEffects(
     routingReference,
@@ -285,9 +350,20 @@ try {
   ], 'BOM Parameter Cost Effect row reuses LMDI and carries the same actual material gap as the main row')
   assert.match(bomMarkup, /<span class="ml-2 inline-block whitespace-nowrap border-l-2 border-slate-300 pl-3">/,
     'BOM detail identity is inset under its parent row with the shared hierarchy guide')
-  assert.match(bomMarkup, /border-t border-slate-200 bg-white[\s\S]*border-b border-slate-200 bg-white font-bold/,
-    'BOM detail is one white group with a stronger Parameter Cost Effect row')
-  assert.match(detailRowMarkup(bomMarkup, 'Parameter Cost Effect'), /font-bold/)
+  const bomReferenceRow = detailRowMarkup(bomMarkup, 'Reference')
+  const bomCurrentRow = detailRowMarkup(bomMarkup, 'Current')
+  const bomEffectRow = detailRowMarkup(bomMarkup, 'Parameter Cost Effect')
+  assert.ok([bomReferenceRow, bomCurrentRow, bomEffectRow].every(row => /class="[^"]*\bbg-white\b/.test(row)),
+    'BOM Reference, Current, and Parameter Cost Effect rows remain in one white group')
+  for (const [role, row] of [['Current', bomCurrentRow], ['Parameter Cost Effect', bomEffectRow]]) {
+    assert.match(row, /background-size:92% 1px;\s*background-position:center top/,
+      `BOM ${role} row keeps its centered 92% inset separator`)
+  }
+  assert.equal([...bomMarkup.matchAll(/background-size:92% 1px;\s*background-position:center top/g)].length, 2,
+    'BOM details preserve both inset separators between Reference, Current, and Parameter Cost Effect')
+  assert.match(bomEffectRow, /border-b border-slate-200/,
+    'the stronger Parameter Cost Effect row retains its final bottom rule')
+  assert.match(bomEffectRow, /font-bold/)
   assert.deepEqual([...bomMarkup.matchAll(/<th scope="row"[^>]*>[\s\S]*?<span[^>]*>([^<]*)<\/span>[\s\S]*?<\/th>/g)].map(([, label]) => label.trim()),
     ['Reference', 'Current', 'Parameter Cost Effect'], 'BOM details show the two active role labels followed by Parameter Cost Effect')
   assert.doesNotMatch(bomMarkup, /\bUnit\b|% Parent|%Parent/)
@@ -310,14 +386,15 @@ try {
   const bomMainCells = gridCellText(candidateMainRow(bomCandidateMarkup, 'Bill of Material', 'Material', 'CHANGED'))
   assert.deepEqual(bomMainCells.slice(3, 8), [
     formatters.formatVariance(1, 4), formatters.formatVariance(-4, 4), formatters.formatPercent(0, 2),
-    formatters.formatVariance(2.2, 4), '100.00%'
-  ], 'BOM main cells show parameter gaps separately from Candidate Cost Gap and its Standard Cost percentage')
+    formatters.formatVariance(2.2, 4), '+100.00%'
+  ], 'BOM main cells show parameter gaps separately from Candidate Cost Gap and its signed Standard Cost percentage')
   assert.match(candidateMainRow(bomCandidateMarkup, 'Bill of Material', 'Material', 'CHANGED'), /text-amber-700/)
   assert.doesNotMatch(candidateMainRow(bomCandidateMarkup, 'Bill of Material', 'Material', 'CHANGED'), /rounded-full|bg-amber/,
     'status is colored text without pill or badge background styling')
   assert.doesNotMatch(bomCandidateMarkup, /\bUnit\b|% Parent|%Parent/)
   const overContributionMarkup = renderItemized(itemizedView, { ...bomComparisonForDisplay, totalGap: 1 }, bomRefSnapshot, bomCurSnapshot)
   assert.match(overContributionMarkup, /220\.00%/, 'Candidate contribution above 100 percent remains visible without clamping')
+  assert.match(visibleText(overContributionMarkup), /\+220\.00%/, 'positive Candidate contribution above 100 percent retains its sign without clamping')
 
   const addedBOMReference = costSnapshot('reference')
   const addedBOMCurrent = costSnapshot('current', {
@@ -508,12 +585,7 @@ try {
       testCase.name, `fixture must represent ${testCase.name}`)
     const markup = renderItemized(itemizedView, comparison, reference, current)
     const mainRow = candidateMainRow(markup, 'Bill of Material', 'Material', testCase.name)
-    assert.equal(mainRow.includes('aria-expanded="false"'), testCase.expandable,
-      `only CHANGED BOM rows expose a collapsed Detail state (${testCase.name})`)
-    assert.equal(/<button[^>]*aria-label="Expand Bill of Material detail for Material"/.test(mainRow), testCase.expandable,
-      `only CHANGED BOM rows expose an independent accessible detail button (${testCase.name})`)
-    if (!testCase.expandable) assert.doesNotMatch(mainRow, /activate to (?:expand|collapse) detail/,
-      `${testCase.name} BOM rows do not claim to expand`)
+    assertExpansionRowContract(mainRow, 'Bill of Material', 'Material', testCase.name, testCase.expandable)
   }
 
   const rateRef = rate('rate-ref', 'WC-1', 10, 5)
@@ -538,10 +610,7 @@ try {
       `Routing fixture must represent ${testCase.name}`)
     const markup = renderItemized(itemizedView, comparison, reference, current, 'rtg')
     const mainRow = candidateMainRow(markup, 'Routing', 'Cutting', testCase.name)
-    assert.equal(mainRow.includes('aria-expanded="false"'), testCase.expandable,
-      `only CHANGED Routing rows expose a collapsed Detail state (${testCase.name})`)
-    assert.equal(/<button[^>]*aria-label="Expand Routing detail for Cutting"/.test(mainRow), testCase.expandable,
-      `only CHANGED Routing rows expose an independent accessible detail button (${testCase.name})`)
+    assertExpansionRowContract(mainRow, 'Routing', 'Cutting', testCase.name, testCase.expandable)
   }
 
   const warningComparison = {
@@ -560,14 +629,20 @@ try {
   assert.doesNotMatch(warningMarkup, /Review warnings|Fixture warning remains reviewable/, 'comparison warnings are not presented in the Cost Breakdown summary')
   assert.match(warningMarkup, /aria-label="Cost Element"/)
   assert.match(warningMarkup, /<caption class="sr-only">Cost Element/)
-  assert.match(warningMarkup, /<th scope="col"[^>]*>Cost Element<\/th>[\s\S]*>Before<\/th>[\s\S]*>After<\/th>[\s\S]*>GAP<\/span>[\s\S]*>Selected<\/span>[\s\S]*>%GAP<\/th>/)
+  const warningHeader = warningMarkup.match(/<thead\b[\s\S]*?<tr\b[\s\S]*?<\/tr>/)?.[0]
+  assert.ok(warningHeader)
+  assert.deepEqual([...warningHeader.matchAll(/<th\b[^>]*>([\s\S]*?)<\/th>/g)].map(match => visibleText(match[1])),
+    ['Cost Element', 'Before', 'After', 'GAP', '%GAP'],
+    'Cost Element headers expose the visible Before, After, Gap, and percentage columns')
+  assert.match(warningHeader, /data-gap-header-slot="selected"[^>]*aria-hidden="true"|aria-hidden="true"[^>]*data-gap-header-slot="selected"/,
+    'the unused secondary Gap label is a hidden layout placeholder')
   assert.deepEqual([...warningMarkup.matchAll(/<tr\b/g)].length, 5, 'Cost has exactly a header, three element rows, and a footer')
   assert.match(warningMarkup, />Material<\/th>[\s\S]*>Labor<\/th>[\s\S]*>Burden<\/th>[\s\S]*>Standard Cost<\/th>/)
   assert.doesNotMatch(warningMarkup, /Standard Cost Overview|Material color legend|Selected REF|Selected CUR/,
     'Cost stays compact and has no duplicate legend or Selected dataset columns')
   assert.ok(warningMarkup.includes('100.00%'), 'MAT %GAP uses element Gap divided by Standard Cost Gap')
   assert.ok(warningMarkup.includes('20.00%'), 'STD Cost %Total uses Standard Cost Gap divided by Before Standard Cost')
-  assert.match(visibleText(warningMarkup), /20\.00% Total/, 'STD Cost footer identifies its percentage as %Total')
+  assert.match(visibleText(warningMarkup), /Total20\.00%/, 'STD Cost footer identifies its percentage as %Total')
 
   const selectedCostComparison = {
     ...warningComparison,
@@ -581,8 +656,8 @@ try {
     gapDirection: 'Current − Reference'
   }))
   assert.match(selectedCostMarkup, /GAP[\s\S]*>Selected<\/span>/, 'Selected Comparison is a plain secondary GAP header slot')
-  assert.match(visibleText(selectedCostMarkup), /\+2\.20\s+\+0\.50/, 'Selected contribution is muted in the fixed secondary slot beside full Gap')
-  assert.match(visibleText(selectedCostMarkup), /Labor\s+0\.00\s+0\.00\s+0\.00\s+0\.00/,
+  assert.match(visibleText(selectedCostMarkup), /\+2\.20\+0\.50/, 'Selected contribution is muted in the fixed secondary slot beside full Gap')
+  assert.match(visibleText(selectedCostMarkup), /Labor0\.000\.000\.000\.00/,
     'a real selected zero is shown directly in the fixed secondary slot')
   assert.doesNotMatch(selectedCostMarkup, /\(Selected\)|Selected \([+-]?\d|data-gap-slot="selected"[^>]*>\s*\([+-]?\d/,
     'Selected header and values have no surrounding parentheses')
@@ -597,15 +672,19 @@ try {
     'Selected becomes a directly selectable numeric source inside its reserved secondary slot')
   assert.equal([...selectedCostMarkup.matchAll(/data-selected-gap-part="(?:open|value|close)"/g)].length, 0,
     'Selected values use plain numeric text without punctuation nodes')
-  assert.match(selectedCostMarkup, /grid-cols-\[minmax\(0,1fr\)_9ch\]/,
-    'the summary reserves a fixed-width secondary Selected slot')
+  const selectedHeaderTrack = selectedCostMarkup.match(/<span class="grid w-full grid-cols-\[minmax\(0,1fr\)_([^\]]+)\][^"]*"[^>]*>[\s\S]*?data-gap-header-slot="selected"/)?.[1]
+  const selectedBodyTracks = [...selectedCostMarkup.matchAll(/<div aria-label="[^"]*Full Gap[^"]*" class="grid w-full grid-cols-\[minmax\(0,1fr\)_([^\]]+)\]/g)].map(match => match[1])
+  assert.ok(selectedHeaderTrack && selectedBodyTracks.length > 0
+    && selectedBodyTracks.every(width => width === selectedHeaderTrack),
+  'the summary uses one fixed secondary Selected track in its header, body, and footer')
+  assert.equal(selectedHeaderTrack, '65px', 'the shared summary slot uses its existing 65px CSS track')
   assert.match(selectedCostMarkup, /<button[^>]*data-gap-slot="selected"[^>]*class="[^"]*text-right[^"]*text-\[10px\][^"]*font-normal[^"]*text-slate-500[^"]*tabular-nums/,
     'Selected is right-aligned, tabular, and neutral within its reserved slot')
   assert.doesNotMatch(selectedCostMarkup, /data-gap-slot="selected"[^>]*class="[^"]*text-(?:rose|red|green|emerald)-|data-gap-slot="selected"[^>]*class="[^"]*font-(?:bold|semibold)/,
     'Selected has no semantic red/green color or bold emphasis')
   assert.doesNotMatch(selectedCostMarkup, /data-gap-slot="selected"[^>]*class="[^"]*w-\[\d+px\]/,
-    'Selected no longer depends on a magic fixed pixel width')
-  assert.match(selectedCostMarkup, /<button[^>]*data-gap-slot="selected"[^>]*data-selected-number="true"[^>]*>\+0\.50<\/button>/,
+    'the Selected value uses the shared fixed track without a separate width that could diverge')
+  assert.match(selectedCostMarkup, /<button[^>]*data-gap-slot="selected"[^>]*data-selected-number="true"[^>]*>[\s\S]*?<span data-numeric-token="true">\+0\.50<\/span>/,
     'Selected value is displayed directly in its aligned fixed secondary slot')
 
   const wcComparison = routingComparisonForDisplay
@@ -631,7 +710,8 @@ try {
   const wcFooterGroup = wcTable.indexOf('<div role="rowgroup"', wcBodyEnd)
   assert.ok(wcTable.indexOf('role="columnheader"') < wcBodyStart && wcFooterGroup >= wcBodyEnd,
     'the header and Total footer are outside the body scroller')
-  assert.deepEqual([...wcMarkup.matchAll(/role="columnheader"[^>]*>([^<]*)<\/div>/g)].map(([, label]) => label),
+  assert.deepEqual([...wcMarkup.matchAll(/<div role="columnheader"[^>]*>/g)]
+    .map(match => visibleText(extractElement(wcMarkup, match.index, 'div'))),
     ['Work Center', 'Before', 'After', 'GAP', '%GAP'])
   assert.equal([...wcMarkup.matchAll(/role="rowgroup"/g)].length, 3,
     'WC header, body, and footer remain separate aligned grid sections')
@@ -780,7 +860,7 @@ try {
     const statusMarkup = renderToStaticMarkup(React.createElement(ComparisonStatusOptions, { selected, onChange() {} }))
     assert.equal([...statusMarkup.matchAll(/type="checkbox"/g)].length, 4, 'the compact Status menu has exactly four accessible checkboxes')
     assert.equal([...statusMarkup.matchAll(/checked=""/g)].length, selected.length, 'checkbox state reflects selected statuses')
-    assert.equal(visibleText(statusMarkup), 'Changed Added Removed Unchanged', 'Status has no heading, footer or explanatory copy')
+    assert.equal(visibleText(statusMarkup), 'ChangedAddedRemovedUnchanged', 'Status has no heading, footer or explanatory copy')
     assert.match(statusMarkup, /select-none/, 'Status suppresses text selection during pointer drag')
   }
 
@@ -800,7 +880,7 @@ try {
   const routingParameterWidth = routingGrid.slice(3, -4).reduce((sum, width) => sum + width, 0)
   assert.ok(Math.abs(bomParameterWidth - routingParameterWidth) < 1e-8,
     'BOM and Routing parameter groups occupy the same total width')
-  assert.match(candidateSource, /const tableClassName = `w-full \$\{isBOM \? 'min-w-\[1040px\]' : 'min-w-\[1260px\]'\} table-fixed/,
+  assert.match(candidateSource, /const tableClassName = `w-full \$\{isBOM \? 'min-w-\[1240px\]' : 'min-w-\[1260px\]'\} table-fixed/,
     'BOM and Routing use type-specific minimum widths to avoid narrow-column collisions')
   assert.match(candidateSource, /<StickyTableHeader[\s\S]*?<\/StickyTableHeader>[\s\S]*?<div className="overflow-x-auto" onScroll=\{syncHeaderScroll\}>[\s\S]*?<table className=\{tableClassName\}>/,
     'BOM and Routing body scrolling stays local and synchronized with the sticky header')
@@ -808,8 +888,10 @@ try {
     'even stale expansion state cannot show Details for a non-CHANGED finding')
   assert.match(candidateSource, /h-8 w-8 shrink-0 items-center justify-center rounded-sm p-0 font-mono[^']*tabular-nums/,
     'Candidate row numbers use a fixed square with tabular numerals')
-  assert.match(candidateSource, /<button[\s\S]*?aria-label=\{`\$\{isExpanded \? 'Collapse' : 'Expand'\} \$\{identityHeader\} detail for \$\{row\.label\}`\}[\s\S]*?onClick=\{event => \{[\s\S]*?onToggleExpanded\(type, row\.key\)/,
-    'the CHANGED-only chevron is a real accessible button with an independent expand/collapse action')
+  assert.match(candidateSource, /<tr[\s\S]*?aria-expanded=\{canExpand \? isExpanded : undefined\}[\s\S]*?aria-label=\{canExpand[\s\S]*?activate to \$\{isExpanded \? 'collapse' : 'expand'\} detail[\s\S]*?tabIndex=\{canExpand \? 0 : -1\}[\s\S]*?onKeyDown=\{event => \{[\s\S]*?onToggleExpanded\(type, row\.key\)/,
+    'the CHANGED row itself is focusable, labeled, and keyboard-operable as the expansion target')
+  assert.doesNotMatch(candidateSource, /<button[\s\S]*?aria-label=\{`\$\{isExpanded \? 'Collapse' : 'Expand'\} \$\{identityHeader\} detail for \$\{row\.label\}`\}[\s\S]*?onToggleExpanded\(type, row\.key\)/,
+    'row expansion is not exposed as a separate expand/collapse button')
   assert.match(candidateSource, /<button[\s\S]*?aria-pressed=\{selected\}[\s\S]*?aria-label=\{key \? `\$\{selected \? 'Deselect' : 'Select'\} \$\{identityHeader\} finding \$\{row\.label\}`/,
     'the # Candidate selector remains a separate accessible selection button')
   const reorderButton = candidateSource.match(/<button\s+type="button"\s+draggable[\s\S]*?<\/button>/)?.[0]
@@ -951,13 +1033,13 @@ try {
       onResetManualOrderHistory() {}
     }))
     const pageText = visibleText(pageMarkup)
-    assert.match(pageText, /Standard Cost Gap \+1\.20/)
-    assert.doesNotMatch(pageText, /Full \+1\.20|Selected \+1\.20/)
+    assert.match(pageText, /Standard Cost Gap\+1\.20/)
+    assert.doesNotMatch(pageText, /Full\+1\.20|Selected\+1\.20/)
     assert.doesNotMatch(pageText, /\|Gap\| High → Low|Gap High → Low|Gap Low → High/, 'the closed Sort trigger does not show its current command')
     assert.match(pageText, /Standard Cost/)
-    assert.match(pageText, /BOM \(0\)/)
-    assert.match(pageText, /RTG \(1\)/)
-    assert.match(pageText, /All \(1\)/, 'All count is the sum of BOM and Routing findings')
+    assert.match(pageText, /BOM\(0\)/)
+    assert.match(pageText, /RTG\(1\)/)
+    assert.match(pageText, /All\(1\)/, 'All count is the sum of BOM and Routing findings')
     assert.match(pageMarkup, /aria-label="Work Center"/)
     assert.match(pageText, /WC-REF/)
     assert.match(pageText, /WC-CUR/)
@@ -991,7 +1073,7 @@ try {
     assert.doesNotMatch(subheader, /<text\b/, 'the bar contains no MAT/LB/BD text labels')
     const typeSelector = subheader.match(/<div[^>]*role="group" aria-label="Finding type filter"[^>]*>[\s\S]*?<\/div>/)?.[0]
     assert.ok(typeSelector, 'the BOM/RTG/All segmented type selector is present')
-    assert.equal(visibleText(typeSelector), 'BOM (0) RTG (1) All (1)',
+    assert.equal(visibleText(typeSelector), 'BOM(0)RTG(1)All(1)',
       'type labels use All casing and each displayed count reflects its live finding total')
     assert.match(typeSelector, /h-8[^\"]*grid-cols-3[^\"]*border border-slate-300 bg-white/,
       'the type selector matches Master Data’s 32px bordered grid surface')

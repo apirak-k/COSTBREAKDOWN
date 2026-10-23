@@ -18,6 +18,7 @@ import { existsSync } from 'node:fs'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import net from 'node:net'
 
 if (typeof WebSocket !== 'function') throw new Error('This browser verifier requires Node.js with built-in WebSocket support.')
@@ -47,11 +48,12 @@ async function unusedPort() {
 const delay = ms => new Promise(resolveDelay => setTimeout(resolveDelay, ms))
 const repository = process.cwd()
 const configuredBaseUrl = process.env.COSTBREAKDOWN_BROWSER_BASE_URL
+const viteCliPath = fileURLToPath(new URL('../../bin/vite.js', import.meta.resolve('vite')))
 const vitePort = configuredBaseUrl ? null : await unusedPort()
 const debugPort = await unusedPort()
 const profile = await mkdtemp(join(tmpdir(), 'costbreakdown-numeric-browser-'))
 const vite = configuredBaseUrl ? null : spawn(process.execPath, [
-  resolve(repository, 'node_modules/vite/bin/vite.js'), '--host', '127.0.0.1', '--port', String(vitePort), '--strictPort'
+  viteCliPath, '--host', '127.0.0.1', '--port', String(vitePort), '--strictPort'
 ], { cwd: repository, stdio: ['ignore', 'pipe', 'pipe'] })
 const viteOutput = []
 for (const stream of [vite?.stdout, vite?.stderr]) stream?.on('data', chunk => viteOutput.push(String(chunk)))
@@ -277,7 +279,7 @@ try {
     }
     const group=suffix?.parentElement??e.parentElement,suffixRect=suffix?.getBoundingClientRect()
     return {
-      focused:document.activeElement===e,fit:e.dataset.numericFit,font:s.fontFamily,scrollWidth:e.scrollWidth,clientWidth:e.clientWidth,reserveEnd:Number(e.dataset.numericReserveEnd||0),headerCenter,regionCenter:(r.left+r.right)/2,text:e.value,x:r.x,width:r.width,height:r.height,right:r.right,paddingRight:s.paddingRight,
+      focused:document.activeElement===e,fit:e.dataset.numericFit,font:s.fontFamily,scrollWidth:e.scrollWidth,clientWidth:e.clientWidth,reserveEnd:Number(e.dataset.numericReserveEnd||0),headerCenter,regionCenter:(r.left+r.right)/2,text:e.value,x:r.x,width:r.width,height:r.height,right:r.right,textAlign:s.textAlign,paddingLeft:s.paddingLeft,paddingRight:s.paddingRight,
       decimal:point<0?null:start+pointOffset,
       tokenRight:start+textWidth,
       visibleTokenRight:Math.min(start+textWidth,r.right-parseFloat(s.borderRightWidth)),
@@ -299,12 +301,13 @@ try {
     const expected = value.includes('.') ? value.padEnd(value.indexOf('.') + 3, '0') : value + '.00'
     assert.equal(focused.text, expected, aria + ' focused committed decimal minimum 2dp preserves precision')
     if (!focused.fits) assert.ok(focused.scrollWidth > focused.clientWidth, aria + ' long authoritative Focus draft scrolls within the native input')
-    if (!blurred.text.includes('E') && focused.fits) {
-      assert.ok(Math.abs(blurred.decimal - focused.decimal) <= 0.6, aria + ' Focus/Blur decimal X remains stable')
+    if (!blurred.text.includes('E')) {
+      assert.ok(Math.abs(blurred.decimal - blurred.regionCenter) <= 0.6, aria + ' compact blurred decimal retains its frame center')
       const previousAxis = ordinaryAxes.get(aria)
       if (previousAxis !== undefined) assert.ok(Math.abs(previousAxis - blurred.decimal) <= 0.6, aria + ' integer growth shares the column decimal axis')
       ordinaryAxes.set(aria, blurred.decimal)
     }
+    if (focused.fits) assert.ok(focused.textAlign === 'left' && focused.paddingLeft === '6px', aria + ' focused draft uses the full fixed-frame interior without compact anchoring')
     assert.deepEqual([focused.x, focused.width, focused.height], [blurred.x, blurred.width, blurred.height], aria + ' Focus keeps outer rectangle fixed')
     if (value === '110') {
       await evaluate('document.activeElement.select()')
@@ -361,7 +364,7 @@ try {
     let frame
     let fittingOrdinary = 0
     let scientificFallback = 0
-    for (const value of ['1', '35', '100', '1000', '10000', '100000', '1000000', '10000000', '100000000', '1000000000', '0.0045']) {
+    for (const value of ['1', '35', '100', '1000', '10000', '100000', '1000000', '10000000', '100000000', '1000000000', '100000000000000000000', '0.0045']) {
       await typeInto(aria, value)
       await blurNumeric()
       const metric = await inputMetrics(aria)
@@ -383,7 +386,7 @@ try {
       assert.deepEqual([metric.x, metric.width, metric.height], frame, `${aria} fit decisions never move outer geometry`)
       fitResults.push({ area: 'Measured ordinary capacity', aria, value, expected, metric })
     }
-    assert.ok(fittingOrdinary > 0 && scientificFallback > 0, `${aria} exercises both real fitting ordinary capacity and non-fitting scientific fallback`)
+    assert.ok(fittingOrdinary > 0 && scientificFallback > 0, `${aria} exercises both real fitting ordinary capacity and non-fitting scientific fallback (ordinary=${fittingOrdinary}, scientific=${scientificFallback})`)
     await typeInto(aria, original)
     await blurNumeric()
   }
@@ -394,16 +397,17 @@ try {
     await assertFocusAnchor(masterAria,value)
     if(['98','55'].includes(value)){await clickInput(masterAria);assert.equal(await evaluate(`document.querySelector('header input[aria-label="Selected value"]')?.value`),value+'.00','actual Master Data source Header retains normal2dp');await blurNumeric()}
   }
-  for (const [value,display] of [['12.3456789','12.35'],['0.0045','0.0045'],['0.000000001','1.00E-9'],['1234567890','1.23E+9']]) {
+  for (const [value,display] of [['12.3456789','12.35'],['0.0045','0.0045'],['0.000000001','1.00E-9'],['1234567890','1234567890.00']]) {
     await typeInto(masterAria,value); await blurNumeric()
     const edit = await inputMetrics(masterAria)
     assert.equal(edit.text, display)
     const source = await evaluate(`(${visibleInputExpression(masterAria)}).getAttribute('data-selected-value-source')`)
     await clickButton(`document.querySelector('button[role="switch"]')`)
-    const view = await evaluate(`(()=>{const source=[...document.querySelectorAll('[data-selected-value-source]')].find(e=>e.getAttribute('data-selected-value-source')===${JSON.stringify(source)}&&e.getClientRects().length),token=source?.querySelector('[data-numeric-token]'),r=source?.getBoundingClientRect(),range=document.createRange();if(token?.firstChild)range.selectNodeContents(token.firstChild);const b=range.getBoundingClientRect();return{text:token?.textContent,width:r?.width,tokenRight:b.right,source:!!source}})()`)
-    assert.equal(view.text,display, 'Master Data View and Edit share the canonical presentation')
+    const view = await evaluate(`(()=>{const source=[...document.querySelectorAll('[data-selected-value-source]')].find(e=>e.getAttribute('data-selected-value-source')===${JSON.stringify(source)}&&e.getClientRects().length),token=source?.querySelector('[data-numeric-token]'),region=source?.querySelector('[data-numeric-region]'),r=source?.getBoundingClientRect(),range=document.createRange();if(token?.firstChild)range.selectNodeContents(token.firstChild);const b=range.getBoundingClientRect(),style=region?getComputedStyle(region):null,canvas=document.createElement('canvas').getContext('2d');if(style)canvas.font=[style.fontStyle,style.fontWeight,style.fontSize,style.fontFamily].join(' ');const numeric=Number(${JSON.stringify(value)});let ordinary=numeric.toFixed(2);if(numeric!==0&&Number(ordinary)===0)ordinary=numeric.toFixed(4);const scientific=/[eE]/.test(ordinary)||ordinary.replace(/^-/,'').split('.')[0].length>8||(numeric!==0&&Number(ordinary)===0),whole=ordinary.split('.')[0],fraction=ordinary.includes('.')?ordinary.slice(ordinary.indexOf('.')):'',half=(region?.getBoundingClientRect().width??0)/2-Number(region?.dataset.numericFitInset??0),reserve=Number(region?.dataset.numericReserveEnd??0),fits=!scientific&&canvas.measureText(whole).width<=half&&canvas.measureText(fraction).width<=half-reserve,expected=scientific||!fits?numeric.toExponential(2).toUpperCase():ordinary,metric=(${numericColumnGeometry.toString()})(source??document)[0];return{text:token?.textContent,width:r?.width,tokenRight:b.right,source:!!source,expected,metric}})()`)
+    assert.equal(view.text,view.expected, 'Master Data View uses ordinary notation when its own fixed region fits and scientific only when it does not')
+    assert.ok(view.metric && view.metric.tokenFits && Math.abs(view.metric.headerCenter-view.metric.center)<=1, `Master Data View keeps its token inside the shared header/region centerline ${JSON.stringify(view)}`)
     if (['12.35','0.0045','1.00E-9'].includes(display)) await screenshot(`numeric-fit-master-view-${display.replace(/[^a-z0-9]/gi,'_')}`)
-    assert.ok(Math.abs(view.tokenRight-edit.tokenRight)<=1, `Master Data View/Edit share the exact presentation anchor ${JSON.stringify({value,edit,view})}`)
+    if (!/[eE]/.test(view.text) && !/[eE]/.test(edit.text)) assert.ok(Math.abs(view.tokenRight-edit.tokenRight)<=1, `Master Data View/Edit ordinary presentations share the decimal anchor ${JSON.stringify({value,edit,view})}`)
     assert.ok(Math.abs(view.width-edit.width)<=1, `Master Data View/Edit use the same fixed shell (${view.width}/${edit.width})`)
     await clickButton(`document.querySelector('button[role="switch"]')`)
     await clickInput(masterAria)
@@ -524,10 +528,11 @@ try {
       await blurNumeric()
       const wasExpanded=await evaluate(`(()=>{const row=document.querySelector('[data-simulation-table="bom"] tr[data-simulation-row-index="0"]');const expanded=row.getAttribute('aria-expanded')==='true';if(!expanded)row.click();return expanded})()`)
       await typeInto(simulationInput,'1'+'0'.repeat(300));await blurNumeric()
-      const total=await evaluate(`(()=>{const region=[...document.querySelectorAll('[data-simulation-table="bom"] [data-numeric-region]')].find(e=>e.textContent.startsWith('Total ')),token=region?.querySelector('[data-numeric-token]');if(!token)return null;const r=region.getBoundingClientRect(),range=document.createRange();range.selectNodeContents(token);const t=range.getBoundingClientRect();return {text:token.textContent,floor:region.dataset.numericFitFloor,left:r.left,right:r.right,tokenLeft:t.left,tokenRight:t.right}})()`)
+      const total=await evaluate(`(()=>{const cell=[...document.querySelectorAll('[data-simulation-table="bom"] td[aria-label^="Total "]')].find(e=>e.getAttribute('aria-label').includes('E+300')),region=cell?.querySelector('[data-numeric-region]'),token=region?.querySelector('[data-numeric-token]'),annotation=region?.querySelector('[data-numeric-inline-annotation]');if(!token||!annotation)return null;const r=region.getBoundingClientRect(),range=document.createRange();range.selectNodeContents(token);const t=range.getBoundingClientRect();range.selectNodeContents(annotation);const a=range.getBoundingClientRect();return {text:token.textContent,floor:region.dataset.numericFitFloor,left:r.left,right:r.right,tokenLeft:t.left,tokenRight:t.right,annotationLeft:a.left,annotationRight:a.right,annotationBottom:a.bottom,tokenBottom:t.bottom}})()`)
       assert.ok(total&&total.text.includes('E+300'), 'actual1280 expanded Parameter Cost Effect exercises signed three-digit scientific Total')
       assert.equal(total.floor,'adequate','actual expanded Total preserves full supported scientific floor')
       assert.ok(total.tokenLeft>=total.left-0.6&&total.tokenRight<=total.right+0.6,`expanded Total complete scientific token stays inside numeric region: ${JSON.stringify(total)}`)
+      assert.ok(total.annotationRight<total.tokenLeft&&Math.abs(total.annotationBottom-total.tokenBottom)<=1,`expanded Total annotation and scientific value share one baseline without positioning: ${JSON.stringify(total)}`)
       await screenshot('numeric-expanded-total-scientific-1280')
       await typeInto(simulationInput,authoritativePrice);await blurNumeric()
       if(!wasExpanded)await evaluate(`document.querySelector('[data-simulation-table="bom"] tr[data-simulation-row-index="0"]').click()`)

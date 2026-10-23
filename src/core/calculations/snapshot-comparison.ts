@@ -15,7 +15,7 @@ import {
 import { calculateSnapshotCost } from './snapshot-cost'
 import { calculateSnapshotBOMDetail } from './snapshot-bom-detail'
 import { calculateSnapshotRoutingDetail } from './snapshot-routing-detail'
-import { safeAdd } from '../utils/guards'
+import { areNumericValuesEquivalent, safeAdd } from '../utils/guards'
 
 type SnapshotRow = {
   id: string
@@ -60,6 +60,7 @@ const COMPARISON_METADATA_FIELDS = new Set([
 
 function valuesEqual(left: unknown, right: unknown): boolean {
   if (Object.is(left, right)) return true
+  if (typeof left === 'number' && typeof right === 'number') return areNumericValuesEquivalent(left, right)
   if (left instanceof Date && right instanceof Date) return left.getTime() === right.getTime()
   if (Array.isArray(left) || Array.isArray(right)) {
     return Array.isArray(left) && Array.isArray(right)
@@ -269,9 +270,9 @@ function routingFlags(
   costEffect?: ComparisonRecordCostEffect
 ): ChangeFlags {
   const movedWorkCenter = reference.workCenterId !== current.workCenterId
-  const changedInputs = reference.manning !== current.manning
-    || reference.capacity !== current.capacity
-    || reference.yield !== current.yield
+  const changedInputs = !areNumericValuesEquivalent(reference.manning, current.manning)
+    || !areNumericValuesEquivalent(reference.capacity, current.capacity)
+    || !areNumericValuesEquivalent(reference.yield, current.yield)
   const changedRate = !movedWorkCenter && !changedInputs && [
     costEffect?.gap.labor,
     costEffect?.gap.burden,
@@ -283,7 +284,8 @@ function routingFlags(
 
 function rateFlags(reference: SnapshotWorkCenterRate, current: SnapshotWorkCenterRate): ChangeFlags {
   return {
-    changedRate: reference.laborRate !== current.laborRate || reference.burdenRate !== current.burdenRate
+    changedRate: !areNumericValuesEquivalent(reference.laborRate, current.laborRate)
+      || !areNumericValuesEquivalent(reference.burdenRate, current.burdenRate)
   }
 }
 
@@ -296,10 +298,11 @@ function calculationWarnings(snapshotId: string, warnings: string[]): Comparison
 
 function materialCostEffect(reference: SnapshotBOMItem | undefined, current: SnapshotBOMItem | undefined): ComparisonRecordCostEffect {
   const detail = calculateSnapshotBOMDetail({ reference, current })
+  const materialGap = gap(detail.currentCost, detail.referenceCost)
   return {
     reference: { material: detail.referenceCost, labor: 0, burden: 0, total: detail.referenceCost },
     current: { material: detail.currentCost, labor: 0, burden: 0, total: detail.currentCost },
-    gap: { material: detail.costGap, labor: 0, burden: 0, total: detail.costGap }
+    gap: { material: materialGap, labor: 0, burden: 0, total: materialGap }
   }
 }
 
@@ -315,7 +318,7 @@ function routingCostEffect(
   return {
     reference: { material: 0, labor: detail.referenceLaborCost, burden: detail.referenceBurdenCost, total: detail.referenceTotal },
     current: { material: 0, labor: detail.currentLaborCost, burden: detail.currentBurdenCost, total: detail.currentTotal },
-    gap: { material: 0, labor: laborGap, burden: burdenGap, total: detail.totalGap }
+    gap: { material: 0, labor: laborGap, burden: burdenGap, total: gap(detail.currentTotal, detail.referenceTotal) }
   }
 }
 
@@ -339,22 +342,28 @@ function difference(left: number | null, right: number | null): number | null {
 }
 
 function gap(current: number | null, reference: number | null): number | null {
-  return current === null || reference === null ? null : safeAdd(current, -reference)
+  if (current === null || reference === null) return null
+  return areNumericValuesEquivalent(current, reference) ? 0 : safeAdd(current, -reference)
 }
 
 function addCost(total: number | null, value: number | null): number | null {
   return total === null || value === null ? null : safeAdd(total, value)
 }
 
-function routingSignature(steps: SnapshotRoutingStep[]): string {
-  const signatures = steps.map(step => JSON.stringify([
-    normalizeKey(step.processName),
-    normalizeKey(step.workCenterId),
-    step.manning,
-    step.capacity,
-    step.yield
-  ])).sort((left, right) => left.localeCompare(right))
-  return JSON.stringify(signatures)
+function routingEquivalent(reference: SnapshotRoutingStep[], current: SnapshotRoutingStep[]): boolean {
+  if (reference.length !== current.length) return false
+  const remaining = [...current]
+  return reference.every(referenceStep => {
+    const index = remaining.findIndex(currentStep =>
+      normalizeKey(referenceStep.processName) === normalizeKey(currentStep.processName)
+      && normalizeKey(referenceStep.workCenterId) === normalizeKey(currentStep.workCenterId)
+      && areNumericValuesEquivalent(referenceStep.manning, currentStep.manning)
+      && areNumericValuesEquivalent(referenceStep.capacity, currentStep.capacity)
+      && areNumericValuesEquivalent(referenceStep.yield, currentStep.yield))
+    if (index < 0) return false
+    remaining.splice(index, 1)
+    return true
+  })
 }
 
 function groupRoutingByWorkCenter(steps: SnapshotRoutingStep[]): Map<string, SnapshotRoutingStep[]> {
@@ -439,7 +448,7 @@ function buildProcessingFindings(
     const matchStatus = !hasReference ? 'added' : !hasCurrent ? 'removed' : 'matched'
     const changeFlags = {
       changedInputs: hasReference && hasCurrent
-        && routingSignature(referenceSteps) !== routingSignature(currentSteps),
+        && !routingEquivalent(referenceSteps, currentSteps),
       changedRate: changedRateWorkCenters.has(workCenterKey)
     }
     const referenceCost = hasReference

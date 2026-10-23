@@ -39,8 +39,38 @@ export function cbdCorrectionGeometry() {
     return { label: bounds(label), numeric: numeric ? bounds(numeric) : null, token: token ? bounds(token) : null, suffix: suffix ? bounds(suffix) : null,
       separate: Boolean(token && !token.contains(label)), cell: cell ? bounds(cell) : null, padding: cell ? getComputedStyle(cell).paddingLeft : '0px' }
   })
-  const loss = [...document.querySelectorAll('tr[data-candidate-reorder-row] > td:nth-child(6)')]
-    .filter(cell => cell.querySelector('[data-numeric-suffix]') && cell.closest('table').querySelector('caption')?.textContent.includes('Bill of Material'))
-    .map(cell => ({ token: bounds(cell.querySelector('[data-numeric-token]')), suffix: bounds(cell.querySelector('[data-numeric-suffix]')), cell: bounds(cell) }))
+  const bomTables = [...document.querySelectorAll('table')]
+    .filter(table => table.querySelector('caption')?.textContent.includes('Bill of Material'))
+  const lossMetric = cell => {
+    if (!cell) return null
+    const token = cell.querySelector('[data-numeric-token]')
+    const suffix = cell.querySelector('[data-numeric-suffix]')
+    const numeric = cell.querySelector('[data-numeric-region]')
+    return {
+      token: token ? bounds(token) : null,
+      suffix: suffix ? bounds(suffix) : null,
+      numeric: numeric ? bounds(numeric) : null,
+      cell: bounds(cell),
+      text: cell.textContent.trim(),
+      suffixVisibility: suffix ? getComputedStyle(suffix).visibility : null
+    }
+  }
+  const loss = bomTables.flatMap(table => [...table.querySelectorAll('tr[data-candidate-reorder-row][aria-expanded="true"]')]
+    .flatMap(main => {
+      const recordId = main.getAttribute('data-candidate-reorder-row')
+      const rows = [{ kind: 'main', label: 'main', row: main }]
+      let detail = main.nextElementSibling
+      while (detail && !detail.hasAttribute('data-candidate-reorder-row')) {
+        const label = detail.querySelector('th[scope="row"]')?.textContent.trim()
+        if (label) rows.push({ kind: 'detail', label, row: detail })
+        detail = detail.nextElementSibling
+      }
+      return rows.map(({ kind, label, row }) => ({
+        recordId,
+        kind,
+        label,
+        ...lossMetric(row.children[5])
+      }))
+    }))
   return { totals, loss }
 }
