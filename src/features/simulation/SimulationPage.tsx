@@ -462,7 +462,7 @@ function SimulationParameterTable({
   const navigationLabel = isBOM ? 'BOM' : 'Routing'
   const tableIdentity = isBOM ? 'Bill of Materials' : 'Routing Process'
   const parameters = isBOM ? BOM_PARAMETERS : RTG_PARAMETERS
-  const columnWidths = ['5.5%', '17%', '10.75%', '13.75%', '13.75%', '16.75%', '17%', '5.5%']
+  const columnWidths = ['5%', '16.5%', '10.5%', '13.5%', '13.5%', '17%', '19%', '5%']
   const renderColumnGroup = () => (
     <colgroup>
       {columnWidths.map((width, index) => (
@@ -688,7 +688,7 @@ function SimulationParameterTable({
                   onClick={setAllSelection}
                 />
               </th>
-              <th scope="col" className="px-2 py-2 text-left">{tableIdentity}</th>
+              <th scope="col" className="whitespace-nowrap px-2 py-2 text-left">{tableIdentity}</th>
               <th scope="col" className="px-1 py-2 text-left">Status</th>
               {parameters.map(parameter => <th key={parameter.parameter} scope="col" className="py-2" style={{ paddingLeft: parameter.scale === 100 ? 6 : 5, paddingRight: parameter.scale === 100 ? 2 : 5 }}><ParameterNumberSlot percentage={parameter.scale === 100}><NumericColumnHeader>{parameter.label}</NumericColumnHeader></ParameterNumberSlot></th>)}
               <th scope="col" className="whitespace-nowrap py-2 pl-1 pr-2"><NumericColumnHeader>{isBOM ? 'Material Cost' : 'Conversion Cost'}</NumericColumnHeader></th>
