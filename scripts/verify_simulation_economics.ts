@@ -239,8 +239,10 @@ assert.match(breakEvenOutcome, /mt-1 border-t border-slate-200 pt-1/,
 const baseGraphHeader = panelMarkup.match(/<figcaption id="break-even-graph-title"[\s\S]*?<\/figcaption>/)?.[0] ?? ''
 assert.match(baseGraphHeader, /<span>Break-even<\/span>[\s\S]*?<span class="text-\[9px\] font-normal text-slate-500">\(2,500 PC\)<\/span>/,
   'graph heading keeps Break-even primary and renders subdued parenthetical quantity context')
-assert.match(panelMarkup, /<text x="544" y="149" text-anchor="end"[^>]*>QTY \(PC\)<\/text>/,
-  'QTY is anchored at the right axis end below the tick row')
+assert.match(panelMarkup, /viewBox="0 0 560 112" preserveAspectRatio="xMidYMid meet"/,
+  'Break-even graph starts from its measured responsive coordinate system and preserves aspect ratio')
+assert.match(panelMarkup, /<text x="544" y="109" text-anchor="end"[^>]*>QTY \(PC\)<\/text>/,
+  'QTY is anchored at the responsive right axis end below the tick row')
 assert.match(panelMarkup, /<line x1="52" x2="544" y1="12" y2="12" stroke="#e2e8f0"/,
   'Break-even plot uses the expanded internal plot bounds')
 const fractionalMarkup = renderPanel(higherVariableCost, worked)

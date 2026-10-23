@@ -1299,8 +1299,8 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
   )
 
   return (
-    <div data-simulation-layout-root="true" className="min-w-0 space-y-3 xl:flex xl:h-full xl:min-h-0 xl:flex-col xl:gap-2 xl:space-y-0 xl:overflow-hidden">
-      <div className="grid min-w-0 gap-2 xl:min-h-0 xl:flex-[7_1_0%] xl:grid-cols-[minmax(0,2.82fr)_minmax(0,1.63fr)_minmax(max-content,.85fr)] xl:grid-rows-1">
+    <div data-simulation-layout-root="true" className="min-w-0 space-y-3 xl:grid xl:h-full xl:min-h-0 xl:grid-rows-[auto_minmax(0,1fr)] xl:gap-2 xl:space-y-0 xl:overflow-hidden">
+      <div className="grid min-w-0 gap-2 xl:min-h-0 xl:grid-cols-[minmax(0,2.82fr)_minmax(0,1.63fr)_minmax(max-content,.85fr)] xl:grid-rows-1">
         <SimulationStoryGraph story={story} unit={unit} activeRole={state.role} onSelectActiveDataset={onSelectActiveDataset} />
         <div data-simulation-layout-column="result-and-break-even" className="grid min-w-0 gap-2 xl:min-h-0 xl:grid-rows-[auto_minmax(0,1fr)]">
           <ResultPanel
@@ -1332,7 +1332,7 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
         />
       </div>
 
-      <div className="grid min-w-0 gap-2 xl:min-h-0 xl:flex-[3_1_0%] xl:grid-cols-2 xl:grid-rows-1 xl:items-stretch">
+      <div className="grid min-w-0 gap-2 xl:min-h-0 xl:grid-cols-2 xl:grid-rows-1 xl:items-stretch">
         <SimulationParameterTable
           kind="bom"
           activeRole={state.role}

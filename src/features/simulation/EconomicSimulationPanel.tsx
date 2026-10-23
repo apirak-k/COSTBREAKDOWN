@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { KeyboardEvent, PointerEvent } from 'react'
 import { formatNumber } from '../../core'
 import type { CostSnapshot } from '../../core/types'
@@ -7,6 +7,8 @@ import { formatBusinessNumber } from '../../shared/ui/numeric-display'
 import { NumericInput } from '../../shared/ui/NumericInput'
 import { SimulationHistoryInputBoundary } from './SimulationHistoryInputBoundary'
 import type { EconomicSimulationDraft, EconomicSimulationResult, EconomicSimulationField } from './simulation-economics'
+
+const useIsomorphicLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect
 
 interface EconomicSimulationPanelProps {
   result: EconomicSimulationResult
@@ -54,10 +56,30 @@ function BreakEvenGraph({
 }) {
   const [markerFocused, setMarkerFocused] = useState(false)
   const [dragScaleMax, setDragScaleMax] = useState<number | null>(null)
-  const dragStartRef = useRef<{ pointerId: number; pointerX: number; batchSize: number; xMax: number } | null>(null)
-  const width = 560
-  const height = 152
-  const plot = { left: 52, right: 544, top: 12, bottom: 117 }
+  const [svgSize, setSvgSize] = useState({ width: 560, height: 112 })
+  const svgRef = useRef<SVGSVGElement>(null)
+  const dragStartRef = useRef<{ pointerId: number; pointerRatio: number; batchSize: number; xMax: number } | null>(null)
+  const width = svgSize.width
+  const height = svgSize.height
+  const plot = { left: 52, right: width - 16, top: 12, bottom: Math.max(24, height - 30) }
+  const plotWidth = plot.right - plot.left
+
+  useIsomorphicLayoutEffect(() => {
+    const svg = svgRef.current
+    if (!svg) return
+    const updateSize = () => {
+      const bounds = svg.getBoundingClientRect()
+      if (bounds.width <= 0 || bounds.height <= 0) return
+      setSvgSize(current => Math.abs(current.width - bounds.width) < 0.5 && Math.abs(current.height - bounds.height) < 0.5
+        ? current
+        : { width: bounds.width, height: bounds.height })
+    }
+    updateSize()
+    const observer = new ResizeObserver(updateSize)
+    observer.observe(svg)
+    return () => observer.disconnect()
+  }, [])
+
   const batchSize = result.batchSize
   const referenceQuantity = result.preciseBreakEvenQuantity ?? 0
   const baseMax = Math.max(1, batchSize ?? 0, referenceQuantity)
@@ -94,16 +116,21 @@ function BreakEvenGraph({
   const batchMax = Math.min(Number.MAX_SAFE_INTEGER, Math.max(1, Math.ceil(xMax)))
 
   const getPointerSvgX = (event: PointerEvent<SVGGElement>) => {
-    const bounds = event.currentTarget.ownerSVGElement?.getBoundingClientRect()
-    if (!bounds || bounds.width <= 0) return null
-    return ((event.clientX - bounds.left) / bounds.width) * width
+    const svg = event.currentTarget.ownerSVGElement
+    const matrix = svg?.getScreenCTM()
+    if (!svg || !matrix) return null
+    const point = svg.createSVGPoint()
+    point.x = event.clientX
+    point.y = event.clientY
+    return point.matrixTransform(matrix.inverse()).x
   }
 
   const updateBatchFromPointer = (event: PointerEvent<SVGGElement>) => {
     const dragStart = dragStartRef.current
     const pointerX = getPointerSvgX(event)
-    if (!dragStart || pointerX === null || dragStart.pointerId !== event.pointerId) return
-    const delta = Math.round((pointerX - dragStart.pointerX) / (plot.right - plot.left) * dragStart.xMax)
+    if (!dragStart || pointerX === null || dragStart.pointerId !== event.pointerId || plotWidth <= 0) return
+    const pointerRatio = (pointerX - plot.left) / plotWidth
+    const delta = Math.round((pointerRatio - dragStart.pointerRatio) * dragStart.xMax)
     const dragBatchMax = Math.min(Number.MAX_SAFE_INTEGER, Math.max(1, Math.ceil(dragStart.xMax)))
     onBatchSizeChange(String(Math.max(1, Math.min(dragBatchMax, dragStart.batchSize + delta))))
   }
@@ -151,7 +178,8 @@ function BreakEvenGraph({
           aria-labelledby="break-even-graph-title"
           aria-describedby="break-even-graph-description"
           viewBox={`0 0 ${width} ${height}`}
-          preserveAspectRatio="none"
+          preserveAspectRatio="xMidYMid meet"
+          ref={svgRef}
           className="block h-[112px] w-full xl:h-full xl:min-h-0 xl:flex-1"
         >
           <desc id="break-even-graph-description">Cumulative Parameter Saving compared with Total Action Cost by production quantity. The vertical Batch Size marker is draggable and keyboard accessible.</desc>
@@ -211,7 +239,7 @@ function BreakEvenGraph({
               event.currentTarget.focus()
               const pointerX = getPointerSvgX(event)
               if (pointerX === null) return
-              dragStartRef.current = { pointerId: event.pointerId, pointerX, batchSize, xMax }
+              dragStartRef.current = { pointerId: event.pointerId, pointerRatio: (pointerX - plot.left) / plotWidth, batchSize, xMax }
               setDragScaleMax(xMax)
             }}
             onPointerMove={updateBatchFromPointer}
@@ -345,7 +373,7 @@ export function EconomicSimulationPanel({ result, draft, afterSnapshot, unit, on
                       max={max}
                       onValueChange={value => onUpdate(field, value === null ? '' : String(value))}
                       aria-label={ariaLabel ?? label}
-                      className="h-7 w-full rounded-sm border border-transparent bg-transparent px-1.5 text-right text-[11px] text-slate-950 transition-colors hover:border-slate-200 hover:bg-slate-50 focus:!border-transparent focus:bg-white focus:!outline focus:!outline-2 focus:!outline-blue-700 focus:!outline-offset-[-2px] xl:h-6"
+                      className="h-7 w-full rounded-sm border border-slate-200 bg-white px-1.5 text-right text-[11px] text-slate-950 transition-colors hover:border-slate-200 hover:bg-slate-50 focus:!border-transparent focus:bg-white focus:!outline focus:!outline-2 focus:!outline-blue-700 focus:!outline-offset-[-2px] xl:h-6"
                     />
                   </SimulationHistoryInputBoundary>
                 </span>
@@ -369,7 +397,7 @@ export function EconomicSimulationPanel({ result, draft, afterSnapshot, unit, on
                       max={max}
                       onValueChange={value => onUpdate(field, value === null ? '' : String(value))}
                       aria-label={ariaLabel ?? label}
-                      className="h-7 w-full rounded-sm border border-transparent bg-transparent px-1.5 text-right text-[11px] text-slate-950 transition-colors hover:border-slate-200 hover:bg-slate-50 focus:!border-transparent focus:bg-white focus:!outline focus:!outline-2 focus:!outline-blue-700 focus:!outline-offset-[-2px] xl:h-6"
+                      className="h-7 w-full rounded-sm border border-slate-200 bg-white px-1.5 text-right text-[11px] text-slate-950 transition-colors hover:border-slate-200 hover:bg-slate-50 focus:!border-transparent focus:bg-white focus:!outline focus:!outline-2 focus:!outline-blue-700 focus:!outline-offset-[-2px] xl:h-6"
                     />
                   </SimulationHistoryInputBoundary>
                 </span>

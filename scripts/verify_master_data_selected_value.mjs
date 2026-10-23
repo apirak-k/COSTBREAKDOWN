@@ -164,10 +164,10 @@ try {
     const value = await replaceInput(selector, text)
     return value
   }
-  const pressKey = async (key, { shift = false } = {}) => {
-    const modifiers = shift ? 8 : 0
-    const code = key === ' ' ? 'Space' : key
-    const virtualKey = key === 'Enter' ? 13 : key === ' ' ? 32 : undefined
+  const pressKey = async (key, { shift = false, ctrl = false, meta = false } = {}) => {
+    const modifiers = (shift ? 8 : 0) | (ctrl ? 2 : 0) | (meta ? 4 : 0)
+    const code = key === ' ' ? 'Space' : /^[a-z]$/i.test(key) ? `Key${key.toUpperCase()}` : key
+    const virtualKey = key === 'Enter' ? 13 : key === ' ' ? 32 : /^[a-z]$/i.test(key) ? key.toUpperCase().charCodeAt(0) : undefined
     const text = key === 'Enter' ? '\r' : key === ' ' ? ' ' : undefined
     await send('Input.dispatchKeyEvent', { type: 'keyDown', key, code, modifiers, windowsVirtualKeyCode: virtualKey, nativeVirtualKeyCode: virtualKey, text, unmodifiedText: text })
     await send('Input.dispatchKeyEvent', { type: 'keyUp', key, code, modifiers, windowsVirtualKeyCode: virtualKey, nativeVirtualKeyCode: virtualKey })
@@ -1025,6 +1025,183 @@ try {
   await waitFor(() => existsVisible('section[aria-label="Working dataset controls"]'), 'return to Master Data after Header page-scope check')
   verify(await textContent('header [data-header-value] [data-selected-value-output]') === '—',
     'returning to Master Data starts with no stale Header selection')
+
+  const currentDatasetSwitch = 'section[aria-label="Working dataset controls"] button[role="switch"]'
+  await chooseRole('Current')
+  if (await evaluate(`document.querySelector(${JSON.stringify(currentDatasetSwitch)})?.getAttribute('aria-checked') !== 'true'`)) {
+    await clickSelector(currentDatasetSwitch)
+  }
+  await waitFor(() => evaluate(`document.querySelector(${JSON.stringify(currentDatasetSwitch)})?.getAttribute('aria-checked') === 'true'`), 'Clear history Edit mode')
+  const allTablesButton = 'section[aria-label="Working dataset controls"] [role="group"][aria-label="Master Data table section"] button:last-child'
+  if (await evaluate(`document.querySelector(${JSON.stringify(allTablesButton)})?.getAttribute('aria-pressed') !== 'true'`)) {
+    await clickSelector(allTablesButton)
+  }
+  await waitFor(() => evaluate(`document.querySelectorAll('section[aria-label$=" rows"]').length === 3`), 'All Master Data tables for Clear history')
+
+  const captureWorkingDataset = () => evaluate(`(async()=>{
+    const previousFocus=document.activeElement
+    const nextFrame=()=>new Promise(resolve=>requestAnimationFrame(()=>resolve()))
+    const fieldValue=async element=>{
+      const editor=element.matches('input,textarea,select')?element:element.querySelector('input,textarea,select')
+      const source=editor??element
+      if(source.getAttribute('role')==='spinbutton'){
+        if(source.value==='')return ''
+        const wasFocused=source===document.activeElement
+        if(!wasFocused){source.focus({preventScroll:true});await nextFrame()}
+        const value=source.value
+        if(!wasFocused){source.blur();await nextFrame()}
+        return value
+      }
+      return ('value' in source)?source.value:source.textContent.trim()
+    }
+    const tables=[]
+    for(const section of document.querySelectorAll('section[aria-label$=" rows"]')){
+      const rows=[]
+      for(const row of section.querySelectorAll('tbody tr[data-master-data-row-id]')){
+        const fields=[]
+        for(const cell of row.querySelectorAll('[data-grid-cell="true"][data-grid-field]')){
+          fields.push([cell.getAttribute('data-grid-field'),await fieldValue(cell)])
+        }
+        rows.push({id:row.getAttribute('data-master-data-row-id'),fields})
+      }
+      tables.push({
+        label:section.getAttribute('aria-label'),
+        headers:[...section.querySelectorAll('thead:not(.sr-only) tr')].map(row=>[...row.querySelectorAll('th')].map(cell=>cell.textContent.trim())),
+        rows
+      })
+    }
+    const metadata=[]
+    for(const element of document.querySelectorAll('section[aria-label="Working dataset controls"] input[aria-label],section[aria-label="Working dataset controls"] textarea[aria-label],section[aria-label="Working dataset controls"] select[aria-label]')){
+      if(element.getClientRects().length)metadata.push([element.getAttribute('aria-label'),await fieldValue(element)])
+    }
+    if(previousFocus instanceof HTMLElement&&previousFocus.isConnected&&previousFocus!==document.activeElement)previousFocus.focus({preventScroll:true})
+    return {metadata,tables}
+  })()`)
+  const firstSnapshotDifference = (expected, actual, path = '$') => {
+    if (Object.is(expected, actual)) return null
+    if (Array.isArray(expected) && Array.isArray(actual)) {
+      if (expected.length !== actual.length) return { path: `${path}.length`, expected: expected.length, actual: actual.length }
+      for (let index = 0; index < expected.length; index += 1) {
+        const difference = firstSnapshotDifference(expected[index], actual[index], `${path}[${index}]`)
+        if (difference) return difference
+      }
+      return null
+    }
+    if (expected && actual && typeof expected === 'object' && typeof actual === 'object') {
+      const keys = [...new Set([...Object.keys(expected), ...Object.keys(actual)])]
+      for (const key of keys) {
+        const difference = firstSnapshotDifference(expected[key], actual[key], `${path}.${key}`)
+        if (difference) return difference
+      }
+      return null
+    }
+    return { path, expected, actual }
+  }
+  const verifyWorkingSnapshot = async (expected, message) => {
+    const actual = await captureWorkingDataset()
+    const difference = firstSnapshotDifference(expected, actual)
+    verify(difference === null, message, difference ?? { tables: actual.tables.map(table => ({ label: table.label, rows: table.rows.length })) })
+    return actual
+  }
+
+  await clickSelector('section[aria-label="Working dataset controls"] button[aria-label="Save"]')
+  await delay(250)
+  const savedCurrentSnapshot = await captureWorkingDataset()
+  await chooseRole('Reference')
+  const referenceBeforeCurrentClear = await captureWorkingDataset()
+  await chooseRole('Custom')
+  const customBeforeCurrentClear = await captureWorkingDataset()
+  await chooseRole('Current')
+  await replaceInput('section[aria-label="Working dataset controls"] input[aria-label="Selling Price (THB)"]', '88.5')
+  await evaluate('document.activeElement?.blur()')
+  await delay(180)
+  const beforeClearSnapshot = await captureWorkingDataset()
+
+  await clickSelector('section[aria-label="Working dataset controls"] button[aria-label="Clear"]')
+  await waitFor(async () => {
+    const snapshot = await captureWorkingDataset()
+    return snapshot.metadata.every(([, value]) => value === '')
+      && snapshot.tables.every(table => table.rows.every(row => row.fields.every(([, value]) => value === '')))
+  }, 'Current dataset Clear values')
+  const afterClearSnapshot = await captureWorkingDataset()
+  const beforeClearShape = beforeClearSnapshot.tables.map(table => ({
+    label: table.label,
+    headers: table.headers,
+    rows: table.rows.map(row => row.id)
+  }))
+  const afterClearShape = afterClearSnapshot.tables.map(table => ({
+    label: table.label,
+    headers: table.headers,
+    rows: table.rows.map(row => row.id)
+  }))
+  verify(
+    JSON.stringify(afterClearShape) === JSON.stringify(beforeClearShape)
+      && afterClearSnapshot.metadata.every(([, value]) => value === '')
+      && afterClearSnapshot.tables.every(table => table.rows.every(row => row.fields.every(([, value]) => value === ''))),
+    'Current Clear blanks editable metadata and table fields while preserving table headings, row counts, and row identities',
+    { metadataCount: afterClearSnapshot.metadata.length, tables: afterClearSnapshot.tables.map(table => ({ label: table.label, rowCount: table.rows.length })) }
+  )
+
+  const historyFocus = () => evaluate(`(()=>{const element=document.activeElement;return {tag:element?.tagName??null,type:element?.getAttribute('type')??null,label:element?.getAttribute('aria-label')??null,field:element?.getAttribute('data-grid-field')??null,rowId:element?.getAttribute('data-grid-row-id')??null,isGridCell:element?.getAttribute('data-grid-cell')??null}})()`)
+  const historyButtonState = label => evaluate(`(()=>{const button=document.querySelector(${JSON.stringify(`header button[aria-label="${label}"]`)});return button?{disabled:button.disabled,ariaDisabled:button.getAttribute('aria-disabled')}:null})()`)
+  await clickSelector('header button[aria-label="Undo"]')
+  await delay(350)
+  const toolbarUndoSnapshot = await captureWorkingDataset()
+  verify(firstSnapshotDifference(beforeClearSnapshot, toolbarUndoSnapshot) === null,
+    'Master Data toolbar Undo immediately after Clear restores all Current values', {
+      difference: firstSnapshotDifference(beforeClearSnapshot, toolbarUndoSnapshot),
+      expectedMetadata: beforeClearSnapshot.metadata,
+      actualMetadata: toolbarUndoSnapshot.metadata,
+      actualTableFields: toolbarUndoSnapshot.tables.map(table => ({ label: table.label, rows: table.rows.map(row => ({ id: row.id, fields: row.fields })) })),
+      button: await historyButtonState('Undo'),
+      focus: await historyFocus()
+    })
+  await clickSelector('header button[aria-label="Redo"]')
+  await delay(350)
+  const toolbarRedoSnapshot = await captureWorkingDataset()
+  verify(firstSnapshotDifference(afterClearSnapshot, toolbarRedoSnapshot) === null,
+    'Master Data toolbar Redo reapplies the complete Current Clear', {
+      difference: firstSnapshotDifference(afterClearSnapshot, toolbarRedoSnapshot),
+      button: await historyButtonState('Redo'),
+      focus: await historyFocus()
+    })
+
+  await clickSelector('section[aria-label="Bill of Materials rows"] tbody tr:first-child input[data-grid-field="price"]')
+  await evaluate(`(()=>{window.__clearHistoryKeyEvents=[];document.addEventListener('keydown',event=>window.__clearHistoryKeyEvents.push({key:event.key,code:event.code,ctrl:event.ctrlKey,meta:event.metaKey,target:event.target?.getAttribute('data-grid-field')??null,defaultPrevented:event.defaultPrevented}),false)})()`)
+  await pressKey('z', { ctrl: true })
+  await delay(350)
+  const keyboardUndoSnapshot = await captureWorkingDataset()
+  const keyboardUndoDiagnostic = {
+    difference: firstSnapshotDifference(beforeClearSnapshot, keyboardUndoSnapshot),
+    expectedMetadata: beforeClearSnapshot.metadata,
+    actualMetadata: keyboardUndoSnapshot.metadata,
+    actualTableFields: keyboardUndoSnapshot.tables.map(table => ({ label: table.label, rows: table.rows.map(row => ({ id: row.id, fields: row.fields })) })),
+    keyEvents: await evaluate('window.__clearHistoryKeyEvents'),
+    focus: await historyFocus(),
+    toolbarUndo: await historyButtonState('Undo')
+  }
+  verify(keyboardUndoDiagnostic.difference === null,
+    'Ctrl+Z restores the complete Current dataset immediately before Clear', keyboardUndoDiagnostic)
+  await pressKey('y', { ctrl: true })
+  await delay(350)
+  const keyboardRedoSnapshot = await captureWorkingDataset()
+  verify(firstSnapshotDifference(afterClearSnapshot, keyboardRedoSnapshot) === null,
+    'Ctrl+Y reapplies Current Clear', {
+      difference: firstSnapshotDifference(afterClearSnapshot, keyboardRedoSnapshot),
+      keyEvents: await evaluate('window.__clearHistoryKeyEvents'),
+      focus: await historyFocus(),
+      toolbarRedo: await historyButtonState('Redo')
+    })
+
+  await chooseRole('Reference')
+  await verifyWorkingSnapshot(referenceBeforeCurrentClear, 'Current Clear leaves Reference metadata and table values unchanged')
+  await chooseRole('Custom')
+  await verifyWorkingSnapshot(customBeforeCurrentClear, 'Current Clear leaves Custom metadata and table values unchanged')
+  await chooseRole('Current')
+  await clickSelector('section[aria-label="Working dataset controls"] button[aria-label="Reset"]')
+  await delay(350)
+  await verifyWorkingSnapshot(savedCurrentSnapshot, 'Reset after Current Clear restores the Last Saved dataset')
+
   const consoleMessages = [...browserErrors]
   verify(consoleMessages.length === 0, 'browser has no uncaught errors or console warnings', consoleMessages)
 

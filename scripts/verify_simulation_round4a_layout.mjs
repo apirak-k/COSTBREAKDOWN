@@ -500,11 +500,12 @@ try {
       body?.scrollIntoView({block:'center',inline:'nearest'})
       if(body)body.scrollTop=0
       const r=body?.getBoundingClientRect()
-      return body&&r?{expanded:row?.getAttribute('aria-expanded'),scrollHeight:body.scrollHeight,clientHeight:body.clientHeight,scrollTop:body.scrollTop,left:r.left,right:r.right,top:r.top,bottom:r.bottom,clientWidth:body.clientWidth,width:r.width}:null
+      return body&&r?{expanded:row?.getAttribute('aria-expanded'),scrollHeight:body.scrollHeight,clientHeight:body.clientHeight,overflowY:getComputedStyle(body).overflowY,scrollTop:body.scrollTop,left:r.left,right:r.right,top:r.top,bottom:r.bottom,clientWidth:body.clientWidth,width:r.width,contained:r.top>=0&&r.bottom<=innerHeight+1}:null
     })()`)
     const overflow = initial?.scrollHeight > initial?.clientHeight + 2
-    check(`${kind.toUpperCase()} expanded disclosure has a real internally scrollable body`,
-      initial?.expanded === 'true' && overflow, initial)
+    check(`${kind.toUpperCase()} expanded disclosure stays contained and scrolls only when its content exceeds the natural body height`,
+      initial?.expanded === 'true' && initial?.overflowY === 'auto' && initial?.scrollHeight >= initial?.clientHeight
+        && initial?.contained && (!overflow || initial?.scrollHeight > initial?.clientHeight + 2), initial)
     if (!overflow) continue
 
     const wheelPoint = { x: initial.left + Math.min(40, initial.clientWidth / 2), y: (initial.top + initial.bottom) / 2 }
@@ -682,14 +683,49 @@ try {
     const viewBox=(svg.getAttribute('viewBox')||'').split(/[ ,]+/).map(Number),lines=[...svg.querySelectorAll('line')]
     const horizontal=lines.filter(e=>Number(e.getAttribute('x2'))>Number(e.getAttribute('x1'))&&Math.abs(Number(e.getAttribute('y2'))-Number(e.getAttribute('y1')))<0.01).map(e=>({x1:Number(e.getAttribute('x1')),x2:Number(e.getAttribute('x2')),y1:Number(e.getAttribute('y1')),y2:Number(e.getAttribute('y2')),stroke:e.getAttribute('stroke')}))
     const plotLines=horizontal.filter(e=>e.stroke==='#e2e8f0'||e.stroke==='#64748b')
-    const box=svg.getBoundingClientRect(),f=figure.getBoundingClientRect()
+    const box=svg.getBoundingClientRect(),f=figure.getBoundingClientRect(),preserveAspectRatio=svg.getAttribute('preserveAspectRatio'),scaleX=box.width/viewBox[2],scaleY=box.height/viewBox[3]
     const yValues=plotLines.map(e=>e.y1),left=plotLines.length?Math.min(...plotLines.map(e=>e.x1)):null,right=plotLines.length?Math.max(...plotLines.map(e=>e.x2)):null,top=yValues.length?Math.min(...yValues):null,bottom=yValues.length?Math.max(...yValues):null
     const labels=[...svg.querySelectorAll('text')].map(e=>({text:e.textContent.trim(),box:(()=>{const r=e.getBBox();return{x:r.x,y:r.y,width:r.width,height:r.height,right:r.right,bottom:r.bottom}})()}))
-    return {figure:{width:f.width,height:f.height},svg:{width:box.width,height:box.height,viewBox},plot:{left,right,top,bottom,widthRatio:(right-left)/viewBox[2],heightRatio:(bottom-top)/viewBox[3],leftInsetRatio:left/viewBox[2],bottomInsetRatio:(viewBox[3]-bottom)/viewBox[3]},lines:plotLines,labels,markerCount:svg.querySelectorAll('[role="slider"][aria-label="Batch Size"]').length,breakEvenMarkerCount:svg.querySelectorAll('circle[aria-label^="Break-even Quantity:"]').length}
+    const clippedLabels=labels.filter(label=>label.box.x < -1||label.box.y < -1||label.box.right > viewBox[2]+1||label.box.bottom > viewBox[3]+1)
+    return {figure:{width:f.width,height:f.height},svg:{width:box.width,height:box.height,viewBox,preserveAspectRatio,scaleX,scaleY,coordinatesMatchRenderedBox:Math.abs(box.width-viewBox[2])<=1&&Math.abs(box.height-viewBox[3])<=1,uniformScale:Math.abs(scaleX-scaleY)<=0.005},plot:{left,right,top,bottom,widthRatio:(right-left)/viewBox[2],heightRatio:(bottom-top)/viewBox[3],leftInsetRatio:left/viewBox[2],bottomInsetRatio:(viewBox[3]-bottom)/viewBox[3]},lines:plotLines,labels,clippedLabels,markerCount:svg.querySelectorAll('[role="slider"][aria-label="Batch Size"]').length,breakEvenMarkerCount:svg.querySelectorAll('circle[aria-label^="Break-even Quantity:"]').length}
   })()`)
-  const breakEvenBaseline = { widthRatio: 0.864, heightRatio: 0.651, leftInsetRatio: 0.10, bottomInsetRatio: 0.263 }
-  check('Break-even plot improves on baseline bounds and keeps axis labels/markers',
-    Boolean(breakEvenMetrics && breakEvenMetrics.plot.widthRatio >= breakEvenBaseline.widthRatio + 0.01 && breakEvenMetrics.plot.heightRatio >= breakEvenBaseline.heightRatio + 0.025 && breakEvenMetrics.plot.leftInsetRatio <= breakEvenBaseline.leftInsetRatio && breakEvenMetrics.plot.bottomInsetRatio <= breakEvenBaseline.bottomInsetRatio - 0.02 && breakEvenMetrics.markerCount === 1 && breakEvenMetrics.breakEvenMarkerCount >= 1 && breakEvenMetrics.labels.some(label => label.text.includes('QTY'))), { baseline: breakEvenBaseline, current: breakEvenMetrics })
+  check('Break-even graph sizes its coordinate system to the rendered box with uniform scaling and keeps labels/markers',
+    Boolean(breakEvenMetrics && breakEvenMetrics.svg.coordinatesMatchRenderedBox && breakEvenMetrics.svg.uniformScale
+      && breakEvenMetrics.svg.preserveAspectRatio === 'xMidYMid meet'
+      && breakEvenMetrics.plot.widthRatio > 0.7 && breakEvenMetrics.plot.heightRatio > 0.5
+      && breakEvenMetrics.markerCount === 1 && breakEvenMetrics.breakEvenMarkerCount >= 1
+      && breakEvenMetrics.labels.some(label => label.text.includes('QTY')) && breakEvenMetrics.clippedLabels.length === 0), breakEvenMetrics)
+
+  const batchSliderState = () => evaluate(`(()=>{const slider=document.querySelector('figure[aria-labelledby="break-even-graph-title"] [role="slider"][aria-label="Batch Size"]'),input=[...document.querySelectorAll('input')].find(e=>e.getAttribute('aria-label')==='Batch Size'&&e.getClientRects().length);return slider?{value:Number(slider.getAttribute('aria-valuenow')),max:Number(slider.getAttribute('aria-valuemax')),focused:document.activeElement===slider,inputValue:input?.value??null}:null})()`)
+  const batchSliderBefore = await batchSliderState()
+  await evaluate(`document.querySelector('figure[aria-labelledby="break-even-graph-title"] [role="slider"][aria-label="Batch Size"]')?.focus()`)
+  await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'ArrowRight', code: 'ArrowRight' })
+  await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'ArrowRight', code: 'ArrowRight' })
+  await delay(120)
+  const batchSliderAfterKey = await batchSliderState()
+  check('Break-even Batch Size slider remains keyboard accessible and updates its authoritative input',
+    Boolean(batchSliderBefore && batchSliderAfterKey && batchSliderAfterKey.focused
+      && batchSliderAfterKey.value === batchSliderBefore.value + 1
+      && Number(batchSliderAfterKey.inputValue) === batchSliderAfterKey.value),
+    { before: batchSliderBefore, after: batchSliderAfterKey })
+
+  if (batchSliderBefore) {
+    await typeIntoInput('Batch Size', String(batchSliderBefore.value))
+    const dragPoints = await evaluate(`(()=>{const slider=document.querySelector('figure[aria-labelledby="break-even-graph-title"] [role="slider"][aria-label="Batch Size"]'),svg=slider?.ownerSVGElement,line=slider?.querySelector('line[stroke="transparent"]');if(!slider||!svg||!line)return null;const start=svg.createSVGPoint();start.x=Number(line.getAttribute('x1'));start.y=(Number(line.getAttribute('y1'))+Number(line.getAttribute('y2')))/2;const end=svg.createSVGPoint();end.x=start.x+(Number(slider.getAttribute('aria-valuemax'))/20);end.y=start.y;const matrix=svg.getScreenCTM();const a=start.matrixTransform(matrix),b=end.matrixTransform(matrix);return{start:{x:a.x,y:a.y},end:{x:b.x,y:b.y}}})()`)
+    if (dragPoints) {
+      await send('Input.dispatchMouseEvent', { type: 'mouseMoved', ...dragPoints.start })
+      await send('Input.dispatchMouseEvent', { type: 'mousePressed', ...dragPoints.start, button: 'left', clickCount: 1 })
+      await send('Input.dispatchMouseEvent', { type: 'mouseMoved', ...dragPoints.end, button: 'left', buttons: 1 })
+      await send('Input.dispatchMouseEvent', { type: 'mouseReleased', ...dragPoints.end, button: 'left', clickCount: 1 })
+      await delay(140)
+    }
+    const batchSliderAfterDrag = await batchSliderState()
+    check('Break-even Batch Size slider preserves pointer dragging through its resized SVG coordinates',
+      Boolean(dragPoints && batchSliderAfterDrag && batchSliderAfterDrag.value > batchSliderBefore.value
+        && Number(batchSliderAfterDrag.inputValue) === batchSliderAfterDrag.value),
+      { before: batchSliderBefore, after: batchSliderAfterDrag, dragPoints })
+    await typeIntoInput('Batch Size', String(batchSliderBefore.value))
+  }
 
   const storyMetrics = await evaluate(`(()=>{
     const figure=document.querySelector('figure[aria-labelledby="simulation-story-title"]'),svg=figure?.querySelector('svg[aria-labelledby="simulation-story-title"]'),host=figure?.querySelector('[data-graph-tooltip-host]')
@@ -711,6 +747,21 @@ try {
   check('Cost Structure retains Y-axis/categories/ruler/Selling Price and all relevant labels inside graph bounds',
     Boolean(storyMetrics && storyMetrics.tickCount >= 4 && storyMetrics.yAxisUnit && storyMetrics.categories.length === 3 && storyMetrics.gapLabels.length === 2 && storyMetrics.ruler.line && storyMetrics.ruler.value && storyMetrics.sellingPricePointCount >= 2 && storyMetrics.clipped.length === 0),
     storyMetrics && { tickCount: storyMetrics.tickCount, yAxisUnit: storyMetrics.yAxisUnit, categories: storyMetrics.categories, gapLabels: storyMetrics.gapLabels, ruler: storyMetrics.ruler, sellingPricePointCount: storyMetrics.sellingPricePointCount, clipped: storyMetrics.clipped })
+
+  const standardCostStyleEvidence = await evaluate(`(()=>['reference','current'].map(role=>{
+    const line=document.querySelector('line[data-graph-standard-cost="'+role+'"]'),outline=line?.parentElement?.querySelector('rect'),label=document.querySelector('text[data-graph-standard-cost-value="'+role+'"]')
+    if(!line||!outline||!label)return{role,missing:true}
+    return{role,lineStroke:getComputedStyle(line).stroke,lineStrokeWidth:getComputedStyle(line).strokeWidth,outlineStroke:getComputedStyle(outline).stroke,outlineStrokeWidth:getComputedStyle(outline).strokeWidth,labelFill:getComputedStyle(label).fill}
+  }))()`)
+  const referenceStandardCostStyle = standardCostStyleEvidence.find(style => style.role === 'reference')
+  check('Rendered Standard Cost styling is consistent between Reference and Current, with no Current-only override',
+    standardCostStyleEvidence.length === 2 && standardCostStyleEvidence.every(style => !style.missing
+      && style.lineStroke === referenceStandardCostStyle?.lineStroke
+      && style.lineStrokeWidth === referenceStandardCostStyle?.lineStrokeWidth
+      && style.outlineStroke === referenceStandardCostStyle?.outlineStroke
+      && style.outlineStrokeWidth === referenceStandardCostStyle?.outlineStrokeWidth
+      && style.labelFill === referenceStandardCostStyle?.labelFill
+      && style.lineStroke === 'rgb(51, 65, 85)'), standardCostStyleEvidence)
 
   // Hover a real Selling Price SVG point with CDP mouse input and verify the rendered tooltip stays in the host.
   await evaluate('document.querySelector("figure[aria-labelledby=\\"simulation-story-title\\"]")?.scrollIntoView({block:"center",inline:"nearest"})')
@@ -1189,7 +1240,7 @@ try {
       const lastLegendItem=legendItems.at(-1)
       const separated=Boolean(s&&legend&&!legend.contains(show)&&!legendItems.some(item=>s.left<item.right&&s.right>item.left&&s.top<item.bottom&&s.bottom>item.top))
       const storySvg=graph?.querySelector('svg'),breakEvenFigure=document.querySelector('figure[aria-labelledby="break-even-graph-title"]'),breakSvg=breakEvenFigure?.querySelector('svg')
-      const graphBounds=svg=>{if(!svg)return null;const rectSvg=rect(svg),figure=svg.closest('figure'),cardRect=rect(figure),vb=(svg.getAttribute('viewBox')||'').split(/[ ,]+/).map(Number),visualBox=e=>{const b=e.getBoundingClientRect();return{x:(b.left-rectSvg.left)/rectSvg.width*vb[2],y:(b.top-rectSvg.top)/rectSvg.height*vb[3],right:(b.right-rectSvg.left)/rectSvg.width*vb[2],bottom:(b.bottom-rectSvg.top)/rectSvg.height*vb[3]}},labels=[...svg.querySelectorAll('text')].map(e=>({text:e.textContent.trim(),box:visualBox(e)})),foreign=[...svg.querySelectorAll('foreignObject')].map(e=>({label:e.querySelector('button')?.getAttribute('aria-label')??'foreignObject',box:visualBox(e)})),clipped=[...labels,...foreign].filter(item=>item.box.x < -1||item.box.y < -1||item.box.right > vb[2]+1||item.box.bottom > vb[3]+1);return{svg:rectSvg,card:cardRect,inside:rectSvg.left>=cardRect.left-1&&rectSvg.right<=cardRect.right+1,cardWithinViewport:cardRect.left>=-1&&cardRect.right<=innerWidth+1,labelsWithinViewBox:clipped.length===0,clippedLabels:clipped}}
+      const graphBounds=svg=>{if(!svg)return null;const rectSvg=rect(svg),figure=svg.closest('figure'),cardRect=rect(figure),vb=(svg.getAttribute('viewBox')||'').split(/[ ,]+/).map(Number),preserveAspectRatio=svg.getAttribute('preserveAspectRatio'),scaleX=rectSvg.width/vb[2],scaleY=rectSvg.height/vb[3],visualBox=e=>{const b=e.getBoundingClientRect();return{x:(b.left-rectSvg.left)/rectSvg.width*vb[2],y:(b.top-rectSvg.top)/rectSvg.height*vb[3],right:(b.right-rectSvg.left)/rectSvg.width*vb[2],bottom:(b.bottom-rectSvg.top)/rectSvg.height*vb[3]}},labels=[...svg.querySelectorAll('text')].map(e=>({text:e.textContent.trim(),box:visualBox(e)})),foreign=[...svg.querySelectorAll('foreignObject')].map(e=>({label:e.querySelector('button')?.getAttribute('aria-label')??'foreignObject',box:visualBox(e)})),clipped=[...labels,...foreign].filter(item=>item.box.x < -1||item.box.y < -1||item.box.right > vb[2]+1||item.box.bottom > vb[3]+1);return{svg:rectSvg,viewBox:vb,preserveAspectRatio,scaleX,scaleY,coordinatesMatchRenderedBox:Math.abs(rectSvg.width-vb[2])<=1&&Math.abs(rectSvg.height-vb[3])<=1,uniformScale:Math.abs(scaleX-scaleY)<=0.005,inside:rectSvg.left>=cardRect.left-1&&rectSvg.right<=cardRect.right+1,cardWithinViewport:cardRect.left>=-1&&cardRect.right<=innerWidth+1,labelsWithinViewBox:clipped.length===0,clippedLabels:clipped}}
       const breakEvenEvidence=breakSvg?{markerCount:breakSvg.querySelectorAll('circle[aria-label^="Break-even Quantity:"]').length,batchSlider:!!breakSvg.querySelector('[role="slider"][aria-label="Batch Size"]'),qtyLabel:[...breakSvg.querySelectorAll('text')].some(e=>e.textContent.includes('QTY'))}:null
       return{width:innerWidth,docScrollWidth:root.scrollWidth,bodyScrollWidth:body.scrollWidth,horizontalOverflow:root.scrollWidth>innerWidth+1,sections,simulationTitleVisible:[...document.querySelectorAll('h2')].some(e=>e.innerText.trim()==='Cost Structure'&&e.getClientRects().length>0),mobileCardsExpected:innerWidth<768,mobileCardsIntact:innerWidth>=768?sections.every(section=>section.desktopTableVisible):sections.every(section=>section.visibleCardCount>0&&!section.horizontalCardOverflow),showAll:show&&g&&s&&l?{inside:graph.contains(show),distinct:!legend.contains(show),separated,rightInset:g.right-s.right,topInset:s.top-g.top,topRight:(g.right-s.right<=20&&s.bottom<=(storySvg?.getBoundingClientRect().top??Infinity)+1),gapFromLastLegendItem:lastLegendItem?s.left-lastLegendItem.right:null,card:g,button:s,legend:l}:null,costStructureBounds:graphBounds(storySvg),breakEvenBounds:graphBounds(breakSvg),breakEvenEvidence}
     })()`)
@@ -1201,6 +1252,9 @@ try {
     if (!numericLayoutOnly) {
     check(`Responsive ${width}px layout has no horizontal overflow/clipping and retains intact Simulation presentation`,
       Boolean(metrics && !metrics.horizontalOverflow && metrics.mobileCardsIntact && metrics.simulationTitleVisible && metrics.showAll?.inside && metrics.showAll?.distinct && metrics.showAll.separated && metrics.showAll.rightInset <= 20 && (width < 720 || metrics.showAll.topRight) && metrics.costStructureBounds?.inside && metrics.costStructureBounds.cardWithinViewport && metrics.costStructureBounds.labelsWithinViewBox && metrics.breakEvenBounds?.inside && metrics.breakEvenBounds.cardWithinViewport && metrics.breakEvenBounds.labelsWithinViewBox), metrics)
+    check(`Responsive ${width}px Break-even uses a fitted viewBox, uniform scale, and contains its labels`,
+      Boolean(metrics.breakEvenBounds?.coordinatesMatchRenderedBox && metrics.breakEvenBounds.uniformScale
+        && metrics.breakEvenBounds.preserveAspectRatio === 'xMidYMid meet' && metrics.breakEvenBounds.labelsWithinViewBox), metrics.breakEvenBounds)
     check(`Responsive ${width}px Break-even retains its quantity marker, Batch slider, and QTY axis label`,Boolean(metrics.breakEvenEvidence?.markerCount>=1&&metrics.breakEvenEvidence.batchSlider&&metrics.breakEvenEvidence.qtyLabel),metrics.breakEvenEvidence)
     } else {
       check(`Numeric layout ${width}px has no page overflow and keeps tables/mobile cards intact`,
@@ -1210,6 +1264,17 @@ try {
     if (!numericLayoutOnly) await evaluate('document.querySelector("figure[aria-labelledby=\\"break-even-graph-title\\"]")?.scrollIntoView({block:"center",inline:"nearest"})')
     await delay(120)
     if (!numericLayoutOnly) await screenshot(`simulation-break-even-${width}`)
+  }
+
+  if (!numericLayoutOnly) {
+    const wideBreakEven = responsive.find(metrics => metrics.width === 1440)?.breakEvenBounds
+    const narrowBreakEven = responsive.find(metrics => metrics.width === 320)?.breakEvenBounds
+    check('Break-even internal coordinates resize with the rendered graph across wide and narrow viewports',
+      Boolean(wideBreakEven && narrowBreakEven && Math.abs(wideBreakEven.viewBox[0] - narrowBreakEven.viewBox[0]) === 0
+        && Math.abs(wideBreakEven.viewBox[2] - narrowBreakEven.viewBox[2]) > 25
+        && Math.abs(wideBreakEven.viewBox[3] - narrowBreakEven.viewBox[3]) > 0.5
+        && wideBreakEven.coordinatesMatchRenderedBox && narrowBreakEven.coordinatesMatchRenderedBox),
+      { wide: wideBreakEven, narrow: narrowBreakEven })
   }
 
   }
@@ -1224,15 +1289,16 @@ try {
     if (!point) return null
     await send('Input.dispatchMouseEvent', { type: 'mouseMoved', ...point })
     await delay(240)
-    const hovered = await evaluate(`(()=>{const input=[...document.querySelectorAll('input')].find(e=>e.getAttribute('aria-label')===${JSON.stringify(ariaLabel)}&&e.getClientRects().length),target=input?.closest('td')?.querySelector('[data-simulation-input-frame="true"]')??input;if(!input||!target)return null;const r=input.getBoundingClientRect(),s=getComputedStyle(target);return{rect:{left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height},border:s.borderLeftColor,background:s.backgroundColor,outlineStyle:s.outlineStyle,outlineWidth:s.outlineWidth,outlineColor:s.outlineColor,outlineOffset:s.outlineOffset,radius:s.borderTopLeftRadius}})()`)
+    const hovered = await evaluate(`(()=>{const input=[...document.querySelectorAll('input')].find(e=>e.getAttribute('aria-label')===${JSON.stringify(ariaLabel)}&&e.getClientRects().length),target=input?.closest('td')?.querySelector('[data-simulation-input-frame="true"]')??input;if(!input||!target)return null;const r=input.getBoundingClientRect(),s=getComputedStyle(target);return{rect:{left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height},border:s.borderLeftColor,background:s.backgroundColor,borderWidth:s.borderLeftWidth,borderStyle:s.borderLeftStyle,outlineStyle:s.outlineStyle,outlineWidth:s.outlineWidth,outlineColor:s.outlineColor,outlineOffset:s.outlineOffset,radius:s.borderTopLeftRadius}})()`)
     await clickAt(point)
-    const focused = await evaluate(`(()=>{const input=[...document.querySelectorAll('input')].find(e=>e.getAttribute('aria-label')===${JSON.stringify(ariaLabel)}&&e.getClientRects().length),target=input?.closest('td')?.querySelector('[data-simulation-input-frame="true"]')??input;if(!input||!target)return null;const r=input.getBoundingClientRect(),s=getComputedStyle(target);return{active:document.activeElement===input,rect:{left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height},border:s.borderLeftColor,background:s.backgroundColor,outlineStyle:s.outlineStyle,outlineWidth:s.outlineWidth,outlineColor:s.outlineColor,outlineOffset:s.outlineOffset,radius:s.borderTopLeftRadius}})()`)
+    const focused = await evaluate(`(()=>{const input=[...document.querySelectorAll('input')].find(e=>e.getAttribute('aria-label')===${JSON.stringify(ariaLabel)}&&e.getClientRects().length),target=input?.closest('td')?.querySelector('[data-simulation-input-frame="true"]')??input;if(!input||!target)return null;const r=input.getBoundingClientRect(),s=getComputedStyle(target);return{active:document.activeElement===input,rect:{left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height},border:s.borderLeftColor,background:s.backgroundColor,borderWidth:s.borderLeftWidth,borderStyle:s.borderLeftStyle,outlineStyle:s.outlineStyle,outlineWidth:s.outlineWidth,outlineColor:s.outlineColor,outlineOffset:s.outlineOffset,radius:s.borderTopLeftRadius}})()`)
     await evaluate(`(()=>{const input=[...document.querySelectorAll('input')].find(e=>e.getAttribute('aria-label')===${JSON.stringify(ariaLabel)}&&e.getClientRects().length);input?.blur()})()`)
     await delay(240)
-    const blurredHover = await evaluate(`(()=>{const input=[...document.querySelectorAll('input')].find(e=>e.getAttribute('aria-label')===${JSON.stringify(ariaLabel)}&&e.getClientRects().length),target=input?.closest('td')?.querySelector('[data-simulation-input-frame="true"]')??input;if(!input||!target)return null;const r=input.getBoundingClientRect(),s=getComputedStyle(target);return{rect:{left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height},border:s.borderLeftColor,background:s.backgroundColor,outlineStyle:s.outlineStyle,outlineWidth:s.outlineWidth,outlineColor:s.outlineColor,outlineOffset:s.outlineOffset,radius:s.borderTopLeftRadius}})()`)
+    const blurredHover = await evaluate(`(()=>{const input=[...document.querySelectorAll('input')].find(e=>e.getAttribute('aria-label')===${JSON.stringify(ariaLabel)}&&e.getClientRects().length),target=input?.closest('td')?.querySelector('[data-simulation-input-frame="true"]')??input;if(!input||!target)return null;const r=input.getBoundingClientRect(),s=getComputedStyle(target);return{rect:{left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height},border:s.borderLeftColor,background:s.backgroundColor,borderWidth:s.borderLeftWidth,borderStyle:s.borderLeftStyle,outlineStyle:s.outlineStyle,outlineWidth:s.outlineWidth,outlineColor:s.outlineColor,outlineOffset:s.outlineOffset,radius:s.borderTopLeftRadius}})()`)
     await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 2, y: 2 })
-    await delay(80)
-    return { hovered, focused, blurredHover }
+    await delay(240)
+    const idle = await evaluate(`(()=>{const input=[...document.querySelectorAll('input')].find(e=>e.getAttribute('aria-label')===${JSON.stringify(ariaLabel)}&&e.getClientRects().length),target=input?.closest('td')?.querySelector('[data-simulation-input-frame="true"]')??input;if(!input||!target)return null;const r=input.getBoundingClientRect(),s=getComputedStyle(target);return{hovered:input.matches(':hover'),focused:document.activeElement===input,rect:{left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height},border:s.borderLeftColor,background:s.backgroundColor,borderWidth:s.borderLeftWidth,borderStyle:s.borderLeftStyle,outlineStyle:s.outlineStyle,outlineWidth:s.outlineWidth,outlineColor:s.outlineColor,outlineOffset:s.outlineOffset,radius:s.borderTopLeftRadius}})()`)
+    return { hovered, focused, blurredHover, idle }
   }
   const referenceInputLabel = await evaluate(`([...document.querySelectorAll('section[data-simulation-table="bom"] input[data-numeric-editor]')].find(input=>input.getAttribute('aria-label')?.endsWith('Price in Current')))?.getAttribute('aria-label')??null`)
   const referenceInputStyle = referenceInputLabel ? await simulationInputStyle(referenceInputLabel) : null
@@ -1241,19 +1307,24 @@ try {
     inputStyleResults.push({ ariaLabel, ...(await simulationInputStyle(ariaLabel) ?? { missing: true }) })
   }
   const styleMatches = metric => Boolean(metric?.hovered && metric?.focused?.active && metric?.blurredHover
+    && metric.idle && !metric.idle.hovered && !metric.idle.focused
     && ['left', 'right', 'top', 'bottom', 'width', 'height'].every(edge => Math.abs(metric.hovered.rect[edge] - metric.focused.rect[edge]) <= 0.25
-      && Math.abs(metric.hovered.rect[edge] - metric.blurredHover.rect[edge]) <= 0.25)
+      && Math.abs(metric.hovered.rect[edge] - metric.blurredHover.rect[edge]) <= 0.25 && Math.abs(metric.hovered.rect[edge] - metric.idle.rect[edge]) <= 0.25)
     && metric.hovered.border === 'rgb(226, 232, 240)' && metric.hovered.background === 'rgb(248, 250, 252)'
     && metric.focused.border === 'rgba(0, 0, 0, 0)' && metric.focused.background === 'rgb(255, 255, 255)'
     && metric.focused.outlineStyle === 'solid' && metric.focused.outlineWidth === '2px'
     && metric.focused.outlineColor === 'rgb(29, 78, 216)' && metric.focused.outlineOffset === '-2px'
     && metric.focused.radius === '2px'
     && metric.blurredHover.border === 'rgb(226, 232, 240)' && metric.blurredHover.background === 'rgb(248, 250, 252)'
-    && metric.blurredHover.outlineStyle === 'none')
+    && metric.blurredHover.outlineStyle === 'none'
+    && metric.idle.borderWidth === '1px' && metric.idle.borderStyle === 'solid')
   check('Simulation Parameter reference keeps hover and focus on its fixed input frame',
     styleMatches(referenceInputStyle), referenceInputStyle)
-  check('Business and Economic numeric inputs match Simulation Parameter hover/focus treatment without moving or resizing',
-    inputStyleResults.length === 5 && inputStyleResults.every(styleMatches), { reference: referenceInputStyle, fields: inputStyleResults })
+  check('Business and Economic inputs have a true neutral idle frame and preserve hover/focus treatment and geometry',
+    inputStyleResults.length === 5 && inputStyleResults.every(metric => styleMatches(metric)
+      && metric.idle.border === 'rgb(226, 232, 240)' && metric.idle.background === 'rgb(255, 255, 255)'
+      && metric.idle.outlineStyle === 'none' && metric.idle.borderWidth === '1px' && metric.idle.borderStyle === 'solid'),
+    { reference: referenceInputStyle, fields: inputStyleResults })
 
   const heightLayouts = []
   for (const height of [900, 720]) {
@@ -1268,12 +1339,16 @@ try {
       const inputs=[...(inputPanel?.querySelectorAll('input')??[])].filter(input=>input.getClientRects().length).map(input=>{const b=box(input);return{aria:input.getAttribute('aria-label'),...b,inside:!!inputPanelBox&&b.left>=inputPanelBox.left-1&&b.right<=inputPanelBox.right+1&&b.top>=inputPanelBox.top-1&&b.bottom<=inputPanelBox.bottom+1}})
       const tableBodies=[...document.querySelectorAll('[data-simulation-table-body]')].map(body=>({clientHeight:body.clientHeight,scrollHeight:body.scrollHeight,overflowY:getComputedStyle(body).overflowY,inside:body.getBoundingClientRect().top>=0&&body.getBoundingClientRect().bottom<=innerHeight+1}))
       const rootBox=box(root),upperBox=box(upper),lowerBox=box(lower),resultBox=box(result),breakEvenBox=box(breakEven)
-      return{viewport:{width:innerWidth,height:innerHeight},documentWidth:document.documentElement.scrollWidth,root:rootBox,upper:upperBox,lower:lowerBox,upperShare:upperBox&&lowerBox?upperBox.height/(upperBox.height+lowerBox.height):null,result:resultBox,breakEven:breakEvenBox,inputs,inputCount:inputs.length,tableBodies,overlap:!!resultBox&&!!breakEvenBox&&resultBox.bottom>breakEvenBox.top+1,breakEvenContained:!!rootBox&&!!breakEvenBox&&breakEvenBox.top>=rootBox.top-1&&breakEvenBox.bottom<=rootBox.bottom+1}
+      const rootStyle=root?getComputedStyle(root):null
+      const rowGap=rootStyle?parseFloat(rootStyle.rowGap)||0:0
+      const rowsFillRoot=!!rootBox&&!!upperBox&&!!lowerBox&&Math.abs(upperBox.height+lowerBox.height+rowGap-rootBox.height)<=2
+      return{viewport:{width:innerWidth,height:innerHeight},display:rootStyle?.display??null,gridTemplateRows:rootStyle?.gridTemplateRows??null,documentWidth:document.documentElement.scrollWidth,root:rootBox,upper:upperBox,lower:lowerBox,rowGap,rowsFillRoot,result:resultBox,breakEven:breakEvenBox,inputs,inputCount:inputs.length,tableBodies,overlap:!!resultBox&&!!breakEvenBox&&resultBox.bottom>breakEvenBox.top+1,rowsOrdered:!!upperBox&&!!lowerBox&&upperBox.bottom<=lowerBox.top+1,breakEvenContained:!!rootBox&&!!breakEvenBox&&breakEvenBox.top>=rootBox.top-1&&breakEvenBox.bottom<=rootBox.bottom+1}
     })()`)
-    const splitValid = layout?.upperShare >= 0.68 && layout?.upperShare <= 0.72
-    check(`Simulation ${height}px layout keeps an approximately 70/30 upper/lower split and full viewport containment`,
-      Boolean(layout && layout.documentWidth <= 1441 && layout.root.top >= 0 && layout.root.bottom <= height + 1
-        && splitValid && layout.breakEvenContained && !layout.overlap && layout.breakEven.height >= 100), layout)
+    check(`Simulation ${height}px uses natural auto-fit rows with full viewport containment`,
+      Boolean(layout && layout.display === 'grid' && layout.gridTemplateRows && layout.documentWidth <= 1441
+        && layout.root.top >= 0 && layout.root.bottom <= height + 1 && layout.upper.top >= layout.root.top - 1
+        && layout.lower.bottom <= layout.root.bottom + 1 && layout.rowsFillRoot && layout.rowsOrdered
+        && layout.breakEvenContained && !layout.overlap && layout.breakEven.height >= 100), layout)
     check(`Simulation ${height}px retains readable Business/Economic inputs and internally scrollable table bodies`,
       Boolean(layout?.inputCount === 5 && layout.inputs.every(input => input.inside && input.height >= 20)
         && layout.tableBodies.length === 2 && layout.tableBodies.every(body => body.clientHeight >= 35 && body.overflowY === 'auto' && body.inside)),
@@ -1282,9 +1357,12 @@ try {
     if (height === 720) await screenshot('simulation-layout-1440x720')
     heightLayouts.push(layout)
   }
-  check('Simulation table body height adapts to the available viewport height',
-    Boolean(heightLayouts.length === 2 && heightLayouts[1]?.tableBodies.every((body, index) => body.clientHeight < heightLayouts[0]?.tableBodies[index]?.clientHeight)),
-    heightLayouts.map(layout => ({ height: layout.viewport.height, bodyHeights: layout.tableBodies.map(body => body.clientHeight) })))
+  check('Simulation natural upper content stays stable while tables absorb the available-height change',
+    Boolean(heightLayouts.length === 2
+      && Math.abs(heightLayouts[0]?.upper.height - heightLayouts[1]?.upper.height) <= 6
+      && heightLayouts[0]?.lower.height - heightLayouts[1]?.lower.height >= 150
+      && heightLayouts[1]?.tableBodies.every((body, index) => body.clientHeight < heightLayouts[0]?.tableBodies[index]?.clientHeight)),
+    heightLayouts.map(layout => ({ height: layout.viewport.height, upperHeight: layout.upper.height, lowerHeight: layout.lower.height, bodyHeights: layout.tableBodies.map(body => body.clientHeight) })))
   if (finalCorrectionsOnly) {
     for (const kind of ['bom', 'routing']) {
       const rowSelector = `section[data-simulation-table="${kind}"] tbody tr[data-simulation-row-index]`

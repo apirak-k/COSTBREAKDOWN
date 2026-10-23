@@ -491,6 +491,50 @@ try {
   await evaluate('document.activeElement.select()');await send('Input.insertText',{text:'3.5'})
   assert.equal(await inputValue('Batch Size'),'123456789','real Batch Size still rejects fractional drafts')
   await typeInto('Batch Size',batchOriginal);await blurNumeric()
+  const sellingPriceBeforeLongDraft = await (async () => {
+    await clickInput('Selling Price')
+    return inputValue('Selling Price')
+  })()
+  const longHighMagnitudeDecimal = `1${'0'.repeat(300)}.12345678901234567890`
+  await evaluate('document.activeElement.select()')
+  await send('Input.insertText', { text: longHighMagnitudeDecimal })
+  await delay(250)
+  assert.equal(await inputValue('Selling Price'), longHighMagnitudeDecimal,
+    'Selling Price keeps a 300-digit magnitude and long decimal draft intact while focused')
+  const longBusinessMetrics = await inputMetrics('Selling Price')
+  assert.ok(longBusinessMetrics.scrollWidth > longBusinessMetrics.clientWidth,
+    'high-magnitude long-decimal Business draft scrolls inside the fixed numeric input')
+  await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'End', code: 'End', windowsVirtualKeyCode: 35, nativeVirtualKeyCode: 35 })
+  await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'End', code: 'End', windowsVirtualKeyCode: 35, nativeVirtualKeyCode: 35 })
+  assert.equal(await evaluate('document.activeElement.selectionStart'), longHighMagnitudeDecimal.length,
+    'End reaches the final fractional digit of the long Business draft')
+  assert.ok((await inputMetrics('Selling Price')).scrollLeft > 0,
+    'caret navigation scrolls the long Business draft to its hidden final digits')
+  await send('Input.insertText', { text: '7' })
+  assert.equal(await inputValue('Selling Price'), `${longHighMagnitudeDecimal}7`,
+    'long high-magnitude decimal remains editable after scrolling to its final digits')
+  await blurNumeric()
+  assert.equal(await inputValue('Selling Price'), '1.00E+300',
+    'blur compacts the high-magnitude value without retaining the long draft as presentation')
+  await clickInput('Selling Price')
+  const fullHighMagnitudeAuthoritativeValue = `1${'0'.repeat(300)}.00`
+  assert.equal(await inputValue('Selling Price'), fullHighMagnitudeAuthoritativeValue,
+    'refocus restores the complete 1e300 authoritative value after its compact presentation')
+  await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'End', code: 'End', windowsVirtualKeyCode: 35, nativeVirtualKeyCode: 35 })
+  await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'End', code: 'End', windowsVirtualKeyCode: 35, nativeVirtualKeyCode: 35 })
+  assert.equal(await evaluate('document.activeElement.selectionStart'), fullHighMagnitudeAuthoritativeValue.length,
+    'End reaches the final digit of the refocused full high-magnitude value')
+  assert.ok((await inputMetrics('Selling Price')).scrollLeft > 0,
+    'the refocused full high-magnitude value scrolls when the caret reaches its final digits')
+  await send('Input.insertText', { text: '7' })
+  assert.equal(await inputValue('Selling Price'), `${fullHighMagnitudeAuthoritativeValue}7`,
+    'refocused full high-magnitude value remains editable after internal scrolling')
+  await typeInto('Selling Price', sellingPriceBeforeLongDraft)
+  await blurNumeric()
+  await clickInput('Selling Price')
+  assert.equal(await inputValue('Selling Price'), sellingPriceBeforeLongDraft,
+    'refocusing Selling Price restores its full authoritative value after the long draft')
+  await blurNumeric()
   const sgaAria=await evaluate(`([...document.querySelectorAll('input')].find(e=>e.getClientRects().length&&/SG&A/.test(e.getAttribute('aria-label')||'')))?.getAttribute('aria-label')`)
   assert.ok(sgaAria,'real Business SG&A editor is available')
   const sgaOriginal=await inputValue(sgaAria)
@@ -619,9 +663,9 @@ try {
     await send('Input.insertText', { text })
     await delay(100)
   }
-  const wheelOver = async aria => {
+  const wheelOver = async (aria, deltaY) => {
     const point = await evaluate(`(()=>{const rect=${visibleInputExpression(aria)}.getBoundingClientRect();return {x:rect.x+rect.width/2,y:rect.y+rect.height/2}})()`)
-    await send('Input.dispatchMouseEvent', { type: 'mouseWheel', ...point, deltaX: 0, deltaY: 100 })
+    await send('Input.dispatchMouseEvent', { type: 'mouseWheel', ...point, deltaX: 0, deltaY })
     await delay(160)
   }
   await insertValue('Foundation decimal', '12.3456789')
@@ -682,7 +726,11 @@ try {
     } else if (header) {
       await clickButton(byAria('Increase Selected value'))
     } else {
-      await wheelOver(aria)
+      await wheelOver(aria, -100)
+      assert.equal(await model('decimal'), stepped, 'wheel up increments the focused numeric value')
+      await wheelOver(aria, 100)
+      assert.equal(await model('decimal'), initial, 'wheel down decrements the focused numeric value')
+      await wheelOver(aria, -100)
     }
     assert.equal(await model('decimal'), stepped, `${entry} preserves the authoritative stepped precision`)
     assert.equal(await inputValue(aria), stepped, `${entry} keeps the full visible focused draft`)
@@ -1057,12 +1105,23 @@ try {
   assert.equal(await model('decimal'), '123.46', 'ordinary ArrowUp uses the caret hundredth place')
   await key('ArrowDown')
   assert.equal(await model('decimal'), '123.45')
-  await wheelOver('Foundation decimal')
-  assert.equal(await model('decimal'), '123.46', 'focused wheel preserves the existing caret-place direction')
+  await wheelOver('Foundation decimal', -100)
+  assert.equal(await model('decimal'), '123.46', 'focused wheel up increments at the active caret place')
+  await wheelOver('Foundation decimal', 100)
+  assert.equal(await model('decimal'), '123.45', 'focused wheel down decrements at the active caret place')
+  await wheelOver('Foundation decimal', -100)
+  assert.equal(await model('decimal'), '123.46', 'wheel up restores the value after wheel down')
   await buttonByText('Clear selected value')
   const beforeUnfocusedWheel = await model('decimal')
-  await wheelOver('Foundation decimal')
+  await wheelOver('Foundation decimal', -100)
   assert.equal(await model('decimal'), beforeUnfocusedWheel, 'wheel over an unfocused editor changes no value')
+  const unfocusedWheel = await evaluate(`(()=>{
+    const input=${visibleInputExpression('Foundation decimal')}
+    const event=new WheelEvent('wheel',{deltaY:-100,bubbles:true,cancelable:true})
+    const uncanceled=input.dispatchEvent(event)
+    return{uncanceled,defaultPrevented:event.defaultPrevented,focused:document.activeElement===input}
+  })()`)
+  assert.equal(unfocusedWheel?.defaultPrevented, false, 'wheel over an unfocused editor does not capture page/table scrolling')
 
   await clickInput('Foundation decimal')
   await evaluate('document.activeElement.select()')

@@ -20,7 +20,7 @@ export interface NumericStepPlace {
 }
 
 export function resolveNumericWheelStepDirection(deltaY: number): 1 | -1 {
-  return deltaY > 0 ? 1 : -1
+  return deltaY < 0 ? 1 : -1
 }
 
 export function isNumericDraftSyntax(raw: string, domain: NumericInputDomain = {}): boolean {

@@ -1,4 +1,32 @@
-# Pre-Round-4B Follow-up Corrective Implementation — 2026-10-23
+# New Follow-up Corrective Implementation — 2026-10-24
+
+- **Branch / worktree:** `feat/selected-value-ux` / `E:\COSTBREAKDOWN\.worktrees\SIMULATION-FINALIZED`
+- **Starting local and remote HEAD:** `f75eea95d320244f336f3b6a3d8b0a8a835e1082`, verified with `git rev-parse` and `git ls-remote` before implementation.
+- **Required status:** `NEW FOLLOW-UP CORRECTIVE IMPLEMENTATION: IMPLEMENTED / INTERNAL VERIFICATION PASSED / AWAITING EXTERNAL AUDIT`.
+- **Round 4B:** `NOT STARTED`. Human visual acceptance and external audit remain pending.
+- **Scope:** the seven NEW follow-up findings from 2026-10-24. This pass is distinct from the historical 2026-10-23 correction set below; the old fixed 70/30 Simulation allocation does not satisfy this scope.
+- **Corrections and evidence:**
+  1. Business and Economic numeric editors now have a visible white, 1px neutral frame at true idle while retaining the existing hover/focus treatments and unchanged geometry. The browser verifier moves the pointer away and checks idle, hover, focus, and geometry.
+  2. Clear semantics are unchanged. Browser verification confirms toolbar Undo/Redo and Ctrl+Z/Ctrl+Y restore and reapply Current Clear, including metadata and all editable table values. The verifier reads authoritative values without focusing empty fields, so the check does not create extra edits.
+  3. `NumericInput` keeps compact blur text separate from its authoritative value. Refocus restores the full editable value; a `1e300` value with a long-decimal draft remains horizontally scrollable and editable through blur/refocus. The verifier covers the compact `1.00E+300` blur and the full value on refocus.
+  4. Numeric wheel direction now follows the requested mapping: up increases and down decreases. The unit and browser checks cover both directions and confirm an unfocused input does not cancel the wheel event.
+  5. Simulation now uses a natural content-sized upper row and lets the tables absorb remaining viewport height. The verifier checks row sizing/containment at 900px and 720px; no 70/30 target or tolerance remains.
+  6. Break-even's SVG coordinate system tracks its rendered size and preserves aspect ratio. Plot coordinates and pointer dragging use the measured layout; calculations, keyboard operation, accessibility labels, and readability checks remain covered.
+  7. **Standard Cost: PASS / NO CHANGE.** Runtime Reference and Current strokes, outline strokes, and label fills match. Source uses the same `COST_ELEMENT_COLORS.standardCost` token across the state rendering path. No reproducible Current-specific appearance issue was found, so no style fix was added.
+- **Verification:**
+  - `node scripts/verify_numeric_input.mjs`: **334/334 PASS**.
+  - `node scripts/verify_numeric_input_browser.mjs`: **2366/2366 PASS**.
+  - `node scripts/verify_master_data_selected_value.mjs`: **156/156 PASS**.
+  - `npx tsx scripts/verify_simulation_economics.ts`: **PASS**.
+  - `npx tsx scripts/verify_master_data_edit_history.ts`, `npx tsx scripts/verify_master_data_clear_dataset.ts`, and `npx tsx scripts/verify_master_data_custom_dataset.ts`: **PASS**.
+  - `node scripts/verify_simulation_round4a_layout.mjs`: **252/257 PASS**. All seven NEW-scope checks pass. The same five pre-existing out-of-scope mobile Ruler assertions remain: at 390px, natural-width checks for `350.00` and `15,000.00` plus the `350.00` drag check; at 320px, natural-width and drag checks for `350.00`. No additional failure remains.
+  - `npx tsc --noEmit --pretty false`, `npm run build`, changed `.mjs` syntax checks, and `git diff --check`: **PASS**. The build retains existing ExcelJS/fast-csv Node-module externalization and large-chunk warnings.
+- **Browser evidence:** `C:\Users\Boom\AppData\Local\Temp\costbreakdown-simulation-round4a-evidence-6HsOzh\simulation-1440.png` and `simulation-break-even-1440.png` (same directory).
+- **External review:** human visual acceptance and external audit are outstanding. Do not start Round 4B or mark this gate closed.
+
+# Historical Follow-up Corrective Implementation — 2026-10-23 (previous scope)
+
+> This is the OLD correction set. Its approximately 70/30 Simulation split and other checks do not satisfy the NEW 2026-10-24 follow-up findings above.
 
 - **Branch / worktree:** `feat/selected-value-ux` / `E:\COSTBREAKDOWN\.worktrees\SIMULATION-FINALIZED`
 - **Actual starting remote HEAD:** `bf5f7d9885170f6a16d3d5529a1225554ef9cf7f`, verified with `git ls-remote` before implementation and again before delivery.
