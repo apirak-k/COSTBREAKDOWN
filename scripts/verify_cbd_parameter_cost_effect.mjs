@@ -231,6 +231,21 @@ try {
   assert.equal(bomPositive.effects.loss, 0,
     'BOM reconciliation residue must not be assigned to Loss when Loss is unchanged')
 
+  const bomZeroLoss = effects.calculateBOMParameterCostEffects(
+    { usage: 2, price: 10, loss: 0 },
+    { usage: 2, price: 12, loss: 0 }
+  )
+  assert.deepEqual(bomZeroLoss, { status: 'available', effects: { usage: 0, price: 4, loss: 0 } },
+    'valid zero Loss keeps BOM attribution available and assigns the exact +4 cost gap to Price')
+  assert.equal(effects.calculateBOMParameterCostEffects(
+    { usage: 2, price: 10, loss: -0.001 },
+    { usage: 2, price: 12, loss: 0 }
+  ).status, 'unavailable', 'negative BOM Loss remains invalid')
+  assert.equal(effects.calculateBOMParameterCostEffects(
+    { usage: 2, price: 10, loss: 1.001 },
+    { usage: 2, price: 12, loss: 0 }
+  ).status, 'unavailable', 'BOM Loss above the existing 100% maximum remains invalid')
+
   const bomMachineNoise = effects.calculateBOMParameterCostEffects(
     bomReference,
     { ...bomReference, price: 10.000000000000004 }
@@ -260,7 +275,15 @@ try {
       const reference = { ...bomReference }
       const current = { ...bomPositiveCurrent }
       ;(side === 'reference' ? reference : current)[key] = 0
-      assert.equal(effects.calculateBOMParameterCostEffects(reference, current).status, 'unavailable', `BOM zero ${side}.${key} is unavailable`)
+      const zeroResult = effects.calculateBOMParameterCostEffects(reference, current)
+      if (key === 'loss') {
+        assert.equal(zeroResult.status, 'available', `valid BOM zero ${side}.loss remains attributable`)
+        if (zeroResult.status === 'available') assertClose(sum(Object.values(zeroResult.effects)),
+          current.usage * current.price * (1 + current.loss) - reference.usage * reference.price * (1 + reference.loss),
+          `BOM zero ${side}.loss effects reconcile to the raw cost gap`)
+      } else {
+        assert.equal(zeroResult.status, 'unavailable', `BOM zero ${side}.${key} is unavailable`)
+      }
       ;(side === 'reference' ? reference : current)[key] = null
       assert.equal(effects.calculateBOMParameterCostEffects(reference, current).status, 'unavailable', `BOM missing ${side}.${key} is unavailable`)
       for (const invalid of [Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY]) {

@@ -411,14 +411,20 @@ assert.match(graphSource, /onClick=\{\(\) => onSelectActiveDataset\(category\.ro
   '[source contract] graph role controls select activeDataset')
 assert.match(pageSource, /onChange=\{role => onChangeComparison\(role, afterRole\)\}[\s\S]*?onChange=\{role => onChangeComparison\(beforeRole, role\)\}/,
   '[source contract] Before and After selectors update only their own comparison side')
-const upperWorkspaceStart = pageSource.indexOf('<div className="grid min-w-0 gap-2 xl:min-h-0 xl:flex-[1.25]')
-const upperWorkspaceEnd = pageSource.indexOf('<div className="grid min-w-0 gap-2 xl:flex-none xl:grid-cols-2', upperWorkspaceStart)
+assert.match(pageSource, /data-simulation-layout-root="true"[^>]*xl:flex-col/,
+  '[source contract] the desktop Simulation workspace stacks upper and lower regions vertically')
+const upperWorkspaceStart = pageSource.indexOf('<div className="grid min-w-0 gap-2 xl:min-h-0 xl:flex-[7_1_0%]')
+const upperWorkspaceEnd = pageSource.indexOf('<div className="grid min-w-0 gap-2 xl:min-h-0 xl:flex-[3_1_0%]', upperWorkspaceStart)
 const upperWorkspaceSource = upperWorkspaceStart >= 0 && upperWorkspaceEnd > upperWorkspaceStart
   ? pageSource.slice(upperWorkspaceStart, upperWorkspaceEnd)
   : ''
 assert.ok(upperWorkspaceSource, '[source contract] desktop upper workspace source is present')
+assert.match(upperWorkspaceSource, /xl:flex-\[7_1_0%\]/,
+  '[source contract] the upper desktop workspace receives seven parts of the vertical layout')
 assert.match(upperWorkspaceSource, /xl:grid-cols-\[minmax\(0,[\d.]+fr\)_minmax\(0,[\d.]+fr\)_minmax\(max-content,[\d.]+fr\)\]/,
-  '[source contract] the desktop places the flexible Graph, Result/Break-even, and content-sized Business/Economic columns in order without fixing product ratios')
+  '[source contract] graph, Result/Break-even, and Business/Economic retain their established desktop column order and proportions')
+assert.match(pageSource.slice(upperWorkspaceEnd), /xl:flex-\[3_1_0%\][\s\S]*?<SimulationParameterTable/,
+  '[source contract] the BOM and Routing workspace receives three parts of the vertical layout')
 const resultColumnSource = upperWorkspaceSource.match(/<div data-simulation-layout-column="result-and-break-even"[\s\S]*?<EconomicSimulationPanel/)?.[0] ?? ''
 assert.match(resultColumnSource, /<ResultPanel[\s\S]*?<EconomicBreakEvenGraphPanel[\s\S]*?<\/div>\s*<EconomicSimulationPanel/,
   '[source contract] Result sits above Break-even in the middle column before far-right Business/Economic')
@@ -478,8 +484,10 @@ assert.match(parameterTableSource, /visibleRange\.total === 0 \? '0 of 0'/,
   '[source contract] an empty Search result has an explicit zero range')
 assert.match(parameterTableSource, /previousSearchQueryRef\.current = searchQuery[\s\S]*?simulationTableScrollHost\(body, section\)[\s\S]*?body\.scrollTop = 0/,
   '[source contract] changing or clearing Search resets only that table scroll host')
-assert.match(parameterTableSource, /data-simulation-table-body="true"[^>]*xl:h-40[^>]*xl:overflow-y-auto/,
-  '[source contract] desktop BOM/Routing bodies retain a native vertical scroll viewport about four rows tall')
+assert.match(parameterTableSource, /data-simulation-table-body="true"[^>]*xl:flex-1[^>]*xl:overflow-y-auto/,
+  '[source contract] desktop BOM/Routing bodies fill the available table height and scroll internally')
+assert.doesNotMatch(parameterTableSource, /data-simulation-table-body="true"[^>]*xl:h-40/,
+  '[source contract] desktop table height does not depend on a fixed four-row viewport')
 assert.equal((parameterTableSource.match(/\{orderedRows\.map\(\(\{ row, sourceIndex \}, orderedIndex\) =>/g) ?? []).length, 2,
   '[source contract] desktop rows and mobile cards render every ordered filtered row')
 assert.match(parameterTableSource, /data-simulation-row-index=\{orderedIndex\}[\s\S]*?\{sourceIndex \+ 1\}/,

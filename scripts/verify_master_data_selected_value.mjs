@@ -572,7 +572,7 @@ try {
     const measurement=(${numericColumnGeometry.toString()})(input.parentElement)[0]
     const rect=input.getBoundingClientRect()
     const inputStyle=getComputedStyle(input)
-    return {...measurement,inputTextAlign:inputStyle.textAlign,inputPaddingLeft:inputStyle.paddingLeft,inputPaddingRight:inputStyle.paddingRight,stepperCount:input.closest('td')?.querySelectorAll('[data-numeric-stepper]').length??0,rect:{x:rect.x,width:rect.width,right:rect.right}}
+    return {...measurement,inputTextAlign:inputStyle.textAlign,inputPaddingLeft:inputStyle.paddingLeft,inputPaddingRight:inputStyle.paddingRight,scrollLeft:input.scrollLeft,stepperCount:input.closest('td')?.querySelectorAll('[data-numeric-stepper]').length??0,rect:{x:rect.x,width:rect.width,right:rect.right}}
   })()`)
   const displayAxis = async spec => geometry(`(()=>{
     const e=document.querySelector(${JSON.stringify(`section[aria-label="${spec.section} rows"] tbody tr:first-child [data-grid-field="${spec.field}"]`)});if(!e)return null
@@ -593,7 +593,7 @@ try {
     const afterFocus = await editorAxis(spec)
     editorAxes[spec.field] = afterFocus
     verify(Boolean(beforeFocus && afterFocus && JSON.stringify(beforeFocus.rect) === JSON.stringify(afterFocus.rect) && Math.abs(beforeFocus.center-afterFocus.center)<=0.6 && Math.abs(beforeFocus.headerCenter-afterFocus.headerCenter)<=0.6), `${spec.label} numeric text axis does not shift on focus`, { before: beforeFocus, after: afterFocus })
-    verify(Boolean(afterFocus && afterFocus.focused && Math.abs(afterFocus.headerCenter-afterFocus.center)<=1 && afterFocus.inputTextAlign==='left' && afterFocus.inputPaddingLeft==='6px' && Number.parseFloat(afterFocus.inputPaddingRight)<=24), `${spec.label} focused editor uses the full fixed frame without compact decimal anchoring`, afterFocus)
+    verify(Boolean(afterFocus && afterFocus.focused && Math.abs(afterFocus.headerCenter-afterFocus.center)<=1 && afterFocus.inputTextAlign==='left' && afterFocus.scrollLeft===0 && Number.parseFloat(afterFocus.inputPaddingRight)<=24), `${spec.label} focused editor preserves its decimal anchor and stable initial scroll position`, afterFocus)
     verify(Boolean(afterFocus && afterFocus.stepperCount === 0 && Number.parseFloat(afterFocus.inputPaddingRight) <= 24), `${spec.label} body editor has no visible spinner or spinner-only gutter`, afterFocus)
   }
 

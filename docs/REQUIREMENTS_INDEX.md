@@ -80,18 +80,18 @@ The latest finalized logic establishes:
 
 Two additional global numeric UX decisions are recorded in [`CROSS_CUTTING.md`](specs/CROSS_CUTTING.md#numeric-display-and-editing): editing/focus must hydrate the authoritative full value rather than the rounded display string, and the entire displayed value of a directly edited unsaved cell must be blue until its owning save/commit succeeds while calculated/derived-only changes retain normal text color. Authoritative-full-value-on-edit and full-precision stepping are **IMPLEMENTED / EXTERNALLY ACCEPTED** from their separate prior corrections. The direct-edit blue-value indicator remains **NOT STARTED**. The current pre-Round-4B corrective pass is **IMPLEMENTED / AWAITING EXTERNAL AUDIT**. The latest finalized centerline direction requires actual numeric header text center = fixed numeric region/input center = ordinary decimal anchor across applicable Master Data, Cost Breakdown, and Simulation columns. Ordinary-first measured rendered fit replaces arbitrary integer capacities; suffixes remain stationary, fixed Simulation frames preserve their outer geometry, and numeric edits use the complete frame interior with native horizontal scrolling. Exact track proportions remain documented as reversible implementation choices. This correction does not implement Round 4B or the direct-edit blue-value indicator.
 
-## Pre-Round-4B Regression Cleanup — Current Status
+## Pre-Round-4B Follow-up Corrective Pass — Current Status
 
-- **Status:** Round 1 CLOSED; Round 2 CLOSED; Round 3 CLOSED; original Round 4A historical work remains closed; the final pre-Round-4B corrective pass is **IMPLEMENTED / AWAITING EXTERNAL AUDIT**; Round 4B **NOT STARTED / BLOCKED**; global direct-edit blue-value indicator **NOT STARTED**; Round 5 **NOT STARTED**.
-- **Audited starting remote baseline:** `170699bfcecb0f726d489e3111617f51f8d649de` on branch `feat/selected-value-ux`.
+- **Status:** `PRE-ROUND-4B FOLLOW-UP CORRECTIVE IMPLEMENTATION: IMPLEMENTED / INTERNAL VERIFICATION PASSED / AWAITING EXTERNAL AUDIT`; `ROUND 4B: NOT STARTED / BLOCKED`; human visual acceptance is pending.
+- **Audited starting remote baseline:** `bf5f7d9885170f6a16d3d5529a1225554ef9cf7f` on branch `feat/selected-value-ux`.
 - **Requirements reconciliation:**
-  1. **Shared numeric editing:** focus hydrates the authoritative full value and uses the full usable interior of the fixed frame; long drafts use native internal scrolling without moving or resizing the frame. Blur restores compact presentation without changing stored precision.
-  2. **CBD BOM percentage suffix:** bring the `%` closer to the value in main and expanded BOM rows while preserving the existing numeric anchor and Routing layout. Monetary effects receive no percent suffix.
-  3. **Simulation Result rows:** keep each label and Before/After/Change/% metric on one visual row at desktop/tablet widths; reflow only for genuinely narrow viewports. Preserve containment, no unnecessary Result scrollbars, and useful Break-even height.
-  4. **Simulation parameter tracks:** restore balanced equal sibling parameter tracks (14.5% each) and 19.4% calculated-cost tracks, without widening Loss/Yield or disturbing the Status/Identity hierarchy.
-  5. **Expanded Simulation effects:** retain the parent table's shared column geometry and centerlines for each effect and calculated-cost Total; assign reconciliation residue only to a changed factor, leave unchanged trailing Loss/Yield at exact zero, and report unavailable when safe reconciliation is impossible.
-  6. **Simulation Total presentation:** keep neutral `Total` and its signed semantic value on one visual line and baseline without moving the numeric axis or increasing row height.
-  7. **Floating-point noise vs precision:** use narrow semantic equivalence for comparison, context-specific decomposition residue handling, and presentation-only formatting. Preserve legitimate tiny and high-precision authoritative values; do not globally normalize or round stored/calculated values.
+  1. **Shared numeric editing:** focus preserves the ordinary decimal anchor when the value fits. Focus/refocus starts at the stable scroll position; longer drafts retain native keyboard horizontal scrolling inside the fixed frame. Blur restores compact presentation without changing stored precision.
+  2. **CBD BOM Loss suffix:** match accepted Routing `Δ Yield` spacing in main and expanded Reference/Current rows while preserving numeric anchors and column widths. Routing stays unchanged; monetary effects have no `%`.
+  3. **Simulation editor affordance:** Business/Economic numeric inputs use the Simulation Parameter hover/focus treatment without changing their dimensions or geometry.
+  4. **Simulation disclosures:** expanded Parameter Cost Effect rows persist through wheel/scrollbar movement, viewport resizing, and Previous/Next navigation. Explicit row toggles collapse; multiple rows may remain open.
+  5. **Small effect signs:** any positive effect, including `+0.0006`, displays red with a positive sign; any negative effect, including `-0.0006`, displays green with a negative sign; exact zero stays neutral.
+  6. **Simulation responsive height:** at desktop `xl` widths target an approximately 70/30 upper/lower allocation; table bodies fill and scroll within the lower band. Visible row count adapts to viewport height; there is no fixed four-row contract. Preserve Result containment and avoid horizontal overflow.
+  7. **CBD attribution domain:** BOM Loss zero is valid for LMDI attribution; valid stored Loss is inclusive `0..1`. Price/Usage positivity, formulas, and Routing attribution remain unchanged.
 
 ## Reading Order
 

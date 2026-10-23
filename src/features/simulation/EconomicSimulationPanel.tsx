@@ -345,7 +345,7 @@ export function EconomicSimulationPanel({ result, draft, afterSnapshot, unit, on
                       max={max}
                       onValueChange={value => onUpdate(field, value === null ? '' : String(value))}
                       aria-label={ariaLabel ?? label}
-                      className="h-7 w-full border border-slate-300 bg-white px-1.5 text-right text-[11px] text-slate-950 focus:border-blue-700 focus:ring-1 focus:ring-blue-100 xl:h-6"
+                      className="h-7 w-full rounded-sm border border-transparent bg-transparent px-1.5 text-right text-[11px] text-slate-950 transition-colors hover:border-slate-200 hover:bg-slate-50 focus:!border-transparent focus:bg-white focus:!outline focus:!outline-2 focus:!outline-blue-700 focus:!outline-offset-[-2px] xl:h-6"
                     />
                   </SimulationHistoryInputBoundary>
                 </span>
@@ -369,7 +369,7 @@ export function EconomicSimulationPanel({ result, draft, afterSnapshot, unit, on
                       max={max}
                       onValueChange={value => onUpdate(field, value === null ? '' : String(value))}
                       aria-label={ariaLabel ?? label}
-                      className="h-7 w-full border border-slate-300 bg-white px-1.5 text-right text-[11px] text-slate-950 focus:border-blue-700 focus:ring-1 focus:ring-blue-100 xl:h-6"
+                      className="h-7 w-full rounded-sm border border-transparent bg-transparent px-1.5 text-right text-[11px] text-slate-950 transition-colors hover:border-slate-200 hover:bg-slate-50 focus:!border-transparent focus:bg-white focus:!outline focus:!outline-2 focus:!outline-blue-700 focus:!outline-offset-[-2px] xl:h-6"
                     />
                   </SimulationHistoryInputBoundary>
                 </span>

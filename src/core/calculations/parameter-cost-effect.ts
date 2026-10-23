@@ -151,9 +151,9 @@ export function calculateBOMParameterCostEffects(
   if (!hasBOMInputs(reference) || !hasBOMInputs(current)) return UNAVAILABLE
 
   if (!isPositiveFinite(reference.usage) || !isPositiveFinite(reference.price)
-    || !isPositiveFinite(reference.loss)
     || !isPositiveFinite(current.usage) || !isPositiveFinite(current.price)
-    || !isPositiveFinite(current.loss)) return UNAVAILABLE
+    || reference.loss < 0 || reference.loss > 1
+    || current.loss < 0 || current.loss > 1) return UNAVAILABLE
 
   const referenceLossFactor = 1 + reference.loss!
   const currentLossFactor = 1 + current.loss!

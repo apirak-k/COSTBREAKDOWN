@@ -1148,6 +1148,15 @@ try {
     verify(centerlines.length >= 20 && centerlineFailures.length === 0,
       `Cost Breakdown rendered numeric Header/frame/decimal centerlines agree at ${width}px`, { centerlines, failures: centerlineFailures })
     const corrections = await evaluate(`(${cbdCorrectionGeometry.toString()})()`)
+    const routingYieldMetrics = await evaluate(`(()=>{
+      const table=[...document.querySelectorAll('table')].find(candidate=>candidate.querySelector('caption')?.textContent.includes('Routing Candidate findings'))
+      const header=[...(table?.querySelectorAll('thead tr:first-child th')??[])].find(cell=>cell.textContent.includes('Δ Yield'))
+      const cell=header&&table?.querySelector('tbody tr[data-candidate-reorder-row]')?.children[[...header.parentElement.children].indexOf(header)]
+      const token=cell?.querySelector('[data-numeric-token]'),suffix=cell?.querySelector('[data-numeric-suffix]')
+      const r=e=>{const b=e?.getBoundingClientRect();return b?{left:b.left,right:b.right,width:b.width}:null}
+      return token&&suffix?{gap:suffix.getBoundingClientRect().left-token.getBoundingClientRect().right,table:r(table),cell:r(cell),numeric:r(cell.querySelector('[data-numeric-region]')),token:r(token),suffix:r(suffix)}:null
+    })()`)
+    const routingYieldGap = routingYieldMetrics?.gap
     verify(corrections.totals.length === 2 && corrections.totals.every(total => total.separate
       && total.label.right + 4 <= total.token.left && total.token.right <= total.numeric.right + 1
       && total.label.left >= total.cell.left
@@ -1163,21 +1172,25 @@ try {
     }
     verify(lossSuffixRows.length >= 3 && lossSuffixRows.every(loss => loss.suffix
       && loss.suffix.left >= loss.token.right
-      && loss.suffix.left - loss.token.right <= 12
-      && loss.suffix.right <= loss.cell.right + 1),
-      `BOM main and expanded Reference/Current Loss keep an adjacent percent gap at ${width}px`, corrections.loss)
+      && loss.suffix.right <= loss.cell.right + 1
+      && loss.visiblePercentCount === 1),
+      `BOM main and expanded Reference/Current Loss keep the percent inside the numeric cell at ${width}px`, corrections.loss)
     verify(lossGroups.size > 0 && [...lossGroups.values()].every(group => {
       const rows = [group.main, group.Reference, group.Current]
       const gaps = rows.map(row => row?.suffix?.left - row?.token?.right)
       const centers = rows.map(row => (row?.numeric?.left + row?.numeric?.right) / 2)
       return rows.every(row => row?.suffix && row.suffixVisibility !== 'hidden')
-        && gaps.every(gap => Number.isFinite(gap) && gap >= 0 && gap <= 12)
+        && gaps.every(gap => Number.isFinite(gap) && gap >= 0)
         && Math.max(...gaps) - Math.min(...gaps) <= 1
         && Math.max(...centers) - Math.min(...centers) <= 1
         && group['Parameter Cost Effect']?.suffix === null
         && !group['Parameter Cost Effect']?.text.includes('%')
     }),
     `BOM main and expanded Loss suffixes share one axis while monetary effects stay unmarked at ${width}px`, [...lossGroups.entries()])
+    verify(Number.isFinite(routingYieldGap) && lossSuffixRows.every(loss =>
+      Math.abs(loss.suffix.left - loss.token.right - routingYieldGap) <= 1),
+    `BOM main and expanded Reference/Current Loss suffix gaps match unchanged Routing Yield spacing at ${width}px`,
+    { routingYieldMetrics, lossGaps: lossSuffixRows.map(loss => ({ label: loss.label, gap: loss.suffix.left - loss.token.right, cellWidth: loss.cell.width, numericWidth: loss.numeric.width })) })
     await screenshot(`cbd-selected-value-${width}`)
   }
 

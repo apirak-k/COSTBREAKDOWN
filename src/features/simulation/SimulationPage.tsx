@@ -476,7 +476,6 @@ function SimulationParameterTable({
   const [scrollbarWidth, setScrollbarWidth] = useState(0)
   const [viewportState, setViewportState] = useState({ start: 0, end: 0, total: 0, atTop: true, atBottom: true })
   const [expandedRows, setExpandedRows] = useState<Set<string>>(() => new Set())
-  useTransientInteraction(expandedRows.size > 0, () => setExpandedRows(new Set()))
   const [dragRowOrder, setDragRowOrder] = useState<string[] | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const previousSearchQueryRef = useRef(searchQuery)
@@ -674,7 +673,7 @@ function SimulationParameterTable({
   }, [])
 
   return (
-    <section ref={sectionRef} data-simulation-table={kind} className="min-w-0 border border-slate-300 bg-white xl:flex xl:flex-col xl:overflow-hidden xl:self-start" aria-label={tableIdentity}>
+    <section ref={sectionRef} data-simulation-table={kind} className="min-w-0 border border-slate-300 bg-white xl:flex xl:h-full xl:min-h-0 xl:flex-col xl:overflow-hidden" aria-label={tableIdentity}>
       <div className="hidden md:flex xl:shrink-0">
         <table role="presentation" className="w-full min-w-0 flex-1 table-fixed border-separate border-spacing-0 text-[11px]">
           {renderColumnGroup()}
@@ -698,7 +697,7 @@ function SimulationParameterTable({
         </table>
         <div aria-hidden="true" className="shrink-0 bg-slate-900 shadow-[inset_0_-1px_0_#334155]" style={{ width: scrollbarWidth }} />
       </div>
-      <div ref={bodyRef} data-simulation-table-body="true" className="overflow-x-hidden md:overflow-y-visible xl:h-40 xl:flex-none xl:overflow-y-auto xl:[scrollbar-gutter:stable]">
+      <div ref={bodyRef} data-simulation-table-body="true" className="min-h-0 overflow-x-hidden md:overflow-y-visible xl:flex-1 xl:overflow-y-auto xl:[scrollbar-gutter:stable]">
         <table
           className="hidden w-full table-fixed border-separate border-spacing-0 text-[11px] md:table"
           onPointerMove={event => updateHoveredInputFrame(event.clientX, event.clientY)}
@@ -1300,8 +1299,8 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
   )
 
   return (
-    <div className="min-w-0 space-y-3 xl:flex xl:h-full xl:min-h-0 xl:flex-col xl:gap-2 xl:space-y-0 xl:overflow-hidden">
-      <div className="grid min-w-0 gap-2 xl:min-h-0 xl:flex-[1.25] xl:grid-cols-[minmax(0,2.82fr)_minmax(0,1.63fr)_minmax(max-content,.85fr)] xl:grid-rows-1">
+    <div data-simulation-layout-root="true" className="min-w-0 space-y-3 xl:flex xl:h-full xl:min-h-0 xl:flex-col xl:gap-2 xl:space-y-0 xl:overflow-hidden">
+      <div className="grid min-w-0 gap-2 xl:min-h-0 xl:flex-[7_1_0%] xl:grid-cols-[minmax(0,2.82fr)_minmax(0,1.63fr)_minmax(max-content,.85fr)] xl:grid-rows-1">
         <SimulationStoryGraph story={story} unit={unit} activeRole={state.role} onSelectActiveDataset={onSelectActiveDataset} />
         <div data-simulation-layout-column="result-and-break-even" className="grid min-w-0 gap-2 xl:min-h-0 xl:grid-rows-[auto_minmax(0,1fr)]">
           <ResultPanel
@@ -1333,7 +1332,7 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
         />
       </div>
 
-      <div className="grid min-w-0 gap-2 xl:flex-none xl:grid-cols-2 xl:grid-rows-[auto] xl:items-start">
+      <div className="grid min-w-0 gap-2 xl:min-h-0 xl:flex-[3_1_0%] xl:grid-cols-2 xl:grid-rows-1 xl:items-stretch">
         <SimulationParameterTable
           kind="bom"
           activeRole={state.role}

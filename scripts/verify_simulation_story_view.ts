@@ -26,8 +26,12 @@ try {
     'negative cost effects show a minus sign and green styling')
   assert.deepEqual(parameterEffectPresentation(0), { text: '0.00', className: 'text-slate-700' },
     'zero parameter effects are neutral and never receive a plus sign')
-  assert.deepEqual(parameterEffectPresentation(-0.001), { text: '0.00', className: 'text-slate-700' },
-    'values that round to zero remain neutral and do not show negative zero')
+  assert.deepEqual(parameterEffectPresentation(0.0006), { text: '+0.0006', className: 'text-rose-700' },
+    'a positive effect smaller than one displayed cent keeps its sign, precision, and red styling')
+  assert.deepEqual(parameterEffectPresentation(-0.0006), { text: '-0.0006', className: 'text-emerald-700' },
+    'a negative effect smaller than one displayed cent keeps its sign, precision, and green styling')
+  assert.deepEqual(parameterEffectPresentation(-0.001), { text: '-0.0010', className: 'text-emerald-700' },
+    'a nonzero effect never becomes neutral or displays as zero')
   assert.deepEqual(parameterEffectPresentation(null), { text: '—', className: 'text-slate-400' },
     'unavailable parameter effects remain unavailable rather than becoming zero')
 

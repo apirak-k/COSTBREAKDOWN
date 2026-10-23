@@ -81,7 +81,7 @@ async function waitFor(check, label, timeoutMs = 15000) {
     if ((vite && vite.exitCode !== null) || chrome.exitCode !== null) break
     await delay(100)
   }
-  throw new Error(`${label} did not become ready. Vite output:\n${viteOutput.join('').slice(-3000)}`)
+  throw new Error(`${label} did not become ready. Vite output:\n${viteOutput.join('').slice(-3000)}\nBrowser errors:\n${browserErrors?.join('\n') ?? ''}`)
 }
 
 try {
@@ -279,7 +279,7 @@ try {
     }
     const group=suffix?.parentElement??e.parentElement,suffixRect=suffix?.getBoundingClientRect()
     return {
-      focused:document.activeElement===e,fit:e.dataset.numericFit,font:s.fontFamily,scrollWidth:e.scrollWidth,clientWidth:e.clientWidth,reserveEnd:Number(e.dataset.numericReserveEnd||0),headerCenter,regionCenter:(r.left+r.right)/2,text:e.value,x:r.x,width:r.width,height:r.height,right:r.right,textAlign:s.textAlign,paddingLeft:s.paddingLeft,paddingRight:s.paddingRight,
+      focused:document.activeElement===e,fit:e.dataset.numericFit,font:s.fontFamily,scrollWidth:e.scrollWidth,clientWidth:e.clientWidth,scrollLeft:e.scrollLeft,reserveEnd:Number(e.dataset.numericReserveEnd||0),headerCenter,regionCenter:(r.left+r.right)/2,text:e.value,x:r.x,width:r.width,height:r.height,right:r.right,textAlign:s.textAlign,paddingLeft:s.paddingLeft,paddingRight:s.paddingRight,
       decimal:point<0?null:start+pointOffset,
       tokenRight:start+textWidth,
       visibleTokenRight:Math.min(start+textWidth,r.right-parseFloat(s.borderRightWidth)),
@@ -307,7 +307,9 @@ try {
       if (previousAxis !== undefined) assert.ok(Math.abs(previousAxis - blurred.decimal) <= 0.6, aria + ' integer growth shares the column decimal axis')
       ordinaryAxes.set(aria, blurred.decimal)
     }
-    if (focused.fits) assert.ok(focused.textAlign === 'left' && focused.paddingLeft === '6px', aria + ' focused draft uses the full fixed-frame interior without compact anchoring')
+    if (focused.fits && blurred.decimal !== null && focused.decimal !== null) {
+      assert.ok(Math.abs(focused.decimal - blurred.decimal) <= 0.6, aria + ' fitting authoritative draft preserves the compact decimal anchor on focus')
+    }
     assert.deepEqual([focused.x, focused.width, focused.height], [blurred.x, blurred.width, blurred.height], aria + ' Focus keeps outer rectangle fixed')
     if (value === '110') {
       await evaluate('document.activeElement.select()')
@@ -575,11 +577,23 @@ try {
   await screenshot('numeric-centerline-scientific-extremes')
   const longLabel = 'Measured -1e+300 at 77'
   const longBefore = await inputMetrics(longLabel)
-  await clickInput(longLabel)
+  await evaluate(`(()=>${visibleInputExpression(longLabel)}.focus())()`)
   const longFocused = await inputMetrics(longLabel)
   assert.equal(Number(longFocused.text), -1e300, 'long native edit exposes the complete authoritative scientific source as decimal digits')
   assert.ok(longFocused.scrollWidth > longFocused.clientWidth, 'long focused draft uses native internal horizontal overflow')
+  assert.equal(longFocused.scrollLeft, 0, 'initial focus does not move the long authoritative value to an arbitrary horizontal scroll position')
   assert.deepEqual([longFocused.x,longFocused.width,longFocused.height], [longBefore.x,longBefore.width,longBefore.height], 'extreme authoritative edit preserves the fixed native outer frame')
+  await evaluate('document.activeElement.setSelectionRange(0,0)')
+  await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'End', code: 'End', windowsVirtualKeyCode: 35 })
+  await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'End', code: 'End', windowsVirtualKeyCode: 35 })
+  const longNavigated = await inputMetrics(longLabel)
+  assert.equal(await evaluate('document.activeElement.selectionStart'), longFocused.text.length, 'End reaches digits hidden outside the fixed frame')
+  assert.ok(longNavigated.scrollLeft > 0, 'native caret navigation scrolls the fixed input only when the user moves to hidden digits')
+  await blurNumeric()
+  await evaluate(`(()=>${visibleInputExpression(longLabel)}.focus())()`)
+  const longRefocused = await inputMetrics(longLabel)
+  assert.equal(longRefocused.scrollLeft, 0, 'blur/refocus restarts the long editor at its stable initial view')
+  assert.deepEqual([longRefocused.x,longRefocused.width,longRefocused.height], [longBefore.x,longBefore.width,longBefore.height], 'blur/refocus preserves the fixed native outer frame')
   await blurNumeric()
   results.scientificFloor = extremeColumns
 
@@ -756,6 +770,9 @@ try {
   const readOnlyFocusBeforeHover = await readOnlyFocusGeometry()
   await movePointer(readOnlyFocusPoint)
   await delay(400)
+  if (await headerText() !== '43.12345679') {
+    await waitFor(async () => (await headerText()) === '43.12345679', 'unfocused native read-only hover preview after its dwell', 1200)
+  }
   assert.equal(await headerText(), '43.12345679', 'unfocused native read-only hover previews a rounded Header value')
   assert.equal(await headerSteppers(), 0, 'native read-only hover remains non-editable')
   assert.equal(await evaluate('document.querySelector(\'header input[aria-label="Selected value"]\')'), null, 'native read-only hover does not expose a Header writer')

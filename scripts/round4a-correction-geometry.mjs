@@ -46,12 +46,15 @@ export function cbdCorrectionGeometry() {
     const token = cell.querySelector('[data-numeric-token]')
     const suffix = cell.querySelector('[data-numeric-suffix]')
     const numeric = cell.querySelector('[data-numeric-region]')
+    const visiblePercentCount = [...cell.querySelectorAll('[data-numeric-suffix]')]
+      .filter(element => getComputedStyle(element).visibility !== 'hidden' && element.getClientRects().length > 0 && element.textContent.trim() === '%').length
     return {
       token: token ? bounds(token) : null,
       suffix: suffix ? bounds(suffix) : null,
       numeric: numeric ? bounds(numeric) : null,
       cell: bounds(cell),
       text: cell.textContent.trim(),
+      visiblePercentCount,
       suffixVisibility: suffix ? getComputedStyle(suffix).visibility : null
     }
   }

@@ -148,10 +148,10 @@ export function BOMRecordDetails({
     return <SelectedNumber numericColumn signPositive={side === 'effect'}
       value={percentage ? value * 100 : value}
       percentage={percentage}
-      compactPercentSuffix={percentage && field === 'loss'}
       selectionId={`${selectionIdPrefix}:${side}:${field}`}
       aria-label={`${label} ${field} ${visible}`}
-      className="text-right"
+      compactPercentSuffix={percentage && field === 'loss'}
+      className={percentage && field === 'loss' ? 'text-right [&_[data-numeric-suffix]]:!ml-[max(25.84px,calc(3.9vw_-_25.48px))]' : 'text-right'}
     >{visible}</SelectedNumber>
   }
 

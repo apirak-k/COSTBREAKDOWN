@@ -159,8 +159,8 @@ try {
     process.stdout.write(`Browser input: ${ariaLabel} observed ${JSON.stringify(actual)}\n`)
     return actual
   }
-  const setViewport = async width => {
-    await send('Emulation.setDeviceMetricsOverride', { width, height: 900, deviceScaleFactor: 1, mobile: false })
+  const setViewport = async (width, height = 900) => {
+    await send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: false })
     await delay(350)
   }
   const screenshot = async name => {
@@ -491,6 +491,109 @@ try {
         && mainHover==='rgb(248, 250, 252)' && detailHover==='rgb(255, 255, 255)'),
       { ...group, mainHover, detailHover, fullStart, noInset, fullEnd })
   }
+  for (const kind of ['bom', 'routing']) {
+    const sectionSelector = `section[data-simulation-table="${kind}"]`
+    const rowSelector = `${sectionSelector} tbody tr[data-simulation-row-index]`
+    const bodySelector = `${sectionSelector} [data-simulation-table-body]`
+    const initial = await evaluate(`(()=>{
+      const body=document.querySelector(${JSON.stringify(bodySelector)}),row=document.querySelector(${JSON.stringify(rowSelector)})
+      body?.scrollIntoView({block:'center',inline:'nearest'})
+      if(body)body.scrollTop=0
+      const r=body?.getBoundingClientRect()
+      return body&&r?{expanded:row?.getAttribute('aria-expanded'),scrollHeight:body.scrollHeight,clientHeight:body.clientHeight,scrollTop:body.scrollTop,left:r.left,right:r.right,top:r.top,bottom:r.bottom,clientWidth:body.clientWidth,width:r.width}:null
+    })()`)
+    const overflow = initial?.scrollHeight > initial?.clientHeight + 2
+    check(`${kind.toUpperCase()} expanded disclosure has a real internally scrollable body`,
+      initial?.expanded === 'true' && overflow, initial)
+    if (!overflow) continue
+
+    const wheelPoint = { x: initial.left + Math.min(40, initial.clientWidth / 2), y: (initial.top + initial.bottom) / 2 }
+    await send('Input.dispatchMouseEvent', { type: 'mouseWheel', ...wheelPoint, deltaX: 0, deltaY: 180 })
+    await delay(180)
+    const afterWheel = await evaluate(`(()=>{const body=document.querySelector(${JSON.stringify(bodySelector)}),row=document.querySelector(${JSON.stringify(rowSelector)});return{scrollTop:body?.scrollTop,expanded:row?.getAttribute('aria-expanded')}})()`)
+    check(`${kind.toUpperCase()} wheel scrolling keeps its expanded disclosure open`,
+      afterWheel?.scrollTop > 0 && afterWheel.expanded === 'true', afterWheel)
+
+    await evaluate(`(()=>{const body=document.querySelector(${JSON.stringify(bodySelector)});if(body)body.scrollTop=0})()`)
+    await delay(120)
+    const thumb = await evaluate(`(()=>{
+      const body=document.querySelector(${JSON.stringify(bodySelector)}),r=body?.getBoundingClientRect()
+      if(!body||!r)return null
+      const track=body.clientHeight,thumbHeight=Math.max(18,track*track/body.scrollHeight),gutter=r.width-body.clientWidth
+      return{left:r.left,right:r.right,top:r.top,bottom:r.bottom,scrollTop:body.scrollTop,scrollHeight:body.scrollHeight,clientHeight:track,gutter,thumbHeight,x:r.left+body.clientWidth+gutter/2,y:r.top+thumbHeight/2}
+    })()`)
+    if (thumb && thumb.gutter > 3) {
+      await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: thumb.x, y: thumb.y })
+      await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: thumb.x, y: thumb.y, button: 'left', clickCount: 1 })
+      await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: thumb.x, y: Math.max(thumb.y + 8, thumb.bottom - thumb.thumbHeight / 2 - 2), button: 'left', buttons: 1 })
+      await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: thumb.x, y: Math.max(thumb.y + 8, thumb.bottom - thumb.thumbHeight / 2 - 2), button: 'left', clickCount: 1 })
+      await delay(180)
+    }
+    const afterScrollbar = await evaluate(`(()=>{const body=document.querySelector(${JSON.stringify(bodySelector)}),row=document.querySelector(${JSON.stringify(rowSelector)});return{scrollTop:body?.scrollTop,expanded:row?.getAttribute('aria-expanded')}})()`)
+    check(`${kind.toUpperCase()} native scrollbar dragging keeps its expanded disclosure open`,
+      Boolean(thumb?.gutter > 3 && afterScrollbar?.scrollTop > 0 && afterScrollbar.expanded === 'true'), { thumb, afterScrollbar })
+
+    await evaluate(`(()=>{const body=document.querySelector(${JSON.stringify(bodySelector)});if(body)body.scrollTop=0})()`)
+    await delay(180)
+    const rangeSelector = `${sectionSelector} footer span[aria-live="polite"]`
+    const visibleRange = () => evaluate(`document.querySelector(${JSON.stringify(rangeSelector)})?.textContent.trim()??null`)
+    const rangeBeforeNext = await visibleRange()
+    const nextButton = `button[aria-label="Next ${kind === 'bom' ? 'BOM' : 'Routing'} row"]`
+    const nextState = await evaluate(`(()=>{const b=document.querySelector(${JSON.stringify(nextButton)}),body=document.querySelector(${JSON.stringify(bodySelector)});return{disabled:b?.disabled,scrollTop:body?.scrollTop}})()`)
+    if (nextState?.disabled === false) await clickSelector(nextButton)
+    if (nextState?.disabled === false) await waitFor(async () => (await visibleRange()) !== rangeBeforeNext, `${kind.toUpperCase()} Next visible range update`, 1500)
+    const afterNext = await evaluate(`(()=>{const body=document.querySelector(${JSON.stringify(bodySelector)}),row=document.querySelector(${JSON.stringify(rowSelector)}),range=document.querySelector(${JSON.stringify(rangeSelector)});return{scrollTop:body?.scrollTop,expanded:row?.getAttribute('aria-expanded'),range:range?.textContent.trim()??null}})()`)
+    check(`${kind.toUpperCase()} footer Next navigation preserves the expanded disclosure`,
+      nextState?.disabled === false && afterNext?.scrollTop > 0 && afterNext.range !== rangeBeforeNext && afterNext.expanded === 'true', { rangeBeforeNext, nextState, afterNext })
+    const previousButton = `button[aria-label="Previous ${kind === 'bom' ? 'BOM' : 'Routing'} row"]`
+    const previousState = await evaluate(`(()=>{const b=document.querySelector(${JSON.stringify(previousButton)});return{disabled:b?.disabled}})()`)
+    if (previousState?.disabled === false) await clickSelector(previousButton)
+    const afterPrevious = await evaluate(`(()=>{const body=document.querySelector(${JSON.stringify(bodySelector)}),row=document.querySelector(${JSON.stringify(rowSelector)}),range=document.querySelector(${JSON.stringify(rangeSelector)});return{scrollTop:body?.scrollTop,expanded:row?.getAttribute('aria-expanded'),range:range?.textContent.trim()??null}})()`)
+    check(`${kind.toUpperCase()} footer Previous navigation preserves the expanded disclosure`,
+      previousState?.disabled === false && afterPrevious.expanded === 'true', { rangeBeforeNext, previousState, afterNext, afterPrevious })
+
+    const secondRow = await evaluate(`(()=>{
+      const rows=[...document.querySelectorAll(${JSON.stringify(`${sectionSelector} tbody tr[data-simulation-row-index][aria-expanded="false"]`)})]
+      return rows.find(row=>row.getAttribute('aria-label')?.includes('activate to expand Parameter Cost Effect'))?.getAttribute('aria-label')??null
+    })()`)
+    if (secondRow) {
+      const secondPoint = await evaluate(`(()=>{const row=[...document.querySelectorAll(${JSON.stringify(`${sectionSelector} tbody tr[data-simulation-row-index][aria-expanded="false"]`)})].find(row=>row.getAttribute('aria-label')===${JSON.stringify(secondRow)});row?.scrollIntoView({block:'center',inline:'nearest'});const r=row?.querySelector('th[scope="row"]')?.getBoundingClientRect();return r?{x:r.left+r.width/2,y:r.top+r.height/2}:null})()`)
+      await clickAt(secondPoint)
+      const bothOpen = await evaluate(`(()=>[...document.querySelectorAll(${JSON.stringify(`${sectionSelector} tbody tr[data-simulation-row-index]`)})].filter(row=>row.getAttribute('aria-expanded')==='true').length)()`)
+      check(`${kind.toUpperCase()} permits multiple parameter effect disclosures to remain open`, bothOpen >= 2, { secondRow, bothOpen })
+      await clickAt(secondPoint)
+      const firstStillOpen = await evaluate(`document.querySelector(${JSON.stringify(rowSelector)})?.getAttribute('aria-expanded')==='true'`)
+      check(`${kind.toUpperCase()} explicitly closing one disclosure leaves the other open`, firstStillOpen, { secondRow })
+    } else {
+      check(`${kind.toUpperCase()} fixture has a second eligible row for multi-disclosure verification`, false, { secondRow })
+    }
+
+    const firstPoint = await evaluate(`(()=>{const row=document.querySelector(${JSON.stringify(rowSelector)});row?.scrollIntoView({block:'center',inline:'nearest'});const r=row?.querySelector('th[scope="row"]')?.getBoundingClientRect();return r?{x:r.left+r.width/2,y:r.top+r.height/2}:null})()`)
+    await clickAt(firstPoint)
+    const closed = await evaluate(`document.querySelector(${JSON.stringify(rowSelector)})?.getAttribute('aria-expanded')==='false'`)
+    check(`${kind.toUpperCase()} explicit disclosure toggle still collapses the row`, closed)
+    await clickAt(firstPoint)
+    const reopened = await evaluate(`document.querySelector(${JSON.stringify(rowSelector)})?.getAttribute('aria-expanded')==='true'`)
+    check(`${kind.toUpperCase()} explicit disclosure toggle reopens the row`, reopened)
+  }
+  await setViewport(390, 900)
+  await evaluate('(()=>{const main=document.querySelector("#main-content");if(main)main.scrollTop=0})()')
+  await delay(120)
+  await evaluate('(()=>{const main=document.querySelector("#main-content");if(main)main.scrollTop=main.scrollHeight})()')
+  await delay(180)
+  const mobileViewportScroll = await evaluate(`(()=>{
+    const main=document.querySelector('#main-content')
+    const expanded=['bom','routing'].map(kind=>({kind,expanded:document.querySelector('section[data-simulation-table="'+kind+'"] tbody tr[data-simulation-row-index]')?.getAttribute('aria-expanded')}))
+    return{clientHeight:main?.clientHeight,scrollHeight:main?.scrollHeight,scrollTop:main?.scrollTop,expanded}
+  })()`)
+  check('Scrollable mobile Simulation viewport scrolling preserves expanded BOM and Routing disclosures',
+    Boolean(mobileViewportScroll?.scrollHeight > mobileViewportScroll?.clientHeight + 1
+      && mobileViewportScroll?.scrollTop > 0 && mobileViewportScroll.expanded.every(row => row.expanded === 'true')),
+    mobileViewportScroll)
+  await setViewport(1024, 900)
+  const resizedExpandedRows = await evaluate(`(()=>['bom','routing'].map(kind=>({kind,expanded:document.querySelector('section[data-simulation-table="'+kind+'"] tbody tr[data-simulation-row-index]')?.getAttribute('aria-expanded')})))()`)
+  check('Expanded BOM and Routing disclosures survive the tablet viewport change', resizedExpandedRows.every(row => row.expanded === 'true'), resizedExpandedRows)
+  await setViewport(1440, 900)
   await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 2, y: 2 })
   await delay(80)
 
@@ -1114,6 +1217,93 @@ try {
   }
 
   }
+
+  await setViewport(1440, 900)
+  const simulationInputStyle = async ariaLabel => {
+    const point = await evaluate(`(()=>{const input=[...document.querySelectorAll('input')].find(e=>e.getAttribute('aria-label')===${JSON.stringify(ariaLabel)}&&e.getClientRects().length);if(!input)return null;input.scrollIntoView({block:'center',inline:'nearest'});const r=input.getBoundingClientRect();return{x:r.left+r.width/2,y:r.top+r.height/2}})()`)
+    if (!point) return null
+    await send('Input.dispatchMouseEvent', { type: 'mouseMoved', ...point })
+    await delay(240)
+    const hovered = await evaluate(`(()=>{const input=[...document.querySelectorAll('input')].find(e=>e.getAttribute('aria-label')===${JSON.stringify(ariaLabel)}&&e.getClientRects().length),target=input?.closest('td')?.querySelector('[data-simulation-input-frame="true"]')??input;if(!input||!target)return null;const r=input.getBoundingClientRect(),s=getComputedStyle(target);return{rect:{left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height},border:s.borderLeftColor,background:s.backgroundColor,outlineStyle:s.outlineStyle,outlineWidth:s.outlineWidth,outlineColor:s.outlineColor,outlineOffset:s.outlineOffset,radius:s.borderTopLeftRadius}})()`)
+    await clickAt(point)
+    const focused = await evaluate(`(()=>{const input=[...document.querySelectorAll('input')].find(e=>e.getAttribute('aria-label')===${JSON.stringify(ariaLabel)}&&e.getClientRects().length),target=input?.closest('td')?.querySelector('[data-simulation-input-frame="true"]')??input;if(!input||!target)return null;const r=input.getBoundingClientRect(),s=getComputedStyle(target);return{active:document.activeElement===input,rect:{left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height},border:s.borderLeftColor,background:s.backgroundColor,outlineStyle:s.outlineStyle,outlineWidth:s.outlineWidth,outlineColor:s.outlineColor,outlineOffset:s.outlineOffset,radius:s.borderTopLeftRadius}})()`)
+    await evaluate(`(()=>{const input=[...document.querySelectorAll('input')].find(e=>e.getAttribute('aria-label')===${JSON.stringify(ariaLabel)}&&e.getClientRects().length);input?.blur()})()`)
+    await delay(240)
+    const blurredHover = await evaluate(`(()=>{const input=[...document.querySelectorAll('input')].find(e=>e.getAttribute('aria-label')===${JSON.stringify(ariaLabel)}&&e.getClientRects().length),target=input?.closest('td')?.querySelector('[data-simulation-input-frame="true"]')??input;if(!input||!target)return null;const r=input.getBoundingClientRect(),s=getComputedStyle(target);return{rect:{left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height},border:s.borderLeftColor,background:s.backgroundColor,outlineStyle:s.outlineStyle,outlineWidth:s.outlineWidth,outlineColor:s.outlineColor,outlineOffset:s.outlineOffset,radius:s.borderTopLeftRadius}})()`)
+    await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 2, y: 2 })
+    await delay(80)
+    return { hovered, focused, blurredHover }
+  }
+  const referenceInputLabel = await evaluate(`([...document.querySelectorAll('section[data-simulation-table="bom"] input[data-numeric-editor]')].find(input=>input.getAttribute('aria-label')?.endsWith('Price in Current')))?.getAttribute('aria-label')??null`)
+  const referenceInputStyle = referenceInputLabel ? await simulationInputStyle(referenceInputLabel) : null
+  const inputStyleResults = []
+  for (const ariaLabel of ['Selling Price', 'SG&A %', 'Variable Action Cost / Unit', 'Fixed Action Cost', 'Batch Size']) {
+    inputStyleResults.push({ ariaLabel, ...(await simulationInputStyle(ariaLabel) ?? { missing: true }) })
+  }
+  const styleMatches = metric => Boolean(metric?.hovered && metric?.focused?.active && metric?.blurredHover
+    && ['left', 'right', 'top', 'bottom', 'width', 'height'].every(edge => Math.abs(metric.hovered.rect[edge] - metric.focused.rect[edge]) <= 0.25
+      && Math.abs(metric.hovered.rect[edge] - metric.blurredHover.rect[edge]) <= 0.25)
+    && metric.hovered.border === 'rgb(226, 232, 240)' && metric.hovered.background === 'rgb(248, 250, 252)'
+    && metric.focused.border === 'rgba(0, 0, 0, 0)' && metric.focused.background === 'rgb(255, 255, 255)'
+    && metric.focused.outlineStyle === 'solid' && metric.focused.outlineWidth === '2px'
+    && metric.focused.outlineColor === 'rgb(29, 78, 216)' && metric.focused.outlineOffset === '-2px'
+    && metric.focused.radius === '2px'
+    && metric.blurredHover.border === 'rgb(226, 232, 240)' && metric.blurredHover.background === 'rgb(248, 250, 252)'
+    && metric.blurredHover.outlineStyle === 'none')
+  check('Simulation Parameter reference keeps hover and focus on its fixed input frame',
+    styleMatches(referenceInputStyle), referenceInputStyle)
+  check('Business and Economic numeric inputs match Simulation Parameter hover/focus treatment without moving or resizing',
+    inputStyleResults.length === 5 && inputStyleResults.every(styleMatches), { reference: referenceInputStyle, fields: inputStyleResults })
+
+  const heightLayouts = []
+  for (const height of [900, 720]) {
+    await setViewport(1440, height)
+    await evaluate('(()=>{window.scrollTo({top:0,left:0,behavior:"instant"});for(const body of document.querySelectorAll("[data-simulation-table-body]"))body.scrollTop=0})()')
+    await delay(180)
+    const layout = await evaluate(`(()=>{
+      const root=document.querySelector('[data-simulation-layout-root]'),upper=root?.children[0],lower=root?.children[1]
+      const box=e=>{if(!e)return null;const r=e.getBoundingClientRect();return{left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height}}
+      const result=document.querySelector('section[aria-labelledby="simulation-result-title"]'),breakEven=document.querySelector('figure[aria-labelledby="break-even-graph-title"]')
+      const inputPanel=document.querySelector('[data-simulation-layout-column="inputs"]'),inputPanelBox=box(inputPanel)
+      const inputs=[...(inputPanel?.querySelectorAll('input')??[])].filter(input=>input.getClientRects().length).map(input=>{const b=box(input);return{aria:input.getAttribute('aria-label'),...b,inside:!!inputPanelBox&&b.left>=inputPanelBox.left-1&&b.right<=inputPanelBox.right+1&&b.top>=inputPanelBox.top-1&&b.bottom<=inputPanelBox.bottom+1}})
+      const tableBodies=[...document.querySelectorAll('[data-simulation-table-body]')].map(body=>({clientHeight:body.clientHeight,scrollHeight:body.scrollHeight,overflowY:getComputedStyle(body).overflowY,inside:body.getBoundingClientRect().top>=0&&body.getBoundingClientRect().bottom<=innerHeight+1}))
+      const rootBox=box(root),upperBox=box(upper),lowerBox=box(lower),resultBox=box(result),breakEvenBox=box(breakEven)
+      return{viewport:{width:innerWidth,height:innerHeight},documentWidth:document.documentElement.scrollWidth,root:rootBox,upper:upperBox,lower:lowerBox,upperShare:upperBox&&lowerBox?upperBox.height/(upperBox.height+lowerBox.height):null,result:resultBox,breakEven:breakEvenBox,inputs,inputCount:inputs.length,tableBodies,overlap:!!resultBox&&!!breakEvenBox&&resultBox.bottom>breakEvenBox.top+1,breakEvenContained:!!rootBox&&!!breakEvenBox&&breakEvenBox.top>=rootBox.top-1&&breakEvenBox.bottom<=rootBox.bottom+1}
+    })()`)
+    const splitValid = layout?.upperShare >= 0.68 && layout?.upperShare <= 0.72
+    check(`Simulation ${height}px layout keeps an approximately 70/30 upper/lower split and full viewport containment`,
+      Boolean(layout && layout.documentWidth <= 1441 && layout.root.top >= 0 && layout.root.bottom <= height + 1
+        && splitValid && layout.breakEvenContained && !layout.overlap && layout.breakEven.height >= 100), layout)
+    check(`Simulation ${height}px retains readable Business/Economic inputs and internally scrollable table bodies`,
+      Boolean(layout?.inputCount === 5 && layout.inputs.every(input => input.inside && input.height >= 20)
+        && layout.tableBodies.length === 2 && layout.tableBodies.every(body => body.clientHeight >= 35 && body.overflowY === 'auto' && body.inside)),
+      { inputs: layout?.inputs, tableBodies: layout?.tableBodies })
+    if (height === 900) await screenshot('simulation-layout-1440x900')
+    if (height === 720) await screenshot('simulation-layout-1440x720')
+    heightLayouts.push(layout)
+  }
+  check('Simulation table body height adapts to the available viewport height',
+    Boolean(heightLayouts.length === 2 && heightLayouts[1]?.tableBodies.every((body, index) => body.clientHeight < heightLayouts[0]?.tableBodies[index]?.clientHeight)),
+    heightLayouts.map(layout => ({ height: layout.viewport.height, bodyHeights: layout.tableBodies.map(body => body.clientHeight) })))
+  if (finalCorrectionsOnly) {
+    for (const kind of ['bom', 'routing']) {
+      const rowSelector = `section[data-simulation-table="${kind}"] tbody tr[data-simulation-row-index]`
+      const rowState = await evaluate(`(()=>{const row=document.querySelector(${JSON.stringify(rowSelector)});return row?.getAttribute('aria-expanded')})()`)
+      if (rowState !== 'true') {
+        const point = await evaluate(`(()=>{const row=document.querySelector(${JSON.stringify(rowSelector)});row?.scrollIntoView({block:'center',inline:'nearest'});const r=row?.querySelector('th[scope="row"]')?.getBoundingClientRect();return r?{x:r.left+r.width/2,y:r.top+r.height/2}:null})()`)
+        await clickAt(point)
+      }
+    }
+  }
+  await setViewport(1024, 768)
+  await evaluate('(()=>window.scrollTo({top:0,left:0,behavior:"instant"}))()')
+  const tabletLayout = await evaluate(`(()=>({
+    viewportWidth:innerWidth,documentWidth:document.documentElement.scrollWidth,
+    sections:['bom','routing'].map(kind=>{const section=document.querySelector('section[data-simulation-table="'+kind+'"]'),r=section?.getBoundingClientRect();return{kind,visible:!!r&&r.width>0&&r.height>0,left:r?.left,right:r?.right,expanded:section?.querySelector('tbody tr[data-simulation-row-index]')?.getAttribute('aria-expanded')}})
+  }))()`)
+  check('Simulation 1024x768 keeps both tables visible in the page layout without horizontal overflow',
+    tabletLayout.documentWidth <= 1025 && tabletLayout.sections.length === 2 && tabletLayout.sections.every(section => section.visible && section.left >= 0 && section.right <= 1025 && section.expanded === 'true'), tabletLayout)
+  await setViewport(1440, 900)
 
   check('Browser page produced no console errors or uncaught exceptions', browserErrors.length === 0, browserErrorDetails)
   process.stdout.write(`Evidence screenshots: ${evidenceDir}\n`)

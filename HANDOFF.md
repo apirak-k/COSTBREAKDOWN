@@ -1,4 +1,36 @@
-# Pre-Round-4B Corrective Implementation — 2026-10-23
+# Pre-Round-4B Follow-up Corrective Implementation — 2026-10-23
+
+- **Branch / worktree:** `feat/selected-value-ux` / `E:\COSTBREAKDOWN\.worktrees\SIMULATION-FINALIZED`
+- **Actual starting remote HEAD:** `bf5f7d9885170f6a16d3d5529a1225554ef9cf7f`, verified with `git ls-remote` before implementation and again before delivery.
+- **Required status:** `PRE-ROUND-4B FOLLOW-UP CORRECTIVE IMPLEMENTATION: IMPLEMENTED / INTERNAL VERIFICATION PASSED / AWAITING EXTERNAL AUDIT`.
+- **Round 4B:** `NOT STARTED / BLOCKED`. Human visual acceptance remains pending; this is not a gate closure or user acceptance.
+- **Scope:** the seven narrow follow-up corrections only. No Round 4B feature or blue changed-value indicator was started.
+- **Corrections:**
+  1. NumericInput keeps its decimal anchor through focus when possible, preserves the fixed frame, resets native horizontal scroll on focus/refocus, and allows user navigation to scroll long drafts.
+  2. Cost Breakdown BOM Loss `%` spacing matches unchanged Routing Yield geometry in the main row and expanded Reference/Current values; monetary effect rows have no `%`.
+  3. Business/Economic inputs use the Simulation Parameter hover/focus treatment without changing their dimensions.
+  4. Simulation expanded rows persist through scrolling, scrollbar use, viewport resizing, and footer actions; explicit toggles still close them and multiple rows may remain open.
+  5. Simulation parameter effect sign and color follow the raw semantic sign for every nonzero value; exact zero stays neutral.
+  6. Desktop Simulation uses an approximately 70/30 upper/lower height allocation; table bodies fill and scroll within the lower area without a fixed four-row height.
+  7. BOM Loss accepts finite values from 0 through 1 inclusive for LMDI attribution; negative and over-100% Loss remain invalid, and Price/Usage/Routing domains are unchanged.
+- **Preserved:** the accepted `bf5f7d9` behavior and calculations outside those seven points, including authoritative values, stored precision, business formulas, graph behavior, Result/Break-even containment, existing column geometry, and Master Data/CBD behavior outside the BOM Loss spacing correction.
+- **Verification:**
+  - `node scripts/verify_numeric_input.mjs`: **334/334 PASS**.
+  - `node scripts/verify_numeric_input_browser.mjs`: **2346/2346 PASS**.
+  - `node scripts/verify_master_data_selected_value.mjs`: **148/148 PASS**.
+  - `node scripts/verify_cbd_selected_value_browser.mjs`: **306/306 PASS**.
+  - `node scripts/verify_cbd_parameter_cost_effect.mjs`: **PASS**, including zero Loss reconciliation and invalid-domain cases.
+  - `npx tsx scripts/verify_comparison_reconciliation.ts`: **PASS**.
+  - `node --experimental-strip-types scripts/verify_simulation_story_view.ts`: **PASS**, including small signed effect presentation.
+  - `node scripts/verify_simulation_round4a_layout.mjs --final-corrections-only`: **49/49 PASS**.
+  - `node scripts/verify_simulation_round4a_layout.mjs --numeric-layout-only`: **157/157 PASS**.
+  - `node scripts/verify_simulation_regression.mjs`: **PASS / exit 0** across its Simulation, CBD, Master Data, comparison, and history suites. The nested runner logs repeated WebSocket port `24678`-in-use messages; these did not fail a suite assertion.
+  - Full `node scripts/verify_simulation_round4a_layout.mjs`: **259/264 PASS**. The same five out-of-scope mobile Ruler checks remain as the recorded `231/236` baseline: 390px natural-width checks for `350.00` and `15,000.00`, 390px `350.00` drag, 320px natural-width check for `350.00`, and 320px `350.00` drag. No additional failure remains. The mobile viewport scroll test reaches `scrollTop=3216` while both disclosures remain open.
+  - `npx tsc --noEmit --pretty false`, `npm run build`, six changed `.mjs` `node --check` checks, and `git diff --check`: **PASS**. The build retains existing ExcelJS/fast-csv Node-module externalization and large-chunk warnings. No lint script is defined.
+- **Browser evidence:** Master Data desktop `C:\Users\Boom\AppData\Local\Temp\costbreakdown-master-selected-evidence-2MoCR3\master-data-final-desktop.png`; CBD desktop `C:\Users\Boom\AppData\Local\Temp\costbreakdown-cbd-selected-evidence-3C0YmS\cbd-selected-value-1440.png`; Simulation height cases `C:\Users\Boom\AppData\Local\Temp\costbreakdown-simulation-round4a-evidence-ilnAdA\simulation-layout-1440x900.png` and `...\simulation-layout-1440x720.png`; expanded-row screenshots are in the same `ilnAdA` directory; final-corrections evidence is under `C:\Users\Boom\AppData\Local\Temp\costbreakdown-simulation-round4a-evidence-JmbFkb`.
+- **External review:** human visual acceptance and external audit are outstanding. Do not start Round 4B or mark this gate closed.
+
+# Previous Pre-Round-4B Corrective Implementation — 2026-10-23 (historical)
 
 - **Branch:** `feat/selected-value-ux`
 - **Audited Starting Remote HEAD:** `170699bfcecb0f726d489e3111617f51f8d649de`
