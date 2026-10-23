@@ -313,6 +313,15 @@ export function EconomicSimulationPanel({ result, draft, afterSnapshot, unit, on
     }
   ]
   economicOutputs.push({
+    label: 'Operating Profit',
+    ariaLabel: 'Operating Profit / Unit',
+    formula: 'Effective After Selling Price − effective After Standard Cost − SG&A / Unit',
+    value: result.operatingProfitPerPiece,
+    className: result.operatingProfitPerPiece === null ? 'text-slate-500'
+      : result.operatingProfitPerPiece > 0 ? 'text-emerald-800'
+        : result.operatingProfitPerPiece < 0 ? 'text-rose-800' : 'text-slate-600'
+  })
+  economicOutputs.push({
     label: 'Break-even Qty',
     ariaLabel: 'Break-even Quantity',
     formula: 'Fixed Action Cost ÷ (Parameter Saving / Unit − Variable Action Cost / Unit)',
@@ -375,8 +384,8 @@ export function EconomicSimulationPanel({ result, draft, afterSnapshot, unit, on
             </div>
             <div className="mt-1 grid grid-cols-1 gap-y-0">
               {economicOutputs.map(({ label, ariaLabel, formula, value, displayValue, className }) => (
-                <div key={label} role="group" aria-label={ariaLabel} className={`flex min-w-0 items-baseline justify-between gap-1 py-0.5 xl:py-0 ${label === 'Break-even Qty' ? 'mt-1 border-t border-slate-200 pt-1' : ''}`} title={formula}>
-                  <span className="truncate text-[9px] text-slate-600">{label}</span>
+                <div key={label} role="group" aria-label={ariaLabel} className={`flex min-w-0 items-baseline justify-between gap-1 py-0.5 xl:py-0 ${label === 'Break-even Qty' || label === 'Operating Profit' ? 'mt-1 border-t border-slate-200 pt-1' : ''}`} title={formula}>
+                  <span className="text-[9px] text-slate-600">{label}</span>
                   <span className={`shrink-0 font-mono text-[10px] font-semibold tabular-nums ${className}`}>{displayValue ?? <BusinessNumber value={value} />}</span>
                 </div>
               ))}

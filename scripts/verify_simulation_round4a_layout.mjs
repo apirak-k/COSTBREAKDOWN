@@ -32,6 +32,7 @@ async function unusedPort() {
 
 const delay = ms => new Promise(resolveDelay => setTimeout(resolveDelay, ms))
 const repository = process.cwd()
+const finalCorrectionsOnly = process.argv.includes('--final-corrections-only')
 const numericLayoutOnly = process.argv.includes('--numeric-layout-only')
 const rulerOnly = process.argv.includes('--ruler-only')
 const visibleTotalsOnly = process.argv.includes('--visible-totals-only')
@@ -251,6 +252,77 @@ try {
   await delay(800)
   await screenshot('simulation-seeded-1440-before-expansion')
 
+  if (finalCorrectionsOnly) {
+    for (const kind of ['bom','routing']) {
+      const section=`section[data-simulation-table="${kind}"]`
+      const header=`${section} button[role="checkbox"]`
+      const row=`${section} tbody tr[data-simulation-row-index] td:first-child button[aria-pressed]`
+      const selectionGeometry=()=>evaluate(`(()=>{
+        const section=document.querySelector(${JSON.stringify(section)}),header=section.querySelector('button[role="checkbox"]');
+        const rows=[...section.querySelectorAll('tbody tr[data-simulation-row-index] td:first-child button[aria-pressed]')];
+        const box=e=>{const b=e.getBoundingClientRect(),style=getComputedStyle(e);return {width:b.width,height:b.height,center:b.left+b.width/2,radius:style.borderRadius}};
+        return {checked:header.getAttribute('aria-checked'),selected:rows.filter(e=>e.getAttribute('aria-pressed')==='true').length,total:rows.length,header:box(header),rows:rows.map(box)};
+      })()`)
+      for (const state of ['none','mixed','all']) {
+        if(state==='mixed') await clickSelector(row)
+        if(state==='all') await clickSelector(header)
+        const geometry=await selectionGeometry()
+        const expected=state==='none'?'false':state==='mixed'?'mixed':'true'
+        check(`Simulation ${kind} selection ${state} retains matching 28px header/row squares and semantics`,geometry.checked===expected&&geometry.total>1&&geometry.selected===(state==='none'?0:state==='mixed'?1:geometry.total)&&[geometry.header,...geometry.rows].every(b=>Math.abs(b.width-28)<0.5&&Math.abs(b.height-28)<0.5&&b.radius===geometry.header.radius&&Math.abs(b.center-geometry.header.center)<1),geometry)
+        const point=await evaluate(`(()=>{const r=document.querySelector(${JSON.stringify(header)}).getBoundingClientRect();return{x:r.left+r.width/2,y:r.top+r.height/2}})()`)
+        await send('Input.dispatchMouseEvent',{type:'mouseMoved',...point})
+        const hovered=await selectionGeometry()
+        check(`Simulation ${kind} selection ${state} hover keeps square geometry`,JSON.stringify(hovered)===JSON.stringify(geometry),hovered)
+      }
+      await clickSelector(header)
+      const restored=await selectionGeometry()
+      check(`Simulation ${kind} Select-All restores none after all`,restored.checked==='false'&&restored.selected===0,restored)
+    }
+    const outcomeState = () => evaluate(`(()=>{
+      const outcome=document.querySelector('[aria-labelledby="simulation-economic-outcome-title"]');
+      const rows=[...outcome.querySelectorAll('[role="group"]')];
+      const op=rows.find(e=>e.getAttribute('aria-label')==='Operating Profit / Unit');
+      const table=document.querySelector('[data-simulation-result-body] table');
+      const value=label=>{const row=[...table.querySelectorAll('tbody tr')].find(e=>e.querySelector('th')?.textContent===label);return Number(row?.querySelectorAll('td')[1]?.textContent.replaceAll(',','').trim())};
+      return {labels:rows.map(e=>e.querySelector('span')?.textContent),op:op?.querySelector('[data-numeric-token]')?.textContent, color:op?.lastElementChild.className,unit:outcome.firstElementChild.textContent,expected:value('Selling Price')-value('Standard Cost')-value('SG&A')};
+    })()`)
+    await typeIntoInput('SG&A %', '10')
+    for (const sellingPrice of ['10000', '0']) {
+      await typeIntoInput('Selling Price', sellingPrice)
+      await evaluate('document.activeElement?.blur()')
+      await delay(250)
+      const state=await outcomeState()
+      const actual=Number(state.op?.replaceAll(',','').trim())
+      check(`Outcome Operating Profit uses canonical dynamic signed economics at Selling Price ${sellingPrice}`,Number.isFinite(actual)&&Math.abs(actual-state.expected)<0.03&&(sellingPrice==='0'?actual<0&&state.color.includes('rose'):actual>0&&state.color.includes('emerald')),state)
+      check('Outcome hierarchy retains full Operating Profit label between Margin and Break-even with shared UOM',state.labels.join('|')==='Parameter Saving|Required Saving|Economic Margin|Operating Profit|Break-even Qty'&&state.unit.includes('THB/'),state)
+    }
+    for (const width of [1440,1024,768,390,320]) {
+      await setViewport(width)
+      await evaluate('document.querySelector("[data-simulation-result-body]").scrollIntoView({block:"center",inline:"nearest"})')
+      const state=await evaluate(`(()=>{
+        const body=document.querySelector('[data-simulation-result-body]'),table=body.querySelector('table'),r=body.getBoundingClientRect();
+        const numeric=[...table.querySelectorAll('td')].map(cell=>{const b=cell.getBoundingClientRect();const tokens=[...cell.querySelectorAll('[data-numeric-token]')].map(e=>{const range=document.createRange();range.selectNodeContents(e);const t=range.getBoundingClientRect();return {left:t.left,right:t.right}});return {left:b.left,right:b.right,tokens}});
+        const header=[...table.querySelectorAll('thead th')].map(e=>e.textContent.trim());
+        return {width:body.clientWidth,scroll:body.scrollWidth,table:table.getBoundingClientRect().width,viewport:innerWidth,inside:r.left>=0&&r.right<=innerWidth+1,numeric,header,suffixFonts:[...table.querySelectorAll('td [data-numeric-suffix]')].map(e=>({suffix:getComputedStyle(e).fontSize,numeric:getComputedStyle(e.parentElement.querySelector('[data-numeric-region]')).fontSize})),reflow:getComputedStyle(table.querySelector('tbody tr')).display==='grid'};
+      })()`)
+      check(`Result ${width}px fits card without horizontal scroll and retains four numeric headings`,state.scroll<=state.width+1&&state.table<=state.width+1&&state.inside&&state.header.length===5&&state.header[3]==='Change'&&state.header[4]==='%',state)
+      check(`Result ${width}px numeric tokens stay inside individual columns without overlap`,state.numeric.length===32&&state.suffixFonts.length===8&&state.suffixFonts.every(f=>f.suffix===f.numeric)&&state.numeric.every(c=>c.tokens.every(t=>t.left>=c.left-1&&t.right<=c.right+1)),state.numeric)
+      check(`Result ${width}px intentionally reflows labels in narrow cards`,state.reflow===(state.width<464),{width:state.width,reflow:state.reflow})
+      const axes=await evaluate(`(${numericColumnGeometry.toString()})(document.querySelector('[data-simulation-result-body]'))`)
+      const axisFailures=numericCenterlineFailures(axes)
+      check(`Result ${width}px headers, numeric regions and ordinary decimals retain common centers`,axes.length===32&&axisFailures.length===0,{count:axes.length,failures:axisFailures})
+      if (width===320) {
+        await typeIntoInput('Selling Price', '1'+'0'.repeat(300))
+        await evaluate('document.activeElement?.blur()')
+        await delay(250)
+        const extremes=await evaluate(`(${numericColumnGeometry.toString()})(document.querySelector('[data-simulation-result-body]'))`)
+        const failures=numericCenterlineFailures(extremes)
+        check('Result 320px extreme finite monetary/scientific values retain fit and alignment',extremes.length===32&&extremes.some(e=>e.scientific)&&failures.length===0,{count:extremes.length,failures})
+        await evaluate('document.querySelector("[data-simulation-result-body]").scrollIntoView({block:"center",inline:"nearest"})')
+      }
+      await screenshot(`final-corrections-result-${width}`)
+    }
+  } else {
   if (!numericLayoutOnly) {
   const originalSellingPrice = await evaluate(`document.querySelector('input[aria-label="Selling Price"]').value`)
   // Exercise the real ruler at ordinary and wider monetary ranges without changing graph logic.
@@ -312,9 +384,8 @@ try {
     for(const kind of ['bom','routing']){
       const section=document.querySelector('section[data-simulation-table="'+kind+'"]'),header=section?.querySelector('table[role="presentation"]'),bodyTable=section?.querySelector('div[data-simulation-table-body] table'),row=bodyTable?.querySelector('tbody tr[data-simulation-row-index]')
       const labels=kind==='bom'?['Price','Usage','Loss','Material Cost']:['Manning','Capacity','Yield','Conversion Cost']
-      const axis=element=>{if(!element)return null;const range=document.createRange();range.selectNodeContents(element);const boxes=[...range.getClientRects()];return boxes.length?Math.max(...boxes.map(box=>box.right)):null}
-      const headerCells=[...(header?.querySelectorAll('thead th')??[])]
-      const columns=labels.map(label=>{const index=headerCells.findIndex(cell=>cell.innerText.trim()===label||cell.innerText.includes(label));const cell=row?.children[index];const input=cell?.querySelector('input');const valueAxis=input?(()=>{const r=input.getBoundingClientRect(),s=getComputedStyle(input);return r.right-(parseFloat(s.borderRightWidth)||0)})():axis(cell?.querySelector('span')??cell);return{label,index,headerAxis:axis(headerCells[index]?.querySelector('span')??headerCells[index]),valueAxis,text:input?.value??cell?.textContent.trim()??null,hasInput:!!input,aria:input?.getAttribute('aria-label')??null}})
+      const geometry=(${numericColumnGeometry.toString()})(row)
+      const columns=geometry.map((metric,offset)=>{const cell=row.children[offset+3],input=cell?.querySelector('input');return {label:labels[offset],metric,text:input?.value??cell?.textContent.trim()??null,hasInput:!!input,aria:input?.getAttribute('aria-label')??null}})
       result[kind]={visible:!!section&&section.getClientRects().length>0,columns}
     }
     return result
@@ -322,7 +393,9 @@ try {
   for(const kind of ['bom','routing']){
     const data=referenceTableMetrics[kind]
     check(`${kind.toUpperCase()} Reference role keeps parameter inputs editable and calculated cost read-only`,Boolean(data?.visible&&data.columns.slice(0,3).every(column=>column.hasInput&&column.aria?.endsWith('in Reference')&&column.text)&&!data.columns[3]?.hasInput&&data.columns[3]?.text),data)
-    for(const column of data?.columns??[])check(`${kind.toUpperCase()} Reference ${column.label} value shares its header axis`,Number.isFinite(column.headerAxis)&&Number.isFinite(column.valueAxis)&&Math.abs(column.headerAxis-column.valueAxis)<=3,{header:column.headerAxis,value:column.valueAxis,delta:Number.isFinite(column.headerAxis)&&Number.isFinite(column.valueAxis)?Math.abs(column.headerAxis-column.valueAxis):null,text:column.text,aria:column.aria})
+    check(`${kind.toUpperCase()} Reference role exposes all four numeric columns`,data?.columns.length===4,data)
+    for(const column of data?.columns??[]){const failures=numericCenterlineFailures([column.metric]);check(`${kind.toUpperCase()} Reference ${column.label} header text, numeric region and decimal share a centerline`,failures.length===0,{metric:column.metric,failures})}
+
   }
   await clickRole('Current')
   await waitFor(() => evaluate(`Boolean(document.querySelector('section[data-simulation-table="bom"] tbody tr[data-simulation-row-index] input')?.getClientRects().length)`), 'editable Current Simulation cells')
@@ -396,62 +469,29 @@ try {
       const headerCells=[...(header?.querySelectorAll('thead th')??[])]
       const row=bodyTable?.querySelector('tbody tr[data-simulation-row-index]')
       const expanded=section?.querySelector('tbody tr[id^="'+kind+'-effect-"]')
-      const axisText=element=>{
-        if(!element)return null
-        const range=document.createRange();range.selectNodeContents(element)
-        const boxes=[...range.getClientRects()]
-        return boxes.length?boxes.reduce((best,box)=>box.right>best.right?box:best,boxes[0]).right:null
-      }
-      const cellAxis=(cell,allowInput)=>{
-        if(!cell)return null
-        const input=allowInput?cell.querySelector('input'):null
-        if(input){const r=input.getBoundingClientRect(),s=getComputedStyle(input);return r.right-(parseFloat(s.borderRightWidth)||0)}
-        const candidate=cell.querySelector('span')??cell
-        return axisText(candidate)
-      }
-      const headerTextAxis=cell=>axisText(cell?.querySelector('span')??cell)
       const numericLabels=kind==='bom'?['Price','Usage','Loss','Material Cost']:['Manning','Capacity','Yield','Conversion Cost']
-      const headerIndexes=numericLabels.map(label=>headerCells.findIndex(cell=>cell.innerText.trim()===label||cell.innerText.includes(label)))
-      const displayRow=[...(bodyTable?.querySelectorAll('tbody tr[data-simulation-row-index]')??[])].find(candidate=>candidate!==row&&![...candidate.querySelectorAll('input')].length)
-      result[kind]={
-        visible:visible(section),
-        headerLabels:headerIndexes.map(index=>({label:numericLabels[headerIndexes.indexOf(index)],index,axis:headerTextAxis(headerCells[index]),cellRight:headerCells[index]?.getBoundingClientRect().right??null,cellPaddingRight:headerCells[index]?getComputedStyle(headerCells[index]).paddingRight:null})),
-        body:row?Array.from({length:4},(_,offset)=>{const cell=row.children[offset+3];return {index:offset+3,axis:cellAxis(cell,true),cellRight:cell?.getBoundingClientRect().right??null,tag:cell?.querySelector('input')?'input':'text',aria:cell?.querySelector('input')?.getAttribute('aria-label')??null}}):null,
-        readOnly:displayRow?Array.from({length:4},(_,offset)=>{const cell=displayRow.children[offset+3];return {index:offset+3,axis:cellAxis(cell,false),cellRight:cell?.getBoundingClientRect().right??null}}):null,
-        effect:expanded?[2,3,4,5].map((index)=>{const cell=expanded.children[index];const amount=cell?.querySelector(':scope > span > span:last-child')??cell?.querySelector('span')??cell;return {index,axis:axisText(amount),cellRight:cell?.getBoundingClientRect().right??null,cellPaddingRight:cell?getComputedStyle(cell).paddingRight:null,text:amount?.textContent.trim()??null,readOnly:!cell?.querySelector('input')}}):null,
-        rowCount:bodyTable?.querySelectorAll('tbody tr[data-simulation-row-index]').length??0,
-        tableCount:section?.querySelectorAll('table').length??0,
-        tableText:bodyTable?.innerText.trim().slice(0,160)??null,
-        sectionText:section?.innerText.trim().slice(0,260)??null,
-        bodyDisplay:bodyTable?getComputedStyle(bodyTable).display:null,
-        articles:section?.querySelectorAll('article').length??0
-      }
+      const readOnlyRow=[...(bodyTable?.querySelectorAll('tbody tr[data-simulation-row-index]')??[])].find(candidate=>candidate!==row&&!candidate.querySelector('input'))
+      const geometry=target=>target?(${numericColumnGeometry.toString()})(target):null
+      result[kind]={visible:visible(section),labels:numericLabels,body:geometry(row),readOnly:geometry(readOnlyRow),effect:geometry(expanded),editableCount:row?.querySelectorAll('input').length??0,calculatedReadOnly:!!row?.children[6]&&!row.children[6].querySelector('input'),effectReadOnly:!!expanded&&!expanded.querySelector('input'),totalText:expanded?.children[5]?.textContent.trim()??null}
+
     }
     return result
   })()`)
   for (const kind of ['bom', 'routing']) {
-    const data = desktopTableMetrics[kind]
-    check(`${kind.toUpperCase()} table exposes the header, editable row, and expanded-effect numeric geometry`, Boolean(data?.visible && data?.body && data?.effect), data)
-    if (!data?.headerLabels || !data.body || !data.effect) continue
-    for (let offset = 0; offset < 4; offset += 1) {
-      const headerAxis = data.headerLabels[offset]?.axis
-      const bodyAxis = data.body[offset]?.axis
-      const effectAxis = data.effect[offset]?.axis
-      check(`${kind.toUpperCase()} ${data.headerLabels[offset]?.label ?? `numeric ${offset + 1}`} header/value/effect share a right data axis`,
-        Number.isFinite(headerAxis) && Number.isFinite(bodyAxis) && Number.isFinite(effectAxis) && Math.max(headerAxis, bodyAxis, effectAxis) - Math.min(headerAxis, bodyAxis, effectAxis) <= 3,
-        { header: headerAxis, row: bodyAxis, effect: effectAxis, delta: [headerAxis, bodyAxis, effectAxis].every(Number.isFinite) ? Math.max(headerAxis, bodyAxis, effectAxis) - Math.min(headerAxis, bodyAxis, effectAxis) : null })
-      if (offset === 3) check(`${kind.toUpperCase()} calculated-cost numeric value remains read-only text on the shared axis`,data.body[offset]?.tag==='text'&&!data.body[offset]?.aria&&data.body[offset]?.axis===data.headerLabels[offset]?.axis,{header:data.headerLabels[offset],calculatedCost:data.body[offset]})
+    const data=desktopTableMetrics[kind]
+    check(`${kind.toUpperCase()} table exposes all four header, editable-row, and expanded-effect numeric regions`,Boolean(data?.visible&&data.body?.length===4&&data.effect?.length===4&&data.editableCount===3),data)
+    if(!data?.body||!data.effect) continue
+    for(let offset=0;offset<4;offset++){
+      const metrics=[data.body[offset],data.effect[offset]].filter(Boolean)
+      const failures=numericCenterlineFailures(metrics)
+      check(`${kind.toUpperCase()} ${data.labels[offset]} header text, value, effect and decimal retain shared centers`,metrics.length===2&&failures.length===0&&Math.abs(metrics[0].center-metrics[1].center)<=1,{metrics,failures})
     }
-    if (data.readOnly?.some(value => Number.isFinite(value.axis))) {
-      for (let offset = 0; offset < 4; offset += 1) {
-        const axes = [data.headerLabels[offset]?.axis, data.readOnly[offset]?.axis, data.effect[offset]?.axis].filter(Number.isFinite)
-        check(`${kind.toUpperCase()} ${data.headerLabels[offset]?.label ?? `numeric ${offset + 1}`} read-only/effect/header share an axis`,
-          axes.length >= 3 && Math.max(...axes) - Math.min(...axes) <= 3,
-          { header: data.headerLabels[offset]?.axis, readOnly: data.readOnly[offset]?.axis, effect: data.effect[offset]?.axis })
-      }
+    check(`${kind.toUpperCase()} calculated-cost numeric value remains read-only on its header centerline`,data.calculatedReadOnly&&numericCenterlineFailures([data.body[3]]).length===0,data.body[3])
+    if(data.readOnly){
+      const failures=numericCenterlineFailures(data.readOnly)
+      check(`${kind.toUpperCase()} read-only row retains all four numeric header/decimal centerlines`,data.readOnly.length===4&&failures.length===0,{metrics:data.readOnly,failures})
     }
-    check(`${kind.toUpperCase()} expanded Total is read-only text on the calculated-cost column axis`,
-      Boolean(data.effect[3]?.text && data.effect[3].readOnly && data.effect[3].axis), data.effect[3])
+    check(`${kind.toUpperCase()} expanded Total is read-only and aligned in calculated-cost region`,data.effectReadOnly&&data.totalText?.includes('Total')&&numericCenterlineFailures([data.effect[3]]).length===0,{text:data.totalText,metric:data.effect[3]})
   }
 
   const showAllMetrics = await evaluate(`(()=>{
@@ -835,11 +875,13 @@ try {
 
   }
 
+  }
+
   check('Browser page produced no console errors or uncaught exceptions', browserErrors.length === 0, browserErrorDetails)
   process.stdout.write(`Evidence screenshots: ${evidenceDir}\n`)
   process.stdout.write(`Browser URL: ${baseUrl}\n`)
   const failed = results.filter(result => !result.passed)
-  process.stdout.write(`${numericLayoutOnly ? 'Numeric layout' : visibleTotalsOnly ? 'Visible totals' : rulerOnly ? 'Ruler' : 'Round 4A'} browser checks: ${results.length - failed.length}/${results.length} PASS; exit=${failed.length ? 1 : 0}\n`)
+  process.stdout.write(`${finalCorrectionsOnly ? 'Final corrections' : numericLayoutOnly ? 'Numeric layout' : visibleTotalsOnly ? 'Visible totals' : rulerOnly ? 'Ruler' : 'Round 4A'} browser checks: ${results.length - failed.length}/${results.length} PASS; exit=${failed.length ? 1 : 0}\n`)
   if (failed.length) process.exitCode = 1
 } finally {
   if (client && client.readyState < WebSocket.CLOSING) client.close()

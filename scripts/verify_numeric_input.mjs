@@ -69,6 +69,7 @@ try {
   assert.equal(measuredColumn(-0, 100).text, '0.00', 'numeric-column negative zero stays normalized')
   assert.equal(measuredColumn(100, 100, {}, 24).notation, 'scientific', 'reserved marker space participates in the fractional-region fit')
   assert.ok(numericScientificFitFloor(proportionalMeasure) >= proportionalMeasure('-9.99E+308') + 2, 'scientific floor covers signed three-digit exponents with safe insets')
+  assert.equal(formatHeaderNumericValue(3, true), '3', 'semantic integer Header source retains whole count presentation')
   const numericInputSource = readFileSync(resolve(process.cwd(), 'src/shared/ui/NumericInput.tsx'), 'utf8')
   const { BusinessNumber } = await vite.ssrLoadModule('/src/shared/ui/BusinessNumber.tsx')
   const presentationMarkup = value => renderToStaticMarkup(React.createElement(BusinessNumber, { value }))
@@ -129,21 +130,22 @@ try {
     assert.equal(formatNumericInputValue(value), expected, 'numeric body editor preserves its two → four → scientific display policy')
   }
   const headerPrecisionRegressions = [
-    [20.000000000000004, '20'],
+    [20.000000000000004, '20.00'],
     [20.369999999999997, '20.37'],
-    [20.50000000000001, '20.5'],
+    [20.50000000000001, '20.50'],
     [20.123456789, '20.12345679'],
     [27.3456789, '27.3456789'],
     [0.00003, '0.00003'],
     [1e-9, '1.00e-9'],
     [Number.MIN_VALUE, '4.94e-324'],
-    [27, '27'],
+    [27, '27.00'],
+    [98, '98.00'], [55, '55.00'], [8, '8.00'], [0, '0.00'], [-0, '0.00'],
     [-123.12345678, '-123.12345678']
   ]
   for (const [value, expected] of headerPrecisionRegressions) {
     assert.equal(formatHeaderNumericValue(value), expected, `Header precision regression for ${value}`)
   }
-  assert.equal(formatHeaderNumericValue(0.20000000000000004 * 100), '20', 'Header removes actual percentage display-unit conversion noise')
+  assert.equal(formatHeaderNumericValue(0.20000000000000004 * 100), '20.00', 'Header removes actual percentage display-unit conversion noise')
   assert.equal(formatBusinessNumber(3, { integer: true }), '3', 'semantic counts remain whole')
   assert.equal(formatBusinessNumber(0, { integer: true }), '0')
   assert.equal(formatBusinessNumber(1000, { integer: true }), '1000')

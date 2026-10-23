@@ -1,3 +1,4 @@
+import { cbdCorrectionGeometry } from './round4a-correction-geometry.mjs'
 import { numericColumnGeometry, numericCenterlineFailures } from './numeric-browser-geometry.mjs'
 import assertBase from 'node:assert/strict'
 let assertionCount = 0
@@ -322,12 +323,17 @@ try {
   const assertPercentageSpacing = async aria => {
     const original = await inputValue(aria)
     let suffixX
-    for (const value of ['100', '5', '2', '1', '0.0045', '0.000000001']) {
+    for (const value of ['100', '98', '97', '90', '84', '8', '5', '2', '1', '0.0045', '0.000000001']) {
       await typeInto(aria, value)
       await blurNumeric()
       const blurred = await inputMetrics(aria)
+      if (['100','98','97','90','84','8','5','2','1'].includes(value)) assert.equal(blurred.text, Number(value).toFixed(2), `${aria} real ordinary percentage ${value} must not become scientific: ${JSON.stringify(blurred)}`)
       await clickInput(aria)
       const focused = await inputMetrics(aria)
+      if(value === '8' && aria === masterPercentAria) {
+        const header = await evaluate(`document.querySelector('header input[aria-label="Selected value"]')?.value ?? document.querySelector('[data-selected-value-output]')?.textContent.trim()`)
+        if(header!==undefined)assert.equal(header,'8.00',aria+' real percentage Header retains normal2dp')
+      }
       for (const metric of [blurred, focused]) {
         assert.ok(metric.suffix, aria + ' percentage has dedicated suffix')
         assert.ok(metric.suffixLeft - metric.visibleTokenRight >= 3, aria + ' visible text has breathing room before percent')
@@ -384,7 +390,10 @@ try {
   for (const aria of masterLabels) await assertFitBasedPresentation(aria)
   const masterAria = masterLabels.find(label=>/Labor/i.test(label))??masterLabels[4]
   const masterOriginal = await inputValue(masterAria)
-  for(const value of ['1','35','100','1000','0.0045','110','110.5','12.345678']) await assertFocusAnchor(masterAria,value)
+  for(const value of ['1','35','100','1000','0.0045','110','110.5','12.345678','98','55']) {
+    await assertFocusAnchor(masterAria,value)
+    if(['98','55'].includes(value)){await clickInput(masterAria);assert.equal(await evaluate(`document.querySelector('header input[aria-label="Selected value"]')?.value`),value+'.00','actual Master Data source Header retains normal2dp');await blurNumeric()}
+  }
   for (const [value,display] of [['12.3456789','12.35'],['0.0045','0.0045'],['0.000000001','1.00E-9'],['1234567890','1.23E+9']]) {
     await typeInto(masterAria,value); await blurNumeric()
     const edit = await inputMetrics(masterAria)
@@ -490,9 +499,36 @@ try {
   assert.ok(percentAria && yieldAria, 'real Loss and Yield percentage editors are present')
   for (const aria of [sgaAria, percentAria, yieldAria]) await assertPercentageSpacing(aria)
 
-  for(const width of [1440,1024,768,390,320]) {
+  for(const width of [1440,1366,1280,1024,768,390,320]) {
     await send('Emulation.setDeviceMetricsOverride',{width,height:1800,deviceScaleFactor:1,mobile:false})
     await delay(100)
+    for (const aria of [percentAria,yieldAria]) {
+      const before = await inputValue(aria)
+      for(const value of [1,2,5,84,90,97,98]) {
+        await typeInto(aria,String(value));await blurNumeric()
+        const metric = await inputMetrics(aria)
+        assert.equal(metric.text,value.toFixed(2),`${aria} actual ordinary percentage remains ordinary at ${width}px: ${JSON.stringify(metric)}`)
+        if(width>=768)assert.ok(Math.abs(metric.headerCenter-metric.regionCenter)<=1, `${aria} header/frame center remains aligned at ${width}px`)
+      }
+      await typeInto(aria,before);await blurNumeric()
+    }
+    if(width===1280){
+      const costHeaders=await evaluate(`(()=>[...document.querySelectorAll('[data-simulation-table] thead:not(.sr-only) [data-numeric-column-header]')].filter(e=>/^(Material Cost|Conversion Cost)$/.test(e.textContent)).map(e=>{const r=document.createRange();r.selectNodeContents(e);return {text:e.textContent,lines:r.getClientRects().length}}))()`)
+      assert.equal(costHeaders.length,2,'1280 retains both complete calculated-cost headers')
+      assert.ok(costHeaders.every(header=>header.lines===1),'1280 full calculated-cost headers remain on one readable line')
+      await clickInput(simulationInput)
+      const authoritativePrice=await inputValue(simulationInput)
+      await blurNumeric()
+      const wasExpanded=await evaluate(`(()=>{const row=document.querySelector('[data-simulation-table="bom"] tr[data-simulation-row-index="0"]');const expanded=row.getAttribute('aria-expanded')==='true';if(!expanded)row.click();return expanded})()`)
+      await typeInto(simulationInput,'1'+'0'.repeat(300));await blurNumeric()
+      const total=await evaluate(`(()=>{const region=[...document.querySelectorAll('[data-simulation-table="bom"] [data-numeric-region]')].find(e=>e.textContent.startsWith('Total ')),token=region?.querySelector('[data-numeric-token]');if(!token)return null;const r=region.getBoundingClientRect(),range=document.createRange();range.selectNodeContents(token);const t=range.getBoundingClientRect();return {text:token.textContent,floor:region.dataset.numericFitFloor,left:r.left,right:r.right,tokenLeft:t.left,tokenRight:t.right}})()`)
+      assert.ok(total&&total.text.includes('E+300'), 'actual1280 expanded Parameter Cost Effect exercises signed three-digit scientific Total')
+      assert.equal(total.floor,'adequate','actual expanded Total preserves full supported scientific floor')
+      assert.ok(total.tokenLeft>=total.left-0.6&&total.tokenRight<=total.right+0.6,`expanded Total complete scientific token stays inside numeric region: ${JSON.stringify(total)}`)
+      await screenshot('numeric-expanded-total-scientific-1280')
+      await typeInto(simulationInput,authoritativePrice);await blurNumeric()
+      if(!wasExpanded)await evaluate(`document.querySelector('[data-simulation-table="bom"] tr[data-simulation-row-index="0"]').click()`)
+    }
     for(const aria of ['Selling Price','Variable Action Cost / Unit']) {
       await typeInto(aria,'12345678.9');await blurNumeric()
       assert.ok((await inputMetrics(aria)).fits,`${aria} fits baseline eight digits at ${width}px`)
@@ -509,12 +545,25 @@ try {
   await send('Page.navigate', { url: new URL('/scripts/fixtures/numeric-column-browser.html', baseUrl).href })
   await waitFor(async () => Boolean(await evaluate(`!!document.querySelector('[aria-label="Measured numeric column fixture"]')`)), 'measured numeric column fixture')
   await delay(200)
-  const extremeColumns = await evaluate(`(${numericColumnGeometry.toString()})()`)
+  const extremeColumns = await evaluate(`(${numericColumnGeometry.toString()})(document.querySelector('main'))`).then(metrics=>metrics.filter(metric=>metric.table?.includes('px measured numeric regions')))
   assert.equal(extremeColumns.length, 66, 'all three fixed widths render actual editable/read-only ordinary and extreme scientific values')
   assert.deepEqual(numericCenterlineFailures(extremeColumns), [], 'actual signed scientific tokens and ordinary decimals fit all supported minimum fixed regions')
   assert.ok(extremeColumns.some(metric => metric.text === '-1.00E+300'), 'negative three-digit scientific exponent renders in the actual shared components')
   assert.ok(extremeColumns.some(metric => metric.text === '4.94E-324'), 'smallest finite authoritative number renders its supported scientific token')
   assert.ok(extremeColumns.some(metric => metric.text === '1.80E+308'), 'largest finite authoritative number renders its supported scientific token')
+  const suffixAccessibility = await evaluate(`(()=>[...document.querySelectorAll('[data-suffix-pair-value]')].map(row=>({readOnly:row.children[1].querySelector('[data-numeric-suffix]').getAttribute('aria-hidden'),editor:row.children[3].querySelector('[data-numeric-suffix]').getAttribute('aria-hidden')})))()`)
+  assert.ok(suffixAccessibility.length === 6 && suffixAccessibility.every(pair => pair.readOnly === null && pair.editor === 'true'), 'shared suffix slots preserve accessible read-only percentages and decorative editor suffixes')
+  const suffixPairs = await evaluate(`(()=>[...document.querySelectorAll('[data-suffix-pair-value]')].map(row=>({value:row.dataset.suffixPairValue,regions:[...row.querySelectorAll('[data-numeric-region]')].map(e=>({width:e.getBoundingClientRect().width,text:e.value??e.querySelector('[data-numeric-token]')?.textContent,notation:e.dataset.numericFit}))})))()`)
+  for(const pair of suffixPairs){
+    for(const [plain,percent] of [[0,1],[2,3]]){
+      assert.ok(Math.abs(pair.regions[plain].width-pair.regions[percent].width)<0.1, `same numeric region is independent from suffix gutter for ${pair.value}`)
+      assert.equal(pair.regions[plain].text,pair.regions[percent].text, `suffix cannot change fit notation for ${pair.value}`)
+    }
+  }
+  assert.deepEqual(numericCenterlineFailures(await evaluate(`(${numericColumnGeometry.toString()})(document.querySelector('[data-suffix-pairs]'))`)), [], 'equivalent suffix/plain real shared regions retain all header/decimal/token geometry')
+  const scientificSummary = await evaluate(`(${cbdCorrectionGeometry.toString()})()`)
+  assert.equal(scientificSummary.totals.length,2,'actual Cost Element and Work Center scientific Total fixtures render')
+  assert.ok(scientificSummary.totals.every(t=>t.separate && t.label.right+4<=t.numeric.left && t.token.left>=t.numeric.left-1 && t.token.right<=t.numeric.right+1), `scientific Total labels and tokens stay separate: ${JSON.stringify(scientificSummary)}`)
   await screenshot('numeric-centerline-scientific-extremes')
   const longLabel = 'Measured -1e+300 at 77'
   const longBefore = await inputMetrics(longLabel)
@@ -784,15 +833,15 @@ try {
   assert.equal(await headerText(), '0.00456789', 'read-only selection supports Space')
 
   const headerPrecisionCases = [
-    ['Select floating noise', '20'],
+    ['Select floating noise', '20.00'],
     ['Select rounded noise', '20.37'],
-    ['Select trimmed half', '20.5'],
+    ['Select trimmed half', '20.50'],
     ['Select eight-decimal cap', '20.12345679'],
     ['Select trimmed precision', '27.3456789'],
     ['Select small nonzero', '0.00003'],
     ['Select tiny scientific', '1.00e-9'],
     ['Select minimum number', '4.94e-324'],
-    ['Select whole number', '27']
+    ['Select whole number', '27.00']
   ]
   for (const [label, expected] of headerPrecisionCases) {
     await buttonByText('Clear selected value')
@@ -804,14 +853,14 @@ try {
   const percentageNoisePoint = await numberPoint('Select percentage noise')
   await movePointer(percentageNoisePoint)
   await delay(400)
-  assert.equal(await headerText(), '20', 'percentage float noise is normalized in an actual browser hover preview')
+  assert.equal(await headerText(), '20.00', 'percentage float noise is normalized in an actual browser hover preview')
   assert.match(await evaluate('document.querySelector("[data-header-value]").textContent'), /%/, 'percentage hover preview keeps its percent suffix')
   assert.equal(await headerSteppers(), 0, 'percentage preview remains read-only')
   await movePointer(outsideNumberPoint)
   await delay(100)
   assert.equal(await headerText(), '—', 'leaving percentage preview clears an unanchored Header')
   await clickButton(byAria('Select percentage noise'))
-  assert.equal(await headerText(), '20', 'percentage floating-point noise is removed in Header presentation')
+  assert.equal(await headerText(), '20.00', 'percentage floating-point noise is removed in Header presentation')
   assert.match(await evaluate('document.querySelector("[data-header-value]").textContent'), /%/, 'Header keeps the percentage suffix after noise cleanup')
   await buttonByText('Clear selected value')
   await clickButton(byAria('Select tiny result'))

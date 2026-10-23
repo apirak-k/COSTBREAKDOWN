@@ -1,3 +1,4 @@
+import { selectionColumnStates, cbdCorrectionGeometry } from './round4a-correction-geometry.mjs'
 import { numericColumnGeometry, numericCenterlineFailures } from './numeric-browser-geometry.mjs'
 import assert from 'node:assert/strict'
 import { spawn, execFileSync } from 'node:child_process'
@@ -1084,6 +1085,13 @@ try {
       'actual Candidate drag-and-drop triggers React dragstart, target dragover and drop, reorders a row, and preserves active Pin and selection state', { pin: reorderPinHeader, mechanism: dragMechanism, reactEvents:{sawReactDragStart,sawReactTargetDragOver,sawReactTargetDrop}, before: reorderSetup.before, source: reorderSetup.source, sourceRow: reorderSetup.sourceRow, target: reorderSetup.target, targetRow: reorderSetup.targetRow, setup:{handle:reorderSetup.handle,targetPoint:reorderSetup.targetPoint,viewport:reorderSetup.viewport,mainScrollTop:reorderSetup.mainScrollTop},nativeDragEvents,finalDragEvents,after:reordered })
   }
 
+  const selectionShapes = await evaluate(`(${selectionColumnStates.toString()})()`)
+  verify(selectionShapes.length === 2 && selectionShapes.every(table => table.restored && table.states.every(state =>
+    state.checked === state.state && state.header.width === 32 && state.header.height === 32 && state.rows.length > 0
+    && state.rows.every(row => row.width === state.header.width && row.height === state.header.height
+      && row.radius === state.header.radius && Math.abs(row.center - state.header.center) < 1))),
+    'each table keeps matching Header/row selection squares in none, mixed and all states and restores original selection', selectionShapes)
+
   // Snapshot all responsive viewport states after restoring the main row.
   for (const width of [1440, 1024, 768, 390, 320]) {
     await setViewport(width, 900)
@@ -1137,6 +1145,15 @@ try {
     const centerlineFailures = numericCenterlineFailures(centerlines.filter(metric => metric.hasTable || metric.header !== null))
     verify(centerlines.length >= 20 && centerlineFailures.length === 0,
       `Cost Breakdown rendered numeric Header/frame/decimal centerlines agree at ${width}px`, { centerlines, failures: centerlineFailures })
+    const corrections = await evaluate(`(${cbdCorrectionGeometry.toString()})()`)
+    verify(corrections.totals.length === 2 && corrections.totals.every(total => total.separate && total.padding === '36px'
+      && total.label.right + 4 <= total.numeric.left && total.token.left >= total.numeric.left - 1
+      && total.token.right <= total.numeric.right + 1 && total.label.left >= total.cell.left
+      && Math.abs((total.label.top + total.label.bottom) / 2 - (total.token.top + total.token.bottom) / 2) <= 3),
+      `Total annotations have dedicated same-line slots outside unchanged numeric regions at ${width}px`, corrections.totals)
+    verify(corrections.loss.length > 0 && corrections.loss.every(loss => Math.abs(loss.suffix.left - loss.token.right - 4) <= 0.5
+      && loss.suffix.right <= loss.cell.right + 1),
+      `real BOM delta Loss keeps a separate compact 4px percent gap at ${width}px`, corrections.loss)
     await screenshot(`cbd-selected-value-${width}`)
   }
 

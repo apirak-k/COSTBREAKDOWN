@@ -32,8 +32,9 @@ export function formatBusinessNumber(value: number | null | undefined, options: 
 }
 
 /** Header-only precision: round the presentation to eight decimals without changing the source value. */
-export function formatHeaderNumericValue(value: number | null | undefined): string {
+export function formatHeaderNumericValue(value: number | null | undefined, integer = false): string {
   if (value == null || !Number.isFinite(value)) return ''
+  if (integer) return String(Math.round(value))
 
   // Keep very large magnitudes in Number's scientific form, matching the existing full-value convention.
   if (Math.abs(value) >= 1e21) return String(value)
@@ -43,7 +44,8 @@ export function formatHeaderNumericValue(value: number | null | undefined): stri
   const trimmed = rounded.includes('.')
     ? rounded.replace(/0+$/, '').replace(/\.$/, '')
     : rounded
-  return trimmed === '-0' ? '0' : trimmed
+  const [whole, fraction = ''] = (trimmed === '-0' ? '0' : trimmed).split('.')
+  return `${whole}.${fraction.padEnd(2, '0')}`
 }
 
 /** Expand Number's own representation so a text editor can retain decimal caret stepping. */

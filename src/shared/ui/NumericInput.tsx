@@ -1,4 +1,5 @@
 import { ChevronDown, ChevronUp } from 'lucide-react'
+import { NumericColumnSlot } from './NumericColumnSlot'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { FocusEvent, InputHTMLAttributes, KeyboardEvent, PointerEvent as ReactPointerEvent } from 'react'
 import { businessNumberPresentation, formatFocusedNumericValue, formatFullNumericValue, formatHeaderNumericValue } from './numeric-display'
@@ -65,9 +66,9 @@ export function NumericInput({
   const formatValue = (next: number | null | undefined) => displayMode === 'full'
     ? formatFullNumericValue(next)
     : displayMode === 'header'
-      ? formatHeaderNumericValue(next)
+      ? formatHeaderNumericValue(next, integer)
       : numericColumn ? (next == null || !Number.isFinite(next) ? '' : columnPresentation(next).text) : formatNumericInputValue(next, { ...domain, integerDigits })
-  const wrapperRef = useRef<HTMLDivElement>(null)
+  const wrapperRef = useRef<HTMLSpanElement>(null)
   const currentValueRef = useRef(value)
   const onValueChangeRef = useRef(onValueChange)
   const lastEmittedValueRef = useRef(value)
@@ -285,7 +286,7 @@ export function NumericInput({
   }, [focused, draft, integer, min, max, minExclusive])
 
   return (
-    <div ref={wrapperRef} className={`relative w-full min-w-0 ${percentSuffix ? 'grid grid-cols-[minmax(0,1fr)_0.6rem] items-center gap-1' : ''}`}>
+    <NumericColumnSlot elementRef={wrapperRef} percentage={percentSuffix} suffixAriaHidden className="[&>[data-numeric-suffix]]:text-xs">
       <input
         {...inputProps}
         ref={inputRef}
@@ -349,8 +350,6 @@ export function NumericInput({
         data-numeric-presentation={presentation.notation}
         data-numeric-fraction-digits={presentation.fractionDigits}
       />
-      {percentSuffix && <span data-numeric-suffix="true" aria-hidden="true"
-        className="pointer-events-none flex items-center justify-center font-mono text-xs tabular-nums">%</span>}
       {showStepper && !inputProps.disabled && !inputProps.readOnly && (
         <span
           style={percentSuffix ? { right: reserveMarker ? 'calc(1rem + 1.25rem)' : 'calc(1rem + 0.25rem)' } : undefined}
@@ -392,6 +391,6 @@ export function NumericInput({
           </button>
         </span>
       )}
-    </div>
+    </NumericColumnSlot>
   )
 }

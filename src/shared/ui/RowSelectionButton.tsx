@@ -7,6 +7,7 @@ interface RowSelectionButtonProps {
   onClick: () => void
   disabled?: boolean
   variant?: 'dark' | 'light'
+  size?: 28 | 32
 }
 
 export const RowSelectionButton = forwardRef<HTMLButtonElement, RowSelectionButtonProps>(function RowSelectionButton({
@@ -14,11 +15,12 @@ export const RowSelectionButton = forwardRef<HTMLButtonElement, RowSelectionButt
   label,
   onClick,
   disabled = false,
-  variant = 'dark'
+  variant = 'dark',
+  size = 28
 }, ref) {
   const stateClass = variant === 'light'
     ? state === 'all'
-      ? 'border border-slate-800 bg-slate-700 text-white'
+      ? 'border border-slate-800 bg-slate-700 text-white ring-1 ring-inset ring-slate-800'
       : state === 'mixed'
         ? 'border border-slate-400 bg-slate-300 text-slate-900 ring-1 ring-inset ring-slate-400'
         : 'text-slate-700 hover:bg-slate-200'
@@ -37,7 +39,7 @@ export const RowSelectionButton = forwardRef<HTMLButtonElement, RowSelectionButt
       aria-label={label}
       onClick={onClick}
       disabled={disabled}
-      className={`mx-auto grid h-7 w-7 shrink-0 place-items-center rounded-sm p-0 text-[11px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] ${variant === 'light' ? 'focus-visible:outline-blue-700' : 'focus-visible:outline-white'} ${stateClass} disabled:cursor-default disabled:opacity-40`}
+      className={`mx-auto grid ${size === 32 ? 'h-8 w-8' : 'h-7 w-7'} shrink-0 place-items-center rounded-sm p-0 text-[11px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] ${variant === 'light' ? 'focus-visible:outline-blue-700' : 'focus-visible:outline-white'} ${stateClass} disabled:cursor-default disabled:opacity-40`}
     >#</button>
   )
 })

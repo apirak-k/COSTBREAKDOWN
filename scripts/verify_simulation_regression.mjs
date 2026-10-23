@@ -28,7 +28,8 @@ try {
     'verify_master_data_edit_history',
     'verify_global_header'
   ]) {
-    await vite.ssrLoadModule(`/scripts/${suite}.ts`)
+    const module = await vite.ssrLoadModule(`/scripts/${suite}.ts`)
+    if (module.verification) await module.verification
   }
 } finally {
   await vite.close()

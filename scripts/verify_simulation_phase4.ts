@@ -228,8 +228,8 @@ const resultRow = (panel: string, label: string) =>
   [...panel.matchAll(/<tr[^>]*>[\s\S]*?<\/tr>/g)].map(match => match[0]).find(row =>
     row.includes(`>${label}</th>`)
   ) ?? ''
-const resultValues = (row: string) => [...row.matchAll(/<td class="([^"]*)">([^<]*)<\/td>/g)]
-  .map(match => ({ className: match[1], text: match[2] }))
+const resultValues = (row: string) => [...row.matchAll(/<td class="([^"]*)">([\s\S]*?)<\/td>/g)]
+  .map(match => ({ className: match[1], text: match[2].replace(/<[^>]*>/g, '').trim() }))
 const resultHeaders = (panel: string) =>
   [...panel.matchAll(/<th scope="col"[^>]*>([\s\S]*?)<\/th>/g)]
     .map(([, text]) => text.replace(/<span class="sr-only">[\s\S]*?<\/span>/g, '').replace(/<[^>]*>/g, '').trim()).filter(Boolean)

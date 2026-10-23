@@ -1,3 +1,62 @@
+# Final Round 4A / pre-Round-4B correction — 2026-10-23
+
+- **Status:** Round 1 CLOSED; Round 2 CLOSED; Round 3 CLOSED; Round 4A + pre-4B correction **IMPLEMENTED / AWAITING EXTERNAL USER AUDIT**; Round 4B **NOT STARTED / BLOCKED**; global changed-value blue text **NOT STARTED**; Round 5 **NOT STARTED**. No Round 4 closure or new numbered round.
+- **Baseline / delivery:** freshly fetched `origin/feat/selected-value-ux` and clean local HEAD both matched `d6a589cb652a18227fd6d6690123ba5da39972a8`. Checkout `/Users/bubu/COSTBREAKDOWN-ref-current-custom-flow-redesign`, branch `feat/selected-value-ux`. This pass creates a local implementation commit only; **nothing pushed**. No merge, rebase, force-push, history rewrite, dependency/lockfile changes, or unrelated edits.
+- **Shared percentage fit:** `NumericColumnSlot` allocates the numeric child and external suffix once for shared inputs/read-only values and Simulation header/body/effects. Numeric-fit measurement belongs to the child and never includes suffix text. Equivalent 136px numeric regions with/without `%` choose identical notation for 5, 98, 1234, 0.0045, negative and extreme values. Actual baseline Loss/Yield at 1366px (71.59px frame) and 1280px (65.36px) showed `5.00E+0` / `9.80E+1`; final 1280px frame 76.56px clears the 76.24px four-fraction reserve. No hardcoded value/field formatting exception.
+- **Fixed Simulation geometry repair:** final tracks `6 | 13.65 | 10.6 | 14.5 | 14.5 | 16.75 | 18.5 | 5.5` percent. Identity funds the percentage +2.25 points and calculated-cost +1.5 points; full identity headers wrap at tight desktop widths. Table width, Status, other parameter tracks, font sizes, pointer/frame geometry and Parameter Cost Effect hierarchy remain. The original 17% calculated-cost track also clipped real `Total +2.10E+300` by 2.83px per edge at 1280; final 99.73px region contains that token and its supported scientific floor. No text-driven outer movement.
+- **Economic Outcome:** adds full **Operating Profit** between Economic Margin and Break-even Qty with separators, canonical `result.operatingProfitPerPiece`, existing sign/color/formatting, and shared resolved UOM. No new formula; economics remains separate from Standard Cost.
+- **Result:** removes 464px minimum/local horizontal scrolling. Below 464px card width, each row label precedes four aligned Before/After/Change/% columns; balanced tracks and mirrored insets preserve existing fonts, ordinary/scientific token bounds and centerlines. Constrained desktop cards use vertical scrolling. No new Selected Value integration.
+- **CBD:** Total is a same-line 28px annotation outside numeric fit/suffix geometry. Header/body/footer reserve matching space; summary minimum 624→652 preserves prior numeric widths. BOM Δ Loss uses a separate 4px adjacent suffix through shared opt-in rendering; Routing and other axes/interactions remain. Real summary components also test scientific footer totals.
+- **Header:** decimal Exact Value retains normal minimum 2dp (`98.00`, `55.00`, `8.00 %`), preserving max 8 decimal cleanup, scientific tiny values, integer sources, and authoritative full-value editing. No arbitrary typed formatting strings or body/storage changes. This supersedes old `.00` trimming only.
+- **Selection:** Master/CBD Select-All now matches their 32px row squares, including radius/center; Master light all-state has comparable inset border weight. Simulation retains 28px geometry. Existing none/mixed/all, aria, scope, drag/focus, highlights and selection semantics remain.
+- **Preserved:** formulas, stored precision, numeric domains/conversions, lifecycle, comparison/role/basis ownership, spreadsheet and clipboard behavior, Undo/Redo/history, Send/Reset, Candidate hover/Pin/selection/expansion/reorder, Status, Parameter Cost Effect calculations/hierarchy, graph/Ruler/Visible Net/story, and navigation persistence. No blue text/marker/dot/badge/icon feature.
+- **Verifier maintenance:** superseded Header 20→20.00 and Outcome 4→5 expectations updated; old preexisting SSR parsers/source contracts updated for nested numeric spans, accepted 65px centered Selected slots, existing minimum-height summary, current signed Total accessible name, and ungrouped integer Outcome quantity. Exact numeric/semantic assertions remain. CBD summary async completion is now awaited by the regression runner. Geometry probes filter hidden retained page tables and measure numeric tokens separately from suffixes; no assertion suppression.
+- **Final verification (all exit 0):** `node scripts/verify_numeric_input.mjs` **313/313**; `node scripts/verify_numeric_input_browser.mjs` **2309/2309**; `node scripts/verify_master_data_selected_value.mjs` **148/148**; `node scripts/verify_cbd_selected_value_browser.mjs` **296/296**; `node scripts/verify_simulation_round4a_layout.mjs --final-corrections-only` **41/41**; full `node scripts/verify_simulation_round4a_layout.mjs` **219/219**, including unchanged Ruler/graph/row boundaries and five-point frame hit tests. `node scripts/verify_simulation_regression.mjs`, `node_modules/.bin/tsc -p tsconfig.json --noEmit --pretty false`, `npm run build`, `node --check` on all eight changed/new `.mjs` scripts, and `git diff --check` pass. Browser checks use actual isolated Chrome at 1440/1024/768/390/320; real percentage sweeps also cover 1366/1280. Operating Profit tests cover positive/negative/unavailable canonical results; Result includes all 32 numeric centerlines and extreme finite values at 320px. Shared suffix fonts and prior decorative/input versus accessible/read-only suffix semantics are preserved and asserted.
+- **Final evidence inspected:** Master `/var/folders/4p/ks_ctbg136sd7q36d00xgnfm0000gn/T/costbreakdown-master-selected-evidence-yagSUb/master-data-final-desktop.png`; CBD `/var/folders/4p/ks_ctbg136sd7q36d00xgnfm0000gn/T/costbreakdown-cbd-selected-evidence-2fNDC7/cbd-selected-value-1440.png`; Simulation `/var/folders/4p/ks_ctbg136sd7q36d00xgnfm0000gn/T/costbreakdown-simulation-round4a-evidence-jvRFTR/final-corrections-result-320.png` and its 1440px counterpart; numeric `/var/folders/4p/ks_ctbg136sd7q36d00xgnfm0000gn/T/costbreakdown-selected-value-evidence-UZ6Dlz/numeric-expanded-total-scientific-1280.png`. Final full Simulation evidence path is recorded in `/tmp/final-correction-simulation-layout.log`. Logs: `/tmp/final-correction-{source,numeric-browser,master,cbd,simulation-final,simulation-layout,simulation-regression,build,audit}.log`.
+- **Additional verifier diagnosis:** full legacy Simulation browser checks still encoded obsolete right-edge axes from before the accepted centerline contract. They now measure actual header text/region/decimal centers with explicit column counts, read-only checks, effect axes and token bounds. A first concurrent SSR/browser run also captured mixed Vite React cache chunks at startup; final runs were sequential with the console-error assertion intact and no browser errors. No application hook changes or error suppression.
+- **Known limits:** `npm audit --audit-level=high` exits1 with existing 10 advisories (6 high,4 moderate,0 critical); dependencies were not changed. Build retains existing ExcelJS/fast-csv browser externalization and >500kB chunk advisories. **[Unverified]** Safari, Firefox, Windows, physical touch devices, screen readers (including responsive CSS table semantics), and unrelated Excel/distribution work. External visual audit still required.
+
+### Exact changed files (36)
+
+```text
+HANDOFF.md
+docs/PHASE_2_SELECTED_VALUE_DECIMAL_UX_PLAN.md
+docs/REQUIREMENTS_INDEX.md
+docs/specs/COST_BREAKDOWN.md
+docs/specs/CROSS_CUTTING.md
+docs/specs/MASTER_DATA.md
+docs/specs/SIMULATION.md
+scripts/fixtures/numeric-column-browser.tsx
+scripts/numeric-browser-geometry.mjs
+scripts/round4a-correction-geometry.mjs
+scripts/verify_cbd_selected_value_browser.mjs
+scripts/verify_cbd_summary_ux.ts
+scripts/verify_master_data_selected_value.mjs
+scripts/verify_numeric_input.mjs
+scripts/verify_numeric_input_browser.mjs
+scripts/verify_simulation_economics.ts
+scripts/verify_simulation_phase4.ts
+scripts/verify_simulation_regression.mjs
+scripts/verify_simulation_round4a_layout.mjs
+scripts/verify_simulation_story_view.ts
+src/features/cost-breakdown/components/CandidateFindingsTable.tsx
+src/features/cost-breakdown/components/SnapshotComparisonCard.tsx
+src/features/cost-breakdown/components/WorkCenterProcessingTable.tsx
+src/features/cost-breakdown/components/summary-table-styles.ts
+src/features/master-data/components/BOMTable.tsx
+src/features/master-data/components/RoutingTable.tsx
+src/features/master-data/components/WorkCenterRatesTable.tsx
+src/features/simulation/EconomicSimulationPanel.tsx
+src/features/simulation/SimulationPage.tsx
+src/shared/layout/HeaderValue.tsx
+src/shared/ui/BusinessNumber.tsx
+src/shared/ui/NumericColumnSlot.tsx
+src/shared/ui/NumericInput.tsx
+src/shared/ui/RowSelectionButton.tsx
+src/shared/ui/numeric-display.ts
+src/shared/ui/selected-value.tsx
+```
+
 # Current numeric centerline correction — 2026-10-23
 
 - **Status: IMPLEMENTED / AWAITING EXTERNAL USER AUDIT.** This remains inside the open pre-Round-4B gate. Round 4B is NOT STARTED / BLOCKED; global direct-edit blue indication and Round 5 are NOT STARTED. No new round/sub-phase was created.

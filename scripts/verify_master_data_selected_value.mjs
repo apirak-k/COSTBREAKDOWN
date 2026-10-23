@@ -1,3 +1,4 @@
+import { selectionColumnStates } from './round4a-correction-geometry.mjs'
 import { numericColumnGeometry, numericCenterlineFailures } from './numeric-browser-geometry.mjs'
 import assert from 'node:assert/strict'
 import { spawn, execFileSync } from 'node:child_process'
@@ -661,7 +662,7 @@ try {
   await typeHeaderValue('20.000000000000004')
   assert.equal(await inputValue('header [data-header-value] input[aria-label="Selected value"]'), '20.000000000000004', 'BOM Loss accepts percentage display units with floating-point conversion noise')
   await clickSelector(inputInSection('Bill of Materials rows', 'loss'))
-  assert.equal(await inputValue('header [data-header-value] input[aria-label="Selected value"]'), '20', 'reselecting BOM Loss uses the stored fraction converted back to clean percentage display units')
+  assert.equal(await inputValue('header [data-header-value] input[aria-label="Selected value"]'), '20.00', 'reselecting BOM Loss retains normal Header 2dp in clean percentage display units')
   verify(await evaluate('document.querySelector("header [data-header-value]")?.textContent.includes("%")'), 'BOM Loss keeps its percent unit after fraction storage and display conversion')
 
   await clickSelector(masterDataNavigation)
@@ -679,7 +680,7 @@ try {
   await hoverSelector(lossEditInput)
   const lossEditPreview = await evaluate(`(()=>{const e=${visibleExpression(lossEditInput)};return {active:document.activeElement===e,header:document.querySelector('header [data-header-value] [data-selected-value-output]')?.textContent.trim()??null,suffix:document.querySelector('header [data-header-value]')?.textContent.includes('%')??false,editor:!!document.querySelector('header [data-header-value] input[aria-label="Selected value"]'),spinner:document.querySelectorAll('header [data-header-value] [data-numeric-stepper]').length}})()`)
   verify(Boolean(lossEditPreview && !lossEditPreview.active
-      && lossEditPreview.header === '20'
+      && lossEditPreview.header === '20.00'
       && lossEditPreview.suffix
       && !lossEditPreview.editor
       && lossEditPreview.spinner === 0),
@@ -805,7 +806,7 @@ try {
   const percentagePreviewState = await evaluate(`(()=>({active:document.activeElement===${visibleExpression(lossViewCell)},header:document.querySelector('header [data-header-value] [data-selected-value-output]')?.textContent.trim()??null,suffix:document.querySelector('header [data-header-value]')?.textContent.includes('%')??false,spinner:document.querySelectorAll('header [data-header-value] [data-numeric-stepper]').length,selectedNumber:!!${visibleExpression(lossViewCell)}?.closest('[data-selected-number="true"]'),pressed:${visibleExpression(lossViewCell)}?.getAttribute('aria-pressed')??null}))()`)
   verify(Boolean(percentagePreviewState
       && !percentagePreviewState.active
-      && percentagePreviewState.header === '20'
+      && percentagePreviewState.header === '20.00'
       && percentagePreviewState.suffix
       && percentagePreviewState.spinner === 0
       && !percentagePreviewState.selectedNumber
@@ -817,7 +818,7 @@ try {
   await clickSelector(lossViewCell)
   const percentageViewState = await evaluate(`(()=>({active:document.activeElement===${visibleExpression(lossViewCell)},header:document.querySelector('header [data-header-value] [data-selected-value-output]')?.textContent.trim()??null,suffix:document.querySelector('header [data-header-value]')?.textContent.includes('%')??false,spinner:document.querySelectorAll('header [data-header-value] [data-numeric-stepper]').length}))()`)
   verify(Boolean(percentageViewState?.active
-      && percentageViewState.header === '20'
+      && percentageViewState.header === '20.00'
       && percentageViewState.suffix
       && percentageViewState.spinner === 0),
     'focused read-only percentage value keeps the capped display units and suffix without a spinner', percentageViewState)
@@ -842,6 +843,13 @@ try {
   await clickSelector(masterDataNavigation)
   verify(await textContent('header [data-header-value] [data-selected-value-output]') === '—',
     'read-only focus-owned Header value clears when focus leaves the grid')
+  const selectionShapes = await evaluate(`(${selectionColumnStates.toString()})()`)
+  verify(selectionShapes.length === 3 && selectionShapes.every(table => table.restored && table.states.every(state =>
+    state.checked === state.state && (state.state !== 'true' || (state.header.border === '1px' && state.header.shadow !== 'none')) && state.header.width === 32 && state.header.height === 32 && state.rows.length > 0
+    && state.rows.every(row => row.width === state.header.width && row.height === state.header.height
+      && row.radius === state.header.radius && Math.abs(row.center - state.header.center) < 1))),
+    'each table keeps matching Header/row selection squares in none, mixed and all states and restores original selection', selectionShapes)
+
   const responsiveTableSpecs = tableNumericFields.map(spec => ({
     section: spec.section,
     header: spec.header,

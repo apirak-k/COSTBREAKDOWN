@@ -27,7 +27,7 @@ const vite = await createServer({
   }]
 })
 
-const visibleText = (markup: string): string => markup.replace(/<[^>]*>/g, ' ').replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim()
+const visibleText = (markup: string): string => markup.replace(/<[^>]*>/g, ' ').replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim().replace(/\s+%/g, '%')
 
 function assertClose(actual: number, expected: number, message: string): void {
   assert.ok(Number.isFinite(actual) && Math.abs(actual - expected) < 1e-8, message + ': got ' + actual + ', expected ' + expected)
@@ -402,9 +402,9 @@ try {
   const costSelectedGapHeader = costSelectedTable.match(/<span data-gap-header-slot="full"[^>]*>/)?.[0]
   assert.ok(costFullGapHeader && costSelectedGapHeader)
   assert.equal(costFullGapHeader, costSelectedGapHeader, 'GAP header remains aligned to the fixed Full Gap slot')
-  const selectedHeaderSlot = costSelectedTable.match(/<span data-gap-header-slot="selected" aria-hidden="false" class="([^"]*)">Selected<\/span>/)?.[1]
-  const fullSelectedHeader = costFullTable.match(/<span data-gap-header-slot="selected" aria-hidden="true" class="([^"]*)">Selected<\/span>/)
-  const activeSelectedHeader = costSelectedTable.match(/<span data-gap-header-slot="selected" aria-hidden="false" class="([^"]*)">Selected<\/span>/)
+  const selectedHeaderSlot = costSelectedTable.match(/<span data-gap-header-slot="selected" aria-hidden="false"[^>]*class="([^"]*)">Selected<\/span>/)?.[1]
+  const fullSelectedHeader = costFullTable.match(/<span data-gap-header-slot="selected" aria-hidden="true"[^>]*class="([^"]*)">Selected<\/span>/)
+  const activeSelectedHeader = costSelectedTable.match(/<span data-gap-header-slot="selected" aria-hidden="false"[^>]*class="([^"]*)">Selected<\/span>/)
   assert.ok(selectedHeaderSlot && fullSelectedHeader && activeSelectedHeader, 'Selected header keeps a stable sub-slot in both modes')
   const fullSelectedHeaderSlot = fullSelectedHeader[1]
   assert.equal(
@@ -414,14 +414,14 @@ try {
   )
   assert.match(fullSelectedHeaderSlot, /invisible/, 'inactive Selected header is not visibly rendered')
   assert.doesNotMatch(activeSelectedHeader[1], /invisible/, 'active Selected header is visible')
-  assert.match(selectedHeaderSlot, /w-\[9ch\].*text-right.*font-normal.*text-slate-300/,
-    'Selected header uses a fixed-width, right-aligned, secondary neutral style')
-  assert.match(selectedHeaderSlot, /relative left-4/,
-    'Only the Selected header shifts right to align its text start with the existing Selected values')
+  assert.match(selectedHeaderSlot, /w-\[65px\].*text-center.*font-normal.*text-slate-300/,
+    'Selected header uses a fixed-width, centered, secondary neutral style')
+  assert.doesNotMatch(selectedHeaderSlot, /relative left-4/,
+    'Selected header is centered in the same fixed region as its values')
   assert.doesNotMatch(selectedHeaderSlot, /text-(rose|red|green|emerald)-|font-(bold|semibold)/,
     'Selected header does not use sign colors or bold emphasis')
-  assert.equal((costFullTable.match(/grid-cols-\[minmax\(0,1fr\)_9ch\]/g) ?? []).length, 5, 'Cost header and all four GAP cells share fixed Full/Selected slots')
-  assert.equal((costSelectedTable.match(/grid-cols-\[minmax\(0,1fr\)_9ch\]/g) ?? []).length, 5, 'Selected mode preserves the shared GAP slot grid')
+  assert.equal((costFullTable.match(/grid-cols-\[minmax\(0,1fr\)_65px\]/g) ?? []).length, 5, 'Cost header and all four GAP cells share fixed Full/Selected slots')
+  assert.equal((costSelectedTable.match(/grid-cols-\[minmax\(0,1fr\)_65px\]/g) ?? []).length, 5, 'Selected mode preserves the shared GAP slot grid')
   assert.match(costFullTable, /data-gap-header-slot="selected" aria-hidden="true"[^>]*>Selected<\/span>/,
     'inactive Selected header reserves its slot while staying visually and accessibly hidden')
   assert.match(costSelectedTable, /data-gap-header-slot="selected" aria-hidden="false"[^>]*>Selected<\/span>/,
@@ -468,7 +468,7 @@ try {
   const fullTotalRow = rowFor(costFullTable, 'Standard Cost')
   const selectedTotalRow = rowFor(costSelectedTable, 'Standard Cost')
   const fullTotalValues = tableCells(fullTotalRow)
-  assert.equal(fullTotalValues[3], formatters.formatPercent(guards.safeDivide(fullComparison.totalGap!, fullComparison.referenceCost.total!)!, 2) + ' Total', 'STD Cost %Total must be Gap divided by Before Standard Cost')
+  assert.equal(fullTotalValues[3], 'Total ' + formatters.formatPercent(guards.safeDivide(fullComparison.totalGap!, fullComparison.referenceCost.total!)!, 2), 'STD Cost %Total must be Gap divided by Before Standard Cost')
   const expectedSelectedTotal = selectedContribution.elementGaps.material! + selectedContribution.elementGaps.labor! + selectedContribution.elementGaps.burden!
   assert.equal(gapSlot(selectedTotalRow, 'selected').text, formatters.formatVariance(expectedSelectedTotal, 2), 'STD Cost Selected Gap must equal Selected MAT + LB + BD')
   assert.match(selectedTotalRow, />Total<\/span>/, 'Cost footer percentage must visibly identify Total')
@@ -541,7 +541,7 @@ try {
   assert.equal(wcFooterValues[0], formatters.formatNumber(totalWcReference, 2))
   assert.equal(wcFooterValues[1], formatters.formatNumber(totalWcCurrent, 2))
   assert.equal(wcFooterValues[2], formatters.formatVariance(totalWcGap, 2))
-  assert.equal(wcFooterValues[3], formatters.formatPercent(guards.safeDivide(totalWcGap, totalWcReference)!, 2) + ' Total')
+  assert.equal(wcFooterValues[3], 'Total ' + formatters.formatPercent(guards.safeDivide(totalWcGap, totalWcReference)!, 2))
   assert.match(wcFooterRow, />Total<\/span>/, 'WC footer percentage must visibly identify Total')
 
   const pageSource = readFileSync(new URL('../src/features/cost-breakdown/CostBreakdownPage.tsx', import.meta.url), 'utf8')
@@ -572,9 +572,9 @@ try {
     assert.match(section, /(?:^|\s)border(?:\s|$)/,
       'each summary box has its own complete border')
   }
-  const costDesktopHeight = costSection.match(/\blg:h-[^\s"]+/)?.[0]
-  const wcDesktopHeight = wcSection.match(/\blg:h-[^\s"]+/)?.[0]
-  assert.ok(costDesktopHeight, 'Cost Element has an explicit bounded desktop height')
+  const costDesktopHeight = costSection.match(/\blg:min-h-[^\s"]+/)?.[0]
+  const wcDesktopHeight = wcSection.match(/\blg:min-h-[^\s"]+/)?.[0]
+  assert.ok(costDesktopHeight, 'Cost Element has an explicit shared desktop minimum height')
   assert.equal(wcDesktopHeight, costDesktopHeight, 'both summary boxes consume the same desktop height standard')
   assert.match(stickyShellClass, /lg:sticky[^\"]*lg:top-0/,
     'Subheader and Cost Element / Work Center overview stay sticky at the top of CBD Main while it scrolls')
@@ -633,7 +633,7 @@ try {
 }
 }
 
-main().catch(error => {
+export const verification = main().catch(error => {
   console.error(error)
   process.exitCode = 1
 })

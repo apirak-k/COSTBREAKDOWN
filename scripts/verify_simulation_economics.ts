@@ -218,14 +218,21 @@ const outcome = economicInputsPanel.slice(economicInputsPanel.indexOf('<div role
 assert.match(outcome, /class="[^"]*border-t border-slate-200/,
   'Outcome has a subtle divider inside the padded Economic section')
 assert.equal((outcome.match(/THB\/PC/g) ?? []).length, 1, 'Outcome shows its shared unit exactly once')
-assert.equal((outcome.match(/role="group" aria-label=/g) ?? []).length, 4, 'Outcome has three economic rows and the compact Break-even quantity row')
+assert.equal((outcome.match(/role="group" aria-label=/g) ?? []).length, 5, 'Outcome has three saving/margin rows, canonical Operating Profit, and Break-even quantity')
 for (const [label, value] of [['Parameter Saving', '6.00'], ['Required Saving', '4.00'], ['Economic Margin', '2.00']]) {
   assert.match(outcome, new RegExp(`aria-label="${label} / Unit"[^>]*title="[^"]+">`), `${label} preserves its accessible name and formula tooltip`)
   assert.ok(outcome.includes(`>${label}</span>`), `${label} uses the short visible label`)
   assert.match(outcome, new RegExp(`>${value.replace('.', '\\.')}</span>`), `${label} value has no repeated unit`)
 }
-assert.match(outcome, /aria-label="Break-even Quantity"[^>]*title="[^"]+"[\s\S]*?>Break-even Qty<\/span>[\s\S]*?>2,500 PC<\/span>/,
+assert.match(outcome, /aria-label="Break-even Quantity"[^>]*title="[^"]+"[\s\S]*?>Break-even Qty<\/span>[\s\S]*?>2500 PC<\/span>/,
   'Outcome shows the same whole quantity as the graph heading with the product UOM')
+for (const result of [business, overrideBusiness, negativeProfit, unavailableBusiness]) {
+  const markup = renderPanel(result, worked)
+  const op = markup.match(/<div role="group" aria-label="Operating Profit \/ Unit"[\s\S]*?<\/div>/)?.[0] ?? ''
+  assert.ok(op.includes('>Operating Profit</span>'), 'Outcome retains the full Operating Profit label')
+  const expected = result.operatingProfitPerPiece === null ? '—' : result.operatingProfitPerPiece.toFixed(2)
+  assert.ok(op.includes(`>${expected}</span>`), 'Outcome displays the canonical profit including negative/unavailable results')
+}
 const breakEvenOutcome = outcome.match(/<div role="group" aria-label="Break-even Quantity"[\s\S]*?<\/div>/)?.[0] ?? ''
 assert.match(breakEvenOutcome, /mt-1 border-t border-slate-200 pt-1/,
   'Break-even Qty is separated from the monetary per-unit outputs by a subtle divider')
@@ -246,7 +253,7 @@ const customUnitMarkup = renderToStaticMarkup(React.createElement(EconomicSimula
   result: baseResult, draft: worked, afterSnapshot: currentSnapshot, unit: 'KG', onUpdate() {}, onBeginEdit() {}, onCommitEdit() {}
 }))
 assert.match(customUnitMarkup, /<span>THB\/KG<\/span>/, 'Outcome uses the resolved dynamic product UOM')
-assert.match(customUnitMarkup, /aria-label="Break-even Quantity"[^>]*>[\s\S]*?>2,500 KG<\/span>/,
+assert.match(customUnitMarkup, /aria-label="Break-even Quantity"[^>]*>[\s\S]*?>2500 KG<\/span>/,
   'Economic Outcome quantity uses the resolved dynamic product UOM')
 for (const [unit, resolvedUnit] of [['KG', 'KG'], ['   ', 'Unit']]) {
   const graph = renderToStaticMarkup(React.createElement(EconomicBreakEvenGraphPanel, {

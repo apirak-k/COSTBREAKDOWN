@@ -333,6 +333,7 @@ export const CandidateFindingsTable: React.FC<CandidateFindingsTableProps> = ({
         <tr className="bg-slate-800 font-semibold text-white">
           <th scope="col" className="px-1 py-2 text-center">
             <RowSelectionButton
+              size={32}
               ref={headerSelectionRef}
               state={selectionState}
               label={selectionState === 'all' ? `Deselect all visible ${identityHeader} findings` : `Select all visible ${identityHeader} findings`}
@@ -434,6 +435,7 @@ export const CandidateFindingsTable: React.FC<CandidateFindingsTableProps> = ({
                 {parameters.map((parameter, parameterIndex) => <td key={parameter.field} className="whitespace-nowrap px-1 py-2 text-right"><SelectedNumber numericColumn signPositive={status === 'CHANGED'}
                   value={parameter.value}
                   percentage={parameter.percentage}
+                  compactPercentSuffix={parameter.field === 'loss'}
                   selectionId={`${selectionIdPrefix}:parameter:${parameter.field}`}
                   aria-label={`${identityHeader} ${row.label} ${parameterHeaders[parameterIndex]} ${parameter.display}`}
                   className="text-right"

@@ -826,7 +826,7 @@ try {
       'editing inputs and nested controls keep their own behavior instead of toggling the row')
     assert.match(pageSource, /\{expanded && \([\s\S]*?Parameter Cost Effect[\s\S]*?detailParameters\.map\(parameter => <EffectCell/,
       'Parameter Cost Effect details remain available on demand')
-    assert.match(pageSource, /aria-label=\{`Total \$\{totalEffect\.text\}`\}/,
+    assert.match(pageSource, /aria-label=\{`Total \$\{formatBusinessNumber\(analysis\.effects\.totalEffect, \{ signPositive: true, integerDigits: Infinity \}\)\}`\}/,
       'the expanded total keeps its signed value in the accessible name')
     assert.doesNotMatch(pageSource, /analysis\.effects\.shares\?\./,
       'parameter details do not add percentage-share labels')

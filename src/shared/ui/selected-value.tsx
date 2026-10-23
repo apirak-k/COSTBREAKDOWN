@@ -315,11 +315,12 @@ export interface SelectedNumberProps extends Omit<ButtonHTMLAttributes<HTMLButto
   selectionId?: string
   stopKeyboardPropagation?: boolean
   numericColumn?: boolean
+  compactPercentSuffix?: boolean
   signPositive?: boolean
   children?: ReactNode
 }
 
-export function SelectedNumber({ value, integer, percentage, selectionId, children, className, style, numericColumn = false, signPositive, stopKeyboardPropagation = true, onKeyDown, onKeyUp, ...props }: SelectedNumberProps) {
+export function SelectedNumber({ value, integer, percentage, selectionId, children, className, style, numericColumn = false, compactPercentSuffix = false, signPositive, stopKeyboardPropagation = true, onKeyDown, onKeyUp, ...props }: SelectedNumberProps) {
   const { isPinned, preview, clearPreview, pin } = useSelectedValueSource({ value, editable: false, domain: { integer }, percentage }, selectionId)
   const content = children ?? <BusinessNumber value={value} integer={integer} percent={percentage} />
   if (value == null || !Number.isFinite(value)) return numericColumn
@@ -360,6 +361,6 @@ export function SelectedNumber({ value, integer, percentage, selectionId, childr
     </button>
   )
   return numericColumn
-    ? <BusinessNumber numericColumn className={className} value={value} integer={integer} percent={percentage} signPositive={signPositive} renderToken={renderButton} />
+    ? <BusinessNumber numericColumn className={className} value={value} integer={integer} percent={percentage} compactPercentSuffix={compactPercentSuffix} signPositive={signPositive} renderToken={renderButton} />
     : renderButton(content)
 }

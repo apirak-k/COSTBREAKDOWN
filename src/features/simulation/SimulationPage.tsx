@@ -1,3 +1,4 @@
+import { NumericColumnSlot } from '../../shared/ui/NumericColumnSlot'
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { ChevronDown, ChevronLeft, ChevronRight, RotateCcw, Search, Send, X } from 'lucide-react'
 import { safeAdd } from '../../core'
@@ -394,15 +395,14 @@ function CompactActionControl({
   )
 }
 
-function ParameterNumberSlot({ children, percentage = false, showSuffix = false, className = '', ...props }: React.HTMLAttributes<HTMLDivElement> & {
+function ParameterNumberSlot({ children, percentage = false, showSuffix = false, className = '', ...props }: React.HTMLAttributes<HTMLSpanElement> & {
   children: React.ReactNode
   percentage?: boolean
   showSuffix?: boolean
 }) {
-  return <div {...props} className={`flex min-w-0 items-center gap-1 pl-[3px] ${percentage ? 'pr-0' : 'pr-[3px]'} ${className}`}>
-    <div className="min-w-0 flex-1">{children}</div>
-    {percentage && <span data-numeric-suffix={showSuffix ? 'true' : undefined} aria-hidden="true" className={`w-[1ch] shrink-0 font-mono text-xs text-slate-500 ${showSuffix ? '' : 'invisible'}`}>%</span>}
-  </div>
+  return <NumericColumnSlot {...props} percentage={percentage} showSuffix={showSuffix} suffixAriaHidden className={`pl-[3px] [&>[data-numeric-suffix]]:text-xs [&>[data-numeric-suffix]]:text-slate-500 ${percentage ? 'pr-0' : 'pr-[3px]'} ${className}`}>
+    <span className="block min-w-0">{children}</span>
+  </NumericColumnSlot>
 }
 
 function EffectCell({ amount, percentage = false }: {
@@ -462,7 +462,7 @@ function SimulationParameterTable({
   const navigationLabel = isBOM ? 'BOM' : 'Routing'
   const tableIdentity = isBOM ? 'Bill of Materials' : 'Routing Process'
   const parameters = isBOM ? BOM_PARAMETERS : RTG_PARAMETERS
-  const columnWidths = ['6%', '17.4%', '10.6%', '14.5%', '14.5%', '14.5%', '17%', '5.5%']
+  const columnWidths = ['6%', '13.65%', '10.6%', '14.5%', '14.5%', '16.75%', '18.5%', '5.5%']
   const renderColumnGroup = () => (
     <colgroup>
       {columnWidths.map((width, index) => (
@@ -1132,9 +1132,9 @@ function ResultPanel({
             : 'text-slate-700'
       }>
         <th scope="row" className={`whitespace-nowrap ${padding} text-left`}>{row.label}</th>
-        <td className={`whitespace-nowrap px-0.5 ${padding} text-right font-mono tabular-nums`}>{displayMoney(row.before, true)}</td>
-        <td className={`whitespace-nowrap px-0.5 ${padding} text-right font-mono tabular-nums`}>{displayMoney(row.after, true)}</td>
-        <td className={`px-1 ${padding} text-right font-mono tabular-nums ${resultChangeClass(row.change, row.semantic)}`}>
+        <td className={`whitespace-nowrap px-px ${padding} text-right font-mono tabular-nums`}>{displayMoney(row.before, true)}</td>
+        <td className={`whitespace-nowrap px-px ${padding} text-right font-mono tabular-nums`}>{displayMoney(row.after, true)}</td>
+        <td className={`px-0.5 ${padding} text-right font-mono tabular-nums ${resultChangeClass(row.change, row.semantic)}`}>
           {displayResultDelta(row.change)}
         </td>
         <td className={`${padding} text-right font-mono tabular-nums ${resultChangeClass(row.percent === null ? null : row.change, row.semantic)}`}>
@@ -1145,7 +1145,7 @@ function ResultPanel({
   })
 
   return (
-    <section data-safe-workspace-interaction="true" className="min-w-0 border border-slate-300 bg-white px-3 py-2 xl:min-h-0 xl:px-1 xl:py-1" aria-labelledby="simulation-result-title">
+    <section data-safe-workspace-interaction="true" className="flex min-w-0 flex-col border border-slate-300 bg-white px-3 py-2 xl:min-h-0 xl:px-0.5 xl:py-1" aria-labelledby="simulation-result-title">
       <h2 id="simulation-result-title" className="sr-only">Result</h2>
       <header
         data-simulation-result-header="true"
@@ -1164,8 +1164,19 @@ function ResultPanel({
         </div>
         <div className="ml-auto flex shrink-0 items-center gap-1.5">{actions}</div>
       </header>
-      <div className="mt-1 min-w-0 overflow-x-auto">
-        <table className="w-full min-w-[29rem] table-fixed text-[9px] leading-3 xl:leading-[11px]">
+      <div data-simulation-result-body="true" className="mt-1 min-h-0 min-w-0 overflow-y-auto" style={{ containerType: 'inline-size' }}>
+        <style>{`
+          @container (max-width: 463px) {
+            [data-simulation-result-body] table,
+            [data-simulation-result-body] thead,
+            [data-simulation-result-body] tbody { display: block; }
+            [data-simulation-result-body] colgroup { display: none; }
+            [data-simulation-result-body] tr { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.08fr) minmax(0, 1.18fr); }
+            [data-simulation-result-body] th:first-child { grid-column: 1 / -1; white-space: normal; }
+            [data-simulation-result-body] tbody th { padding-top: 3px; }
+          }
+        `}</style>
+        <table className="w-full table-fixed text-[9px] leading-3 xl:leading-[11px]">
           <colgroup>
             <col className="w-[25%]" />
             <col className="w-[19%]" />
@@ -1176,9 +1187,9 @@ function ResultPanel({
           <thead className="text-[8px] text-slate-500">
             <tr>
               <th scope="col" className="whitespace-nowrap py-0.5 text-left font-medium">Cost / Unit</th>
-              <th scope="col" className="whitespace-nowrap px-0.5 py-0.5 font-medium xl:py-0"><NumericColumnHeader>Before</NumericColumnHeader><span className="sr-only"> {roleLabel(beforeRole)}</span></th>
-              <th scope="col" className="whitespace-nowrap px-0.5 py-0.5 font-medium xl:py-0"><NumericColumnHeader>After</NumericColumnHeader><span className="sr-only"> {roleLabel(afterRole)}</span></th>
-              <th scope="col" className="whitespace-nowrap px-1 py-0.5 font-medium xl:py-0"><NumericColumnHeader>Change</NumericColumnHeader></th>
+              <th scope="col" className="whitespace-nowrap px-px py-0.5 font-medium xl:py-0"><NumericColumnHeader>Before</NumericColumnHeader><span className="sr-only"> {roleLabel(beforeRole)}</span></th>
+              <th scope="col" className="whitespace-nowrap px-px py-0.5 font-medium xl:py-0"><NumericColumnHeader>After</NumericColumnHeader><span className="sr-only"> {roleLabel(afterRole)}</span></th>
+              <th scope="col" className="whitespace-nowrap px-0.5 py-0.5 font-medium xl:py-0"><NumericColumnHeader>Change</NumericColumnHeader></th>
               <th scope="col" className="py-0.5 font-medium xl:py-0"><span className="grid grid-cols-[minmax(0,1fr)_0.6rem] gap-1"><NumericColumnHeader>%</NumericColumnHeader><span aria-hidden="true" /></span></th>
             </tr>
           </thead>

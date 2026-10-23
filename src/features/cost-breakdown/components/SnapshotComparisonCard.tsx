@@ -6,6 +6,7 @@ import { NumericColumnHeader } from '../../../shared/ui/NumericColumnHeader'
 import { COST_ELEMENT_COLORS } from './cost-element-colors'
 import {
   CBD_SUMMARY_PANEL_CLASS,
+  CBD_SUMMARY_PERCENTAGE_CLASS,
   CBD_SUMMARY_TABLE_CLASS,
   CBD_SUMMARY_ROW_CLASS,
   CBD_SUMMARY_HEADER_GROUP_CLASS,
@@ -143,7 +144,7 @@ export const SnapshotComparisonCard: React.FC<SnapshotComparisonCardProps> = ({
   return (
     <section aria-label="Cost Element" data-cbd-overview-panel="cost" className={CBD_SUMMARY_PANEL_CLASS}>
       <div>
-        <table role="table" style={{ '--cbd-summary-columns': '20% 18% 18% 26% 18%' } as React.CSSProperties} className={CBD_SUMMARY_TABLE_CLASS}>
+        <table role="table" style={{ '--cbd-summary-columns': 'calc(20% - 5.6px) calc(18% - 5.04px) calc(18% - 5.04px) calc(26% - 7.28px) calc(18% + 22.96px)' } as React.CSSProperties} className={CBD_SUMMARY_TABLE_CLASS}>
           <caption className="sr-only">Cost Element for Before, After, Gap, and Gap percentage. Gap = {gapDirection}.</caption>
           <thead data-cbd-summary-header="true" className={CBD_SUMMARY_HEADER_GROUP_CLASS}>
             <tr className={`${CBD_SUMMARY_ROW_CLASS} ${CBD_SUMMARY_HEADER_ROW_CLASS}`}>
@@ -151,7 +152,7 @@ export const SnapshotComparisonCard: React.FC<SnapshotComparisonCardProps> = ({
               <th scope="col" style={CBD_SUMMARY_HEADER_CELL_STYLE} className={`${CBD_SUMMARY_HEADER_CELL_CLASS} ${CBD_SUMMARY_HEADER_VALUE_CLASS}`}><NumericColumnHeader>Before</NumericColumnHeader></th>
               <th scope="col" style={CBD_SUMMARY_HEADER_CELL_STYLE} className={`${CBD_SUMMARY_HEADER_CELL_CLASS} ${CBD_SUMMARY_HEADER_VALUE_CLASS}`}><NumericColumnHeader>After</NumericColumnHeader></th>
               <th scope="col" style={CBD_SUMMARY_HEADER_CELL_STYLE} className={CBD_SUMMARY_HEADER_CELL_CLASS}><span className="grid w-full grid-cols-[minmax(0,1fr)_65px] items-baseline font-mono text-[11px] leading-4 tabular-nums"><NumericColumnHeader data-gap-header-slot="full" className="text-[11px] leading-4">GAP</NumericColumnHeader><NumericColumnHeader data-gap-header-slot="selected" aria-hidden={!selectedActive} className={`block w-[65px] whitespace-nowrap text-center text-[10px] leading-4 font-normal text-slate-300 ${selectedActive ? '' : 'invisible'}`}>Selected</NumericColumnHeader></span></th>
-              <th scope="col" style={CBD_SUMMARY_HEADER_CELL_STYLE} className={`${CBD_SUMMARY_HEADER_CELL_CLASS} ${CBD_SUMMARY_HEADER_VALUE_CLASS}`}><span className="grid grid-cols-[minmax(0,1fr)_0.6rem] gap-1"><NumericColumnHeader>%GAP</NumericColumnHeader><span aria-hidden="true" /></span></th>
+              <th scope="col" style={CBD_SUMMARY_HEADER_CELL_STYLE} className={`${CBD_SUMMARY_HEADER_CELL_CLASS} ${CBD_SUMMARY_HEADER_VALUE_CLASS} ${CBD_SUMMARY_PERCENTAGE_CLASS}`}><span className="grid grid-cols-[minmax(0,1fr)_0.6rem] gap-1"><NumericColumnHeader>%GAP</NumericColumnHeader><span aria-hidden="true" /></span></th>
             </tr>
           </thead>
           <tbody data-cbd-summary-body="true" className={CBD_SUMMARY_BODY_GROUP_CLASS}>
@@ -160,7 +161,7 @@ export const SnapshotComparisonCard: React.FC<SnapshotComparisonCardProps> = ({
               <td className={`${CBD_SUMMARY_BODY_VALUE_CLASS} text-slate-600`}><SelectedNumber numericColumn value={row.reference} selectionId={`cbd:${pairFingerprint}:cost-element:${row.label.toLowerCase()}:before`} aria-label={`${row.label} Before ${formatCost(row.reference)}`} className="text-right">{formatCost(row.reference)}</SelectedNumber></td>
               <td className={`${CBD_SUMMARY_BODY_VALUE_CLASS} text-slate-900`}><SelectedNumber numericColumn value={row.current} selectionId={`cbd:${pairFingerprint}:cost-element:${row.label.toLowerCase()}:after`} aria-label={`${row.label} After ${formatCost(row.current)}`} className="text-right">{formatCost(row.current)}</SelectedNumber></td>
               <td className={CBD_SUMMARY_BODY_VALUE_CLASS}>{renderGap(row.gap, row.selectedGap, selectedActive, row.label, gapDirection, pairFingerprint)}</td>
-              <td className={`${CBD_SUMMARY_BODY_VALUE_CLASS} text-slate-600`}>{row.percentage === null ? '—' : <SelectedNumber numericColumn value={row.percentage * 100} percentage selectionId={`cbd:${pairFingerprint}:cost-element:${row.label.toLowerCase()}:percent-gap`} aria-label={`${row.label} percent Gap ${formatPercent(row.percentage, 2)}`} className="text-right">{formatPercent(row.percentage, 2)}</SelectedNumber>}</td>
+              <td className={`${CBD_SUMMARY_BODY_VALUE_CLASS} ${CBD_SUMMARY_PERCENTAGE_CLASS} text-slate-600`}>{row.percentage === null ? '—' : <SelectedNumber numericColumn value={row.percentage * 100} percentage selectionId={`cbd:${pairFingerprint}:cost-element:${row.label.toLowerCase()}:percent-gap`} aria-label={`${row.label} percent Gap ${formatPercent(row.percentage, 2)}`} className="text-right">{formatPercent(row.percentage, 2)}</SelectedNumber>}</td>
             </tr>)}
           </tbody>
           <tfoot data-cbd-summary-footer="true" className={CBD_SUMMARY_FOOTER_GROUP_CLASS}>
@@ -169,7 +170,10 @@ export const SnapshotComparisonCard: React.FC<SnapshotComparisonCardProps> = ({
               <td className={`${CBD_SUMMARY_FOOTER_VALUE_CLASS} text-slate-700`}><SelectedNumber numericColumn value={row.reference} selectionId={`cbd:${pairFingerprint}:cost-element:${row.label.toLowerCase()}:before`} aria-label={`${row.label} Before ${formatCost(row.reference)}`} className="text-right">{formatCost(row.reference)}</SelectedNumber></td>
               <td className={`${CBD_SUMMARY_FOOTER_VALUE_CLASS} text-slate-950`}><SelectedNumber numericColumn value={row.current} selectionId={`cbd:${pairFingerprint}:cost-element:${row.label.toLowerCase()}:after`} aria-label={`${row.label} After ${formatCost(row.current)}`} className="text-right">{formatCost(row.current)}</SelectedNumber></td>
               <td className={CBD_SUMMARY_FOOTER_VALUE_CLASS}>{renderGap(row.gap, row.selectedGap, selectedActive, row.label, gapDirection, pairFingerprint)}</td>
-              <td className={`${CBD_SUMMARY_FOOTER_VALUE_CLASS} whitespace-nowrap text-slate-700`}>{row.percentage === null ? <span aria-label="Total percentage unavailable">— <span className="text-[9px] text-slate-500">Total</span></span> : <span className="relative block" aria-label={`${formatPercent(row.percentage, 2)} Total`}><SelectedNumber numericColumn value={row.percentage * 100} percentage selectionId={`cbd:${pairFingerprint}:cost-element:${row.label.toLowerCase()}:percent-gap`} aria-label={`${row.label} percent Gap ${formatPercent(row.percentage, 2)}`} className="inline text-right">{formatPercent(row.percentage, 2)}</SelectedNumber> <span className="absolute right-0 top-full text-[8px] leading-none font-semibold text-slate-500">Total</span></span>}</td>
+              <td className={`${CBD_SUMMARY_FOOTER_VALUE_CLASS} ${CBD_SUMMARY_PERCENTAGE_CLASS} whitespace-nowrap text-slate-700`}>
+                <span data-cbd-total-annotation="true" className="absolute left-2 top-1/2 -translate-y-1/2 font-sans text-[9px] font-semibold text-slate-500">Total</span>
+                <SelectedNumber numericColumn value={row.percentage === null ? null : row.percentage * 100} percentage selectionId={`cbd:${pairFingerprint}:cost-element:${row.label.toLowerCase()}:percent-gap`} aria-label={`${row.label} percent Gap ${row.percentage === null ? '—' : formatPercent(row.percentage, 2)}`} className="text-right">{row.percentage === null ? '—' : formatPercent(row.percentage, 2)}</SelectedNumber>
+              </td>
             </tr>)}
           </tfoot>
         </table>

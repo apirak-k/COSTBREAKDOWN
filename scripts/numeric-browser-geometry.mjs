@@ -51,7 +51,8 @@ export function numericColumnGeometry(root = document) {
     const headerText = header ? textBounds(header) : null
     const center = (box.left + box.right) / 2
     const style = getComputedStyle(region)
-    const text = region instanceof HTMLInputElement ? region.value : region.textContent.trim()
+    const numericToken = region.querySelector('[data-numeric-token]') ?? region
+    const text = region instanceof HTMLInputElement ? region.value : numericToken.textContent.trim()
     let decimal = null
     let tokenBounds = null
     if (region instanceof HTMLInputElement) {
@@ -72,7 +73,7 @@ export function numericColumnGeometry(root = document) {
       if (text.includes('.')) decimal = start + pointOffset
       tokenBounds = { left: start, right: start + width }
     } else {
-      const walker = document.createTreeWalker(region, NodeFilter.SHOW_TEXT)
+      const walker = document.createTreeWalker(numericToken, NodeFilter.SHOW_TEXT)
       while (walker.nextNode()) {
         const node = walker.currentNode
         const point = node.textContent.indexOf('.')
@@ -83,7 +84,7 @@ export function numericColumnGeometry(root = document) {
         decimal = range.getBoundingClientRect().left
         break
       }
-      tokenBounds = textBounds(region)
+      tokenBounds = textBounds(numericToken)
     }
     const scientific = region.getAttribute('data-numeric-fit') === 'scientific' || /E[+-]?\d/.test(text)
     return {
