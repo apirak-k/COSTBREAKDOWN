@@ -435,6 +435,7 @@ export const CandidateFindingsTable: React.FC<CandidateFindingsTableProps> = ({
                 {parameters.map((parameter, parameterIndex) => <td key={parameter.field} className="whitespace-nowrap px-1 py-2 text-right"><SelectedNumber numericColumn signPositive={status === 'CHANGED'}
                   value={parameter.value}
                   percentage={parameter.percentage}
+                  compactPercentSuffix={parameter.field === 'loss'}
                   selectionId={`${selectionIdPrefix}:parameter:${parameter.field}`}
                   aria-label={`${identityHeader} ${row.label} ${parameterHeaders[parameterIndex]} ${parameter.display}`}
                   className="text-right"

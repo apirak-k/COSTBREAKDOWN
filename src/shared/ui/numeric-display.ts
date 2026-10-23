@@ -11,19 +11,20 @@ export function businessNumberPresentation(
   value: number | null | undefined,
   { integer = false, percent = false, integerDigits = 8, signPositive = false }: NumericDisplayOptions = {}
 ): { text: string; notation: 'ordinary' | 'scientific' | 'unavailable'; fractionDigits: number } {
-  if (value == null || !Number.isFinite(value)) return { text: '—', notation: 'unavailable', fractionDigits: 0 }
+  const normalized = normalizeNumericNoise(value)
+  if (normalized == null || !Number.isFinite(normalized)) return { text: '—', notation: 'unavailable', fractionDigits: 0 }
   let fractionDigits = integer ? 0 : 2
-  let text = integer ? String(Math.round(value)) : value.toFixed(2)
-  if (!integer && value !== 0 && Number(text) === 0) {
+  let text = integer ? String(Math.round(normalized)) : normalized.toFixed(2)
+  if (!integer && normalized !== 0 && Number(text) === 0) {
     fractionDigits = 4
-    text = value.toFixed(4)
+    text = normalized.toFixed(4)
   }
   const scientific = /[eE]/.test(text)
     || text.replace(/^-/, '').split('.')[0].length > integerDigits
-    || (!integer && value !== 0 && Number(text) === 0)
-  if (scientific) text = value.toExponential(2).toUpperCase()
+    || (!integer && normalized !== 0 && Number(text) === 0)
+  if (scientific) text = normalized.toExponential(2).toUpperCase()
   else if (Number(text) === 0) text = integer ? '0' : (0).toFixed(fractionDigits)
-  return { text: `${signPositive && value > 0 ? '+' : ''}${text}${percent ? '%' : ''}`, notation: scientific ? 'scientific' : 'ordinary', fractionDigits: scientific ? 0 : fractionDigits }
+  return { text: `${signPositive && normalized > 0 ? '+' : ''}${text}${percent ? '%' : ''}`, notation: scientific ? 'scientific' : 'ordinary', fractionDigits: scientific ? 0 : fractionDigits }
 }
 
 /** Presentation only: never feed this result back into stored/calculated values. */
@@ -67,9 +68,9 @@ export function formatFullNumericValue(value: number | null | undefined): string
 export function normalizeNumericNoise<T extends number | null | undefined>(value: T): T {
   if (value == null || !Number.isFinite(value as number)) return value
   const num = value as number
-  if (num === 0) return 0 as T
-  // Do not alter extreme scientific numbers, tiny underflows, or exact integers
-  if (Math.abs(num) >= 1e15 || (Math.abs(num) > 0 && Math.abs(num) < 1e-12) || Number.isInteger(num)) {
+  if (num === 0 || (Math.abs(num) >= 1e-300 && Math.abs(num) < 1e-12)) return 0 as T
+  // Do not alter extreme scientific numbers or exact integers
+  if (Math.abs(num) >= 1e15 || Number.isInteger(num)) {
     return value
   }
   // Check if string representation contains 5+ consecutive zeros or nines near machine precision (e.g. 9.000000000000004, 19.999999999999996)

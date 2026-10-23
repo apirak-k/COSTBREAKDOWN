@@ -67,7 +67,7 @@ export function numericColumnPresentation(
   if (ordinary.notation !== 'ordinary' || width === 0) return ordinary
   const whole = prefix + ordinary.text.split('.')[0]
   const fraction = ordinary.text.includes('.') ? ordinary.text.slice(ordinary.text.indexOf('.')) : ''
-  const fractionWidth = Math.max(measure('.0000'), measure(fraction))
+  const fractionWidth = measure(fraction)
   const fits = measure(whole) <= width / 2 - 2
     && (options.integer || fractionWidth <= width / 2 - 2 - reserveEnd)
   if (fits) return ordinary

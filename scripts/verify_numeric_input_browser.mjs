@@ -323,11 +323,11 @@ try {
   const assertPercentageSpacing = async aria => {
     const original = await inputValue(aria)
     let suffixX
-    for (const value of ['100', '98', '97', '90', '84', '8', '5', '2', '1', '0.0045', '0.000000001']) {
+    for (const value of ['100', '98', '97', '90', '84', '15', '12', '8', '5', '4', '2', '1', '0.0045', '0.000000001']) {
       await typeInto(aria, value)
       await blurNumeric()
       const blurred = await inputMetrics(aria)
-      if (['100','98','97','90','84','8','5','2','1'].includes(value)) assert.equal(blurred.text, Number(value).toFixed(2), `${aria} real ordinary percentage ${value} must not become scientific: ${JSON.stringify(blurred)}`)
+      if (['100','98','97','90','84','15','12','8','5','4','2','1'].includes(value)) assert.equal(blurred.text, Number(value).toFixed(2), `${aria} real ordinary percentage ${value} must not become scientific: ${JSON.stringify(blurred)}`)
       await clickInput(aria)
       const focused = await inputMetrics(aria)
       if(value === '8' && aria === masterPercentAria) {
@@ -369,8 +369,8 @@ try {
         const e=${visibleInputExpression(aria)},s=getComputedStyle(e),c=document.createElement('canvas').getContext('2d')
         c.font=[s.fontStyle,s.fontWeight,s.fontSize,s.fontFamily].join(' ')
         const value=Number(${JSON.stringify(value)}),ordinary=value!==0&&Number(value.toFixed(2))===0?value.toFixed(4):value.toFixed(2)
-        const whole=ordinary.split('.')[0],reserve=Number(e.dataset.numericReserveEnd||0),half=e.getBoundingClientRect().width/2-Number(e.dataset.numericFitInset||0)
-        const fits=c.measureText(whole).width<=half&&c.measureText('.0000').width<=half-reserve
+        const whole=ordinary.split('.')[0],fraction=ordinary.includes('.')?ordinary.slice(ordinary.indexOf('.')):'',reserve=Number(e.dataset.numericReserveEnd||0),half=e.getBoundingClientRect().width/2-Number(e.dataset.numericFitInset||0)
+        const fits=c.measureText(whole).width<=half&&c.measureText(fraction).width<=half-reserve
         return {fits,text:fits?ordinary:value.toExponential(2).toUpperCase()}
       })()`)
       assert.equal(metric.text, expected.text, `${aria} ordinary-first fallback follows actual rendered half-region fit for ${value}: ${JSON.stringify({ metric, expected })}`)

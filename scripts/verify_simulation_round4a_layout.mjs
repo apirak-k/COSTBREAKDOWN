@@ -830,6 +830,58 @@ try {
         }
       }
     }
+    if (width >= 1280) {
+      const containment = await evaluate(`(()=>{
+        const result = document.querySelector('section[aria-labelledby="simulation-result-title"]');
+        const breakEven = document.querySelector('figure[aria-labelledby="break-even-graph-title"]');
+        if (!result || !breakEven) return null;
+        const rBox = result.getBoundingClientRect();
+        const bBox = breakEven.getBoundingClientRect();
+        return {
+          resultBottom: rBox.bottom,
+          breakEvenTop: bBox.top,
+          overlaps: rBox.bottom > bBox.top + 0.5,
+          resultScrollable: result.scrollHeight > result.clientHeight + 1,
+          resultClientHeight: result.clientHeight,
+          resultScrollHeight: result.scrollHeight
+        };
+      })()`);
+      check(`${width}px Simulation Result panel is fully contained above Break-even without overlap or scrollbars`,
+        Boolean(containment && !containment.overlaps && !containment.resultScrollable), containment);
+    }
+    if (width === 1440) {
+      const totalLabelCheck = await evaluate(`(()=>{
+        const totalCell = document.querySelector('tr[id^="simulation-detail-"] td[aria-label^="Total"]');
+        if (!totalCell) return null;
+        const totalSpan = totalCell.querySelector('span.text-slate-600');
+        const numberSpan = totalCell.querySelector('[data-numeric-region]');
+        return {
+          hasNeutralTotal: !!totalSpan && totalSpan.textContent.trim() === 'Total',
+          hasNumber: !!numberSpan,
+          labelColor: totalSpan ? getComputedStyle(totalSpan).color : null
+        };
+      })()`);
+      if (totalLabelCheck) {
+        check('1440px Parameter Cost Effect Total label is neutral and separate from numeric delta',
+          Boolean(totalLabelCheck.hasNeutralTotal && totalLabelCheck.hasNumber), totalLabelCheck);
+      }
+      const ordinaryCheck = await evaluate(`(()=>{
+        const inputs = [...document.querySelectorAll('section[data-simulation-table] tbody input')];
+        return inputs.map(input => ({
+          aria: input.getAttribute('aria-label'),
+          value: input.value,
+          scientific: input.value.includes('E')
+        })).filter(i => i.scientific);
+      })()`);
+      check('1440px Simulation table initial values have no premature scientific fallback',
+        ordinaryCheck.length === 0, ordinaryCheck);
+      const outcomeShade = await evaluate(`(()=>{
+        const greenElements = [...document.querySelectorAll('section[aria-label="Economic Simulation"] dd')];
+        return greenElements.map(e => ({ text: e.textContent, color: getComputedStyle(e).color, className: e.className }));
+      })()`);
+      check('1440px Economic Simulation panel positive outcomes use emerald-800',
+        outcomeShade.every(item => !item.className.includes('emerald-700')), outcomeShade);
+    }
     if (width >= 768) {
       const balancedFields = frameMetrics.filter(metric => metric?.frame)
       check(`${width}px all six desktop fields use static frames independent of text length`,

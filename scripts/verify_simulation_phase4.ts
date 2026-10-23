@@ -422,8 +422,8 @@ assert.match(upperWorkspaceSource, /xl:grid-cols-\[minmax\(0,[\d.]+fr\)_minmax\(
 const resultColumnSource = upperWorkspaceSource.match(/<div data-simulation-layout-column="result-and-break-even"[\s\S]*?<EconomicSimulationPanel/)?.[0] ?? ''
 assert.match(resultColumnSource, /<ResultPanel[\s\S]*?<EconomicBreakEvenGraphPanel[\s\S]*?<\/div>\s*<EconomicSimulationPanel/,
   '[source contract] Result sits above Break-even in the middle column before far-right Business/Economic')
-assert.match(resultColumnSource, /xl:grid-rows-\[minmax\(0,1\.4fr\)_minmax\(0,1fr\)\]/,
-  '[source contract] Result takes about 58% of the middle column height and Break-even 42%')
+assert.match(resultColumnSource, /xl:grid-rows-\[auto_minmax\(0,1fr\)\]/,
+  '[source contract] Result sizes to content above Break-even without vertical overflow')
 assert.match(pageSource, /label="Send"[\s\S]*?secondaryLabel="Send all datasets"[\s\S]*?onPrimary=\{onSend\}[\s\S]*?onSecondary=\{onSendAll\}/,
   '[source contract] Send main and secondary actions use the active-role and all-role callbacks')
 assert.match(pageSource, /label="Reset"[\s\S]*?secondaryLabel="Reset all"[\s\S]*?onPrimary=\{onReset\}[\s\S]*?onSecondary=\{onResetAll\}/,

@@ -1152,8 +1152,9 @@ try {
       && Math.abs((total.label.top + total.label.bottom) / 2 - (total.token.top + total.token.bottom) / 2) <= 3),
       `Total annotations have dedicated same-line slots without shifting column centerline at ${width}px`, corrections.totals)
     verify(corrections.loss.length > 0 && corrections.loss.every(loss => loss.suffix.left >= loss.token.right
+      && loss.suffix.left - loss.token.right <= 12
       && loss.suffix.right <= loss.cell.right + 1),
-      `real BOM delta Loss uses standard percentage suffix slot at ${width}px`, corrections.loss)
+      `real BOM delta Loss uses adjacent percentage suffix rhythm at ${width}px`, corrections.loss)
     await screenshot(`cbd-selected-value-${width}`)
   }
 

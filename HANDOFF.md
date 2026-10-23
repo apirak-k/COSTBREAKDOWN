@@ -1,4 +1,26 @@
-# Pre-Round-4B Regression Audit & Status Reconciliation — 2026-10-23
+# Pre-Round-4B Corrective Gate Closed — 2026-10-23
+
+- **Branch:** `feat/selected-value-ux`
+- **Audited Starting Remote HEAD:** `a70517d9e5351052e8ab9b226e351595ebe1c8c7`
+- **Status:** **PRE-4B CORRECTIVE PASS COMPLETE / VERIFIED / READY FOR USER CLOSURE**
+- **Round 4B:** **NOT STARTED / READY UPON REVIEW**
+- **Changes Completed Across Finite 6 Gates:**
+  1. **Gate 1: Simulation Result Containment:** Changed `data-simulation-layout-column="result-and-break-even"` grid track from `xl:grid-rows-[minmax(0,1.4fr)_minmax(0,1fr)]` to `xl:grid-rows-[auto_minmax(0,1fr)]` in `SimulationPage.tsx`. ResultPanel sizes to its natural content height (`auto`) with 0 vertical scroll, 0 horizontal scroll, and zero bounding-box intersection with Break-even across viewports.
+  2. **Gate 2: Ordinary-First Numeric Fit:** In `numeric-column-layout.ts`, removed over-conservative `.0000` 4-decimal reserve on ordinary numbers (`fractionWidth = measure(fraction)`). Short ordinary values (`4.00`, `5.00`, `8.00`, `12.00`, `15.00` and `5.00 %`, `84.00 %`, `90.00 %`, `97.00 %`, `98.00 %`) stay ordinary after blur across all editable, read-only, and effect columns.
+  3. **Gate 3: Floating-Point Machine Noise:** In `numeric-display.ts`, updated `normalizeNumericNoise` so IEEE-754 machine residuals with magnitude `< 1e-12` (such as `-8.88E-16` from decomposition calculations) normalize to `0` and display as `0.00`, while preserving subnormal floats like `Number.MIN_VALUE` and intentional precision `12.3456789`. Semantic equivalence correctly equates machine noise without false CHANGED badges.
+  4. **Gate 4: Parameter Cost Effect Total Label:** In `SimulationPage.tsx`, decoupled the `Total` label (`text-slate-600 font-normal`) from the colored delta number in expanded Parameter Cost Effect rows.
+  5. **Gate 5: CBD BOM Δ Loss % Spacing:** Restored `compactPercentSuffix={parameter.field === 'loss'}` in `CandidateFindingsTable.tsx`. Δ Loss `%` sits naturally adjacent to the number (`5.00 %`) matching Yield and %GAP without changing the decimal anchor. Tightened verifier to assert `suffix.left - token.right <= 12`.
+  6. **Gate 6: Collateral Restoration / Preservation:**
+     - Restored Economic Simulation positive outcome text color from `text-emerald-700` back to `text-emerald-800` (pairing with `text-rose-800` for contrast).
+     - Verified `#`, `[1]`, `[2]` visual weight and styling across Master Data, CBD, and Simulation callers without collateral regression.
+- **Verification Results:**
+  - `node scripts/verify_numeric_input.mjs`: 326/326 PASS.
+  - `node scripts/verify_simulation_regression.mjs`: PASS.
+  - `node scripts/verify_simulation_round4a_layout.mjs`: 222/222 PASS.
+  - `node scripts/verify_cbd_selected_value_browser.mjs`: 296/296 PASS.
+  - `npm run build`: Production build passes cleanly with 0 TypeScript errors.
+
+# Historical Pre-Round-4B Regression Audit & Status Reconciliation — 2026-10-23 (Superseded Operationally)
 
 - **Branch:** `feat/selected-value-ux`
 - **Audited remote HEAD:** `3af57b05e8518d7777d921f6b31ef50bce6ebf76`

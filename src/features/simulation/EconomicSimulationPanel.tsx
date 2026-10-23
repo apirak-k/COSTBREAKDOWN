@@ -298,7 +298,7 @@ export function EconomicSimulationPanel({ result, draft, afterSnapshot, unit, on
     {
       label: 'Parameter Saving', ariaLabel: 'Parameter Saving / Unit', formula: 'Current Standard Cost − SIM Standard Cost', value: result.parameterSavingPerPiece,
       className: result.parameterSavingPerPiece === null ? 'text-slate-500'
-        : result.parameterSavingPerPiece > 0 ? 'text-emerald-700'
+        : result.parameterSavingPerPiece > 0 ? 'text-emerald-800'
           : result.parameterSavingPerPiece < 0 ? 'text-rose-800' : 'text-slate-600'
     },
     {
@@ -308,7 +308,7 @@ export function EconomicSimulationPanel({ result, draft, afterSnapshot, unit, on
     {
       label: 'Economic Margin', ariaLabel: 'Economic Margin / Unit', formula: 'Parameter Saving / Unit − Required Saving / Unit', value: result.economicMarginPerPiece,
       className: result.economicMarginPerPiece === null ? 'text-slate-500'
-        : result.economicMarginPerPiece > 0 ? 'text-emerald-700'
+        : result.economicMarginPerPiece > 0 ? 'text-emerald-800'
           : result.economicMarginPerPiece < 0 ? 'text-rose-800' : 'text-slate-600'
     }
   ]
@@ -318,7 +318,7 @@ export function EconomicSimulationPanel({ result, draft, afterSnapshot, unit, on
     formula: 'Effective After Selling Price − effective After Standard Cost − SG&A / Unit',
     value: result.operatingProfitPerPiece,
     className: result.operatingProfitPerPiece === null ? 'text-slate-500'
-      : result.operatingProfitPerPiece > 0 ? 'text-emerald-700'
+      : result.operatingProfitPerPiece > 0 ? 'text-emerald-800'
         : result.operatingProfitPerPiece < 0 ? 'text-rose-800' : 'text-slate-600'
   })
   economicOutputs.push({

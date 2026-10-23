@@ -49,7 +49,18 @@ try {
     isMasterDataNumericValueValid
   } = await vite.ssrLoadModule('/src/core/utils/master-data-validation.ts')
   const { NumericInput } = await vite.ssrLoadModule('/src/shared/ui/NumericInput.tsx')
-  const { formatBusinessNumber, formatFullNumericValue, formatFocusedNumericValue, formatHeaderNumericValue } = await vite.ssrLoadModule('/src/shared/ui/numeric-display.ts')
+  const { formatBusinessNumber, formatFullNumericValue, formatFocusedNumericValue, formatHeaderNumericValue, normalizeNumericNoise, areNumericValuesEquivalent } = await vite.ssrLoadModule('/src/shared/ui/numeric-display.ts')
+  assert.equal(normalizeNumericNoise(-8.881784197001252e-16), 0, 'IEEE 754 machine epsilon residual normalizes to 0')
+  assert.equal(formatBusinessNumber(-8.881784197001252e-16), '0.00', 'machine noise formats as ordinary zero rather than scientific')
+  assert.equal(normalizeNumericNoise(9.000000000000004), 9, 'trailing floating point noise normalizes to exact whole')
+  assert.equal(normalizeNumericNoise(20.000000000000004), 20, 'trailing floating point noise normalizes to exact whole')
+  assert.equal(normalizeNumericNoise(12.3456789), 12.3456789, 'intentional user precision is preserved exactly')
+  assert.ok(areNumericValuesEquivalent(-8.881784197001252e-16, 0), 'residual is equivalent to 0')
+  assert.ok(areNumericValuesEquivalent(0.09, 0.09000000000000004), 'machine noise differences are equivalent (UNCHANGED)')
+  assert.ok(!areNumericValuesEquivalent(0.09, 0.091), 'intentional differences are not equivalent (CHANGED)')
+  for (const ordinaryVal of [4, 5, 8, 12, 15]) {
+    assert.equal(formatBusinessNumber(ordinaryVal), `${ordinaryVal}.00`, `ordinary value ${ordinaryVal} formats as 2dp`)
+  }
   for(const [value,expected] of [[110,'110.00'],[110.5,'110.50'],[110.123456,'110.123456'],[0.0045,'0.0045'],[0.00003,'0.00003'],[-0,'0.00']]) {
     assert.equal(formatFocusedNumericValue(value),expected,'focused committed decimals retain authoritative digits and minimum 2dp')
     assert.equal(Number(formatFocusedNumericValue(value)),value===0?0:value,'focused text round trips exactly')
@@ -67,7 +78,7 @@ try {
   assert.equal(measuredColumn(0.0045, 100).text, '0.0045', 'four-place tiny ordinary values retain their exact presentation')
   assert.equal(measuredColumn(0.00003, 100).text, '3.00E-5', 'tiny scientific policy is preserved before layout fit')
   assert.equal(measuredColumn(-0, 100).text, '0.00', 'numeric-column negative zero stays normalized')
-  assert.equal(measuredColumn(100, 100, {}, 24).notation, 'scientific', 'reserved marker space participates in the fractional-region fit')
+  assert.equal(measuredColumn(100, 100, {}, 32).notation, 'scientific', 'reserved marker space participates in the fractional-region fit')
   assert.ok(numericScientificFitFloor(proportionalMeasure) >= proportionalMeasure('-9.99E+308') + 2, 'scientific floor covers signed three-digit exponents with safe insets')
   assert.equal(formatHeaderNumericValue(3, true), '3', 'semantic integer Header source retains whole count presentation')
   const numericInputSource = readFileSync(resolve(process.cwd(), 'src/shared/ui/NumericInput.tsx'), 'utf8')
