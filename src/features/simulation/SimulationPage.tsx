@@ -462,7 +462,7 @@ function SimulationParameterTable({
   const navigationLabel = isBOM ? 'BOM' : 'Routing'
   const tableIdentity = isBOM ? 'Bill of Materials' : 'Routing Process'
   const parameters = isBOM ? BOM_PARAMETERS : RTG_PARAMETERS
-  const columnWidths = ['5.5%', '17%', '11%', '14%', '14%', '16%', '17%', '5.5%']
+  const columnWidths = ['5.5%', '17%', '10.75%', '13.75%', '13.75%', '16.75%', '17%', '5.5%']
   const renderColumnGroup = () => (
     <colgroup>
       {columnWidths.map((width, index) => (
