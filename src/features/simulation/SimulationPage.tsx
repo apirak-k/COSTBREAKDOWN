@@ -1105,7 +1105,7 @@ function SimulationParameterTable({
                 onChange={event => setSearchQuery(event.target.value)}
                 aria-label={`Search ${shortTitle} by ${searchField}`}
                 placeholder={searchField}
-                className="search-clear-control h-6 w-full min-w-0 rounded-sm border border-slate-300 bg-white pl-7 pr-7 text-[10px] text-slate-800 placeholder:text-slate-400 focus:border-blue-700 focus:outline-none focus:ring-1 focus:ring-blue-100"
+                className="search-clear-control h-6 w-full min-w-0 rounded-sm border border-slate-300 bg-white pl-7 pr-7 text-[10px] text-slate-800 placeholder:text-slate-400 focus:border-blue-700 focus:outline-none focus:ring-1 focus:ring-blue-700"
               />
               {searchQuery.length > 0 && (
                 <button

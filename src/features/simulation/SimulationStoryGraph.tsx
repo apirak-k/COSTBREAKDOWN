@@ -201,7 +201,13 @@ function SelectedSvgNumber({ value, selectionId, tooltipText, onTooltipEnter, on
           source.pin()
         }
       }}
-      onPointerDown={() => setFocused(false)}
+      onPointerDown={event => {
+        if (event.pointerType === 'mouse') {
+          event.preventDefault()
+          event.currentTarget.blur()
+        }
+        setFocused(false)
+      }}
       onFocus={event => {
         refreshBounds()
         setFocused(event.currentTarget.matches(':focus-visible'))

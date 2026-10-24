@@ -248,7 +248,7 @@ Ordinary graph space allows natural vertical page scrolling on touch layouts. On
 
 ## 6. Page layout and navigation
 
-Each Simulation Search field is 24px high. When its query is non-empty, its custom clear control stays inside the field with an 18×18px hover/click surface, vertically centered with a 3px right inset, and a 9×9px X icon. Keep the neutral slate idle/hover colors, pointer cursor, visible keyboard focus, conditional rendering, clear-then-refocus action, and native browser cancel suppression. Master Data Search retains its separate 32px field geometry.
+Each Simulation Search field is 24px high. When its query is non-empty, its custom clear control stays inside the field with an 18×18px hover/click surface, vertically centered with a 3px right inset, and a 9×9px X icon. Keep the neutral slate idle/hover colors, pointer cursor, visible keyboard focus, conditional rendering, clear-then-refocus action, and native browser cancel suppression. Focus uses the same blue border and blue ring treatment as Master Data Search without changing Simulation's compact geometry. Master Data Search retains its separate 32px field geometry.
 
 - Remove the large Simulation PageHeading/title block; begin with working content.
 - Desktop Simulation is a fixed workspace inside the shared application shell: the page does not vertically scroll, and only the BOM and RTG table bodies scroll vertically. At narrow responsive sizes, panels stack and natural page scrolling is allowed so all controls remain reachable.

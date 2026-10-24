@@ -677,7 +677,7 @@ try {
     const svgSelectionState=selector=>evaluate(`(()=>{
       const text=document.querySelector(${JSON.stringify(selector)});if(!text)return null
       const id=text.getAttribute('data-selected-value-source'),background=[...document.querySelectorAll('[data-selected-number-background]')].find(item=>item.getAttribute('data-selected-number-background')===id),glyph=text.getBBox(),box=background?.getBBox(),style=getComputedStyle(text)
-      return {text:text.textContent.trim(),aria:text.getAttribute('aria-label'),selected:text.getAttribute('aria-pressed'),id,fill:style.fill,fontSize:style.fontSize,fontWeight:style.fontWeight,focused:text.matches(':focus-visible'),tooltipTarget:text.getAttribute('data-graph-tooltip'),glyph:{x:glyph.x,y:glyph.y,width:glyph.width,height:glyph.height},background:box?{x:box.x,y:box.y,width:box.width,height:box.height,pointerEvents:background.getAttribute('pointer-events'),stroke:background.getAttribute('stroke'),fill:background.getAttribute('fill')}:null,sourceTag:text.tagName,role:text.getAttribute('role')}
+      return {text:text.textContent.trim(),aria:text.getAttribute('aria-label'),selected:text.getAttribute('aria-pressed'),id,fill:style.fill,fontSize:style.fontSize,fontWeight:style.fontWeight,focused:text.matches(':focus-visible'),focus:text.matches(':focus'),active:document.activeElement===text,outlineStyle:style.outlineStyle,outlineWidth:style.outlineWidth,outlineColor:style.outlineColor,outlineOffset:style.outlineOffset,outlineVisible:style.outlineStyle!=='none'&&parseFloat(style.outlineWidth)>0,boxShadow:style.boxShadow,borderStyle:style.borderStyle,borderWidth:style.borderWidth,tooltipTarget:text.getAttribute('data-graph-tooltip'),glyph:{x:glyph.x,y:glyph.y,width:glyph.width,height:glyph.height},background:box?{x:box.x,y:box.y,width:box.width,height:box.height,pointerEvents:background.getAttribute('pointer-events'),stroke:background.getAttribute('stroke'),fill:background.getAttribute('fill')}:null,sourceTag:text.tagName,role:text.getAttribute('role')}
     })()`)
     const graphSelectors=[
       ['Standard Cost','svg text[data-graph-standard-cost-value="reference"]'],
@@ -703,7 +703,7 @@ try {
       const svgColorAfter=await evaluate(`getComputedStyle(document.querySelector(${JSON.stringify(selector)})).fill`)
       graphSurfaceResults.push({label,selectorState,preview,hovered,header,previewTooltip,pinned,pinnedHeader,unpinned,svgColorAfter})
     }
-    const graphSurfacePass=item=>item.label==='GAP 2 total'&&item.missing?true:item.preview?.kind==='output'&&item.hovered?.sourceTag==='text'&&item.hovered?.role==='button'&&item.hovered?.id&&item.hovered.fill===item.svgColorAfter&&item.hovered.background?.stroke==='none'&&item.pinned?.selected==='true'&&item.unpinned?.selected==='false'&&item.pinned.background?.pointerEvents==='none'&&item.pinned.background?.fill==='#dbeafe'&&item.pinned.background?.stroke==='none'&&Math.abs(item.pinned.background.x-item.pinned.glyph.x+2)<0.1&&Math.abs(item.pinned.background.y-item.pinned.glyph.y+1)<0.1&&Math.abs(item.pinned.background.width-item.pinned.glyph.width-4)<0.1&&Math.abs(item.pinned.background.height-item.pinned.glyph.height-2)<0.1&&item.header?.kind==='output'&&item.pinnedHeader?.kind==='output'
+    const graphSurfacePass=item=>item.label==='GAP 2 total'&&item.missing?true:item.preview?.kind==='output'&&item.hovered?.sourceTag==='text'&&item.hovered?.role==='button'&&item.hovered?.id&&item.hovered.fill===item.svgColorAfter&&item.hovered.background?.stroke==='none'&&item.pinned?.selected==='true'&&item.pinned.focused===false&&!item.pinned.focus&&!item.pinned.active&&!item.pinned.outlineVisible&&item.pinned.outlineStyle==='none'&&item.pinned.boxShadow==='none'&&(item.pinned.borderStyle==='none'||item.pinned.borderWidth==='0px')&&item.unpinned?.selected==='false'&&item.pinned.background?.pointerEvents==='none'&&item.pinned.background?.fill==='#dbeafe'&&item.pinned.background?.stroke==='none'&&Math.abs(item.pinned.background.x-item.pinned.glyph.x+2)<0.1&&Math.abs(item.pinned.background.y-item.pinned.glyph.y+1)<0.1&&Math.abs(item.pinned.background.width-item.pinned.glyph.width-4)<0.1&&Math.abs(item.pinned.background.height-item.pinned.glyph.height-2)<0.1&&item.header?.kind==='output'&&item.pinnedHeader?.kind==='output'
     check('Visible graph Standard Cost, Visible +/−, available GAP totals, and Y-axis ticks preserve semantic color and use tight mouse-pin backgrounds without a focus ring',graphSurfaceResults.length===6&&graphSurfaceResults.every(graphSurfacePass),graphSurfaceResults)
 
     const keyboardFocusTarget='svg text[data-graph-total="gap1"]'
@@ -719,7 +719,12 @@ try {
     await send('Input.dispatchKeyEvent',{type:'keyUp',key:'Enter',code:'Enter',windowsVirtualKeyCode:13,nativeVirtualKeyCode:13})
     await delay(80)
     const keyboardEnterUnpinned=await svgSelectionState(keyboardFocusTarget)
-    check('Selected SVG values retain a visible keyboard focus ring and Space/Enter toggle Pin',Boolean(keyboardFocusSetup&&keyboardFocused?.focused&&keyboardFocused.background?.stroke==='#1d4ed8'&&keyboardFocused.selected==='false'&&keyboardSpacePinned?.focused&&keyboardSpacePinned.selected==='true'&&keyboardSpacePinned.background?.fill==='#dbeafe'&&keyboardSpacePinned.background?.stroke==='#1d4ed8'&&keyboardEnterUnpinned?.focused&&keyboardEnterUnpinned.selected==='false'&&keyboardEnterUnpinned.background?.stroke==='#1d4ed8'),{keyboardFocusSetup,keyboardFocused,keyboardSpacePinned,keyboardEnterUnpinned})
+    check('Selected SVG values retain a visible keyboard focus ring and Space/Enter toggle Pin',Boolean(keyboardFocusSetup&&keyboardFocused?.focused&&keyboardFocused.focus&&keyboardFocused.active&&keyboardFocused.outlineStyle==='solid'&&keyboardFocused.outlineWidth==='2px'&&keyboardFocused.background?.stroke==='#1d4ed8'&&keyboardFocused.selected==='false'&&keyboardSpacePinned?.focused&&keyboardSpacePinned.outlineStyle==='solid'&&keyboardSpacePinned.outlineWidth==='2px'&&keyboardSpacePinned.selected==='true'&&keyboardSpacePinned.background?.fill==='#dbeafe'&&keyboardSpacePinned.background?.stroke==='#1d4ed8'&&keyboardEnterUnpinned?.focused&&keyboardEnterUnpinned.outlineStyle==='solid'&&keyboardEnterUnpinned.outlineWidth==='2px'&&keyboardEnterUnpinned.selected==='false'&&keyboardEnterUnpinned.background?.stroke==='#1d4ed8'),{keyboardFocusSetup,keyboardFocused,keyboardSpacePinned,keyboardEnterUnpinned})
+    await clickSelector(keyboardFocusTarget)
+    const keyboardToMousePinned=await svgSelectionState(keyboardFocusTarget)
+    await clickSelector(keyboardFocusTarget)
+    const keyboardToMouseUnpinned=await svgSelectionState(keyboardFocusTarget)
+    check('A physical mouse click removes an existing keyboard ring while pinning and unpinning the same SVG target',Boolean(keyboardToMousePinned?.selected==='true'&&!keyboardToMousePinned.focused&&!keyboardToMousePinned.focus&&!keyboardToMousePinned.active&&!keyboardToMousePinned.outlineVisible&&keyboardToMousePinned.outlineStyle==='none'&&keyboardToMousePinned.boxShadow==='none'&&keyboardToMousePinned.background?.fill==='#dbeafe'&&keyboardToMousePinned.background?.stroke==='none'&&keyboardToMouseUnpinned?.selected==='false'&&!keyboardToMouseUnpinned.focused&&!keyboardToMouseUnpinned.outlineVisible&&keyboardToMouseUnpinned.background?.stroke==='none'),{keyboardToMousePinned,keyboardToMouseUnpinned})
 
     const tooltipContentResults=[]
     for(const [label,selector,expected] of [
@@ -823,6 +828,60 @@ try {
     await waitVisible('button[aria-label="After dataset, Custom"]', 'Custom After comparison role')
     const unavailableCustomCells = await evaluate(`(()=>[...document.querySelectorAll('[data-simulation-result-body] td')].filter(cell=>cell.textContent.trim()==='—').map(cell=>({label:cell.closest('tr')?.querySelector('th[scope="row"]')?.textContent.trim()??null,selectable:!!cell.querySelector('button[data-selected-number]')})))()`)
     check('Unavailable Custom Result values remain non-selectable', unavailableCustomCells.length > 0 && unavailableCustomCells.every(cell => !cell.selectable), unavailableCustomCells)
+
+    await clickButtonText('Master Data')
+    await waitVisible('input[aria-label="Search Master Data"]', 'Master Data Search focus reference')
+    const masterSearchFocus = await evaluate(`(()=>{
+      const input=document.querySelector('input[aria-label="Search Master Data"]');input?.focus()
+      const style=input?getComputedStyle(input):null
+      return input&&style?{borderColor:style.borderTopColor,boxShadow:style.boxShadow,outlineStyle:style.outlineStyle,outlineWidth:style.outlineWidth}:null
+    })()`)
+    check('Master Data Search provides the live blue-border and blue-ring reference',Boolean(masterSearchFocus?.borderColor&&masterSearchFocus.boxShadow!=='none'),masterSearchFocus)
+
+    await clickButtonText('Simulation')
+    await waitVisible('section[data-simulation-table="bom"] footer[data-simulation-table-footer="bom"] input', 'Simulation BOM footer Search')
+    await waitVisible('section[data-simulation-table="routing"] footer[data-simulation-table-footer="routing"] input', 'Simulation Routing footer Search')
+    const footerSearchState = kind => evaluate(`(()=>{
+      const kind=${JSON.stringify(kind)},footer=document.querySelector('footer[data-simulation-table-footer="'+kind+'"]'),input=footer?.querySelector('input[aria-label^="Search "]'),wrapper=input?.parentElement,range=footer?.querySelector('[aria-live="polite"]'),previous=footer?.querySelector('button[aria-label^="Previous "]'),next=footer?.querySelector('button[aria-label^="Next "]'),clear=footer?.querySelector('button[aria-label^="Clear "]')
+      const rect=element=>{const b=element?.getBoundingClientRect();return b?{left:b.left,top:b.top,right:b.right,bottom:b.bottom,width:b.width,height:b.height}:null}
+      const overlap=(a,b)=>a&&b&&a.left<b.right&&a.right>b.left&&a.top<b.bottom&&a.bottom>b.top
+      const style=input?getComputedStyle(input):null,clearStyle=clear?getComputedStyle(clear):null
+      const inputRect=rect(input),wrapperRect=rect(wrapper),rangeRect=rect(range),previousRect=rect(previous),nextRect=rect(next),clearRect=rect(clear)
+      const canvas=document.createElement('canvas'),context=canvas.getContext('2d')
+      if(context&&style)context.font=style.font
+      const textWidth=context&&input?context.measureText(input.value).width:0
+      const textRight=input&&style?inputRect.left+parseFloat(style.borderLeftWidth)+parseFloat(style.paddingLeft)+textWidth:null
+      const hitTarget=clearRect?document.elementFromPoint(clearRect.left+2,clearRect.top+clearRect.height/2):null
+      return footer&&input?{value:input.value,active:document.activeElement===input,focusVisible:input.matches(':focus-visible'),footer:rect(footer),input:inputRect,wrapper:wrapperRect,range:rangeRect,rangeText:range?.textContent.trim()??null,previous:previousRect,next:nextRect,clear:clearRect,style:style?{borderColor:style.borderTopColor,boxShadow:style.boxShadow,outlineStyle:style.outlineStyle,outlineWidth:style.outlineWidth,paddingLeft:style.paddingLeft,paddingRight:style.paddingRight}:null,clearStyle:clearStyle?{backgroundColor:clearStyle.backgroundColor,visibility:clearStyle.visibility,display:clearStyle.display,opacity:clearStyle.opacity}:null,clearHit:!!hitTarget&&hitTarget.closest('button')===clear,textWidth,textRight,textBeforeClear:clearRect?textRight<=clearRect.left:null,searchNavigationOverlaps:[overlap(wrapperRect,rangeRect),overlap(wrapperRect,previousRect),overlap(wrapperRect,nextRect),overlap(rangeRect,previousRect),overlap(rangeRect,nextRect)]}:null
+    })()`)
+    const sameBox = (left, right) => Boolean(left&&right&&['left','top','width','height'].every(key=>Math.abs(left[key]-right[key])<=0.5))
+    const sameFooterLayout = (left, right) => sameBox(left?.footer,right?.footer)&&sameBox(left?.wrapper,right?.wrapper)&&sameBox(left?.range,right?.range)&&sameBox(left?.previous,right?.previous)&&sameBox(left?.next,right?.next)
+    for(const [kind,label,query,shortTitle] of [['bom','BOM','MAT-A','BOM'],['routing','Routing','OP-10','RTG']]){
+      const inputLabel=`Search ${shortTitle} by ${kind==='bom'?'Material':'Process'}`
+      const inputSelector=`input[aria-label=${JSON.stringify(inputLabel)}]`
+      const emptyBefore=await footerSearchState(kind)
+      await evaluate(`document.querySelector(${JSON.stringify(inputSelector)})?.focus()`)
+      const emptyFocused=await footerSearchState(kind)
+      check(`${label} Search retains its 24px geometry and has the Master Data blue-border/ring focus`,Boolean(emptyBefore?.input?.height===24&&emptyBefore.input.width>0&&emptyFocused?.active&&emptyFocused.style?.borderColor===masterSearchFocus?.borderColor&&emptyFocused.style?.boxShadow===masterSearchFocus?.boxShadow&&emptyFocused.style?.boxShadow!=='none'&&sameFooterLayout(emptyBefore,emptyFocused)),{emptyBefore,emptyFocused,masterSearchFocus})
+
+      const typed=await typeIntoInput(inputLabel,query)
+      await evaluate(`document.querySelector(${JSON.stringify(inputSelector)})?.blur()`)
+      await send('Input.dispatchMouseEvent',{type:'mouseMoved',x:1437,y:10})
+      const queryUnfocused=await footerSearchState(kind)
+      await evaluate(`document.querySelector(${JSON.stringify(inputSelector)})?.focus()`)
+      const queryFocused=await footerSearchState(kind)
+      const clearSelector=`button[aria-label=${JSON.stringify(`Clear ${kind==='bom'?'Material':'Process'} search`)}]`
+      const clearPoint=await evaluate(`(()=>{const e=document.querySelector(${JSON.stringify(clearSelector)}),r=e?.getBoundingClientRect();return r?{x:r.left+r.width/2,y:r.top+r.height/2}:null})()`)
+      if(clearPoint){await send('Input.dispatchMouseEvent',{type:'mouseMoved',...clearPoint});await delay(180)}
+      const clearHovered=await footerSearchState(kind)
+      await screenshot(`simulation-search-${kind}-clear-hover`)
+      const clearRightInset=clearHovered?.input&&clearHovered?.clear?clearHovered.input.right-clearHovered.clear.right:null
+      check(`${label} Search focus and clear-hover preserve footer/navigation geometry and keep × visible above the ring`,Boolean(typed===query&&queryFocused?.active&&queryFocused.style?.borderColor===masterSearchFocus?.borderColor&&queryFocused.style?.boxShadow===masterSearchFocus?.boxShadow&&sameFooterLayout(queryUnfocused,queryFocused)&&sameFooterLayout(queryFocused,clearHovered)&&clearHovered.value===query&&clearHovered.clear?.width===18&&clearHovered.clear?.height===18&&clearRightInset===3&&clearHovered.clearStyle?.visibility==='visible'&&clearHovered.clearStyle?.display!=='none'&&clearHovered.clearStyle?.opacity!=='0'&&clearHovered.clearStyle?.backgroundColor==='rgb(226, 232, 240)'&&clearHovered.clearHit&&clearHovered.textBeforeClear&&clearHovered.searchNavigationOverlaps.every(overlap=>!overlap)),{typed,queryUnfocused,queryFocused,clearHovered,clearRightInset})
+
+      await clickSelector(clearSelector)
+      const cleared=await footerSearchState(kind)
+      check(`${label} Search clear removes the query, restores focus, and retains the Master Data focus treatment`,Boolean(cleared?.value===''&&cleared.active&&cleared.style?.borderColor===masterSearchFocus?.borderColor&&cleared.style?.boxShadow===masterSearchFocus?.boxShadow&&cleared.input?.height===24&&sameBox(queryFocused?.footer,cleared.footer)&&sameBox(queryFocused?.previous,cleared.previous)&&sameBox(queryFocused?.next,cleared.next)&&!cleared.clear),{cleared,masterSearchFocus})
+    }
     await screenshot('simulation-round4b-selected-value')
   } else {
   let routingReferenceYieldBaseline = null
