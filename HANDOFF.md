@@ -1,4 +1,27 @@
-## Current checkpoint — Global direct-edit blue-value indicator — 2026-10-25
+## Current checkpoint — Global direct-edit indicator corrective pass — 2026-10-25
+
+- **Status:** Corrective implementation complete; focused internal verification passed; **AWAITING EXTERNAL AUDIT / ACCEPTANCE**. Round 4 / Round 4B remain **ACCEPTED / CLOSED**. Round 5 is **NOT STARTED**; no merge occurred.
+- **Branch / checkout:** `feat/selected-value-ux` / `E:\COSTBREAKDOWN\.worktrees\SIMULATION-FINALIZED`.
+- **Starting local and freshly fetched remote HEAD:** both `923fc5efd9d12505a47f3882263b23191a2a7856`. A second fetch before the implementation commit confirmed the remote remained at the same SHA.
+- **Root cause:** Simulation blue state was represented by one pending source ID and cleared whenever the focus/gesture history entry committed. That made history commit double as a provenance-clear boundary, so previously edited sources lost blue on blur.
+- **Simulation source model:** transient provenance is held per product, role, and Working-basis fingerprint. Each entry maps a stable source ID (parameter record/field, Economic field, or separate graph marker) to the exact pre-direct-edit decimal token. Exact-decimal comparison decides when that source returns to its original value. Product removal and stale basis reconciliation prune marks.
+- **History / lifecycle:** history gesture commit records the existing value snapshot and before/after provenance in the same history entry; it does not clear blue or change grouping/chronology. Undo / Redo restore provenance alongside the values. Main Reset clears the active role's marks and remains undoable; Reset All clears marks across the product under its existing history semantics. Successful Send and Working-basis reconciliation remove stale marks. Calculated, linked, and derived outputs remain normal.
+- **Master Data:** no product code was changed. Its direct-edit Save, Undo/Redo, Reset, Clone, Import, and system-action behavior passed the browser regression in this pass.
+- **Header:** the three main navigation buttons now use equal grid columns. Real rendered geometry passed at 1440px and 390px, with the active underline centered within 1.25px.
+- **Verification:**
+  - `node scripts/verify_direct_edit_blue_browser.mjs` — **80 assertions PASS** in the real browser; includes Master Data regression, Simulation Price/Usage blur persistence, multiple-source Undo/Redo, Economic blur persistence, Reset/Undo/Redo, Send reconciliation, Reference/Current role switching, Reset All, derived-output color, and Header geometry. No browser errors or warnings.
+  - `node --experimental-strip-types scripts/verify_simulation_history.ts` — **PASS**, including exact-decimal history and provenance Undo/Redo. The process printed a non-failing Vite WebSocket `24678`-in-use message and exited 0.
+  - `E:\COSTBREAKDOWN\node_modules\.bin\jiti.cmd scripts/verify_master_data_direct_edits.ts` — **26 assertions PASS**.
+  - `node scripts/verify_numeric_input.mjs` — **354/354 PASS**.
+  - `node scripts/verify_simulation_regression.mjs` — **PASS / exit 0** across Simulation, CBD, Master Data, history, and Header source contracts; it printed non-failing Vite WebSocket `24678`-in-use messages.
+  - `npx tsc --noEmit --pretty false` — **PASS**. `npm run build` — **PASS**. Build retains existing ExcelJS / fast-csv `fs` / `crypto` externalization notices and the >500 kB chunk warning.
+  - `git diff --check` — **PASS** before delivery.
+- **Graphify:** the code graph was refreshed to **3,379 nodes / 7,745 edges** and its query connected `AppRouter`, per-source provenance, history Undo/Redo, and basis fingerprinting. Community report regeneration was refused because Graphify detected a stale saved semantic label (`docs_specs_cross_cutting_design_spec`); `GRAPH_REPORT.md` was left unchanged and was not used as verification evidence. Graphify output is local/ignored.
+- **Implementation commit:** `00f27f086e091df85e0ec14cf154cf83e3ef2ff1` (`fix: persist simulation direct-edit provenance`). Documentation checkpoint is committed separately below this entry.
+- **Documentation:** canonical cross-cutting and Simulation behavior/status, the Round 4B status in the Cost Breakdown spec, the requirements index, Phase 2 plan, and this Handoff now reflect persistent Simulation provenance and the pending external audit.
+- **Boundaries / limits:** no formulas, calculations, validation domains, numeric precision, dataset semantics, or existing history grouping changed. The direct-edit indicator still needs external audit. Firefox, Safari, touch hardware, screen readers, and browser-level product switching were not tested; product scoping/removal pruning were verified by source inspection. Round 5 was not started.
+
+## Historical checkpoint — Initial global direct-edit blue-value indicator — 2026-10-25
 
 - **Status:** Indicator implemented and internally verified; **AWAITING EXTERNAL AUDIT / ACCEPTANCE**. The user confirmed that the preceding Round 4 / Round 4B implementation passed external source audit at `262bd3c54425a15d16065f45d80037c353afa656`; those rounds are **ACCEPTED / CLOSED**. Earlier checkpoint statuses below are historical. Round 5 remains **NOT STARTED**; no merge occurred.
 - **Branch / checkout:** `feat/selected-value-ux` / `/Users/bubu/COSTBREAKDOWN-ref-current-custom-flow-redesign`.

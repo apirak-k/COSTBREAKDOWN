@@ -60,7 +60,7 @@ Current statuses: Round 4 / Round 4B **EXTERNALLY AUDITED / ACCEPTED / CLOSED**;
 ## Current global direct-edit blue-value indicator — 2026-10-25
 
 - **Acceptance update:** The user confirmed the preceding Round 4B corrective implementation passed external source audit at remote `262bd3c54425a15d16065f45d80037c353afa656`. Round 4 / Round 4B are closed; the dated checkpoints below remain historical records.
-- **Implementation:** Only explicit manual source edits receive blue text. Master Data keeps role/field provenance alongside its existing session and history; successful dataset Save retires it. System replacements do not create manual provenance. Simulation uses its existing pending focus/gesture edit and clears color when that edit commits. Derived values remain normal.
+- **Implementation:** Only explicit manual source edits receive blue text. Master Data keeps role/field provenance alongside its existing session and history; successful dataset Save retires it. System replacements do not create manual provenance. Simulation keeps per-source direct-edit provenance in product, role, and Working-basis scope after blur and history commit; existing Undo/Redo restores provenance with values, while Reset and basis reconciliation clear stale marks. Derived values remain normal.
 - **Gate:** Blue indicator implemented / internally verified / awaiting external audit and acceptance. Round 5 remains NOT STARTED. Exact checks and delivery SHA are recorded in the current Handoff.
 
 ## Round 4B Corrective / Reconciliation Pass — 2026-10-24
