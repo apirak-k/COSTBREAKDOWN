@@ -201,10 +201,10 @@ try {
       check(`${width}px mixed stack displays +300 and -50 independently`, state.labels.length===6&&state.labels.filter(label=>label.side==='positive').every(label=>label.text==='+300.00')&&state.labels.filter(label=>label.side==='negative').every(label=>label.text==='-50.00'), state.labels)
       await screenshot(`visible-totals-${width}-mixed`)
       if (width===1440) {
-        for (const [side, expected] of [['positive','Current Visible + · +300.00 THB/KG'],['negative','Current Visible − · -50.00 THB/KG']]) {
+        for (const [side, expected] of [['positive','Current Visible +'],['negative','Current Visible −']]) {
           const point=await evaluate(`(()=>{const e=document.querySelector('[data-graph-visible-total-value="current"][data-graph-visible-total-side="${side}"]');e.scrollIntoView({block:'center'});const b=e.getBoundingClientRect();return{x:b.x+b.width/2,y:b.y+b.height/2}})()`)
           await send('Input.dispatchMouseEvent',{type:'mouseMoved',...point})
-          await delay(100)
+          await delay(400)
           const tooltip=await evaluate(`document.querySelector('[data-graph-tooltip-host] > div[aria-hidden="true"]')?.textContent`)
           check(`${side} label exposes a real pointer tooltip with dynamic UOM`, tooltip===expected, {tooltip,expected})
         }
@@ -233,6 +233,84 @@ try {
       state = await inspectVisible(`${width}px separated Selling Price`)
       check(`${width}px higher but separated Selling Price does not trigger side fallback`,state.labels.length===3&&state.labels.every(label=>label.text==='+300.00'&&label.position==='above'),state.labels)
     }
+    await setViewport(1440)
+    await clickButtonText('Show all')
+    await clickButtonText('Mixed sign')
+    const fixtureHeader=()=>evaluate(`(()=>{const input=document.querySelector('[data-header-numeric-zone] input[aria-label="Selected value"]'),output=document.querySelector('[data-header-numeric-zone] [data-selected-value-output]');return input?{kind:'input',value:input.value,source:input.getAttribute('data-selected-value-source')}:output?{kind:'output',value:output.textContent.trim(),source:output.title}:null})()`)
+    const fixtureGraphState=selector=>evaluate(`(()=>{const text=document.querySelector(${JSON.stringify(selector)});if(!text)return null;const id=text.getAttribute('data-selected-value-source'),background=[...document.querySelectorAll('[data-selected-number-background]')].find(item=>item.getAttribute('data-selected-number-background')===id),glyph=text.getBBox(),box=background?.getBBox();return{text:text.textContent.trim(),aria:text.getAttribute('aria-label'),pressed:text.getAttribute('aria-pressed'),id,fill:getComputedStyle(text).fill,glyph:{x:glyph.x,y:glyph.y,width:glyph.width,height:glyph.height},background:box?{x:box.x,y:box.y,width:box.width,height:box.height,pointerEvents:background.getAttribute('pointer-events')}:null}})()`)
+    const fixtureTargets=[
+      ['Reference Standard Cost','svg text[data-graph-standard-cost-value="reference"]'],
+      ['Visible +','svg text[data-graph-visible-total-side="positive"]'],
+      ['Visible −','svg text[data-graph-visible-total-side="negative"]'],
+      ['GAP 1 total','svg text[data-graph-total="gap1"]'],
+      ['GAP 2 total','svg text[data-graph-total="gap2"]'],
+      ['Y-axis tick','svg text[data-axis-tick="1"]']
+    ]
+    const fixtureSelections=[]
+    for(const [label,selector] of fixtureTargets){
+      const before=await fixtureGraphState(selector)
+      const preview=await (async()=>{await moveTo(selector);await delay(400);return fixtureHeader()})()
+      await clickSelector(selector)
+      const pinned=await fixtureGraphState(selector)
+      await clickSelector(selector)
+      const unpinned=await fixtureGraphState(selector)
+      fixtureSelections.push({label,before,preview:await preview,pinned,unpinned})
+    }
+    check('SVG bridge selects Standard Cost, Visible +/−, both GAP totals, and Y-axis ticks through the shared Header provider',fixtureSelections.length===6&&fixtureSelections.every(item=>item.before?.id&&item.before.pressed==='false'&&item.preview?.kind==='output'&&item.preview.value!=='—'&&item.pinned?.pressed==='true'&&item.unpinned?.pressed==='false'&&item.pinned.background?.pointerEvents==='none'&&Math.abs(item.pinned.background.x-item.pinned.glyph.x+2)<0.1&&Math.abs(item.pinned.background.y-item.pinned.glyph.y+1)<0.5&&Math.abs(item.pinned.background.width-item.pinned.glyph.width-4)<0.1&&Math.abs(item.pinned.background.height-item.pinned.glyph.height-2)<0.5),fixtureSelections)
+    const fixtureTooltips=[]
+    for(const [label,selector,expected] of [
+      ['Standard Cost','svg text[data-graph-standard-cost-value="reference"]','Reference Standard Cost'],
+      ['Visible +','svg text[data-graph-visible-total-side="positive"]','Current Visible +'],
+      ['Visible −','svg text[data-graph-visible-total-side="negative"]','Current Visible −'],
+      ['GAP 1 total','svg text[data-graph-total="gap1"]','Current − Reference'],
+      ['GAP 2 total','svg text[data-graph-total="gap2"]','Custom − Current']
+    ]){
+      await moveTo(selector)
+      await delay(400)
+      const tooltip=await evaluate(`document.querySelector('[data-graph-tooltip-host] > div[aria-hidden="true"]')?.textContent??null`)
+      const aria=await evaluate(`document.querySelector(${JSON.stringify(selector)})?.getAttribute('aria-label')??null`)
+      fixtureTooltips.push({label,tooltip,aria,expected})
+    }
+    const fixtureLabels=await evaluate(`(()=>[...document.querySelectorAll('svg text')].filter(text=>/^GAP [12]$/.test(text.textContent.trim())).map(text=>({text:text.textContent.trim(),target:!!text.hasAttribute('data-graph-tooltip'),label:text.getAttribute('aria-label'),selected:!!text.hasAttribute('data-selected-value-source')})))()`)
+    check('SVG graph context tooltips omit visible amounts, preserve exact GAP context, and leave GAP category text tooltip-free',fixtureTooltips.length===5&&fixtureTooltips.every(item=>item.tooltip===item.expected&&!/[+-]?\d[\d,]*(?:\.\d+)?/.test(item.tooltip))&&fixtureLabels.length===2&&fixtureLabels.every(item=>!item.target&&!item.label&&!item.selected),{fixtureTooltips,fixtureLabels})
+    const rulerTarget=await evaluate(`(()=>{const e=document.querySelector('svg [role="slider"][aria-label="Simulation comparison ruler"]'),r=e?.getBoundingClientRect();return r?{x:r.left+r.width/2,y:r.top+r.height/2}:null})()`)
+    await send('Input.dispatchMouseEvent',{type:'mouseMoved',x:1437,y:10})
+    const dwellTarget='svg text[data-graph-standard-cost-value="reference"]'
+    await moveTo(dwellTarget)
+    await delay(220)
+    const early=await evaluate(`document.querySelector('[data-graph-tooltip-host] > div[aria-hidden="true"]')?.textContent??null`)
+    await send('Input.dispatchMouseEvent',{type:'mouseMoved',x:1437,y:10})
+    await delay(180)
+    const cancelled=await evaluate(`document.querySelector('[data-graph-tooltip-host] > div[aria-hidden="true"]')?.textContent??null`)
+    await moveTo(dwellTarget)
+    await delay(390)
+    const active=await evaluate(`document.querySelector('[data-graph-tooltip-host] > div[aria-hidden="true"]')?.textContent??null`)
+    await send('Input.dispatchMouseEvent',{type:'mouseMoved',x:1437,y:10})
+    const hidden=await evaluate(`document.querySelector('[data-graph-tooltip-host] > div[aria-hidden="true"]')?.textContent??null`)
+    if(rulerTarget){await send('Input.dispatchMouseEvent',{type:'mouseMoved',...rulerTarget});await delay(400)}
+    const rulerTooltip=await evaluate(`document.querySelector('[data-graph-tooltip-host] > div[aria-hidden="true"]')?.textContent??null`)
+    check('Graph tooltip dwell is 350 ms and cancellable, active tooltips hide on leave, and ruler keeps no tooltip',Boolean(!early&&!cancelled&&active==='Reference Standard Cost'&&!hidden&&!rulerTooltip),{early,cancelled,active,hidden,rulerTooltip})
+    await clickButtonText('Mixed sign')
+    const axisBefore=await evaluate(`(()=>({values:[...document.querySelectorAll('svg text[data-axis-tick]')].map(e=>e.textContent.trim()),min:document.querySelector('svg [role="slider"][aria-label="Simulation comparison ruler"]')?.getAttribute('aria-valuemin'),max:document.querySelector('svg [role="slider"][aria-label="Simulation comparison ruler"]')?.getAttribute('aria-valuemax')}))()`)
+    const axisSelector='svg text[data-axis-tick="1"]'
+    const previewAxis=await (async()=>{await moveTo(axisSelector);await delay(400);return fixtureHeader()})()
+    await evaluate(`([...document.querySelectorAll('button')].find(button=>button.innerText.trim()==='Positive only'))?.click()`)
+    await delay(120)
+    const axisAfter=await evaluate(`(()=>({values:[...document.querySelectorAll('svg text[data-axis-tick]')].map(e=>e.textContent.trim()),min:document.querySelector('svg [role="slider"][aria-label="Simulation comparison ruler"]')?.getAttribute('aria-valuemin'),max:document.querySelector('svg [role="slider"][aria-label="Simulation comparison ruler"]')?.getAttribute('aria-valuemax')}))()`)
+    const clearedPreview=await fixtureHeader()
+    await clickButtonText('Mixed sign')
+    const negativeSelector='svg text[data-graph-visible-total-side="negative"]'
+    await moveTo(negativeSelector)
+    await delay(400)
+    const negativeBefore=await fixtureHeader()
+    await clickSelector(negativeSelector)
+    await evaluate(`([...document.querySelectorAll('button')].find(button=>button.innerText.trim()==='Positive only'))?.click()`)
+    await delay(120)
+    const clearedPin=await fixtureHeader()
+    const negativeAfter=await evaluate(`document.querySelector('svg text[data-graph-visible-total-side="negative"]')??null`)
+    await clickButtonText('Mixed sign')
+    const freshSelection=await (async()=>{await moveTo(negativeSelector);await delay(400);return fixtureHeader()})()
+    check('Changing graph data clears preview/pin sources without transferring them to new ticks and allows re-selection',Boolean(previewAxis?.kind==='output'&&axisBefore.values.join('|')!==axisAfter.values.join('|')&&clearedPreview?.value==='—'&&negativeBefore?.value==='-50.00'&&clearedPin?.value==='—'&&!negativeAfter&&freshSelection?.value==='-50.00'),{previewAxis,axisBefore,axisAfter,clearedPreview,negativeBefore,clearedPin,negativeRemoved:!negativeAfter,freshSelection})
   } else {
   await waitFor(() => evaluate('document.title'), 'application page')
   await waitVisible('button', 'application navigation')
@@ -307,6 +385,22 @@ try {
     check('Activating the same Result value again removes its pin', await evaluate(`document.querySelector(${JSON.stringify(materialBefore)})?.getAttribute('aria-pressed')`) === 'false')
     await clickSelector(materialAfter)
     await clickSelector(materialChange)
+    const resultPresentation=[]
+    for(const [label,selector] of [
+      ['Material Change','button[aria-label="Material Change"]'],
+      ['Material percent change','button[aria-label="Material percent change"]']
+    ]){
+      const read=()=>evaluate(`(()=>{const button=document.querySelector(${JSON.stringify(selector)}),cell=button?.closest('td'),suffix=cell?.querySelector('[data-numeric-suffix]');return button&&cell?{text:button.textContent.trim(),color:getComputedStyle(button).color,parentColor:getComputedStyle(cell).color,fontWeight:getComputedStyle(button).fontWeight,suffix:suffix?.textContent.trim()??null,pressed:button.getAttribute('aria-pressed')}:null})()`)
+      const idle=await read()
+      await hoverSelectedNumber(selector)
+      const preview=await read()
+      await clickSelector(selector)
+      const pinned=await read()
+      await clickSelector(selector)
+      const unpinned=await read()
+      resultPresentation.push({label,idle,preview,pinned,unpinned})
+    }
+    check('Result Change and percent preserve their source foreground, sign, suffix, and weight through Selected Value states',resultPresentation.length===2&&resultPresentation.every(item=>item.idle&&item.preview&&item.pinned&&item.unpinned&&item.idle.color===item.idle.parentColor&&item.preview.color===item.preview.parentColor&&item.pinned.color===item.pinned.parentColor&&item.unpinned.color===item.unpinned.parentColor&&item.idle.color===item.preview.color&&item.idle.fontWeight===item.preview.fontWeight&&item.pinned.pressed==='true'&&item.unpinned.pressed==='false'&&(item.label==='Material percent change'?item.idle.suffix==='%':true)),resultPresentation)
     check('Result Change pin transfers directly between numeric sources', Boolean(
       await evaluate(`document.querySelector(${JSON.stringify(materialAfter)})?.getAttribute('aria-pressed')`) === 'false'
       && await evaluate(`document.querySelector(${JSON.stringify(materialChange)})?.getAttribute('aria-pressed')`) === 'true'
@@ -432,6 +526,261 @@ try {
       check('Economic Outcome pins through the shared SelectedNumber control', await evaluate(`document.querySelector(${JSON.stringify(requiredSaving)})?.getAttribute('aria-pressed')`) === 'true')
       await clickSelector(requiredSaving)
     }
+
+    const outcomePresentation = async ariaLabel => evaluate(`(()=>{
+      const group=document.querySelector('[role="group"][aria-label='+${JSON.stringify(JSON.stringify(ariaLabel))}+']'),wrapper=group?.querySelector('[data-economic-outcome-value]'),button=wrapper?.querySelector('button[data-selected-number]')
+      if(!wrapper||!button)return null
+      const range=document.createRange();range.selectNodeContents(button.firstElementChild??button)
+      const text=range.getBoundingClientRect(),buttonBox=button.getBoundingClientRect(),background=button.firstElementChild?.getBoundingClientRect(),semantic=getComputedStyle(wrapper),control=getComputedStyle(button)
+      return {label:wrapper.getAttribute('data-economic-outcome-value'),text:button.textContent.trim(),semanticColor:semantic.color,controlColor:control.color,fontFamily:semantic.fontFamily,fontSize:semantic.fontSize,fontWeight:semantic.fontWeight,textAlign:semantic.textAlign,buttonBox:{left:buttonBox.left,right:buttonBox.right,top:buttonBox.top,bottom:buttonBox.bottom},textBox:{left:text.left,right:text.right,top:text.top,bottom:text.bottom},backgroundBox:background?{left:background.left,right:background.right,top:background.top,bottom:background.bottom}:null,pinned:button.getAttribute('aria-pressed')}
+    })()`)
+    for (const ariaLabel of ['Parameter Saving / Unit','Economic Margin / Unit','Operating Profit / Unit']) {
+      const selector=`[role="group"][aria-label=${JSON.stringify(ariaLabel)}] [data-economic-outcome-value] button[data-selected-number]`
+      const idle=await outcomePresentation(ariaLabel)
+      await hoverSelectedNumber(selector)
+      const preview=await outcomePresentation(ariaLabel)
+      const previewHeader=await visibleHeader()
+      await clickSelector(selector)
+      const pinned=await outcomePresentation(ariaLabel)
+      const pinnedHeaderStyle=await evaluate(`getComputedStyle(document.querySelector('[data-header-numeric-zone] [data-selected-value-output]')).color`)
+      await clickSelector(selector)
+      const unpinned=await outcomePresentation(ariaLabel)
+      check(`${ariaLabel} preserves its inherited semantic color, sign, typography, and content-hug treatment through hover/pin/unpin`, Boolean(idle&&preview&&pinned&&unpinned
+        && idle.semanticColor===idle.controlColor&&preview.semanticColor===preview.controlColor&&pinned.semanticColor===pinned.controlColor&&unpinned.semanticColor===unpinned.controlColor
+        && idle.semanticColor===preview.semanticColor&&idle.semanticColor===pinned.semanticColor&&idle.semanticColor===unpinned.semanticColor
+        && idle.fontFamily===preview.fontFamily&&idle.fontSize===preview.fontSize&&idle.fontWeight===preview.fontWeight&&idle.textAlign===preview.textAlign
+        && Math.abs(idle.buttonBox.left-idle.textBox.left)<=1&&Math.abs(idle.buttonBox.right-idle.textBox.right)<=1
+        && Math.abs(preview.backgroundBox.left-preview.textBox.left)<=1&&Math.abs(preview.backgroundBox.right-preview.textBox.right)<=1
+        && Math.abs(pinned.backgroundBox.left-pinned.textBox.left)<=1&&Math.abs(pinned.backgroundBox.right-pinned.textBox.right)<=1
+        && pinned.pinned==='true'&&unpinned.pinned==='false'&&previewHeader?.kind==='output'&&pinnedHeaderStyle==='rgb(241, 245, 249)'),
+        {idle,preview,pinned,unpinned,previewHeader,pinnedHeaderStyle})
+    }
+
+    await send('Input.dispatchMouseEvent',{type:'mouseMoved',x:1437,y:10})
+    await delay(100)
+    const sgaHeaderState=async()=>evaluate(`(()=>{
+      const body=[...document.querySelectorAll('input')].find(input=>input.getClientRects().length&&input.getAttribute('aria-label')==='SG&A %'),header=document.querySelector('[data-header-numeric-zone] input[aria-label="Selected value"]'),slot=document.querySelector('[data-header-percent-slot]')
+      return {bodyValue:body?.value??null,bodySource:body?.getAttribute('data-selected-value-source')??null,headerSource:header?.getAttribute('data-selected-value-source')??null,percentageSlot:slot?.textContent.trim()??null,headerText:header?.value??null}
+    })()`)
+    await focusInput('SG&A %')
+    const sgaHeader=await sgaHeaderState()
+    check('SG&A publishes its existing 0–100 percentage semantic to Header Value without unit conversion',Boolean(sgaHeader.bodyValue==='20.5'&&sgaHeader.bodySource===sgaHeader.headerSource&&sgaHeader.percentageSlot==='%'),sgaHeader)
+    await evaluate('document.activeElement?.blur()')
+    await send('Input.dispatchMouseEvent',{type:'mouseMoved',x:1437,y:10})
+    const sgaPreview=await hoverSelectedNumber('input[aria-label="SG&A %"]')
+    const sgaPreviewSlot=await evaluate(`(()=>({value:document.querySelector('[data-header-numeric-zone] [data-selected-value-output]')?.textContent.trim()??null,percent:document.querySelector('[data-header-percent-slot]')?.textContent.trim()??null}))()`)
+    check('SG&A preview uses the shared 2-decimal Header percentage presentation',Boolean(sgaPreview?.kind==='output'&&sgaPreviewSlot.value==='20.50'&&sgaPreviewSlot.percent==='%'),{sgaPreview,sgaPreviewSlot})
+
+    const parameterSourceState=async ariaLabel=>evaluate(`(()=>{
+      const input=[...document.querySelectorAll('input')].find(item=>item.getClientRects().length&&item.getAttribute('aria-label')===${JSON.stringify(ariaLabel)}),header=document.querySelector('[data-header-numeric-zone] input[aria-label="Selected value"]'),slot=document.querySelector('[data-header-percent-slot]'),wrapper=input?.closest('[data-simulation-input-wrapper]')
+      return {input:input?.value??null,source:input?.getAttribute('data-selected-value-source')??null,headerSource:header?.getAttribute('data-selected-value-source')??null,active:document.activeElement===input,percentageSlot:slot?.textContent.trim()??null,duplicateSelectedNumber:Boolean(wrapper?.querySelector('button[data-selected-number]'))}
+    })()`)
+    for (const [ariaLabel,field] of [
+      ['MAT-A Loss in Current','bom.loss'],
+      ['OP-10 Yield in Current','routing.yield']
+    ]) {
+      await focusInput(ariaLabel)
+      const state=await parameterSourceState(ariaLabel)
+      check(`${ariaLabel} remains the sole native focus target and publishes percentage semantics`,Boolean(state.input!==null&&state.source?.includes(`:${field}`)&&state.source===state.headerSource&&state.active&&state.percentageSlot==='%'&&!state.duplicateSelectedNumber),state)
+      const previous=state.input
+      const invalid=await typeIntoInput(ariaLabel,'101')
+      check(`${ariaLabel} keeps its existing 0–100 validation`,invalid===previous,{before:previous,invalid})
+    }
+
+    const bomPriceLabel='MAT-A Price in Current'
+    const bomPriceInitial=await focusInput(bomPriceLabel)
+    const bomPriceSource=await parameterSourceState(bomPriceLabel)
+    const bomPriceBodyEdit=await replaceInput(bomPriceLabel,'12.3456789')
+    const bomPriceHeaderEdit=await replaceInput('Selected value','23.987654321')
+    const bomPriceBodyRestored=await focusInput(bomPriceLabel)
+    check('Editable BOM Price keeps its native focus source and exact two-way Header writer',Boolean(bomPriceInitial!==null&&bomPriceSource.active&&bomPriceSource.source===bomPriceSource.headerSource&&!bomPriceSource.duplicateSelectedNumber&&bomPriceBodyEdit==='12.3456789'&&bomPriceHeaderEdit==='23.987654321'&&bomPriceBodyRestored==='23.987654321'),{bomPriceInitial,bomPriceSource,bomPriceBodyEdit,bomPriceHeaderEdit,bomPriceBodyRestored})
+    await clickSelector('button[aria-label="Undo"]')
+    const bomPriceUndo=await focusInput(bomPriceLabel)
+    await clickSelector('button[aria-label="Redo"]')
+    const bomPriceRedo=await focusInput(bomPriceLabel)
+    check('Editable BOM Price Header changes retain Simulation history Undo/Redo',bomPriceUndo==='12.3456789'&&bomPriceRedo==='23.987654321',{bomPriceUndo,bomPriceRedo})
+    const invalidBomPrice=await replaceInput(bomPriceLabel,'-1')
+    check('Editable BOM Price retains its zero minimum',invalidBomPrice==='23.987654321',{invalidBomPrice})
+
+    const routingCapacityLabel='OP-10 Capacity in Current'
+    await focusInput(routingCapacityLabel)
+    const capacitySource=await parameterSourceState(routingCapacityLabel)
+    const capacityOriginal=capacitySource.input
+    await replaceInput(routingCapacityLabel,'0')
+    await evaluate('document.activeElement?.blur()')
+    await delay(180)
+    const invalidCapacity=await evaluate(`([...document.querySelectorAll('input')].find(item=>item.getClientRects().length&&item.getAttribute('aria-label')===${JSON.stringify(routingCapacityLabel)})?.value??null)`)
+    check('Editable Routing Capacity keeps native focus, Header ownership, and its positive minimum',Boolean(capacitySource.source===capacitySource.headerSource&&capacitySource.active&&invalidCapacity===capacityOriginal),{capacitySource,invalidCapacity})
+
+    const firstMaterialCost='section[data-simulation-table="bom"] button[data-selected-number][aria-label$="Material Cost"]'
+    const materialCostPreview=await hoverSelectedNumber(firstMaterialCost)
+    const materialCostSelection=await evaluate(`(()=>{const button=document.querySelector(${JSON.stringify(firstMaterialCost)});return button?{text:button.textContent.trim(),pinned:button.getAttribute('aria-pressed'),source:button.getAttribute('data-selected-value-source'),color:getComputedStyle(button).color,background:getComputedStyle(button.firstElementChild).backgroundColor,headerKind:document.querySelector('[data-header-numeric-zone] input[aria-label="Selected value"]')?'input':'output'}:null})()`)
+    check('Calculated BOM Material Cost previews read-only through the shared Header',Boolean(materialCostPreview?.kind==='output'&&materialCostSelection?.headerKind==='output'&&materialCostSelection.pinned==='false'&&materialCostSelection.text),{materialCostPreview,materialCostSelection})
+    await clickSelector(firstMaterialCost)
+    const materialCostPinned=await evaluate(`document.querySelector(${JSON.stringify(firstMaterialCost)})?.getAttribute('aria-pressed')`)
+    await clickSelector(firstMaterialCost)
+    const materialCostUnpinned=await evaluate(`document.querySelector(${JSON.stringify(firstMaterialCost)})?.getAttribute('aria-pressed')`)
+    check('Calculated BOM Material Cost pins and unpins without creating an editor',materialCostPinned==='true'&&materialCostUnpinned==='false'&&!await evaluate(`Boolean(document.querySelector(${JSON.stringify(firstMaterialCost)}).closest('td')?.querySelector('input'))`),{materialCostPinned,materialCostUnpinned})
+
+    await evaluate(`document.querySelector('section[data-simulation-table="bom"] tbody tr[data-simulation-row-index]')?.click()`)
+    await delay(100)
+    const effectResults=[]
+    for(const [label,selector] of [
+      ['Parameter Cost Effect','section[data-simulation-table="bom"] tr[id^="bom-effect-"] button[data-selected-number][aria-label$="Parameter Cost Effect"]'],
+      ['Total Parameter Cost Effect','section[data-simulation-table="bom"] tr[id^="bom-effect-"] button[data-selected-number][aria-label$="Total Parameter Cost Effect"]']
+    ]){
+      const read=()=>evaluate(`(()=>{const button=document.querySelector(${JSON.stringify(selector)}),cell=button?.closest('td'),wrapper=button?.parentElement;return button?{text:button.textContent.trim(),color:getComputedStyle(button).color,parentColor:getComputedStyle(wrapper).color,pressed:button.getAttribute('aria-pressed'),totalAnnotation:cell?.querySelector('[data-numeric-inline-annotation]')?.textContent.trim()??null,hasInput:Boolean(cell?.querySelector('input'))}:null})()`)
+      const idle=await read()
+      const preview=await hoverSelectedNumber(selector)
+      const previewState=await read()
+      await clickSelector(selector)
+      const pinned=await read()
+      await clickSelector(selector)
+      const unpinned=await read()
+      effectResults.push({label,idle,preview,previewState,pinned,unpinned})
+    }
+    check('BOM individual and Total effects remain read-only, preserve semantic colors/Total annotation, and support preview/pin/unpin',effectResults.length===2&&effectResults.every(item=>item.idle&&item.preview?.kind==='output'&&item.previewState.color===item.previewState.parentColor&&item.idle.color===item.idle.parentColor&&item.pinned.pressed==='true'&&item.unpinned.pressed==='false'&&!item.idle.hasInput&&(item.label==='Total Parameter Cost Effect'?item.idle.totalAnnotation==='Total':true)),effectResults)
+
+    const mobileCalculated=await setViewport(390).then(()=>evaluate(`(()=>{
+      const visible=section=>[...section.querySelectorAll('button[data-selected-number]')].filter(button=>button.getClientRects().length&&button.getBoundingClientRect().width>0)
+      return ['bom','routing'].map(kind=>{const section=document.querySelector('section[data-simulation-table="'+kind+'"]'),buttons=visible(section),cost=buttons.find(button=>/Material Cost|Conversion Cost/.test(button.getAttribute('aria-label')??'')),effect=buttons.find(button=>(button.getAttribute('aria-label')??'').endsWith('Total Parameter Cost Effect'));return{kind,count:buttons.length,cost:cost?.getAttribute('aria-label')??null,readOnly:!cost?.closest('dd')?.querySelector('input'),effect:effect?.getAttribute('aria-label')??null,effectReadOnly:!effect?.closest('dd')?.querySelector('input')}})
+    })()`))
+    check('Mobile BOM/Routing card paths keep calculated read-only values selectable',mobileCalculated.length===2&&mobileCalculated.every(result=>result.count>0&&result.cost&&result.readOnly&&result.effect&&result.effectReadOnly),mobileCalculated)
+    const mobileTotalEffect='section[data-simulation-table="bom"] article button[data-selected-number][aria-label$="Total Parameter Cost Effect"]'
+    const mobileEffectPreview=await hoverSelectedNumber(mobileTotalEffect)
+    await clickSelector(mobileTotalEffect)
+    const mobileEffectPinned=await evaluate(`document.querySelector(${JSON.stringify(mobileTotalEffect)})?.getAttribute('aria-pressed')`)
+    await clickSelector(mobileTotalEffect)
+    check('Mobile Total Parameter Cost Effect supports shared read-only preview and pin lifecycle',mobileEffectPreview?.kind==='output'&&mobileEffectPinned==='true'&&await evaluate(`document.querySelector(${JSON.stringify(mobileTotalEffect)})?.getAttribute('aria-pressed')`)==='false',{mobileEffectPreview,mobileEffectPinned})
+    await setViewport(1440)
+
+    const footerChecks=[]
+    for(const ariaLabel of ['Reference Standard Cost','Current Standard Cost','Net Gap']){
+      const selector=`footer button[data-selected-number][aria-label=${JSON.stringify(ariaLabel)}]`
+      const before=await evaluate(`(()=>{const e=document.querySelector(${JSON.stringify(selector)});return e?{text:e.textContent.trim(),color:getComputedStyle(e).color,parentColor:getComputedStyle(e.parentElement).color,background:getComputedStyle(e.firstElementChild).backgroundColor}:null})()`)
+      const preview=await hoverSelectedNumber(selector)
+      const during=await evaluate(`(()=>{const e=document.querySelector(${JSON.stringify(selector)});return e?{text:e.textContent.trim(),color:getComputedStyle(e).color,parentColor:getComputedStyle(e.parentElement).color,background:getComputedStyle(e.firstElementChild).backgroundColor,pinned:e.getAttribute('aria-pressed')}:null})()`)
+      await clickSelector(selector)
+      const pinned=await evaluate(`(()=>{const e=document.querySelector(${JSON.stringify(selector)});return e?{pressed:e.getAttribute('aria-pressed'),color:getComputedStyle(e).color,parentColor:getComputedStyle(e.parentElement).color,background:getComputedStyle(e.firstElementChild).backgroundColor}:null})()`)
+      await clickSelector(selector)
+      footerChecks.push({ariaLabel,before,preview,during,pinned,unpinned:await evaluate(`document.querySelector(${JSON.stringify(selector)})?.getAttribute('aria-pressed')`),headerStyle:await evaluate(`getComputedStyle(document.querySelector('[data-header-numeric-zone] [data-selected-value-output]')).color`)})
+    }
+    check('Footer REF STD, CUR STD, and NET GAP preserve parent foreground semantics through preview/pin and remain read-only',footerChecks.length===3&&footerChecks.every(item=>item.before&&item.preview?.kind==='output'&&item.during.color===item.during.parentColor&&item.pinned.pressed==='true'&&item.pinned.color===item.pinned.parentColor&&item.unpinned==='false'&&item.headerStyle==='rgb(241, 245, 249)'),footerChecks)
+
+    await send('Input.dispatchMouseEvent',{type:'mouseMoved',x:1437,y:10})
+    await replaceInput('Selling Price','0')
+    await evaluate('document.activeElement?.blur()')
+    await delay(260)
+    const graphTooltip=()=>evaluate(`document.querySelector('[data-graph-tooltip-host] > div[aria-hidden="true"]')?.textContent??null`)
+    const svgSelectionState=selector=>evaluate(`(()=>{
+      const text=document.querySelector(${JSON.stringify(selector)});if(!text)return null
+      const id=text.getAttribute('data-selected-value-source'),background=[...document.querySelectorAll('[data-selected-number-background]')].find(item=>item.getAttribute('data-selected-number-background')===id),glyph=text.getBBox(),box=background?.getBBox(),style=getComputedStyle(text)
+      return {text:text.textContent.trim(),aria:text.getAttribute('aria-label'),selected:text.getAttribute('aria-pressed'),id,fill:style.fill,fontSize:style.fontSize,fontWeight:style.fontWeight,tooltipTarget:text.getAttribute('data-graph-tooltip'),glyph:{x:glyph.x,y:glyph.y,width:glyph.width,height:glyph.height},background:box?{x:box.x,y:box.y,width:box.width,height:box.height,pointerEvents:background.getAttribute('pointer-events')}:null,sourceTag:text.tagName,role:text.getAttribute('role')}
+    })()`)
+    const graphSelectors=[
+      ['Standard Cost','svg text[data-graph-standard-cost-value="reference"]'],
+      ['Visible +','svg text[data-graph-visible-total-side="positive"]'],
+      ['Visible −','svg text[data-graph-visible-total-side="negative"]'],
+      ['GAP total','svg text[data-graph-total="gap1"]'],
+      ['Y-axis tick','svg text[data-axis-tick="1"]']
+    ]
+    const graphSurfaceResults=[]
+    for(const [label,selector] of graphSelectors){
+      const selectorState=await evaluate(`(()=>{const all=[...document.querySelectorAll(${JSON.stringify(selector)})].filter(e=>e.getClientRects().length);return all[0]?{count:all.length,label:all[0].getAttribute('aria-label'),value:all[0].textContent.trim()}:null})()`)
+      if(!selectorState){graphSurfaceResults.push({label,missing:true});continue}
+      const preview=await hoverSelectedNumber(selector)
+      const hovered=await svgSelectionState(selector)
+      const header=await visibleHeader()
+      const previewTooltip=await graphTooltip()
+      await clickSelector(selector)
+      const pinned=await svgSelectionState(selector)
+      const pinnedHeader=await visibleHeader()
+      await clickSelector(selector)
+      const unpinned=await svgSelectionState(selector)
+      const svgColorAfter=await evaluate(`getComputedStyle(document.querySelector(${JSON.stringify(selector)})).fill`)
+      graphSurfaceResults.push({label,selectorState,preview,hovered,header,previewTooltip,pinned,pinnedHeader,unpinned,svgColorAfter})
+    }
+    check('Visible graph Standard Cost, Visible +/−, GAP total, and Y-axis ticks use shared preview/pin/unpin with tight SVG backgrounds',graphSurfaceResults.length===5&&graphSurfaceResults.every(item=>!item.missing&&item.preview?.kind==='output'&&item.hovered?.sourceTag==='text'&&item.hovered?.role==='button'&&item.hovered?.id&&item.hovered.fill===item.svgColorAfter&&item.pinned?.selected==='true'&&item.unpinned?.selected==='false'&&item.pinned.background?.pointerEvents==='none'&&Math.abs(item.pinned.background.x-item.pinned.glyph.x+2)<0.1&&Math.abs(item.pinned.background.y-item.pinned.glyph.y+1)<0.1&&Math.abs(item.pinned.background.width-item.pinned.glyph.width-4)<0.1&&Math.abs(item.pinned.background.height-item.pinned.glyph.height-2)<0.1&&item.header?.kind==='output'&&item.pinnedHeader?.kind==='output'),graphSurfaceResults)
+
+    const tooltipContentResults=[]
+    for(const [label,selector,expected] of [
+      ['Reference Standard Cost','svg text[data-graph-standard-cost-value="reference"]','Reference Standard Cost'],
+      ['Visible +','svg text[data-graph-visible-total-side="positive"]',null],
+      ['Visible −','svg text[data-graph-visible-total-side="negative"]',null],
+      ['GAP 1 total','svg text[data-graph-total="gap1"]','Current − Reference']
+    ]){
+      const target=await evaluate(`(()=>document.querySelector(${JSON.stringify(selector)})?.getAttribute('aria-label')??null)()`)
+      if(!target){tooltipContentResults.push({label,missing:true});continue}
+      await moveTo(selector)
+      await delay(400)
+      const tooltip=await graphTooltip()
+      const aria=await evaluate(`document.querySelector(${JSON.stringify(selector)})?.getAttribute('aria-label')??null`)
+      const expectedTooltip=expected??aria?.split(' ').slice(0,3).join(' ')
+      tooltipContentResults.push({label,tooltip,aria,expected:expectedTooltip,repeatsNumber:Boolean(tooltip&&/[+-]?\d[\d,]*(?:\.\d+)?/.test(tooltip)),matches:tooltip===expectedTooltip})
+    }
+    const gapLabelsWithoutTooltip=await evaluate(`(()=>[...document.querySelectorAll('svg text')].filter(text=>/^GAP [12]$/.test(text.textContent.trim())).map(text=>({text:text.textContent.trim(),self:text.hasAttribute('data-graph-tooltip'),label:text.getAttribute('aria-label'),ancestorTarget:text.closest('[data-graph-tooltip]')?.getAttribute('data-graph-tooltip')??null,source:!!text.hasAttribute('data-selected-value-source')})) )()`)
+    check('Graph numeric tooltips use context-only Standard Cost/Visible/GAP wording and GAP text labels have no tooltip',tooltipContentResults.length===4&&tooltipContentResults.every(item=>!item.missing&&item.matches&&!item.repeatsNumber)&&gapLabelsWithoutTooltip.length===2&&gapLabelsWithoutTooltip.every(item=>!item.self&&!item.label&&!item.ancestorTarget&&item.source===false),{tooltipContentResults,gapLabelsWithoutTooltip})
+
+    await moveTo('svg text[data-graph-standard-cost-value="reference"]')
+    await delay(220)
+    const quickTooltip=await graphTooltip()
+    await send('Input.dispatchMouseEvent',{type:'mouseMoved',x:1437,y:10})
+    await delay(180)
+    const cancelledTooltip=await graphTooltip()
+    await moveTo('svg text[data-graph-standard-cost-value="reference"]')
+    await delay(390)
+    const settledTooltip=await graphTooltip()
+    await send('Input.dispatchMouseEvent',{type:'mouseMoved',x:1437,y:10})
+    const immediateHide=await graphTooltip()
+    const rulerHover=await evaluate(`(()=>{const e=document.querySelector('svg [role="slider"][aria-label="Simulation comparison ruler"]'),b=e?.getBoundingClientRect();return b?{x:b.left+b.width/2,y:b.top+b.height/2}:null})()`)
+    if(rulerHover)await send('Input.dispatchMouseEvent',{type:'mouseMoved',...rulerHover})
+    await delay(400)
+    const rulerTooltip=await graphTooltip()
+    const rulerPreviewHeader=await visibleHeader()
+    await evaluate(`document.querySelector('svg [role="slider"][aria-label="Simulation comparison ruler"]')?.focus()`)
+    const rulerFocus=await evaluate(`(()=>{const slider=document.querySelector('svg [role="slider"][aria-label="Simulation comparison ruler"]'),header=document.querySelector('[data-header-numeric-zone] input[aria-label="Selected value"]');return{source:slider?.getAttribute('data-selected-value-source')??null,header:header?.getAttribute('data-selected-value-source')??null,headerEditable:Boolean(header),value:slider?.getAttribute('aria-valuenow')??null}})()`)
+    check('Graph tooltip uses cancellable 350 ms dwell, hides immediately on leave, leaves the ruler tooltip-free, and ruler focus retains its native Header writer',Boolean(!quickTooltip&&!cancelledTooltip&&settledTooltip==='Reference Standard Cost'&&!immediateHide&&!rulerTooltip&&rulerPreviewHeader?.kind==='output'&&rulerFocus.source===rulerFocus.header&&rulerFocus.headerEditable),{quickTooltip,cancelledTooltip,settledTooltip,immediateHide,rulerTooltip,rulerPreviewHeader,rulerFocus})
+
+    const graphicalOnly=await evaluate(`(()=>{const e=document.querySelector('svg [data-graph-state="reference"] rect[data-graph-part="material"]'),r=e?.getBoundingClientRect();return r?{x:r.left+r.width/2,y:r.top+r.height/2}:null})()`)
+    if(graphicalOnly){await send('Input.dispatchMouseEvent',{type:'mouseMoved',...graphicalOnly});await delay(400)}
+    const segmentTooltip=await graphTooltip()
+    check('Graphical-only Material segment retains its numeric tooltip value and unit',Boolean(graphicalOnly&&segmentTooltip?.includes('Reference Material:')&&/\d[\d,]*(?:\.\d+)? THB\//.test(segmentTooltip)),{graphicalOnly,segmentTooltip})
+
+    const layoutEvidence=await evaluate(`(()=>{
+      const root=document.querySelector('[data-simulation-layout-root]'),upper=root?.children[0],graph=upper?.children[0],result=upper?.children[1],economics=upper?.children[2],svg=graph?.querySelector('svg'),texts=[...svg?.querySelectorAll('[data-graph-standard-cost-value],[data-graph-visible-total-value],[data-graph-total],[data-axis-tick]')??[]],boxes=texts.map(e=>{const r=e.getBBox();return{label:e.getAttribute('aria-label')??e.textContent.trim(),x:r.x,y:r.y,right:r.x+r.width,bottom:r.y+r.height}}),overlaps=[]
+      for(let i=0;i<boxes.length;i++)for(let j=i+1;j<boxes.length;j++)if(boxes[i].x<boxes[j].right&&boxes[i].right>boxes[j].x&&boxes[i].y<boxes[j].bottom&&boxes[i].bottom>boxes[j].y)overlaps.push([boxes[i].label,boxes[j].label])
+      const barWidths=[...svg.querySelectorAll('rect[data-graph-part]')].map(e=>Number(e.getAttribute('width'))),centers=[...svg.querySelectorAll('foreignObject button[aria-label^="Select "]')].map(e=>{const r=e.getBoundingClientRect(),s=svg.getBoundingClientRect(),vb=svg.viewBox.baseVal;return (r.left+r.width/2-s.left)/s.width*vb.width}).concat([...svg.querySelectorAll('text')].filter(e=>/^GAP [12]$/.test(e.textContent.trim())).map(e=>{const b=e.getBBox();return b.x+b.width/2})).sort((a,b)=>a-b)
+      const rect=e=>{const r=e?.getBoundingClientRect();return r?{width:r.width,left:r.left,right:r.right}:null}
+      return {upper:rect(upper),graph:rect(graph),result:rect(result),economics:rect(economics),graphRatio:graph?.getBoundingClientRect().width/(upper?.getBoundingClientRect().width??1),rightResultShare:result?.getBoundingClientRect().width/((result?.getBoundingClientRect().width??0)+(economics?.getBoundingClientRect().width??0)),barWidths:[...new Set(barWidths)],centers,centerGaps:centers.slice(1).map((x,i)=>x-centers[i]),viewBox:svg?.getAttribute('viewBox'),overlaps,selectedTargets:texts.length,graphFont:[...svg.querySelectorAll('[data-graph-standard-cost-value],[data-graph-visible-total-value]')].map(e=>getComputedStyle(e).fontSize)}
+    })()`)
+    check('Story Graph uses about half of the upper workspace, keeps both right columns sensible and preserves bar width/readable labels',Boolean(layoutEvidence&&layoutEvidence.graphRatio>=0.47&&layoutEvidence.graphRatio<=0.54&&layoutEvidence.rightResultShare>=0.55&&layoutEvidence.rightResultShare<=0.75&&layoutEvidence.barWidths.includes(54)&&layoutEvidence.barWidths.includes(50)&&layoutEvidence.centers.length===5&&layoutEvidence.centerGaps.every(gap=>gap<=110)&&layoutEvidence.overlaps.length===0&&layoutEvidence.graphFont.every(size=>parseFloat(size)>=9)),layoutEvidence)
+
+    await evaluate('document.activeElement?.blur()')
+    await send('Input.dispatchMouseEvent',{type:'mouseMoved',x:1437,y:10})
+    await delay(50)
+    const graphScale=()=>evaluate(`(()=>({values:[...document.querySelectorAll('svg text[data-axis-tick]')].map(e=>e.textContent.trim()),max:document.querySelector('svg [role="slider"][aria-label="Simulation comparison ruler"]')?.getAttribute('aria-valuemax'),min:document.querySelector('svg [role="slider"][aria-label="Simulation comparison ruler"]')?.getAttribute('aria-valuemin')}))()`)
+    const oldTickSelector='svg text[data-axis-tick="1"]'
+    const scaleBeforePreview=await graphScale()
+    const oldPreview=await hoverSelectedNumber(oldTickSelector)
+    await evaluate(`([...document.querySelectorAll('figure[aria-labelledby="simulation-story-title"] ul[aria-label="Simulation graph legend"] button[aria-pressed="true"]')]).forEach(button=>button.click())`)
+    await delay(500)
+    const scaleAfterPreview=await graphScale()
+    const stalePreview=await visibleHeader()
+    await evaluate(`([...document.querySelectorAll('figure[aria-labelledby="simulation-story-title"] button')]).find(button=>button.innerText.trim()==='Show all')?.click()`)
+    await delay(180)
+    const scaleBeforePin=await graphScale()
+    const oldTick=await evaluate(`(()=>{const tick=document.querySelector('svg text[data-axis-tick="1"]');return tick?{value:tick.textContent.trim(),id:tick.getAttribute('data-selected-value-source')}:null})()`)
+    await clickSelector(oldTickSelector)
+    const oldTickPinned=await evaluate(`document.querySelector(${JSON.stringify(oldTickSelector)})?.getAttribute('aria-pressed')`)
+    await evaluate(`([...document.querySelectorAll('figure[aria-labelledby="simulation-story-title"] ul[aria-label="Simulation graph legend"] button[aria-pressed="true"]')]).forEach(button=>button.click())`)
+    await delay(500)
+    const scaleAfterPin=await graphScale()
+    const stalePin=await visibleHeader()
+    const noOldPin=await evaluate(`![...document.querySelectorAll('svg text[data-axis-tick]')].some(e=>e.getAttribute('aria-pressed')==='true')`)
+    await evaluate(`([...document.querySelectorAll('figure[aria-labelledby="simulation-story-title"] button')]).find(button=>button.innerText.trim()==='Show all')?.click()`)
+    await delay(180)
+    const reselectedTick=await hoverSelectedNumber(oldTickSelector)
+    check('Dynamic graph scale clears stale Preview and Pin sources without transferring selection, then allows re-selection',Boolean(oldPreview?.kind==='output'&&oldPreview.value!=='—'&&scaleBeforePreview.values.join('|')!==scaleAfterPreview.values.join('|')&&stalePreview?.value==='—'&&oldTick&&oldTickPinned==='true'&&scaleBeforePin.values.join('|')!==scaleAfterPin.values.join('|')&&stalePin?.value==='—'&&noOldPin&&reselectedTick?.kind==='output'&&reselectedTick.value!=='—'),{oldPreview,scaleBeforePreview,scaleAfterPreview,stalePreview,oldTick,oldTickPinned,scaleBeforePin,scaleAfterPin,stalePin,noOldPin,reselectedTick})
 
     const afterTrigger = await evaluate(`([...document.querySelectorAll('button[aria-label^="After dataset,"]')].find(button=>button.getClientRects().length)?.getAttribute('aria-label'))`)
     await clickSelector(`button[aria-label=${JSON.stringify(afterTrigger)}]`)

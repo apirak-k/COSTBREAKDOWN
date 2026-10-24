@@ -186,8 +186,8 @@ try {
   assert.equal(wrongNegativeSign.total, 10, 'negative Profit is absent when only Profit plus is enabled')
 
   const storyBeforeRender = JSON.stringify(story)
-  const graphMarkup = renderToStaticMarkup(React.createElement(SimulationStoryGraph, {
-    story, unit: 'PC', activeRole: 'current', onSelectActiveDataset() {}
+  const graphMarkup = renderWithSelectedValueProvider(React.createElement(SimulationStoryGraph, {
+    story, unit: 'PC', selectionContext: 'simulation-story-view:base', activeRole: 'current', onSelectActiveDataset() {}
   }))
   assert.equal(JSON.stringify(story), storyBeforeRender, 'rendering the graph does not mutate ScenarioStory')
   const graphSource = readFileSync(resolve(process.cwd(), 'src/features/simulation/SimulationStoryGraph.tsx'), 'utf8')
@@ -287,9 +287,10 @@ try {
   const renderMixedSignGap = (material: number, labor: number, burden: number) => {
     const referenceFinancial = graphFinancial(2, 2, 0)
     const currentFinancial = graphFinancial(material, labor, burden)
-    return renderToStaticMarkup(React.createElement(SimulationStoryGraph, {
+    return renderWithSelectedValueProvider(React.createElement(SimulationStoryGraph, {
       story: createScenarioStory(referenceFinancial, currentFinancial, currentFinancial),
       unit: 'PC',
+      selectionContext: `simulation-story-view:mixed-gap:${material}:${labor}:${burden}`,
       activeRole: 'current',
       onSelectActiveDataset() {}
     }))
@@ -318,7 +319,7 @@ try {
     graphLabelText(noSegmentZeroGapMarkup, 'data-graph-total', 'gap1'),
     'middle'
   )
-  const zeroGridlineY = Number(noSegmentZeroGapMarkup.match(/<line x1="55" x2="765" y1="([^"]+)" y2="[^"]+" stroke="#94a3b8" stroke-width="1\.2"/)
+  const zeroGridlineY = Number(noSegmentZeroGapMarkup.match(/<line x1="40" x2="605" y1="([^"]+)" y2="[^"]+" stroke="#94a3b8" stroke-width="1\.2"/)
     ?.[1])
   assert.deepEqual(noSegmentZeroGapRectangles, [], 'a zero GAP with no non-zero components renders no bar rectangles')
   assert.equal(graphLabelText(noSegmentZeroGapMarkup, 'data-graph-total', 'gap1'), '0.00')
@@ -339,7 +340,7 @@ try {
     .map(match => [match[1], match[0]] as const))
   const standardCostValueTags = new Map([...graphMarkup.matchAll(/<text\b[^>]*data-graph-standard-cost-value="(reference|current|custom)"[^>]*>/g)]
     .map(match => [match[1], match[0]] as const))
-  const graphStateXs = [130, 410, 690] as const
+  const graphStateXs = [120, 320, 520] as const
   for (const [state, x] of [['reference', graphStateXs[0]], ['current', graphStateXs[1]], ['custom', graphStateXs[2]]] as const) {
     const boundaryLine = standardCostLineTags.get(state)
     const valueLabel = standardCostValueTags.get(state)
@@ -432,34 +433,34 @@ try {
   const yAxisLineTag = graphMarkup.match(/<line\b[^>]*data-y-axis="true"[^>]*>/)?.[0] ?? ''
   const yAxisUnitTag = graphMarkup.match(/<text\b[^>]*data-y-axis-unit="true"[^>]*>/)?.[0] ?? ''
   assert.ok(yAxisLineTag && yAxisUnitTag)
-  assert.equal(numericSvgAttribute(yAxisLineTag, 'x1'), 55, 'the plot uses the reduced left gutter')
+  assert.equal(numericSvgAttribute(yAxisLineTag, 'x1'), 40, 'the compact plot uses its left gutter')
   assert.equal(numericSvgAttribute(yAxisLineTag, 'y1'), 32, 'the plot reduces its top margin')
   assert.equal(numericSvgAttribute(yAxisLineTag, 'y2'), 280, 'the plot uses more of its available height')
-  assert.equal(numericSvgAttribute(yAxisUnitTag, 'x'), 55, 'the THB/PC label stays centered over the Y axis')
-  const firstGridlineTag = graphMarkup.match(/<line x1="55" x2="765" y1="[^"]+" y2="[^\"]+" stroke=/)?.[0] ?? ''
+  assert.equal(numericSvgAttribute(yAxisUnitTag, 'x'), 40, 'the THB/PC label stays centered over the Y axis')
+  const firstGridlineTag = graphMarkup.match(/<line x1="40" x2="605" y1="[^"]+" y2="[^\"]+" stroke=/)?.[0] ?? ''
   assert.ok(firstGridlineTag, 'gridlines span the fitted plot')
   const rulerLineTag = graphMarkup.match(/<line\b[^>]*data-ruler-line="true"[^>]*>/)?.[0] ?? ''
-  assert.equal(numericSvgAttribute(rulerLineTag, 'x1'), 55, 'the ruler begins at the plot edge')
-  assert.equal(numericSvgAttribute(rulerLineTag, 'x2'), 765, 'the ruler ends at the plot edge')
-  assert.equal(numericSvgAttribute(rulerLineTag, 'x2') - numericSvgAttribute(rulerLineTag, 'x1'), 710,
-    'the fitted plot width grows beyond the audited 632-unit baseline')
+  assert.equal(numericSvgAttribute(rulerLineTag, 'x1'), 40, 'the ruler begins at the plot edge')
+  assert.equal(numericSvgAttribute(rulerLineTag, 'x2'), 605, 'the ruler ends at the plot edge')
+  assert.equal(numericSvgAttribute(rulerLineTag, 'x2') - numericSvgAttribute(rulerLineTag, 'x1'), 565,
+    'the ruler spans the compact fitted plot width')
   const axisTickTags = [...graphMarkup.matchAll(/<text\b[^>]*data-axis-tick="[^"]+"[^>]*>[^<]*<\/text>/g)].map(([tag]) => tag)
-  assert.ok(axisTickTags.length > 0 && axisTickTags.every(tag => numericSvgAttribute(tag, 'x') === 45),
+  assert.ok(axisTickTags.length > 0 && axisTickTags.every(tag => numericSvgAttribute(tag, 'x') === 30),
     'Y-axis tick labels stay ten units left of the plot')
   const lowestTickLeft = Math.min(...axisTickTags.map(tag => {
     const text = tag.match(/>([^<]+)<\/text>/)?.[1] ?? ''
-    return numericSvgAttribute(tag, 'x') - text.length * 5.4 - 16
+    return numericSvgAttribute(tag, 'x') - text.length * 5.4
   }))
   const unitText = yAxisUnitTag.match(/>([^<]+)<\/text>/)?.[1] ?? ''
-  const unitTextLeft = numericSvgAttribute(yAxisUnitTag, 'x') - 16 - unitText.length * 6.6 / 2
+  const unitTextLeft = numericSvgAttribute(yAxisUnitTag, 'x') - unitText.length * 6.6 / 2
   assert.ok(lowestTickLeft > 0 && unitTextLeft > 0, 'Y-axis tick and THB/PC labels stay inside the SVG left edge')
   const gapTotalTags = [...graphMarkup.matchAll(/<text\b[^>]*data-graph-total="(gap1|gap2)"[^>]*>/g)]
-  assert.deepEqual(gapTotalTags.map(([tag, gap]) => [gap, numericSvgAttribute(tag, 'x')]), [['gap1', 270], ['gap2', 550]],
+  assert.deepEqual(gapTotalTags.map(([tag, gap]) => [gap, numericSvgAttribute(tag, 'x')]), [['gap1', 220], ['gap2', 420]],
     'GAP bars use the canonical category centers')
-  const roleLabelTags = [...graphMarkup.matchAll(/<foreignObject x="(\d+)" y="291" width="106" height="28">/g)]
-  assert.deepEqual(roleLabelTags.map(([, x]) => Number(x)), [77, 357, 637],
+  const roleLabelTags = [...graphMarkup.matchAll(/<foreignObject x="(\d+)" y="291" width="90" height="28">/g)]
+  assert.deepEqual(roleLabelTags.map(([, x]) => Number(x)), [75, 275, 475],
     'Reference, Current, and Custom controls align with the canonical state centers')
-  assert.deepEqual(sellingPriceLineSegments(graphMarkup).map(({ x1, x2 }) => [x1, x2]), [[130, 410], [410, 690]],
+  assert.deepEqual(sellingPriceLineSegments(graphMarkup).map(({ x1, x2 }) => [x1, x2]), [[120, 320], [320, 520]],
     'Selling Price segments follow the same canonical state centers')
   assert.deepEqual(graphStateXs.map(x => sellingPricePoint(graphMarkup, x)?.x ?? null), graphStateXs,
     'Selling Price points follow the same canonical state centers')
@@ -467,14 +468,14 @@ try {
     'the graph has no outer SVG translation')
   assert.doesNotMatch(graphSource, /GRAPH_X_SHIFT|translate\(-16 0\)|translate\(-24 0\)/,
     'the graph has no duplicate global X shift')
-  assert.match(graphSource, /const GRAPH_X = \{[\s\S]*?plotLeft: 55,[\s\S]*?plotRight: 765,[\s\S]*?reference: 130,[\s\S]*?gap1: 270,[\s\S]*?current: 410,[\s\S]*?gap2: 550,[\s\S]*?custom: 690/,
-    'plot and all category centers use one canonical X geometry')
+  assert.match(graphSource, /const GRAPH_X = \{[\s\S]*?plotLeft: 40,[\s\S]*?plotRight: 605,[\s\S]*?reference: 120,[\s\S]*?gap1: 220,[\s\S]*?current: 320,[\s\S]*?gap2: 420,[\s\S]*?custom: 520/,
+    'the compact plot and all category centers use one canonical X geometry')
   assert.match(graphSource, /const plot = \{ left: GRAPH_X\.plotLeft, right: GRAPH_X\.plotRight, top: 32, bottom: 280 \}/,
     'the fitted vertical plot bounds use one canonical geometry')
-  assert.match(graphMarkup, /viewBox="0 0 820 332"/, 'the fixed graph viewBox keeps its existing dimensions')
-  assert.ok([130, 270, 410, 550, 690].every(x => x >= 55 && x <= 765),
+  assert.match(graphMarkup, /viewBox="0 0 660 332"/, 'the graph uses the compact base viewBox')
+  assert.ok([120, 220, 320, 420, 520].every(x => x >= 40 && x <= 605),
     'all five category centers stay inside the fitted plot bounds')
-  assert.ok(numericSvgAttribute(standardCostValueTags.get('custom') ?? '', 'x') + 5 * 5.4 < 820,
+  assert.ok(numericSvgAttribute(standardCostValueTags.get('custom') ?? '', 'x') + 5 * 5.4 < 660,
     'the Custom Standard Cost label stays inside the SVG viewBox')
   assert.match(graphSource, /x: state\.x,[\s\S]*?path: `M \$\{state\.x\} \$\{y\(first\)\} L \$\{nextState\.x\} \$\{y\(second\)\}`/,
     'Selling Price paths and points derive their x coordinates from the canonical state centers')
@@ -482,12 +483,12 @@ try {
   assert.ok(numericSvgAttribute(yAxisUnitTag, 'y') < numericSvgAttribute(yAxisLineTag, 'y1'),
     'the horizontal UOM label sits above the Y-axis')
   for (const [state, value, tooltip] of [
-    ['reference', '90.00', 'Reference Standard Cost · 90.00 THB/PC'],
-    ['current', '100.00', 'Current Standard Cost · 100.00 THB/PC'],
-    ['custom', '95.00', 'Custom Standard Cost · 95.00 THB/PC']
+    ['reference', '90.00', 'Reference Standard Cost 90.00 THB/PC'],
+    ['current', '100.00', 'Current Standard Cost 100.00 THB/PC'],
+    ['custom', '95.00', 'Custom Standard Cost 95.00 THB/PC']
   ]) {
     assert.match(graphMarkup, new RegExp(`data-graph-standard-cost="${state}"`), `${state} Standard Cost boundary remains visible`)
-    assert.ok(graphMarkup.includes(`aria-label="${tooltip}"`), `${state} Standard Cost tooltip uses its visible value and UOM`)
+    assert.ok(graphMarkup.includes(`aria-label="${tooltip}"`), `${state} Standard Cost selected value keeps its accessible value and UOM`)
     assert.ok(standardCostLabels.some(([labelState, labelValue]) => labelState === state && labelValue === value),
       `${state} Standard Cost value is displayed`)
   }
@@ -495,14 +496,17 @@ try {
   assert.match(graphMarkup, /aria-label="GAP 1 · Current − Reference · Material Gap: \+5\.00 THB\/PC"/)
   const graphTooltipTags = [...graphMarkup.matchAll(/<[a-z][^>]*data-graph-tooltip="true"[^>]*>/gi)].map(([tag]) => tag)
   assert.ok(graphTooltipTags.length > 0, 'informational graph marks retain pointer-tooltip targets')
-  assert.ok(graphTooltipTags.every(tag => !/\btabindex=/i.test(tag)),
+  const informationalTooltipTags = graphTooltipTags.filter(tag => !tag.includes('data-selected-number="true"'))
+  assert.ok(informationalTooltipTags.every(tag => !/\btabindex=/i.test(tag)),
     'informational graph SVG marks are not extra Tab stops')
-  assert.ok(graphTooltipTags.every(tag => !/focus-visible:outline|focus:outline/i.test(tag)),
+  assert.ok(informationalTooltipTags.every(tag => !/focus-visible:outline|focus:outline/i.test(tag)),
     'informational graph SVG marks do not add a keyboard focus frame')
-  const graphTooltipPropsSource = graphSource.slice(graphSource.indexOf('const tooltipProps ='), graphSource.indexOf('const tooltipPointerProps ='))
+  const showTooltipSource = graphSource.slice(graphSource.indexOf('const showTooltipAt ='), graphSource.indexOf('const tooltipProps ='))
+  const graphTooltipPropsSource = graphSource.slice(graphSource.indexOf('const tooltipProps ='), graphSource.indexOf('const graphSelectionId ='))
   assert.match(graphTooltipPropsSource, /onPointerEnter:/, 'informational marks still open tooltips on pointer entry')
   assert.match(graphTooltipPropsSource, /onPointerLeave:/, 'informational marks still close tooltips on pointer exit')
-  assert.doesNotMatch(graphTooltipPropsSource, /setTimeout|delay/i, 'pointer tooltips still appear immediately')
+  assert.match(showTooltipSource, /SELECTED_VALUE_HOVER_PREVIEW_DWELL_MS/,
+    'pointer tooltips use the shared cancellable hover dwell')
   assert.doesNotMatch(graphTooltipPropsSource, /tabIndex|onFocus|onBlur|focus-visible:outline|focus:outline/,
     'pointer tooltip marks do not add keyboard focus handling or a focus frame')
   assert.match(graphSource, /Math\.min\(360, hostBounds\.width - 16\)/,
@@ -521,7 +525,6 @@ try {
     'tooltip horizontal position is clamped inside the graph host')
   assert.match(tooltipPlacementHelper, /hostBounds\.height - tooltipBounds\.height - inset/,
     'tooltip vertical position is clamped inside the graph host')
-  const showTooltipSource = graphSource.slice(graphSource.indexOf('const showTooltipAt ='), graphSource.indexOf('const tooltipProps ='))
   assert.match(showTooltipSource, /target\.getBoundingClientRect\(\)/,
     'tooltip anchoring uses the hovered SVG element rendered bounds')
   assert.doesNotMatch(showTooltipSource, /clientX|clientY/,
@@ -545,7 +548,7 @@ try {
   const rulerValueTag = graphMarkup.match(/<text\b[^>]*data-ruler-value="true"[^>]*>/)?.[0] ?? ''
   const rulerValueX = numericSvgAttribute(rulerValueTag, 'x')
   assert.match(rulerValueTag, /text-anchor="start"/, 'the ruler value starts immediately right of the plot')
-  assert.equal(rulerValueX, 771, 'the accepted Ruler gutter begins six units after the plot')
+  assert.equal(rulerValueX, 611, 'the ruler gutter begins six units after the compact plot')
   assert.doesNotMatch(rulerValueTag, /textLength|lengthAdjust/, 'the accepted Ruler has no forced glyph compression')
   assert.match(graphSource, /onKeyDown=\{handleRulerKeyDown\}/, 'the visual ruler remains keyboard operable')
   const rulerKeyHandlerSource = graphSource.slice(graphSource.indexOf('const handleRulerKeyDown'), graphSource.indexOf('const pricePoints'))
@@ -637,24 +640,30 @@ try {
   const tooltipStory = createScenarioStory(
     financial(tooltipReference, 120, 8), financial(tooltipCurrent, 120, 10), financial(tooltipSim, 120, 10)
   )
-  const tooltipMarkup = renderToStaticMarkup(React.createElement(SimulationStoryGraph, { story: tooltipStory, unit: 'KG' }))
+  const tooltipMarkup = renderWithSelectedValueProvider(React.createElement(SimulationStoryGraph, {
+    story: tooltipStory, unit: 'KG', selectionContext: 'simulation-story-view:tooltip'
+  }))
   const categoryTooltipTags = new Map([...tooltipMarkup.matchAll(/<text\b[^>]*>(GAP 1|GAP 2)<\/text>/g)]
     .map(match => [match[1], match[0]] as const))
   for (const [label, tooltip] of [
     ['GAP 1', 'Current − Reference'], ['GAP 2', 'Custom − Current']
   ]) {
     const categoryTag = categoryTooltipTags.get(label)
-    assert.ok(categoryTag?.includes('data-graph-tooltip="true"') && categoryTag.includes(`aria-label="${tooltip}"`),
-      `${label} bottom category label retains its explanatory tooltip`)
+    assert.ok(categoryTag && !categoryTag.includes('data-graph-tooltip="true"'),
+      `${label} bottom category label remains tooltip-free`)
+    assert.ok(graphSource.includes(`description: '${tooltip}'`),
+      `${label} retains its contextual description for the total value tooltip`)
   }
   const gap1TotalTooltipTag = tooltipMarkup.match(/<text\b[^>]*data-graph-total="gap1"[^>]*>/)?.[0] ?? ''
   const gap2TotalTooltipTag = tooltipMarkup.match(/<text\b[^>]*data-graph-total="gap2"[^>]*>/)?.[0] ?? ''
-  assert.ok(gap1TotalTooltipTag.includes('aria-label="Current − Reference total: +12.00 THB/KG"'),
-    'GAP 1 total retains its useful value tooltip')
-  assert.ok(gap2TotalTooltipTag.includes('aria-label="Custom − Current total: -8.00 THB/KG"'),
-    'GAP 2 total retains its useful value tooltip')
+  assert.ok(gap1TotalTooltipTag.includes('aria-label="GAP 1 total +12.00 THB/KG"') && gap1TotalTooltipTag.includes('data-graph-tooltip="true"'),
+    'GAP 1 total remains selectable and exposes its context-only tooltip target')
+  assert.ok(gap2TotalTooltipTag.includes('aria-label="GAP 2 total -8.00 THB/KG"') && gap2TotalTooltipTag.includes('data-graph-tooltip="true"'),
+    'GAP 2 total remains selectable and exposes its context-only tooltip target')
+  assert.match(graphSource, /tooltipText=\{category\.description\}/,
+    'GAP total tooltip uses its context description rather than repeating value and unit')
   for (const tooltip of [
-    'Reference Visible + · +120.00 THB/KG', 'Current Visible + · +120.00 THB/KG', 'Custom Visible + · +120.00 THB/KG',
+    'Reference Visible +', 'Current Visible +', 'Custom Visible +',
     'Reference Material: 60.00 THB/KG', 'Reference Labor: 20.00 THB/KG', 'Reference Burden: 10.00 THB/KG',
     'Reference SG&amp;A: 9.60 THB/KG', 'Reference Operating Profit: 20.40 THB/KG',
     'Current Material: 65.00 THB/KG', 'Current Labor: 22.00 THB/KG', 'Current Burden: 15.00 THB/KG',
@@ -668,13 +677,15 @@ try {
   assert.match(tooltipMarkup, />THB\/KG<\/text>/, 'the Y axis uses a different product UOM dynamically')
 
   const zeroGapStory = createScenarioStory(financial(reference, 120, 10), financial(current, 120, 10), financial(current, 120, 10))
-  const zeroGapMarkup = renderToStaticMarkup(React.createElement(SimulationStoryGraph, { story: zeroGapStory, unit: 'PC' }))
+  const zeroGapMarkup = renderWithSelectedValueProvider(React.createElement(SimulationStoryGraph, {
+    story: zeroGapStory, unit: 'PC', selectionContext: 'simulation-story-view:zero-gap'
+  }))
   const zeroGapTotalTag = zeroGapMarkup.match(/<text\b[^>]*data-graph-total="gap2"[^>]*>/)?.[0] ?? ''
   assert.match(zeroGapTotalTag, /fill="#475569"/, 'zero gap totals remain neutral')
-  assert.match(zeroGapTotalTag, /aria-label="Custom − Current total: 0\.00 THB\/PC"/)
+  assert.match(zeroGapTotalTag, /aria-label="GAP 2 total 0\.00 THB\/PC"/)
 
-  const markupFor = (values: ScenarioFinancialResult) => renderToStaticMarkup(React.createElement(SimulationStoryGraph, {
-    story: createScenarioStory(values, values, values), unit: 'KG'
+  const markupFor = (values: ScenarioFinancialResult) => renderWithSelectedValueProvider(React.createElement(SimulationStoryGraph, {
+    story: createScenarioStory(values, values, values), unit: 'KG', selectionContext: 'simulation-story-view:visible-totals'
   }))
   const visibleLabels = (markup: string, side: 'positive' | 'negative') =>
     [...markup.matchAll(/<text\b[^>]*data-graph-visible-total-value="([^"]+)"[^>]*data-graph-visible-total-side="([^"]+)"[^>]*>([^<]+)<\/text>/g)]
@@ -693,8 +704,8 @@ try {
   assert.doesNotMatch(mixedMarkup, /Visible Net|data-graph-visible-net|visibleNet/)
   assert.doesNotMatch(mixedMarkup, /Visible [^·]*· \+250\.00/, 'no netted state summary is displayed')
   assert.equal(JSON.stringify(mixedFinancial), mixedBefore, 'visible summaries never mutate financial results')
-  assert.match(mixedMarkup, /Current Visible \+ · \+300\.00 THB\/KG/)
-  assert.match(mixedMarkup, /Current Visible − · -50\.00 THB\/KG/)
+  assert.match(mixedMarkup, /Current Visible \+ \+300\.00 THB\/KG/)
+  assert.match(mixedMarkup, /Current Visible − -50\.00 THB\/KG/)
   assert.equal(buildVisibleStack(mixedFinancial, graphParts, { ...allLegendVisible, opNegative: false }).negative, 0)
   assert.equal(buildVisibleStack(mixedFinancial, graphParts, { ...allLegendVisible, labor: false }).positive, 240)
   assert.equal(buildVisibleStack(mixedFinancial, graphParts, { ...allLegendVisible, labor: false }).negative, -50)

@@ -1,3 +1,18 @@
+## Current checkpoint — Round 4B Corrective / Reconciliation Pass — 2026-10-24
+
+- **Status:** `IMPLEMENTED / ROUND 4B SCOPED VERIFICATION PASSED / AWAITING EXTERNAL AUDIT`. Round 4B remains open; this checkpoint does not close it.
+- **Branch / checkout:** `feat/selected-value-ux` / `/Users/bubu/COSTBREAKDOWN-ref-current-custom-flow-redesign`.
+- **Starting local and fetched remote HEAD:** `ef81d35712a6ac38ff5f8388e465d4ff656936b1`; both matched before edits.
+- **Corrective scope:** Simulation Result and Economic outputs, editable BOM Price / Usage / Loss and Routing Manning / Capacity / Yield, read-only costs and Parameter Cost Effects (desktop and mobile), Footer Reference Standard Cost / Current Standard Cost / Net Gap, and visible Story Graph numeric labels and Y-axis ticks use shared Selected Value behavior. Editable sources keep the existing NumericInput writer, exact-value behavior, domain, percentage conversion, and Simulation history ownership.
+- **Graph presentation:** selection identities include product/graph context and current values/scale; disappearing labels clear stale preview/pin state. SVG backgrounds hug measured text bounds, ignore pointer events, and retain semantic text colors. Numeric graph label tooltips show context only with a cancellable 350ms dwell; data-mark tooltips retain their existing content with the same dwell. GAP category text has no tooltip. The native ruler remains editable and tooltip-free. Layout uses the compact 660-unit graph viewBox and 100-unit category spacing.
+- **Other presentation:** Footer dark surfaces use contrasting hover/pin backgrounds while retaining semantic text color; SG&A displays `%`; Outcome reads **Break-even Quantity**.
+- **Boundaries:** calculation/business rules, data, role selection, persistence, writers, domains, and history semantics are unchanged. No merge or push. External audit remains pending.
+- **Verification:** Round 4B Selected Value browser checks **67/67 PASS**; visible-totals/graph fixture **68/68 PASS**; `node scripts/verify_numeric_input.mjs` **344/344 PASS**; `node scripts/verify_numeric_input_browser.mjs` **2358/2358 PASS**; `node scripts/verify_master_data_selected_value.mjs` **161/161 PASS**; `npx tsx scripts/verify_simulation_economics.ts` **PASS**; `npx tsx scripts/verify_simulation_history.ts` **PASS**; `node scripts/verify_simulation_regression.mjs` **PASS / exit 0** across its Simulation, Cost Breakdown, Master Data, comparison, and history suites; `npx tsc --noEmit --pretty false`, `npm run build`, and `git diff --check` **PASS**. The regression runner emitted transient Vite WebSocket port `24678`-in-use messages while nested servers started; no suite failed. Build retains existing ExcelJS/fast-csv browser externalization and large-chunk warnings.
+- **Cost Breakdown regression note:** `node scripts/verify_cbd_selected_value_browser.mjs` stops at the same 1440px Loss/Yield spacing assertion on this branch and a detached worktree at the unchanged starting HEAD: BOM Loss gap **30.67px** vs Routing Yield gap **29.10px**. The checked Candidate table CSS is unchanged by this pass; no Round 3 layout change was made. Because the verifier fails fast, its remaining responsive checks did not run in either checkout.
+- **Not checked:** human external visual audit and cross-browser behavior outside the Chrome runs. Do not report Round 4B closed.
+
+---
+
 # Phase 2 Round 4B Implementation — 2026-10-24
 
 - **Status:** `IMPLEMENTED / INTERNAL VERIFICATION PASSED / AWAITING EXTERNAL AUDIT`.

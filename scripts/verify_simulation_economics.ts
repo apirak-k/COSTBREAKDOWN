@@ -173,7 +173,7 @@ for (const text of [
   '>Business</h2>', '>Economic</h2>', '>Outcome</h3>', 'Fixed Action Cost', 'Batch Size', 'Variable Action Cost', 'Variable Action Cost / Unit',
   'Parameter Saving / Unit', 'Required Saving / Unit', 'Economic Margin / Unit',
   'Break-even Quantity', '(2,500 PC)', 'Selling Price', 'SG&amp;A %',
-  'THB/PC', 'QTY (PC)'
+  'THB/PC', 'Quantity (PC)'
 ]) assert.ok(panelMarkup.includes(text), `finalized Economic/Business UI includes ${text}`)
 const inputsCardTag = panelMarkup.match(/<div data-safe-workspace-interaction="true" data-simulation-layout-column="inputs"[^>]*>/)?.[0] ?? ''
 assert.match(inputsCardTag, /class="[^"]*border border-slate-300[^\"]*bg-white/,
@@ -218,7 +218,7 @@ assert.match(panelMarkup, /role="img" aria-label="Break-even Quantity:/,
   'the break-even point keeps its accessible description without a popup')
 assert.match(economicInputsPanel, /aria-label="Break-even Quantity"[^>]*title="Fixed Action Cost ÷ \(Parameter Saving \/ Unit − Variable Action Cost \/ Unit\)"/,
   'Economic Outcome exposes the shared calculated Break-even Quantity with its formula context')
-assert.doesNotMatch(panelMarkup, />Business Inputs<|>Economic Inputs<|>Economic Outputs<|>Quantity \(/,
+assert.doesNotMatch(panelMarkup, />Business Inputs<|>Economic Inputs<|>Economic Outputs<|>QTY \(/,
   'obsolete visible headings and axis naming are absent')
 const outcome = economicInputsPanel.slice(economicInputsPanel.indexOf('<div role="group" aria-labelledby="simulation-economic-outcome-title"'))
 assert.match(outcome, /class="[^"]*border-t border-slate-200/,
@@ -247,8 +247,8 @@ assert.match(baseGraphHeader, /<span>Break-even<\/span>[\s\S]*?<span class="text
   'graph heading keeps Break-even primary and renders subdued parenthetical quantity context')
 assert.match(panelMarkup, /viewBox="0 0 560 112" preserveAspectRatio="xMidYMid meet"/,
   'Break-even graph starts from its measured responsive coordinate system and preserves aspect ratio')
-assert.match(panelMarkup, /<text x="544" y="109" text-anchor="end"[^>]*>QTY \(PC\)<\/text>/,
-  'QTY is anchored at the responsive right axis end below the tick row')
+assert.match(panelMarkup, /<text x="544" y="109" text-anchor="end"[^>]*>Quantity \(PC\)<\/text>/,
+  'Quantity is anchored at the responsive right axis end below the tick row')
 assert.match(panelMarkup, /<line x1="52" x2="544" y1="12" y2="12" stroke="#e2e8f0"/,
   'Break-even plot uses the expanded internal plot bounds')
 const fractionalMarkup = renderPanel(higherVariableCost, worked)
@@ -268,7 +268,7 @@ for (const [unit, resolvedUnit] of [['KG', 'KG'], ['   ', 'Unit']]) {
     result: baseResult, unit, batchSizeExactValue: '5000', selectionContext: 'verifier:current:snapshot', onBatchSizeChange() {}, onBeginEdit() {}, onCommitEdit() {}
   }))
   assert.ok(graph.includes(`(2,500 ${resolvedUnit})`), 'graph heading uses the resolved UOM or Unit fallback')
-  assert.ok(graph.includes(`>QTY (${resolvedUnit})</text>`), 'QTY uses the resolved UOM or Unit fallback')
+  assert.ok(graph.includes(`>Quantity (${resolvedUnit})</text>`), 'Quantity uses the resolved UOM or Unit fallback')
 }
 
 const graphMarkup = panelMarkup.slice(panelMarkup.indexOf('<figure'))

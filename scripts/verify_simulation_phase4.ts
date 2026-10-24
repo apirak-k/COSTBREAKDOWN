@@ -95,12 +95,13 @@ const referenceFinancial = graphFinancial('reference')
 const currentFinancial = graphFinancial('current')
 const customFinancial = graphFinancial('custom')
 const story = createScenarioStory(referenceFinancial, currentFinancial, customFinancial)
-const graphMarkup = renderToStaticMarkup(React.createElement(SimulationStoryGraph, {
+const graphMarkup = renderToStaticMarkup(React.createElement(SelectedValueProvider, { scopeKey: 'simulation-phase4-graph-verifier' }, React.createElement(SimulationStoryGraph, {
   story,
   unit: 'PC',
+  selectionContext: 'simulation-phase4-verifier:current:snapshot',
   activeRole: state.activeDataset,
   onSelectActiveDataset() {}
-}))
+})))
 const graphSvg = graphMarkup.match(/<svg\b[\s\S]*?<\/svg>/)?.[0] ?? ''
 assert.ok(graphSvg, 'Simulation graph renders an SVG story')
 
@@ -138,8 +139,10 @@ const graphOrder = [
 assert.ok(graphOrder.every(index => index >= 0), 'graph renders all three fixed role labels and both gap labels')
 assert.deepEqual(graphOrder, [...graphOrder].sort((left, right) => left - right),
   'graph order is Reference, GAP 1, Current, GAP 2, Custom')
-assert.match(graphSvg, /aria-label="Current − Reference"/, 'GAP 1 is labeled Current minus Reference')
-assert.match(graphSvg, /aria-label="Custom − Current"/, 'GAP 2 is labeled Custom minus Current')
+assert.match(graphSvg, /aria-label="GAP 1 total \+25\.00 THB\/PC"[^>]*data-graph-tooltip="true"/,
+  'GAP 1 total is selectable and keeps its contextual tooltip target')
+assert.match(graphSvg, /aria-label="GAP 2 total \+30\.00 THB\/PC"[^>]*data-graph-tooltip="true"/,
+  'GAP 2 total is selectable and keeps its contextual tooltip target')
 
 const standardCostLabel = (role: MasterDataRole) => {
   const match = graphSvg.match(new RegExp(`data-graph-standard-cost-value="${role}"[^>]*>([^<]+)<\\/text>`))
@@ -411,6 +414,12 @@ const cbdPageSource = readFileSync(resolve(process.cwd(), 'src/features/cost-bre
 const appSource = readFileSync(resolve(process.cwd(), 'src/App.tsx'), 'utf8')
 assert.match(graphSource, /onClick=\{\(\) => onSelectActiveDataset\(category\.role\)\}/,
   '[source contract] graph role controls select activeDataset')
+assert.match(graphSource, /description: 'Current − Reference'/,
+  '[source contract] GAP 1 tooltip retains the Current minus Reference context')
+assert.match(graphSource, /description: 'Custom − Current'/,
+  '[source contract] GAP 2 tooltip retains the Custom minus Current context')
+assert.match(graphSource, /tooltipText=\{category\.description\}/,
+  '[source contract] GAP totals receive their context-only tooltip descriptions')
 assert.match(pageSource, /onChange=\{role => onChangeComparison\(role, afterRole\)\}[\s\S]*?onChange=\{role => onChangeComparison\(beforeRole, role\)\}/,
   '[source contract] Before and After selectors update only their own comparison side')
 assert.match(pageSource, /data-simulation-layout-root="true"[^>]*xl:grid-rows-\[auto_minmax\(0,1fr\)\][^>]*xl:overflow-hidden/,

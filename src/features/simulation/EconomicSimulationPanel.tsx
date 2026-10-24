@@ -2,7 +2,6 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { KeyboardEvent, PointerEvent } from 'react'
 import { formatNumber } from '../../core'
 import type { CostSnapshot } from '../../core/types'
-import { BusinessNumber } from '../../shared/ui/BusinessNumber'
 import { formatBusinessNumber } from '../../shared/ui/numeric-display'
 import { NumericInput } from '../../shared/ui/NumericInput'
 import type { NumericInputProps } from '../../shared/ui/NumericInput'
@@ -25,11 +24,12 @@ interface EconomicSimulationPanelProps {
 
 interface EconomicNumericInputProps extends NumericInputProps {
   selectionId: string
+  percentage?: boolean
   onBeginEdit: () => void
   onCommitEdit: () => void
 }
 
-function EconomicNumericInput({ selectionId, onBeginEdit, onCommitEdit, onValueChange, ...inputProps }: EconomicNumericInputProps) {
+function EconomicNumericInput({ selectionId, percentage = false, onBeginEdit, onCommitEdit, onValueChange, ...inputProps }: EconomicNumericInputProps) {
   const source = useSelectedValueSource({
     value: inputProps.value,
     exactValue: inputProps.exactValue,
@@ -40,6 +40,7 @@ function EconomicNumericInput({ selectionId, onBeginEdit, onCommitEdit, onValueC
       max: inputProps.max,
       minExclusive: inputProps.minExclusive
     },
+    percentage,
     onValueChange,
     onBeginEdit,
     onCommitEdit,
@@ -344,7 +345,7 @@ function BreakEvenGraph({
           const x = plot.left + ratio * (plot.right - plot.left)
           return <text key={ratio} x={x} y={plot.bottom + 12} textAnchor={ratio === 0 ? 'start' : ratio === 1 ? 'end' : 'middle'} fill="#64748b" fontSize="8" fontFamily="ui-monospace, monospace">{formatNumber(xMax * ratio, 0)}</text>
         })}
-        <text x={plot.right} y={height - 3} textAnchor="end" fill="#64748b" fontSize="10">QTY ({unit})</text>
+        <text x={plot.right} y={height - 3} textAnchor="end" fill="#64748b" fontSize="10">Quantity ({unit})</text>
         <text x={plot.left} y={plot.top - 3} fill="#64748b" fontSize="8">THB</text>
         </svg>
       </div>
@@ -458,6 +459,7 @@ export function EconomicSimulationPanel({ result, draft, afterSnapshot, unit, on
                   <SimulationHistoryInputBoundary onBegin={onBeginEdit} onCommit={onCommitEdit}>
                     <EconomicNumericInput
                       selectionId={`simulation:${selectionContext}:input:${field}`}
+                      percentage={field === 'sgaPercentOverride'}
                       onBeginEdit={onBeginEdit}
                       onCommitEdit={onCommitEdit}
                       value={effectiveInputValue(field, draft, afterSnapshot)}
@@ -485,6 +487,7 @@ export function EconomicSimulationPanel({ result, draft, afterSnapshot, unit, on
                   <SimulationHistoryInputBoundary onBegin={onBeginEdit} onCommit={onCommitEdit}>
                     <EconomicNumericInput
                       selectionId={`simulation:${selectionContext}:input:${field}`}
+                      percentage={field === 'sgaPercentOverride'}
                       onBeginEdit={onBeginEdit}
                       onCommitEdit={onCommitEdit}
                       value={effectiveInputValue(field, draft, afterSnapshot)}
@@ -510,15 +513,16 @@ export function EconomicSimulationPanel({ result, draft, afterSnapshot, unit, on
               {economicOutputs.map(({ label, ariaLabel, formula, value, displayValue, className }) => (
                 <div key={label} role="group" aria-label={ariaLabel} className={`flex min-w-0 items-baseline justify-between gap-1 py-0.5 xl:py-0 ${label === 'Break-even Quantity' || label === 'Operating Profit' ? 'mt-1 border-t border-slate-200 pt-1' : ''}`} title={formula}>
                   <span className="text-[9px] text-slate-600">{label}</span>
-                  <SelectedNumber
-                    value={value}
-                    integer={label === 'Break-even Quantity'}
-                    selectionId={`simulation:${selectionContext}:outcome:${label}`}
-                    className={`shrink-0 font-mono text-[10px] font-semibold tabular-nums ${className}`}
-                    aria-label={ariaLabel}
-                  >
-                    {displayValue ?? <BusinessNumber value={value} integer={label === 'Break-even Quantity'} />}
-                  </SelectedNumber>
+                  <span data-economic-outcome-value={label} className={`shrink-0 font-mono text-[10px] font-semibold tabular-nums ${className}`}>
+                    <SelectedNumber
+                      value={value}
+                      integer={label === 'Break-even Quantity'}
+                      selectionId={`simulation:${selectionContext}:outcome:${label}`}
+                      aria-label={ariaLabel}
+                    >
+                      {displayValue ?? formatBusinessNumber(value, { integer: label === 'Break-even Quantity' })}
+                    </SelectedNumber>
+                  </span>
                 </div>
               ))}
             </div>

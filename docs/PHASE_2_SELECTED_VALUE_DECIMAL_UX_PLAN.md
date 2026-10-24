@@ -29,12 +29,12 @@ Do not overlap implementation rounds or add numbered sub-phases. A failing accep
 | Round 1 — Shared Foundation | Shared numeric source lifecycle, Header Value, SelectedNumber inspection primitive, exact model-value handling, and shared browser/runtime verification. | **CLOSED** | Shared focus/preview/pin model, source lifecycle, stale-writer guards, existing formatting/stepping/domain contracts, and runtime checks pass. Unpinned pointer hover has a frame/ring with no added fill and unchanged geometry; keyboard focus has a clear ring without the pinned fill; pin remains stronger. Final correction commit is recorded in the current Handoff. |
 | Round 2 — Master Data | Integrate the shared model into Master Data without changing its data, formulas, validation domains, dataset lifecycle, history, or spreadsheet semantics. Preserve the accepted native View-mode focus recovery and apply the later finalized hover/Header precision contract and final geometry polish. | **CLOSED** | Native grid focus owns View numeric values; source Preview uses a cancellable 350ms dwell; Focus/Pin remains anchored; only focused editable sources own Header writers; Header displays at most 8 decimals and keeps stable numeric / `%` / spinner regions and direct-interaction affordance; actual Chrome, regression, source audit, build, and diff checks pass. |
 | Round 3 — Cost Breakdown | Integrate eligible Cost Breakdown values and interactions with the shared Header/source model, retaining the finalized Candidate, detail, tooltip, row, ordering, and comparison behavior. | **CLOSED** | Shared no-focus `SelectedNumber` is transparent at rest, `#E9EEF4` on direct hover, and `blue-100` when pinned; Candidate row hover is independent. CHANGED-row cell whitespace expands/collapses while actual numeric, `#`, and reorder controls keep their own action. Targeted Chrome, Round 2 / Round 3 browser gates, build, source audit, and diff checks pass; no calculation or comparison semantics change. Implementation: `9536da7edec07d29e808bec8af8c45a16e8be621`. |
-| Round 4 — Simulation | 4A: the original five desktop UI polish items are closed. The pre-Round-4B corrective gate is externally accepted and closed, and its human visual acceptance passed. Round 4B integrates eligible Simulation Result, Economic, and Break-even numeric interactions. | **Pre-Round-4B gate CLOSED; Round 4B IMPLEMENTED / AWAITING EXTERNAL AUDIT.** | External audit and acceptance of Round 4B's implementation and verification are required before closing Round 4. |
+| Round 4 — Simulation | 4A and the pre-Round-4B corrective gate are closed. Round 4B includes Result/Economic sources plus the corrective integration of BOM/Routing values, Footer totals, and visible Story Graph numeric labels/ticks. | **IMPLEMENTED / AWAITING EXTERNAL AUDIT.** | External audit and acceptance of Round 4B are required before closing Round 4. |
 | Round 5 — Final Cross-page Regression | Run the final shared + Master Data + Cost Breakdown + Simulation regression and verify that state does not leak across pages/scopes. | **NOT STARTED** | Rounds 1–3, all of Round 4 (4A and 4B), and both preceding global numeric UX items have passed their audit/acceptance gates; full cross-page regression, browser checks, build, and diff review pass. |
 
 ## Agreed next-work order
 
-These are workflow steps inside the existing five-round Phase 2 plan, not new numbered rounds. The pre-Round-4B gate is closed; external audit and acceptance of the Round 4B implementation is the next gate.
+These are workflow steps inside the existing five-round Phase 2 plan, not new numbered rounds. The pre-Round-4B gate is closed; external audit and acceptance of the current Round 4B implementation is the next gate.
 
 1. GLOBAL authoritative-full-value-on-edit correction — implemented in the separate prior correction.
 2. Audit and accept that global numeric correction — externally accepted.
@@ -48,7 +48,17 @@ These are workflow steps inside the existing five-round Phase 2 plan, not new nu
 
 Current statuses: pre-Round-4B corrective implementation **EXTERNALLY ACCEPTED / CLOSED**; human visual acceptance **PASSED**; Round 4B **IMPLEMENTED / AWAITING EXTERNAL AUDIT**; Global authoritative-full-value-on-edit **IMPLEMENTED / EXTERNALLY ACCEPTED**; Global direct-edit blue-value indicator **NOT STARTED**; Round 5 **NOT STARTED**.
 
-## Round 4B — Simulation Selected Value / Decimal UX — 2026-10-24
+## Round 4B Corrective / Reconciliation Pass — 2026-10-24
+
+- **Status:** `IMPLEMENTED / LOCAL VERIFICATION PASSED / AWAITING EXTERNAL AUDIT`; Round 4B remains open.
+- **Starting local and remote HEAD:** `ef81d35712a6ac38ff5f8388e465d4ff656936b1` on `feat/selected-value-ux`; the fetched remote matched this checkpoint.
+- **Integration:** BOM Price / Usage / Loss and Routing Manning / Capacity / Yield retain their existing `NumericInput`, domain, exact-value, percentage conversion, and Simulation history path while publishing focused Header values. Read-only calculated costs, Parameter Cost Effects, Total values, mobile equivalents, finite Result and Economic outputs, and Footer REF STD / CUR STD / NET GAP use shared read-only Selected Value behavior.
+- **Story Graph:** visible Standard Cost, Visible + / Visible −, GAP totals, and Y-axis tick labels preview/pin through the shared provider. IDs carry graph/product context and clear when values or scale targets disappear. SVG selection fills hug the rendered glyph bounds, keep pointer events transparent, and preserve semantic text colors. Graph context tooltips and data-mark tooltips use a cancellable 350ms dwell; numeric label tooltips omit the visible amount, GAP category text has no tooltip, and the ruler remains its native editable focus source without a tooltip.
+- **Presentation:** Footer dark surfaces use contrasting preview/pin fills with inherited semantic text color. The graph plot uses the compact `x=40..605` region in a 660-unit base viewBox, with 100-unit category spacing. Economic SG&A % displays its percentage suffix; Break-even Outcome says `Break-even Quantity`.
+- **Boundaries:** no calculation, business rule, domain, data, persistence, role, history, or writer ownership changes. Round 5 and the direct-edit blue-value indicator remain NOT STARTED. This entry supersedes the original Round 4B scope/boundaries below for the integrations listed above; Round 4B is not declared closed.
+- **Verification:** current pass/fail counts and full command results are recorded in [HANDOFF](../HANDOFF.md).
+
+## Initial Round 4B Integration — Simulation Selected Value / Decimal UX — 2026-10-24 (historical scope)
 
 - **Status:** `IMPLEMENTED / INTERNAL VERIFICATION PASSED / AWAITING EXTERNAL AUDIT`.
 - **Starting local and remote HEAD:** `bda01edddcef4d14b75ca318974a64570db32647` on `feat/selected-value-ux`.
@@ -185,4 +195,4 @@ The closure below records the state before a later user-requested targeted corre
 
 ## Next action
 
-**Next:** complete the external audit and acceptance of the pre-Round-4B correction, then follow the agreed next-work order above. Round 4B is NOT STARTED and blocked until frame acceptance; Round 5 is NOT STARTED. The original five Round 4A UI polish items and Round 3 are CLOSED. Do not begin Round 5 until its preceding work and acceptance gates are complete.
+**Next:** complete the external audit and acceptance of the current Round 4B corrective/reconciliation implementation, then close Round 4 only after that gate passes. Round 5 remains NOT STARTED. The original five Round 4A UI polish items and Rounds 1–3 are CLOSED.

@@ -24,7 +24,7 @@ import {
   isSafeWorkspaceDismissTarget
 } from '../ui/transient-interactions'
 import { installSelectAllOnFirstFocus } from '../ui/select-all-on-first-focus'
-import { SelectedValueProvider } from '../ui/selected-value'
+import { SelectedNumber, SelectedValueProvider } from '../ui/selected-value'
 
 const masterDataRoles = ['reference', 'current', 'custom'] as const
 
@@ -272,6 +272,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children, onNavigatePrepar
       : totalGap < 0
       ? 'text-emerald-300'
       : 'text-slate-300'
+  const footerSelectionContext = `${activeTab}:${encodeURIComponent(productDisplayLabel)}`
   const productStatusClass = productDisplayStatus === 'match'
     ? 'text-emerald-300'
     : productDisplayStatus === 'mismatch'
@@ -412,13 +413,13 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children, onNavigatePrepar
             </FooterTooltip>
           </div>
           <div role="group" aria-label={`Full Reference and Current standard costs and net gap in THB/${costUnit}`} className="flex min-w-0 flex-wrap cursor-default select-none items-center gap-x-3 gap-y-1 font-mono tabular-nums">
-            <span className="whitespace-nowrap"><span className="mr-1 font-sans font-bold text-slate-300">REF STD</span>{formatCost(referenceStandardCost)}</span>
+            <span className="whitespace-nowrap"><span className="mr-1 font-sans font-bold text-slate-300">REF STD</span><SelectedNumber darkSurface value={referenceStandardCost} selectionId={`footer:${footerSelectionContext}:reference-standard-cost`} aria-label="Reference Standard Cost">{formatCost(referenceStandardCost)}</SelectedNumber></span>
             <span aria-hidden="true" className="text-slate-700">|</span>
-            <span className="whitespace-nowrap"><span className="mr-1 font-sans font-bold text-slate-300">CUR STD</span>{formatCost(currentStandardCost)}</span>
+            <span className="whitespace-nowrap"><span className="mr-1 font-sans font-bold text-slate-300">CUR STD</span><SelectedNumber darkSurface value={currentStandardCost} selectionId={`footer:${footerSelectionContext}:current-standard-cost`} aria-label="Current Standard Cost">{formatCost(currentStandardCost)}</SelectedNumber></span>
             <span aria-hidden="true" className="text-slate-700">|</span>
             <span className="flex items-center gap-1 whitespace-nowrap">
               <span className="font-sans font-bold text-slate-300">NET GAP</span>
-              <span className={`font-semibold ${gapTextClass}`}>{formattedGap}</span>
+              <span className={`font-semibold ${gapTextClass}`}><SelectedNumber darkSurface value={totalGap} signPositive selectionId={`footer:${footerSelectionContext}:net-gap`} aria-label="Net Gap">{formattedGap}</SelectedNumber></span>
             </span>
             <span className="ml-2 max-[359px]:basis-full max-[359px]:ml-0 max-[359px]:text-right cursor-default select-none font-sans font-bold text-slate-300">THB/{costUnit}</span>
           </div>

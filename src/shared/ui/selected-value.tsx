@@ -58,7 +58,7 @@ interface SelectedValueContextValue {
 const SelectedValueContext = createContext<SelectedValueContextValue | null>(null)
 const useBrowserLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect
 const isSelectable = (source: SelectedValue) => Number.isFinite(source.value) || (source.editable && source.value == null)
-const HOVER_PREVIEW_DWELL_MS = 350
+export const SELECTED_VALUE_HOVER_PREVIEW_DWELL_MS = 350
 const ADDITIONAL_PIN_PRESERVING_TARGET = [
   '[aria-expanded]',
   '[aria-haspopup]',
@@ -158,7 +158,7 @@ export function SelectedValueProvider({ children, scopeKey }: { children: ReactN
         }
         return { ...current, previewed: { value: asReadOnlyPreview(pending.value), scopeKey: pending.scopeKey } }
       })
-    }, HOVER_PREVIEW_DWELL_MS)
+    }, SELECTED_VALUE_HOVER_PREVIEW_DWELL_MS)
     pendingPreviewRef.current = pending
   }, [cancelPendingPreview, scopeKey])
   const clearPreview = useCallback((id?: string) => {
@@ -318,13 +318,16 @@ export interface SelectedNumberProps extends Omit<ButtonHTMLAttributes<HTMLButto
   selectionId?: string
   stopKeyboardPropagation?: boolean
   numericColumn?: boolean
+  numericColumnSigned?: boolean
   compactPercentSuffix?: boolean
+  darkSurface?: boolean
   signPositive?: boolean
   leadingAnnotation?: ReactNode
+  sameLineAnnotation?: ReactNode
   children?: ReactNode
 }
 
-export function SelectedNumber({ value, integer, percentage, selectionId, children, className, style, numericColumn = false, compactPercentSuffix = false, signPositive, leadingAnnotation, stopKeyboardPropagation = true, onKeyDown, onKeyUp, ...props }: SelectedNumberProps) {
+export function SelectedNumber({ value, integer, percentage, selectionId, children, className, style, numericColumn = false, numericColumnSigned = true, compactPercentSuffix = false, darkSurface = false, signPositive, leadingAnnotation, sameLineAnnotation, stopKeyboardPropagation = true, onKeyDown, onKeyUp, ...props }: SelectedNumberProps) {
   const { isPinned, preview, clearPreview, pin } = useSelectedValueSource({ value, editable: false, domain: { integer }, percentage }, selectionId)
   const content = children ?? <BusinessNumber value={value} integer={integer} percent={percentage} leadingAnnotation={leadingAnnotation} />
   if (value == null || !Number.isFinite(value)) return numericColumn
@@ -338,7 +341,7 @@ export function SelectedNumber({ value, integer, percentage, selectionId, childr
       aria-label={props['aria-label'] ?? `Select value ${formatFullNumericValue(value)}${percentage ? '%' : ''}`}
       aria-pressed={isPinned}
       data-selected-number="true"
-      className={`inline cursor-pointer appearance-none rounded-none text-inherit focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-blue-700 ${className ?? ''}`.trim()}
+      className={`inline cursor-pointer appearance-none rounded-none text-inherit focus-visible:ring-1 focus-visible:ring-inset ${darkSurface ? 'focus-visible:ring-blue-300' : 'focus-visible:ring-blue-700'} ${className ?? ''}`.trim()}
       style={{ ...style, border: 0, outline: 'none', padding: 0, margin: 0 }}
       onPointerEnter={event => {
         preview()
@@ -361,10 +364,10 @@ export function SelectedNumber({ value, integer, percentage, selectionId, childr
         onKeyUp?.(event)
       }}
     >
-      <span className={`rounded-sm ${isPinned ? 'bg-blue-100' : 'bg-transparent hover:bg-[#E9EEF4]'}`}>{token}</span>
+      <span className={`rounded-sm ${isPinned ? darkSurface ? 'bg-blue-950' : 'bg-blue-100' : darkSurface ? 'bg-transparent hover:bg-slate-800' : 'bg-transparent hover:bg-[#E9EEF4]'}`}>{token}</span>
     </button>
   )
   return numericColumn
-    ? <BusinessNumber numericColumn className={className} value={value} integer={integer} percent={percentage} compactPercentSuffix={compactPercentSuffix} signPositive={signPositive} leadingAnnotation={leadingAnnotation} renderToken={renderButton} />
+    ? <BusinessNumber numericColumn numericColumnSigned={numericColumnSigned} className={className} value={value} integer={integer} percent={percentage} compactPercentSuffix={compactPercentSuffix} signPositive={signPositive} leadingAnnotation={leadingAnnotation} sameLineAnnotation={sameLineAnnotation} renderToken={renderButton} />
     : renderButton(content)
 }

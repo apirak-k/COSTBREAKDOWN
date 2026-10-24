@@ -19,10 +19,10 @@ import type {
 } from '../../core/types'
 import { Tooltip } from '../../shared/ui/Tooltip'
 import { COMPARISON_ROLE_LABELS, ComparisonRoleSelector } from '../../shared/ui/ComparisonRoleSelector'
-import { BusinessNumber } from '../../shared/ui/BusinessNumber'
-import { SelectedNumber } from '../../shared/ui/selected-value'
+import { SelectedNumber, useSelectedValueSource } from '../../shared/ui/selected-value'
 import { formatBusinessNumber } from '../../shared/ui/numeric-display'
 import { NumericInput } from '../../shared/ui/NumericInput'
+import type { NumericInputProps } from '../../shared/ui/NumericInput'
 import { NumericColumnHeader } from '../../shared/ui/NumericColumnHeader'
 import { applyRowDragSelection, applyRowSelectionScope, getRowSelectionState } from '../../shared/selection/row-drag-selection'
 import { useTransientInteraction } from '../../shared/ui/transient-interactions'
@@ -71,10 +71,6 @@ const RTG_PARAMETERS = [
 ] as const
 
 type EffectValues = ReturnType<typeof calculateMultiplicativeCostAttribution>
-
-function displayMoney(value: number | null, numericColumn = false) {
-  return <BusinessNumber value={value} numericColumn={numericColumn} />
-}
 
 type ResultSemantic = 'cost' | 'neutral' | 'profit'
 
@@ -403,15 +399,67 @@ function ParameterNumberSlot({ children, percentage = false, showSuffix = false,
   </NumericColumnSlot>
 }
 
-function EffectCell({ amount, percentage = false }: {
+interface SimulationParameterNumericInputProps extends NumericInputProps {
+  selectionId: string
+  percentage?: boolean
+  onBeginEdit: () => void
+  onCommitEdit: () => void
+}
+
+function SimulationParameterNumericInput({ selectionId, percentage = false, onBeginEdit, onCommitEdit, onValueChange, ...inputProps }: SimulationParameterNumericInputProps) {
+  const source = useSelectedValueSource({
+    value: inputProps.value,
+    exactValue: inputProps.exactValue,
+    editable: true,
+    domain: {
+      integer: inputProps.integer,
+      min: inputProps.min,
+      max: inputProps.max,
+      minExclusive: inputProps.minExclusive
+    },
+    percentage,
+    onValueChange,
+    onBeginEdit,
+    onCommitEdit,
+    allowSubMinimumDraft: inputProps.allowSubMinimumDraft,
+    stopAtMinimum: inputProps.stopAtMinimum
+  }, selectionId)
+
+  return <NumericInput
+    {...inputProps}
+    onValueChange={onValueChange}
+    data-selected-value-source={selectionId}
+    onPointerEnter={source.preview}
+    onPointerLeave={source.clearPreview}
+    onFocus={source.focus}
+    onBlur={event => {
+      const nextSourceId = event.relatedTarget instanceof Element
+        ? event.relatedTarget.getAttribute('data-selected-value-source')
+        : null
+      if (nextSourceId !== selectionId) source.blur()
+    }}
+  />
+}
+
+function parameterValueSelectionId(context: string, kind: SimulationRecordKind, recordId: string, field: string) {
+  return `simulation:${context}:${kind}:${encodeURIComponent(recordId)}:${field}`
+}
+
+function EffectCell({ amount, percentage = false, selectionId, label }: {
   amount: number | null | undefined
   percentage?: boolean
+  selectionId: string
+  label: string
 }) {
   const effect = parameterEffectPresentation(amount)
   return (
     <td className="border-b border-slate-200 whitespace-nowrap py-1.5 text-right font-mono tabular-nums" style={{ paddingLeft: percentage ? 6 : 5, paddingRight: percentage ? 2 : 5 }}>
       {/* Match the parameter frame region and reserve the same suffix slot. */}
-      <ParameterNumberSlot percentage={percentage}><BusinessNumber value={amount} signPositive numericColumn className={`text-[10px] ${effect.className}`} /></ParameterNumberSlot>
+      <span className={effect.className}>
+        <ParameterNumberSlot percentage={percentage}>
+          <SelectedNumber value={amount} signPositive numericColumn selectionId={selectionId} aria-label={label} className="text-[10px]" />
+        </ParameterNumberSlot>
+      </span>
     </td>
   )
 }
@@ -432,6 +480,7 @@ interface SimulationSelectionDrag {
 
 function SimulationParameterTable({
   kind,
+  selectionContext,
   activeRole,
   rows,
   simulationSnapshot,
@@ -444,6 +493,7 @@ function SimulationParameterTable({
   onCommitEdit
 }: {
   kind: SimulationRecordKind
+  selectionContext: string
   activeRole: MasterDataRole
   rows: SimulationComparisonRow[]
   simulationSnapshot: CostSnapshot
@@ -809,7 +859,11 @@ function SimulationParameterTable({
                               <div className="relative min-w-0 flex-1">
                                 <SimulationHistoryInputBoundary onBegin={onBeginEdit} onCommit={onCommitEdit}>
                                   <>
-                                    <NumericInput
+                                    <SimulationParameterNumericInput
+                                      selectionId={parameterValueSelectionId(selectionContext, kind, simulationRecord.id, parameter.parameter)}
+                                      percentage={parameter.scale === 100}
+                                      onBeginEdit={onBeginEdit}
+                                      onCommitEdit={onCommitEdit}
                                       value={value}
                                       exactValue={exactValue}
                                       numericColumn
@@ -841,13 +895,15 @@ function SimulationParameterTable({
                             </ParameterNumberSlot>
                           ) : (
                             <ParameterNumberSlot percentage={parameter.scale === 100} showSuffix>
-                              <BusinessNumber value={value} numericColumn numericColumnSigned={false} className="text-xs" />
+                              <SelectedNumber value={value} percentage={parameter.scale === 100} numericColumn numericColumnSigned={false} selectionId={parameterValueSelectionId(selectionContext, kind, simulationRecord?.id ?? row.afterRecordId ?? row.beforeRecordId ?? key, parameter.parameter)} aria-label={`${row.name} ${parameter.label}`} className="text-xs" />
                             </ParameterNumberSlot>
                           )}
                         </td>
                       )
                     })}
-                    <td className={`py-2 pl-1 pr-2 text-right font-mono text-xs tabular-nums text-slate-900 ${groupEndClass}`}>{displayMoney(analysis.simCost, true)}</td>
+                    <td className={`py-2 pl-1 pr-2 text-right font-mono text-xs tabular-nums text-slate-900 ${groupEndClass}`}>
+                      <SelectedNumber value={analysis.simCost} numericColumn selectionId={parameterValueSelectionId(selectionContext, kind, simulationRecord?.id ?? row.afterRecordId ?? row.beforeRecordId ?? key, 'calculated-cost')} aria-label={`${row.name} ${isBOM ? 'Material Cost' : 'Conversion Cost'}`} className="text-xs" />
+                    </td>
                     <td className={`px-0.5 py-1 text-center ${groupEndClass}`}>
                       {canExpand && (
                         <span aria-hidden="true" className="inline-grid h-7 w-7 place-items-center text-slate-600">
@@ -862,15 +918,18 @@ function SimulationParameterTable({
                       <th scope="row" colSpan={2} className="border-b border-slate-200 py-2 pl-3 pr-2 text-left text-[10px] font-semibold text-slate-700">
                         <span className="ml-2 inline-block whitespace-nowrap border-l-2 border-slate-300 pl-3">Parameter Cost Effect</span>
                       </th>
-                      {detailParameters.map(parameter => <EffectCell key={parameter.parameter} amount={parameter.amount} percentage={parameter.scale === 100} />)}
+                      {detailParameters.map(parameter => <EffectCell key={parameter.parameter} amount={parameter.amount} percentage={parameter.scale === 100} selectionId={parameterValueSelectionId(selectionContext, kind, simulationRecord?.id ?? row.afterRecordId ?? row.beforeRecordId ?? key, `effect:${parameter.effectKey}`)} label={`${row.name} ${parameter.label} Parameter Cost Effect`} />)}
                       <td aria-label={`Total ${formatBusinessNumber(analysis.effects.totalEffect, { signPositive: true, integerDigits: Infinity })}`} className="border-b border-slate-200 whitespace-nowrap py-1.5 pl-1 pr-2 text-right text-[10px] font-semibold">
-                        <BusinessNumber
-                          value={analysis.effects.totalEffect}
-                          signPositive
-                          numericColumn
-                          sameLineAnnotation={<span className="font-sans text-[10px] text-slate-600 font-normal">Total</span>}
-                          className={totalEffect.className}
-                        />
+                        <span className={totalEffect.className}>
+                          <SelectedNumber
+                            value={analysis.effects.totalEffect}
+                            signPositive
+                            numericColumn
+                            selectionId={parameterValueSelectionId(selectionContext, kind, simulationRecord?.id ?? row.afterRecordId ?? row.beforeRecordId ?? key, 'effect:total')}
+                            aria-label={`${row.name} Total Parameter Cost Effect`}
+                            sameLineAnnotation={<span className="font-sans text-[10px] text-slate-600 font-normal">Total</span>}
+                          />
+                        </span>
                       </td>
                       <td className="border-b border-slate-200 px-0.5 py-1" aria-hidden="true" />
                     </tr>
@@ -962,7 +1021,7 @@ function SimulationParameterTable({
                 </div>
                 <div className="min-w-0 text-right">
                   <dt className="text-slate-500"><NumericColumnHeader>{isBOM ? 'Material Cost' : 'Conversion Cost'}</NumericColumnHeader></dt>
-                  <dd className="font-mono tabular-nums text-slate-900">{displayMoney(analysis.simCost, true)}</dd>
+                  <dd className="font-mono tabular-nums text-slate-900"><SelectedNumber value={analysis.simCost} numericColumn selectionId={parameterValueSelectionId(selectionContext, kind, simulationRecord?.id ?? row.afterRecordId ?? row.beforeRecordId ?? key, 'calculated-cost')} aria-label={`${row.name} ${isBOM ? 'Material Cost' : 'Conversion Cost'}`} /></dd>
                 </div>
               </dl>
               <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-2">
@@ -980,7 +1039,11 @@ function SimulationParameterTable({
                       {!simulationRecord ? <span className="mt-0.5 block font-mono text-slate-700">—</span> : canEdit ? (
                         <div className="mt-0.5 min-w-0 pl-1.5">
                           <SimulationHistoryInputBoundary onBegin={onBeginEdit} onCommit={onCommitEdit}>
-                            <NumericInput
+                            <SimulationParameterNumericInput
+                              selectionId={parameterValueSelectionId(selectionContext, kind, simulationRecord.id, parameter.parameter)}
+                              percentage={parameter.scale === 100}
+                              onBeginEdit={onBeginEdit}
+                              onCommitEdit={onCommitEdit}
                               value={value}
                               exactValue={exactValue}
                               numericColumn
@@ -998,7 +1061,7 @@ function SimulationParameterTable({
                             />
                           </SimulationHistoryInputBoundary>
                         </div>
-                      ) : <span className="mt-0.5 block pl-1.5 font-mono text-xs text-slate-700"><BusinessNumber value={value} numericColumn numericColumnSigned={false} percent={parameter.scale === 100} /></span>}
+                      ) : <span className="mt-0.5 block pl-1.5 font-mono text-xs text-slate-700"><SelectedNumber value={value} percentage={parameter.scale === 100} numericColumn numericColumnSigned={false} selectionId={parameterValueSelectionId(selectionContext, kind, simulationRecord?.id ?? row.afterRecordId ?? row.beforeRecordId ?? key, parameter.parameter)} aria-label={`${row.name} ${parameter.label}`} /></span>}
                     </label>
                   )
                 })}
@@ -1012,13 +1075,13 @@ function SimulationParameterTable({
                       return (
                         <div key={parameter.parameter} className="flex min-w-0 items-baseline justify-between gap-2">
                           <dt className="text-slate-600">{parameter.label} effect</dt>
-                          <dd className={`shrink-0 font-mono tabular-nums ${effect.className}`}><BusinessNumber value={analysis.effects.effects?.[parameter.effectKey]} signPositive /></dd>
+                          <dd className={`shrink-0 font-mono tabular-nums ${effect.className}`}><SelectedNumber value={analysis.effects.effects?.[parameter.effectKey]} signPositive selectionId={parameterValueSelectionId(selectionContext, kind, simulationRecord?.id ?? row.afterRecordId ?? row.beforeRecordId ?? key, `effect:${parameter.effectKey}`)} aria-label={`${row.name} ${parameter.label} Parameter Cost Effect`}>{formatBusinessNumber(analysis.effects.effects?.[parameter.effectKey], { signPositive: true })}</SelectedNumber></dd>
                         </div>
                       )
                     })}
                     <div className="flex min-w-0 items-baseline justify-between gap-2 border-t border-slate-200 pt-1 font-semibold">
                       <dt className="text-slate-700">Total</dt>
-                      <dd className={`shrink-0 font-mono tabular-nums ${totalEffect.className}`}><BusinessNumber value={analysis.effects.totalEffect} signPositive /></dd>
+                      <dd className={`shrink-0 font-mono tabular-nums ${totalEffect.className}`}><SelectedNumber value={analysis.effects.totalEffect} signPositive selectionId={parameterValueSelectionId(selectionContext, kind, simulationRecord?.id ?? row.afterRecordId ?? row.beforeRecordId ?? key, 'effect:total')} aria-label={`${row.name} Total Parameter Cost Effect`}>{formatBusinessNumber(analysis.effects.totalEffect, { signPositive: true })}</SelectedNumber></dd>
                     </div>
                   </dl>
                 </div>
@@ -1296,6 +1359,8 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
   const unit = resolveSimulationCostUnit(analysisBeforeDataset.snapshot, analysisAfterDataset.snapshot)
   const resultSelectionContext = `${productId}:comparison:${analysisBeforeDataset.role}:${analysisBeforeDataset.snapshot.id}:${analysisAfterDataset.role}:${analysisAfterDataset.snapshot.id}`
   const economicSelectionContext = `${productId}:economic:${analysisAfterDataset.role}:${analysisAfterDataset.snapshot.id}`
+  const parameterSelectionContext = `${productId}:parameters:${state.role}:${simulationSnapshot.id}:${state.baselineSnapshot.id}`
+  const graphSelectionContext = `${productId}:graph:${effectiveDatasets.reference.snapshot.id}:${effectiveDatasets.current.snapshot.id}:${effectiveDatasets.custom.snapshot.id}`
 
   const actionMenus = (
     <>
@@ -1318,8 +1383,8 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
 
   return (
     <div data-simulation-layout-root="true" className="min-w-0 space-y-3 xl:grid xl:h-full xl:min-h-0 xl:grid-rows-[auto_minmax(0,1fr)] xl:gap-2 xl:space-y-0 xl:overflow-hidden">
-      <div className="grid min-w-0 gap-2 xl:min-h-0 xl:grid-cols-[minmax(0,2.82fr)_minmax(0,1.63fr)_minmax(max-content,.85fr)] xl:grid-rows-1">
-        <SimulationStoryGraph story={story} unit={unit} activeRole={state.role} onSelectActiveDataset={onSelectActiveDataset} />
+      <div className="grid min-w-0 gap-2 xl:min-h-0 xl:grid-cols-[minmax(0,2.65fr)_minmax(0,1.63fr)_minmax(max-content,.85fr)] xl:grid-rows-1">
+        <SimulationStoryGraph story={story} unit={unit} selectionContext={graphSelectionContext} activeRole={state.role} onSelectActiveDataset={onSelectActiveDataset} />
         <div data-simulation-layout-column="result-and-break-even" className="grid min-w-0 gap-2 xl:min-h-0 xl:grid-rows-[auto_minmax(0,1fr)]">
           <ResultPanel
             selectionContext={resultSelectionContext}
@@ -1357,6 +1422,7 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
       <div className="grid min-w-0 gap-2 xl:min-h-0 xl:grid-cols-2 xl:grid-rows-1 xl:items-stretch">
         <SimulationParameterTable
           kind="bom"
+          selectionContext={parameterSelectionContext}
           activeRole={state.role}
           rows={result.records}
           simulationSnapshot={simulationSnapshot}
@@ -1370,6 +1436,7 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
         />
         <SimulationParameterTable
           kind="routing"
+          selectionContext={parameterSelectionContext}
           activeRole={state.role}
           rows={result.records}
           simulationSnapshot={simulationSnapshot}

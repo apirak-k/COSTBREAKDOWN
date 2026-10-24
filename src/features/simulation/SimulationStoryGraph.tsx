@@ -1,7 +1,8 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import type { KeyboardEvent, PointerEvent } from 'react'
+import type { KeyboardEvent, PointerEvent, SVGProps } from 'react'
 import { formatNumber } from '../../core'
 import type { MasterDataRole, ScenarioFinancialResult, ScenarioStory } from '../../core/types'
+import { SELECTED_VALUE_HOVER_PREVIEW_DWELL_MS, useSelectedValueSource } from '../../shared/ui/selected-value'
 import { COST_ELEMENT_COLORS } from '../cost-breakdown/components/cost-element-colors'
 
 type MetricKey = keyof ScenarioFinancialResult
@@ -64,17 +65,16 @@ const DEFAULT_LEGEND_VISIBILITY: Record<LegendKey, boolean> = {
 
 const useIsomorphicLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect
 
-// Balance the original 74/36-unit margins: shift left by (74 - 36) / 2, preserving plot and category spacing.
 const GRAPH_X = {
-  plotLeft: 55,
-  plotRight: 765,
-  reference: 130,
-  gap1: 270,
-  current: 410,
-  gap2: 550,
-  custom: 690
+  plotLeft: 40,
+  plotRight: 605,
+  reference: 120,
+  gap1: 220,
+  current: 320,
+  gap2: 420,
+  custom: 520
 } as const
-const GRAPH_VIEWBOX_WIDTH = 820
+const GRAPH_VIEWBOX_WIDTH = 660
 const RULER_LABEL_GUTTER = {
   left: GRAPH_X.plotRight + 6
 } as const
@@ -88,6 +88,7 @@ const STATE_LAYOUT = [
 interface SimulationStoryGraphProps {
   story: ScenarioStory
   unit: string
+  selectionContext: string
   activeRole: MasterDataRole
   onSelectActiveDataset: (role: MasterDataRole) => void
 }
@@ -119,6 +120,97 @@ export function positionGraphTooltip(
     Math.max(inset, hostBounds.height - tooltipBounds.height - inset)
   )
   return { x, y }
+}
+
+type SelectedSvgNumberProps = Omit<SVGProps<SVGTextElement>, 'children' | 'onClick' | 'onPointerEnter' | 'onPointerLeave' | 'onKeyDown' | 'onKeyUp' | 'onFocus' | 'onBlur'> & {
+  value: number
+  selectionId: string
+  tooltipText?: string
+  onTooltipEnter?: (target: SVGElement, text: string) => void
+  onTooltipLeave?: (event: PointerEvent<SVGElement>) => void
+  children: string
+}
+
+function SelectedSvgNumber({ value, selectionId, tooltipText, onTooltipEnter, onTooltipLeave, children, ...textProps }: SelectedSvgNumberProps) {
+  const textRef = useRef<SVGTextElement>(null)
+  const [bounds, setBounds] = useState<{ x: number; y: number; width: number; height: number } | null>(null)
+  const [hovered, setHovered] = useState(false)
+  const [focused, setFocused] = useState(false)
+  const source = useSelectedValueSource({ value, editable: false }, selectionId)
+  const { x, y, textAnchor, fontSize, fontWeight, fontFamily } = textProps
+  const refreshBounds = () => {
+    const text = textRef.current
+    if (!text) return
+    const box = text.getBBox()
+    setBounds({ x: box.x, y: box.y, width: box.width, height: box.height })
+  }
+
+  useIsomorphicLayoutEffect(() => {
+    refreshBounds()
+  }, [children, x, y, textAnchor, fontSize, fontWeight, fontFamily])
+
+  const showBackground = source.isPinned || hovered || focused
+  return <>
+    {bounds && showBackground && <rect
+      data-selected-number-background={selectionId}
+      aria-hidden="true"
+      x={bounds.x - 2}
+      y={bounds.y - 1}
+      width={bounds.width + 4}
+      height={bounds.height + 2}
+      rx="1"
+      fill={source.isPinned ? '#dbeafe' : hovered ? '#E9EEF4' : 'transparent'}
+      stroke={focused ? '#1d4ed8' : 'none'}
+      strokeWidth="1"
+      pointerEvents="none"
+    />}
+    <text
+      {...textProps}
+      ref={textRef}
+      role="button"
+      tabIndex={0}
+      aria-pressed={source.isPinned}
+      data-selected-number="true"
+      data-selected-value-source={selectionId}
+      data-graph-tooltip={tooltipText ? 'true' : undefined}
+      onPointerEnter={event => {
+        refreshBounds()
+        setHovered(true)
+        source.preview()
+        if (tooltipText) onTooltipEnter?.(event.currentTarget, tooltipText)
+      }}
+      onPointerLeave={event => {
+        setHovered(false)
+        source.clearPreview()
+        if (tooltipText) onTooltipLeave?.(event)
+      }}
+      onClick={event => {
+        event.stopPropagation()
+        source.pin()
+      }}
+      onKeyDown={event => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault()
+          event.stopPropagation()
+        }
+      }}
+      onKeyUp={event => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault()
+          event.stopPropagation()
+          source.pin()
+        }
+      }}
+      onFocus={() => {
+        refreshBounds()
+        setFocused(true)
+      }}
+      onBlur={() => setFocused(false)}
+      style={{ cursor: 'pointer', ...textProps.style }}
+    >
+      {children}
+    </text>
+  </>
 }
 
 function formatValue(value: number | null): string {
@@ -349,17 +441,15 @@ function gapTotalColor(value: number | null): string {
   return '#475569'
 }
 
-function isGraphTooltipTarget(target: EventTarget | null): boolean {
-  return target instanceof Element && target.closest('[data-graph-tooltip]') !== null
-}
-
-export function SimulationStoryGraph({ story, unit, activeRole, onSelectActiveDataset }: SimulationStoryGraphProps) {
+export function SimulationStoryGraph({ story, unit, selectionContext, activeRole, onSelectActiveDataset }: SimulationStoryGraphProps) {
   const [visibleLegend, setVisibleLegend] = useState(DEFAULT_LEGEND_VISIBILITY)
   const [isNarrowGraphViewport, setIsNarrowGraphViewport] = useState(() =>
     typeof window !== 'undefined' && window.matchMedia(GRAPH_LABEL_BREAKPOINT).matches)
   const allLegendVisible = LEGEND_ITEMS.every(item => visibleLegend[item.key])
   const [manualRulerLevel, setManualRulerLevel] = useState<number | null>(null)
   const [activeTooltip, setActiveTooltip] = useState<ActiveGraphTooltip | null>(null)
+  const tooltipTimerRef = useRef<number | null>(null)
+  const tooltipTargetRef = useRef<SVGElement | null>(null)
   const tooltipRef = useRef<HTMLDivElement>(null)
   const rulerLabelRef = useRef<SVGTextElement>(null)
   const [rulerViewBoxWidth, setRulerViewBoxWidth] = useState(GRAPH_VIEWBOX_WIDTH)
@@ -423,6 +513,13 @@ export function SimulationStoryGraph({ story, unit, activeRole, onSelectActiveDa
   const rulerLevel = clamp(manualRulerLevel ?? story.current.standardCost ?? 0, minimum, maximum)
   const rulerY = y(rulerLevel)
   const rulerValue = formatValue(rulerLevel)
+  const rulerSourceId = `simulation:${selectionContext}:ruler`
+  const rulerSource = useSelectedValueSource({
+    value: rulerLevel,
+    editable: true,
+    domain: { min: minimum, max: maximum },
+    onValueChange: value => { if (value !== null) setManualRulerLevel(value) }
+  }, rulerSourceId)
   useIsomorphicLayoutEffect(() => {
     const text = rulerLabelRef.current
     if (!text) return
@@ -432,24 +529,36 @@ export function SimulationStoryGraph({ story, unit, activeRole, onSelectActiveDa
     setRulerViewBoxWidth(Math.max(GRAPH_VIEWBOX_WIDTH, RULER_LABEL_GUTTER.left + width + 2))
   }, [rulerValue, minimum, maximum, isNarrowGraphViewport, visibleLegend.ruler])
   const showTooltipAt = (target: SVGElement, text: string) => {
-    const host = target.ownerSVGElement?.parentElement
-    if (!host) return
-    const hostBounds = host.getBoundingClientRect()
-    if (hostBounds.width === 0 || hostBounds.height === 0) return
-    const elementBounds = target.getBoundingClientRect()
-    const maxWidth = Math.max(0, Math.min(360, hostBounds.width - 16))
-    setActiveTooltip({
-      text,
-      anchor: {
-        left: elementBounds.left - hostBounds.left,
-        top: elementBounds.top - hostBounds.top,
-        right: elementBounds.right - hostBounds.left,
-        bottom: elementBounds.bottom - hostBounds.top
-      },
-      x: 8,
-      y: 8,
-      maxWidth
-    })
+    if (tooltipTimerRef.current !== null) window.clearTimeout(tooltipTimerRef.current)
+    tooltipTargetRef.current = target
+    tooltipTimerRef.current = window.setTimeout(() => {
+      tooltipTimerRef.current = null
+      if (tooltipTargetRef.current !== target || !target.isConnected) return
+      const host = target.ownerSVGElement?.parentElement
+      if (!host) return
+      const hostBounds = host.getBoundingClientRect()
+      if (hostBounds.width === 0 || hostBounds.height === 0) return
+      const elementBounds = target.getBoundingClientRect()
+      const maxWidth = Math.max(0, Math.min(360, hostBounds.width - 16))
+      setActiveTooltip({
+        text,
+        anchor: {
+          left: elementBounds.left - hostBounds.left,
+          top: elementBounds.top - hostBounds.top,
+          right: elementBounds.right - hostBounds.left,
+          bottom: elementBounds.bottom - hostBounds.top
+        },
+        x: 8,
+        y: 8,
+        maxWidth
+      })
+    }, SELECTED_VALUE_HOVER_PREVIEW_DWELL_MS)
+  }
+  const hideTooltip = () => {
+    if (tooltipTimerRef.current !== null) window.clearTimeout(tooltipTimerRef.current)
+    tooltipTimerRef.current = null
+    tooltipTargetRef.current = null
+    setActiveTooltip(null)
   }
   const tooltipProps = (text: string) => ({
     'data-graph-tooltip': 'true',
@@ -457,17 +566,10 @@ export function SimulationStoryGraph({ story, unit, activeRole, onSelectActiveDa
     'aria-label': text,
     className: 'cursor-default',
     onPointerEnter: (event: PointerEvent<SVGElement>) => showTooltipAt(event.currentTarget, text),
-    onPointerLeave: (event: PointerEvent<SVGElement>) => {
-      if (!isGraphTooltipTarget(event.relatedTarget)) setActiveTooltip(null)
-    }
+    onPointerLeave: hideTooltip
   })
-  const tooltipPointerProps = (text: string) => ({
-    'data-graph-tooltip': 'true',
-    onPointerEnter: (event: PointerEvent<SVGElement>) => showTooltipAt(event.currentTarget, text),
-    onPointerLeave: (event: PointerEvent<SVGElement>) => {
-      if (!isGraphTooltipTarget(event.relatedTarget)) setActiveTooltip(null)
-    }
-  })
+  const graphSelectionId = (kind: string, value: number, x: number, y: number) =>
+    `simulation:${selectionContext}:graph:${kind}:${value}:${x}:${y}:${minimum}:${maximum}`
   useEffect(() => {
     if (manualRulerLevel === null) return
     const clamped = clamp(manualRulerLevel, minimum, maximum)
@@ -480,7 +582,15 @@ export function SimulationStoryGraph({ story, unit, activeRole, onSelectActiveDa
     mediaQuery.addEventListener('change', updateLabelMetrics)
     return () => mediaQuery.removeEventListener('change', updateLabelMetrics)
   }, [])
-  useEffect(() => setActiveTooltip(null), [visibleLegend])
+  useEffect(() => {
+    if (tooltipTimerRef.current !== null) window.clearTimeout(tooltipTimerRef.current)
+    tooltipTimerRef.current = null
+    tooltipTargetRef.current = null
+    setActiveTooltip(null)
+  }, [story, visibleLegend])
+  useEffect(() => () => {
+    if (tooltipTimerRef.current !== null) window.clearTimeout(tooltipTimerRef.current)
+  }, [])
   useIsomorphicLayoutEffect(() => {
     const tooltip = tooltipRef.current
     const host = tooltip?.parentElement
@@ -598,7 +708,7 @@ export function SimulationStoryGraph({ story, unit, activeRole, onSelectActiveDa
       <div
         data-graph-tooltip-host="true"
         className="relative min-w-0 xl:min-h-0 xl:flex-1"
-        onPointerLeave={() => setActiveTooltip(null)}
+        onPointerLeave={hideTooltip}
       >
         <svg
           aria-labelledby="simulation-story-title"
@@ -617,7 +727,18 @@ export function SimulationStoryGraph({ story, unit, activeRole, onSelectActiveDa
               <g key={index}>
                 <line x1={plot.left} x2={plot.right} y1={lineY} y2={lineY} stroke={isZero ? '#94a3b8' : '#e2e8f0'} strokeWidth={isZero ? 1.2 : 1} />
                 <line x1={plot.left - 3} x2={plot.left + 3} y1={lineY} y2={lineY} stroke="#64748b" strokeWidth="1" />
-                <text data-axis-tick={index} x={plot.left - 10} y={lineY + 3} textAnchor="end" fill="#64748b" fontSize="9px" fontFamily="ui-monospace, monospace">{formatNumber(value, axisTickPrecision)}</text>
+                <SelectedSvgNumber
+                  data-axis-tick={index}
+                  value={value}
+                  selectionId={graphSelectionId(`axis:${index}`, value, plot.left - 10, lineY + 3)}
+                  aria-label={`Y-axis tick ${formatNumber(value, axisTickPrecision)} THB/${unit}`}
+                  x={plot.left - 10}
+                  y={lineY + 3}
+                  textAnchor="end"
+                  fill="#64748b"
+                  fontSize="9px"
+                  fontFamily="ui-monospace, monospace"
+                >{formatNumber(value, axisTickPrecision)}</SelectedSvgNumber>
               </g>
             )
           })}
@@ -649,7 +770,7 @@ export function SimulationStoryGraph({ story, unit, activeRole, onSelectActiveDa
                 {standardCostValues.filter(value => value.key === state.key).map(({ value, stack }) => {
                   if (value === null) return null
                   const boundaryY = y(value)
-                  const tooltip = `${state.description} Standard Cost · ${formatValue(value)} THB/${unit}`
+                  const tooltip = `${state.description} Standard Cost`
                   return (
                     <g {...tooltipProps(tooltip)} key="standard-cost">
                       <rect
@@ -720,13 +841,17 @@ export function SimulationStoryGraph({ story, unit, activeRole, onSelectActiveDa
             const negativeVisibleTotal = state.stack.negative
             return (
               <g key={`${state.key}-cost-value-labels`} data-graph-state-labels={state.key}>
-                {standardCost !== null && standardCostY !== null && standardCostBounds && <text
-                  {...tooltipPointerProps(`${state.description} Standard Cost · ${formatValue(standardCost)} THB/${unit}`)}
-                  aria-hidden="true"
+                {standardCost !== null && standardCostY !== null && standardCostBounds && <SelectedSvgNumber
                   data-graph-standard-cost-value={state.key}
                   data-graph-standard-cost-value-level-y={y(standardCost)}
                   data-graph-standard-cost-text-top={standardCostBounds.top}
                   data-graph-standard-cost-text-bottom={standardCostBounds.bottom}
+                  value={standardCost}
+                  selectionId={graphSelectionId(`standard-cost:${state.key}`, standardCost, state.x + 35, standardCostY)}
+                  aria-label={`${state.description} Standard Cost ${formatValue(standardCost)} THB/${unit}`}
+                  tooltipText={`${state.description} Standard Cost`}
+                  onTooltipEnter={showTooltipAt}
+                  onTooltipLeave={hideTooltip}
                   x={state.x + 35}
                   y={standardCostY}
                   textAnchor="start"
@@ -734,7 +859,7 @@ export function SimulationStoryGraph({ story, unit, activeRole, onSelectActiveDa
                   fontSize="9px"
                   fontWeight="700"
                   fontFamily="ui-monospace, monospace"
-                >{formatValue(standardCost)}</text>}
+                >{formatValue(standardCost)}</SelectedSvgNumber>}
                 {[positiveVisibleTotal, negativeVisibleTotal].filter(value => value !== 0).map(value => {
                   const positive = value > 0
                   const side = positive ? 'positive' : 'negative'
@@ -766,9 +891,7 @@ export function SimulationStoryGraph({ story, unit, activeRole, onSelectActiveDa
                       bounds = visibleTotalTextBounds(signed(value), x, baselineY, anchor, labelMetrics)
                     }
                   }
-                  return <text
-                    {...tooltipProps(`${state.description} Visible ${positive ? '+' : '−'} · ${signed(value)} THB/${unit}`)}
-                    key={side}
+                  return <SelectedSvgNumber
                     data-graph-visible-total-value={state.key}
                     data-graph-visible-total-side={side}
                     data-graph-visible-total-position={position}
@@ -776,6 +899,13 @@ export function SimulationStoryGraph({ story, unit, activeRole, onSelectActiveDa
                     data-graph-visible-total-default-y={defaultY}
                     data-graph-visible-total-text-top={bounds.top}
                     data-graph-visible-total-text-bottom={bounds.bottom}
+                    key={side}
+                    value={value}
+                    selectionId={graphSelectionId(`visible:${state.key}:${side}`, value, x, baselineY)}
+                    aria-label={`${state.description} Visible ${positive ? '+' : '−'} ${signed(value)} THB/${unit}`}
+                    tooltipText={`${state.description} Visible ${positive ? '+' : '−'}`}
+                    onTooltipEnter={showTooltipAt}
+                    onTooltipLeave={hideTooltip}
                     x={x}
                     y={baselineY}
                     textAnchor={anchor}
@@ -783,7 +913,7 @@ export function SimulationStoryGraph({ story, unit, activeRole, onSelectActiveDa
                     fontSize="9px"
                     fontWeight="700"
                     fontFamily="ui-monospace, monospace"
-                  >{signed(value)}</text>
+                  >{signed(value)}</SelectedSvgNumber>
                 })}
               </g>
             )
@@ -795,12 +925,22 @@ export function SimulationStoryGraph({ story, unit, activeRole, onSelectActiveDa
               <g
                 role="slider"
                 tabIndex={0}
+                data-selected-value-source={rulerSourceId}
                 aria-label="Simulation comparison ruler"
                 aria-orientation="vertical"
                 aria-valuemin={minimum}
                 aria-valuemax={maximum}
                 aria-valuenow={rulerLevel}
                 aria-valuetext={`${formatValue(rulerLevel)} THB/${unit}`}
+                onPointerEnter={rulerSource.preview}
+                onPointerLeave={rulerSource.clearPreview}
+                onFocus={rulerSource.focus}
+                onBlur={event => {
+                  const nextSourceId = event.relatedTarget instanceof Element
+                    ? event.relatedTarget.getAttribute('data-selected-value-source')
+                    : null
+                  if (nextSourceId !== rulerSourceId) rulerSource.blur()
+                }}
                 onPointerDown={event => {
                   if (event.button !== 0) return
                   event.currentTarget.setPointerCapture(event.pointerId)
@@ -831,16 +971,30 @@ export function SimulationStoryGraph({ story, unit, activeRole, onSelectActiveDa
             return (
             <g key={`${category.key}-labels`}>
               {category.isGap && totalPlacement && (
-                <text {...tooltipProps(`${category.description} total: ${signed(category.value ?? null)} THB/${unit}`)} data-graph-total={category.key} data-graph-total-position={totalPlacement.direction} x={category.x} y={totalPlacement.baselineY} textAnchor="middle" fill={gapTotalColor(category.value)} fontSize="9px" fontWeight="700" fontFamily="ui-monospace, monospace">
-                  {signed(category.value)}
-                </text>
+                category.value !== null && <SelectedSvgNumber
+                  data-graph-total={category.key}
+                  data-graph-total-position={totalPlacement.direction}
+                  value={category.value}
+                  selectionId={graphSelectionId(`gap:${category.key}`, category.value, category.x, totalPlacement.baselineY)}
+                  aria-label={`${category.label} total ${signed(category.value)} THB/${unit}`}
+                  tooltipText={category.description}
+                  onTooltipEnter={showTooltipAt}
+                  onTooltipLeave={hideTooltip}
+                  x={category.x}
+                  y={totalPlacement.baselineY}
+                  textAnchor="middle"
+                  fill={gapTotalColor(category.value)}
+                  fontSize="9px"
+                  fontWeight="700"
+                  fontFamily="ui-monospace, monospace"
+                >{signed(category.value)}</SelectedSvgNumber>
               )}
               {category.isGap ? (
-                <text {...tooltipProps(category.description)} x={category.x} y="306" textAnchor="middle" fill="#0f172a" fontSize="11px" fontWeight="700" fontFamily="ui-monospace, monospace">
+                <text x={category.x} y="306" textAnchor="middle" fill="#0f172a" fontSize="11px" fontWeight="700" fontFamily="ui-monospace, monospace">
                   {category.label}
                 </text>
               ) : (
-                <foreignObject x={category.x - 53} y="291" width="106" height="28">
+                <foreignObject x={category.x - 45} y="291" width="90" height="28">
                   <button
                     type="button"
                     aria-label={`Select ${category.label} as active dataset`}
