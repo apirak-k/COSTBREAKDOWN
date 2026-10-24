@@ -104,6 +104,36 @@ assert.ok(redoneSession, 'Redo reapplies an entry when the current Working snaps
 assert.equal(redoneSession.snapshotPair?.current.id, afterCurrent.id, 'Redo restores the edited snapshot')
 assert.equal(redoneSession.datasetSizing?.current.bomCount, 2, 'Redo restores the after sizing state')
 
+const preciseBefore = {
+  ...snapshot('precise-before'),
+  bom: [{
+    id: 'precise-item', itemCode: 'MAT-1', description: 'Precise material', consumption: 1,
+    price: Number('12.34567890123456789'), loss: 0, unit: 'PC',
+    isGeneratedBusinessIdentity: false,
+    exactDecimalInputs: { consumption: '1', price: '12.34567890123456789', loss: '0' }, confidence: {}
+  }]
+}
+const preciseAfter = {
+  ...preciseBefore,
+  id: 'precise-after',
+  bom: [{ ...preciseBefore.bom[0], exactDecimalInputs: { ...preciseBefore.bom[0].exactDecimalInputs, price: '12.34567890123456790' } }]
+}
+const preciseEntry = {
+  ...edit('session-a', 'current', preciseBefore.id, preciseAfter.id),
+  before: preciseBefore,
+  after: preciseAfter
+}
+const preciseSession = {
+  ...session,
+  snapshotPair: { reference: beforeReference, current: preciseAfter }
+}
+const preciseUndo = applyMasterDataEditHistoryEntry(preciseSession, preciseEntry, 'undo')
+assert.equal(preciseUndo?.snapshotPair?.current.bom[0].exactDecimalInputs?.price, '12.34567890123456789',
+  'Undo restores exact decimal text even when its calculation Number cannot represent the final digit')
+const preciseRedo = preciseUndo && applyMasterDataEditHistoryEntry(preciseUndo, preciseEntry, 'redo')
+assert.equal(preciseRedo?.snapshotPair?.current.bom[0].exactDecimalInputs?.price, '12.34567890123456790',
+  'Redo reapplies exact decimal text even when the calculation Number is unchanged')
+
 const staleSession = {
   ...session,
   snapshotPair: { reference: beforeReference, current: snapshot('unexpected') }

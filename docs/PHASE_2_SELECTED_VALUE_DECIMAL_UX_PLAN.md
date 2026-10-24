@@ -67,6 +67,14 @@ Current statuses: pre-Round-4B corrective implementation **EXTERNALLY ACCEPTED /
 - **Boundaries:** no calculation, business rule, domain, data, persistence, role, history, or writer ownership changes. Round 5 and the direct-edit blue-value indicator remain NOT STARTED. This entry supersedes the original Round 4B scope/boundaries below for the integrations listed above; Round 4B is not declared closed.
 - **Verification:** current pass/fail counts and full command results are recorded in [HANDOFF](../HANDOFF.md).
 
+## Round 4B Final Numeric-Value Integrity Pass — 2026-10-24
+
+- **Status:** Implementation and internal verification complete; **AWAITING EXTERNAL AUDIT**. Round 4B remains open. No merge or Round 5 work.
+- **Final numeric contract:** Exact decimal text from direct entry, paste, imports, or Simulation drafts is authoritative through calculation and lifecycle operations. The JavaScript `number` remains a compatibility projection. Narrow no-sidecar residue cleanup handles legacy machine artifacts without mutating saved values or collapsing tiny nonzero values. XLSX raw numeric lexemes are preserved when meaningful; export keeps numeric cell type while writing exact values.
+- **Percentage units:** Loss/Yield model values remain fractions; their exact editor sidecars are percentage points. Conversion occurs once when the editor sidecar is consumed. SG&A remains in percentage points. Existing formulas, validation domains, and role/history ownership remain unchanged.
+- **Lifecycle coverage:** Direct edit, clipboard paste, Save/Reset, Clone, Undo/Redo, Snapshot bridge/history, CBD calculations, Simulation parameter/business calculations, Excel import/export, and presentation-only formatting are covered by focused regressions and the Round 4B suites recorded in [HANDOFF](../HANDOFF.md).
+- **Implementation detail:** decimal inputs and finite arithmetic use a base-10 decimal helper; repeating division uses 80 significant digits before projection to the existing Number interface. This does not truncate input text.
+
 ## Initial Round 4B Integration — Simulation Selected Value / Decimal UX — 2026-10-24 (historical scope)
 
 - **Status:** `IMPLEMENTED / INTERNAL VERIFICATION PASSED / AWAITING EXTERNAL AUDIT`.

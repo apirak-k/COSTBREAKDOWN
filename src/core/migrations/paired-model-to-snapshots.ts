@@ -32,6 +32,15 @@ function toBOMItem(item: BOMItem, role: ComparisonRole): SnapshotBOMItem {
     itemCode: item.itemCode,
     description: item.description,
     consumption: item.consumption,
+    exactDecimalInputs: {
+      ...(item.exactDecimalInputs?.consumption === undefined ? {} : { consumption: item.exactDecimalInputs.consumption }),
+      ...((role === 'reference' ? item.exactDecimalInputs?.basePrice : item.exactDecimalInputs?.activePrice) === undefined
+        ? {}
+        : { price: role === 'reference' ? item.exactDecimalInputs?.basePrice : item.exactDecimalInputs?.activePrice }),
+      ...((role === 'reference' ? item.exactDecimalInputs?.baseLoss : item.exactDecimalInputs?.activeLoss) === undefined
+        ? {}
+        : { loss: role === 'reference' ? item.exactDecimalInputs?.baseLoss : item.exactDecimalInputs?.activeLoss })
+    },
     unit: item.unit,
     price,
     loss,
@@ -58,6 +67,15 @@ function toRoutingStep(step: RoutingStep, role: ComparisonRole): SnapshotRouting
     workCenterId: step.wc,
     note: step.note,
     manning: step.manning,
+    exactDecimalInputs: {
+      ...(step.exactDecimalInputs?.manning === undefined ? {} : { manning: step.exactDecimalInputs.manning }),
+      ...((role === 'reference' ? step.exactDecimalInputs?.baseCap : step.exactDecimalInputs?.activeCap) === undefined
+        ? {}
+        : { capacity: role === 'reference' ? step.exactDecimalInputs?.baseCap : step.exactDecimalInputs?.activeCap }),
+      ...((role === 'reference' ? step.exactDecimalInputs?.baseYield : step.exactDecimalInputs?.activeYield) === undefined
+        ? {}
+        : { yield: role === 'reference' ? step.exactDecimalInputs?.baseYield : step.exactDecimalInputs?.activeYield })
+    },
     capacity,
     yield: yieldValue,
     sourceRef: step.sourceRef,
@@ -77,6 +95,7 @@ function toWorkCenterRate(rate: WorkCenterRate): SnapshotWorkCenterRate {
     description: rate.description,
     laborRate: rate.laborRate,
     burdenRate: rate.burdenRate,
+    exactDecimalInputs: rate.exactDecimalInputs ? { ...rate.exactDecimalInputs } : undefined,
     effectiveDate: rate.effectiveDate,
     note: rate.note,
     sourceRef: rate.sourceRef,

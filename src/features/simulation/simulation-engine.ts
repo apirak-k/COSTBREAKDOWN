@@ -1,4 +1,5 @@
-import { compareSnapshots, safeAdd } from '../../core'
+import { compareSnapshots } from '../../core'
+import { exactDecimalNumberText, exactDecimalToNumber, exactDecimalToString, multiplyExactDecimals, parseExactDecimal, subtractExactDecimals } from '../../core/utils/exact-decimal'
 import { areNumericValuesEquivalent } from '../../shared/ui/numeric-display'
 import { isMasterDataNumericValueValid, type MasterDataNumericField } from '../../core/utils/master-data-validation'
 import type {
@@ -37,6 +38,7 @@ export interface ParameterSimulationResult {
   beforeCost: SnapshotCost
   afterCost: SnapshotCost
   parameterSavingPerPiece: number | null
+  parameterSavingExact: string | null
 }
 
 function simulationStatus(finding: ComparisonFinding): SimulationRecordStatus | null {
@@ -85,9 +87,13 @@ export function calculateParameterSimulation(
   const comparison = compareSnapshots(beforeSnapshot, afterSnapshot)
   const beforeCost = comparison.referenceCost
   const afterCost = comparison.currentCost
-  const parameterSavingPerPiece = beforeCost.total !== null && afterCost.total !== null
-    ? safeAdd(beforeCost.total, -afterCost.total)
+  const beforeTotalExact = beforeCost.exactValues?.total ?? (beforeCost.total === null ? null : String(beforeCost.total))
+  const afterTotalExact = afterCost.exactValues?.total ?? (afterCost.total === null ? null : String(afterCost.total))
+  const parameterSavingDecimal = beforeTotalExact !== null && afterTotalExact !== null
+    ? subtractExactDecimals(parseExactDecimal(beforeTotalExact)!, parseExactDecimal(afterTotalExact)!)
     : null
+  const parameterSavingExact = parameterSavingDecimal ? exactDecimalToString(parameterSavingDecimal) : null
+  const parameterSavingPerPiece = parameterSavingDecimal ? exactDecimalToNumber(parameterSavingDecimal) : null
 
   return {
     comparison,
@@ -97,7 +103,8 @@ export function calculateParameterSimulation(
     ],
     beforeCost,
     afterCost,
-    parameterSavingPerPiece
+    parameterSavingPerPiece,
+    parameterSavingExact
   }
 }
 
@@ -108,6 +115,14 @@ const PARAMETER_FIELDS: Record<SimulationParameter, { kind: SimulationRecordKind
   'routing.manning': { kind: 'routing', field: 'manning' },
   'routing.capacity': { kind: 'routing', field: 'capacity' },
   'routing.yield': { kind: 'routing', field: 'yield' }
+}
+
+function exactInputForStoredValue(parameter: SimulationParameter, value: number | null): string {
+  if (value === null) return ''
+  const exactValue = parseExactDecimal(exactDecimalNumberText(value) ?? value) ?? parseExactDecimal(value)!
+  return parameter === 'bom.loss' || parameter === 'routing.yield'
+    ? exactDecimalToString(multiplyExactDecimals(exactValue, parseExactDecimal(100)!))
+    : exactDecimalToString(exactValue)
 }
 
 export function isSimulationParameterInputValid(parameter: SimulationParameter, value: number | null): boolean {
@@ -148,12 +163,12 @@ export function updateSimulationParameter(
     if (exactValue === null) delete parameterExactInputs[simulationRecordId]
     else parameterExactInputs[simulationRecordId] = exactValue
   } else if (numericChanged) {
-    parameterExactInputs[simulationRecordId] = value === null ? '' : String(value)
+    parameterExactInputs[simulationRecordId] = exactInputForStoredValue(parameter, value)
   }
   const nextExactValue = exactValue === null ? undefined : exactValue
   const exactValueChanged = exactValue !== undefined
     ? previousExactValue !== nextExactValue
-    : numericChanged && previousExactValue !== (value === null ? '' : String(value))
+    : numericChanged && previousExactValue !== exactInputForStoredValue(parameter, value)
   if (Object.keys(parameterExactInputs).length) exactDecimalInputs[parameter] = parameterExactInputs
   else delete exactDecimalInputs[parameter]
   if (!numericChanged && !exactValueChanged) return state

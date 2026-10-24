@@ -6,6 +6,7 @@ import { resizeMasterDataSnapshotForSizing } from '../src/state/dataset-sizing.t
 import { ProductSession, DatasetSizing, SnapshotPair, CostSnapshot } from '../src/core/types/index.ts'
 import ExcelJS from 'exceljs'
 import assert from 'node:assert/strict'
+import { cloneMasterDataSnapshotForRole } from '../src/state/master-data-datasets.ts'
 
 async function runVerifications() {
   console.log('--- Verifying Master Data Dataset Sizing & Bi-directional Clone ---')
@@ -129,6 +130,19 @@ async function runVerifications() {
     bom: refSnapshot.bom.map(b => ({ ...b })),
     routing: refSnapshot.routing.map(rt => ({ ...rt }))
   }
+
+  const exactCloneSource: CostSnapshot = {
+    ...refSnapshot,
+    product: { ...refSnapshot.product, exactDecimalInputs: { sellingPrice: '123.4567890123456789' } },
+    bom: [{ ...refSnapshot.bom[0], exactDecimalInputs: { price: '12.34567890123456789', loss: '0.29' } }]
+  }
+  const exactClone = cloneMasterDataSnapshotForRole(exactCloneSource, 'reference', 'current', refSizing)
+  assert.equal(exactClone.product.exactDecimalInputs?.sellingPrice, '123.4567890123456789',
+    'Clone preserves exact Product decimal input text')
+  assert.equal(exactClone.bom[0].exactDecimalInputs?.price, '12.34567890123456789',
+    'Clone preserves exact BOM decimal input text')
+  assert.equal(exactClone.bom[0].exactDecimalInputs?.loss, '0.29',
+    'Clone preserves exact percentage editor text')
 
   session = {
     ...session,

@@ -15,11 +15,13 @@ import {
 } from '../../core'
 import { normalizeMasterDataSnapshot } from '../../core/utils/master-data-effective'
 import { getMasterDataSnapshotValidationErrors } from '../../core/utils/master-data-validation'
+import { compareExactDecimals, divideExactDecimals, exactDecimalNumberText, exactDecimalToNumber, exactDecimalToString, multiplyExactDecimals, parseExactDecimal } from '../../core/utils/exact-decimal'
 import { parseExcelInputFile } from './excel-parser'
+import { readExactNumericCells, type ExactNumericCellValues } from './exact-numeric-cells'
 
 type CellValue = string | number | boolean | Date | null
 type Row = CellValue[]
-type NumericResult = { value: number | null; quality: DataQualityStatus }
+type NumericResult = { value: number | null; quality: DataQualityStatus; exactValue?: string }
 
 const REQUIRED_DATA_SHEETS = ['META', 'BOM', 'WORK_CENTER', 'ROUTING'] as const
 
@@ -51,12 +53,26 @@ function numberValue(
     warnings.push(`Missing ${label} at row ${rowNumber}`)
     return { value: null, quality: 'missing' }
   }
-  const parsed = typeof value === 'number' ? value : Number(textValue(value).replace(/,/g, ''))
+  const exactValue = numericText(value)
+  const parsed = Number(exactValue)
   if (!Number.isFinite(parsed)) {
     warnings.push(`Invalid ${label} at row ${rowNumber}`)
     return { value: null, quality: 'invalid' }
   }
-  return { value: parsed, quality: 'valid' }
+  return { value: parsed, quality: 'valid', exactValue: meaningfulExactInput(exactValue, parsed) }
+}
+
+function meaningfulExactInput(exactValue: string, numericValue: number): string | undefined {
+  const exact = parseExactDecimal(exactValue)
+  const numeric = parseExactDecimal(numericValue)
+  if (!exact || !numeric) return undefined
+  if (compareExactDecimals(exact, numeric) !== 0) return exactValue
+  const cleanedNumber = parseExactDecimal(exactDecimalNumberText(numericValue) ?? numericValue)
+  return cleanedNumber && compareExactDecimals(exact, cleanedNumber) !== 0 ? exactValue : undefined
+}
+
+function numericText(value: CellValue | undefined): string {
+  return typeof value === 'number' ? String(value) : textValue(value).replace(/,/g, '')
 }
 
 function fractionPercentValue(
@@ -66,14 +82,33 @@ function fractionPercentValue(
   warnings: string[]
 ): NumericResult {
   if (typeof value === 'string' && value.trim().endsWith('%')) {
-    const parsed = Number(value.trim().slice(0, -1).replace(/,/g, '').trim()) / 100
-    if (!Number.isFinite(parsed)) {
+    const exactValue = value.trim().slice(0, -1).replace(/,/g, '').trim()
+    const percent = parseExactDecimal(exactValue)
+    const fraction = percent ? divideExactDecimals(percent, parseExactDecimal(100)!) : null
+    const parsed = fraction ? exactDecimalToNumber(fraction) : null
+    if (parsed === null || !Number.isFinite(parsed)) {
       warnings.push(`Invalid ${label} at row ${rowNumber}`)
       return { value: null, quality: 'invalid' }
     }
-    return { value: parsed, quality: 'valid' }
+    const stored = parseExactDecimal(parsed)
+    return {
+      value: parsed,
+      quality: 'valid',
+      exactValue: fraction && stored && compareExactDecimals(fraction, stored) !== 0 ? exactValue : undefined
+    }
   }
-  return numberValue(value, label, rowNumber, warnings)
+  const result = numberValue(value, label, rowNumber, warnings)
+  if (result.value === null || result.exactValue === undefined) return result
+  const fraction = parseExactDecimal(result.exactValue)
+  const exactPercent = fraction ? multiplyExactDecimals(fraction, parseExactDecimal(100)!) : null
+  const cleanedStored = result.value === null
+    ? null
+    : parseExactDecimal(exactDecimalNumberText(result.value) ?? result.value)
+  const exactFraction = fraction
+  const needsExactValue = exactPercent && exactFraction && cleanedStored
+    ? compareExactDecimals(exactFraction, cleanedStored) !== 0
+    : false
+  return exactPercent && needsExactValue ? { ...result, exactValue: exactDecimalToString(exactPercent) } : { ...result, exactValue: undefined }
 }
 
 function optionalNumberValue(
@@ -91,15 +126,38 @@ function optionalNumberValue(
   return parsed
 }
 
+function percentagePointValue(value: CellValue | undefined, label: string, rowNumber: number, warnings: string[]): NumericResult {
+  if (value === null || value === undefined || textValue(value) === '') return { value: null, quality: 'missing' }
+  if (typeof value === 'string' && value.trim().endsWith('%')) {
+    const exactValue = value.trim().slice(0, -1).replace(/,/g, '').trim()
+    const parsed = Number(exactValue)
+    if (!Number.isFinite(parsed)) {
+      warnings.push(`Invalid ${label} at row ${rowNumber}`)
+      return { value: null, quality: 'invalid' }
+    }
+    return { value: parsed, quality: 'valid', exactValue }
+  }
+  return numberValue(value, label, rowNumber, warnings)
+}
+
 function findSheetName(workbook: XLSX.WorkBook, wanted: string): string | undefined {
   return workbook.SheetNames.find(name => normalizeLabel(name) === normalizeLabel(wanted))
 }
 
-function rowsFor(workbook: XLSX.WorkBook, sheetName: string): Row[] {
+function rowsFor(workbook: XLSX.WorkBook, sheetName: string, exactNumericCells: ExactNumericCellValues = {}): Row[] {
   const actualName = findSheetName(workbook, sheetName)
   if (!actualName) return []
   const sheet = workbook.Sheets[actualName]
-  return XLSX.utils.sheet_to_json(sheet, { header: 1, defval: null, raw: true }) as Row[]
+  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: null, raw: true }) as Row[]
+  const rawValues = exactNumericCells[actualName]
+  if (!rawValues) return rows
+  rows.forEach((row, rowIndex) => row.forEach((value, columnIndex) => {
+    if (typeof value !== 'number') return
+    const address = XLSX.utils.encode_cell({ r: rowIndex, c: columnIndex })
+    const exactValue = rawValues.get(address)
+    if (exactValue !== undefined) row[columnIndex] = exactValue
+  }))
+  return rows
 }
 
 function findHeaderRow(rows: Row[], groups: string[][]): number {
@@ -279,13 +337,21 @@ function productFromSheet(
   const sellingPriceInput = cell(row, map, ['selling price', 'sellingprice', 'selling price (thb)']) ?? metaValue(meta, ['selling price', 'selling price (thb)'])
   const sgaPercentInput = cell(row, map, ['sg&a %', 'sg&a (%)', 'sg&a (% of selling price)', 'sga (% of selling price)', 'sga % of selling price', 'sga percent', 'sga']) ?? metaValue(meta, ['sg&a %', 'sg&a (%)', 'sga percent', 'sga'])
   const sellingPrice = optionalNumberValue(sellingPriceInput, 'Selling Price', rowNumber, warnings)
-  const sgaPercent = optionalNumberValue(sgaPercentInput, 'SG&A percentage', rowNumber, warnings)
+  const sgaPercent = percentagePointValue(sgaPercentInput, 'SG&A percentage', rowNumber, warnings)
+  const exactProductInputs: NonNullable<CostSnapshot['product']['exactDecimalInputs']> = {
+    ...(sellingPrice === null ? {} : (() => {
+      const exact = meaningfulExactInput(numericText(sellingPriceInput), sellingPrice)
+      return exact === undefined ? {} : { sellingPrice: exact }
+    })()),
+    ...(sgaPercent.exactValue === undefined ? {} : { sgaPercent: sgaPercent.exactValue })
+  }
 
   return {
     product: {
       productName,
       sellingPrice,
-      sgaPercent,
+      sgaPercent: sgaPercent.value,
+      ...(Object.keys(exactProductInputs).length ? { exactDecimalInputs: exactProductInputs } : {}),
       productCode,
       productDescription,
       uom,
@@ -331,6 +397,10 @@ function parseWorkCenters(
     const explicitConfidence = parseConfidence(cell(row, map, ['confidence', 'status']))
     const laborRate = numberValue(cell(row, map, ['labor', 'labor rate', 'laborrate']), 'Labor', rowNumber, warnings)
     const burdenRate = numberValue(cell(row, map, ['burden', 'burden rate', 'burdenrate']), 'Burden', rowNumber, warnings)
+    const exactDecimalInputs = {
+      ...(laborRate.exactValue === undefined ? {} : { laborRate: laborRate.exactValue }),
+      ...(burdenRate.exactValue === undefined ? {} : { burdenRate: burdenRate.exactValue })
+    }
     const effectiveDate = textValue(cell(row, map, ['effective date', 'effectivedate'])) || fallbackDate
     const suppliedId = textValue(cell(row, map, ['id', 'work center id', 'workcenterid']))
     const id = suppliedId || (blankIdentityOrdinal ? `rate-placeholder-${blankIdentityOrdinal}` : `rate-${rowNumber}`)
@@ -340,6 +410,7 @@ function parseWorkCenters(
       description: textValue(cell(row, map, ['work center name', 'workcentername', 'description', 'work center description', 'workcenterdescription'])) || code,
       laborRate: laborRate.value,
       burdenRate: burdenRate.value,
+      ...(Object.keys(exactDecimalInputs).length ? { exactDecimalInputs } : {}),
       effectiveDate,
       note: textValue(cell(row, map, ['note'])),
       sourceRef,
@@ -387,6 +458,11 @@ function parseBOM(
     const consumption = numberValue(cell(row, map, ['consumption', 'usage', 'quantity']), 'consumption', rowNumber, warnings)
     const price = numberValue(cell(row, map, ['price', 'material price']), 'price', rowNumber, warnings)
     const loss = fractionPercentValue(cell(row, map, ['loss', 'loss rate']), 'loss', rowNumber, warnings)
+    const exactDecimalInputs = {
+      ...(consumption.exactValue === undefined ? {} : { consumption: consumption.exactValue }),
+      ...(price.exactValue === undefined ? {} : { price: price.exactValue }),
+      ...(loss.exactValue === undefined ? {} : { loss: loss.exactValue })
+    }
     const description = name
     const unit = textValue(cell(row, map, ['unit', 'uom']))
     if (!unit) warnings.push(`Missing unit at row ${rowNumber}`)
@@ -399,6 +475,7 @@ function parseBOM(
       unit,
       price: price.value,
       loss: loss.value,
+      ...(Object.keys(exactDecimalInputs).length ? { exactDecimalInputs } : {}),
       note: textValue(cell(row, map, ['note'])),
       sourceRef,
       confidence: {
@@ -458,6 +535,11 @@ function parseRouting(
     const manning = numberValue(cell(row, map, ['manning', 'headcount']), 'manning', rowNumber, warnings)
     const capacity = numberValue(cell(row, map, ['capacity', 'cap']), 'capacity', rowNumber, warnings)
     const yieldValue = fractionPercentValue(cell(row, map, ['yield', 'yield rate']), 'yield', rowNumber, warnings)
+    const exactDecimalInputs = {
+      ...(manning.exactValue === undefined ? {} : { manning: manning.exactValue }),
+      ...(capacity.exactValue === undefined ? {} : { capacity: capacity.exactValue }),
+      ...(yieldValue.exactValue === undefined ? {} : { yield: yieldValue.exactValue })
+    }
     const workCenterId = textValue(cell(row, map, ['work center id', 'workcenterid', 'work center code', 'work center', 'wc']))
     if (!workCenterId) warnings.push(`Missing workCenterId at row ${rowNumber}`)
     steps.push({
@@ -470,6 +552,7 @@ function parseRouting(
       manning: manning.value,
       capacity: capacity.value,
       yield: yieldValue.value,
+      ...(Object.keys(exactDecimalInputs).length ? { exactDecimalInputs } : {}),
       note: textValue(cell(row, map, ['note'])),
       sourceRef,
       confidence: {
@@ -504,7 +587,8 @@ function isCanonicalWorkbook(workbook: XLSX.WorkBook): boolean {
 /** Parses the canonical one-snapshot workbook without defaulting blank numeric cells to zero. */
 export function parseSnapshotWorkbookData(
   data: ArrayBuffer,
-  role: MasterDataRole
+  role: MasterDataRole,
+  exactNumericCells: ExactNumericCellValues = {}
 ): SnapshotImportResult {
   const workbook = XLSX.read(data, { type: 'array', cellDates: true })
   const warnings: string[] = []
@@ -519,9 +603,9 @@ export function parseSnapshotWorkbookData(
     }
   }
 
-  const metaRows = rowsFor(workbook, 'META')
+  const metaRows = rowsFor(workbook, 'META', exactNumericCells)
   const meta = metaValues(metaRows)
-  const legacyProductRows = rowsFor(workbook, 'PRODUCT')
+  const legacyProductRows = rowsFor(workbook, 'PRODUCT', exactNumericCells)
   const productSheetName = legacyProductRows.length > 0 ? 'PRODUCT' : 'META'
   const productRows = legacyProductRows.length > 0 ? legacyProductRows : metaRows
   const productResult = productFromSheet(productRows, meta, warnings, productSheetName)
@@ -548,9 +632,9 @@ export function parseSnapshotWorkbookData(
     ...(role === 'custom' ? {} : { comparisonRole: role }),
     status,
     remark: metaValue(meta, ['remark', 'dataset remark']),
-    rates: parseWorkCenters(rowsFor(workbook, 'WORK_CENTER'), sourceRef, effectiveDate, warnings),
-    bom: parseBOM(rowsFor(workbook, 'BOM'), sourceRef, warnings),
-    routing: parseRouting(rowsFor(workbook, 'ROUTING'), sourceRef, warnings),
+    rates: parseWorkCenters(rowsFor(workbook, 'WORK_CENTER', exactNumericCells), sourceRef, effectiveDate, warnings),
+    bom: parseBOM(rowsFor(workbook, 'BOM', exactNumericCells), sourceRef, warnings),
+    routing: parseRouting(rowsFor(workbook, 'ROUTING', exactNumericCells), sourceRef, warnings),
     additionalFields: additionalMetaFields(meta),
     warnings
   }
@@ -584,7 +668,13 @@ export async function parseSnapshotExcelInputFile(
   options: SnapshotImportOptions = {}
 ): Promise<SnapshotImportResult> {
   const data = await file.arrayBuffer()
-  const canonicalResult = parseSnapshotWorkbookData(data, role)
+  let exactNumericCells: ExactNumericCellValues = {}
+  try {
+    exactNumericCells = await readExactNumericCells(data)
+  } catch {
+    // Legacy XLS containers are handled by the existing adapter after canonical parsing fails.
+  }
+  const canonicalResult = parseSnapshotWorkbookData(data, role, exactNumericCells)
   if (canonicalResult.success || canonicalResult.format === 'canonical') return canonicalResult
 
   if (options.allowLegacy === false) return canonicalResult

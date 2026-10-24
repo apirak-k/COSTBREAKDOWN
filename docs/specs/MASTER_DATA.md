@@ -46,6 +46,8 @@ Actions act on the currently viewed dataset:
 - **Import:** The UI accepts `.xlsx` only. Selecting a file parses and validates without changing `Working`. Only the explicit Import action applies the valid snapshot to the viewed dataset and initializes its Sizing counts from imported row counts. It never overwrites `Last Saved`; canceling the dialog leaves `Working` unchanged.
 - **Clear:** Immediately blanks editable metadata and row values in only the viewed dataset's `Working` state. It preserves table rows, row order, row identity where supported, columns, required structural fields, and Sizing counts; it retains `Last Saved` and leaves other datasets untouched. Clear is one Undo/Redo history action, and Reset restores the applicable baseline when Clear was not saved.
 
+Numeric inputs follow the cross-cutting [numeric business-value integrity contract](CROSS_CUTTING.md#numeric-display-and-editing). Exact entered/imported decimal text remains authoritative through Working and Last Saved, Reset, Clone, Undo/Redo, and Excel export/import. Display formatting never replaces that value. Loss editor text is in percentage points while the stored Loss field is a fraction; the conversion occurs once at the input boundary.
+
 ## Master Data Owns Structural Changes
 
 All structural changes to datasets belong strictly in Master Data:

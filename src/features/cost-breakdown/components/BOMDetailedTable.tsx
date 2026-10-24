@@ -106,8 +106,26 @@ export function BOMRecordDetails({
   const isMatchedChange = finding?.matchStatus === 'matched' && status === 'CHANGED'
   const effect = isMatchedChange
     ? calculateBOMParameterCostEffects(
-        { usage: reference?.consumption ?? null, price: reference?.price ?? null, loss: reference?.loss ?? null },
-        { usage: current?.consumption ?? null, price: current?.price ?? null, loss: current?.loss ?? null }
+        {
+          usage: reference?.consumption ?? null,
+          price: reference?.price ?? null,
+          loss: reference?.loss ?? null,
+          exactInputs: {
+            usage: reference?.exactDecimalInputs?.consumption,
+            price: reference?.exactDecimalInputs?.price,
+            loss: reference?.exactDecimalInputs?.loss
+          }
+        },
+        {
+          usage: current?.consumption ?? null,
+          price: current?.price ?? null,
+          loss: current?.loss ?? null,
+          exactInputs: {
+            usage: current?.exactDecimalInputs?.consumption,
+            price: current?.exactDecimalInputs?.price,
+            loss: current?.exactDecimalInputs?.loss
+          }
+        }
       )
     : null
   const effects = effect?.status === 'available' ? effect.effects : null

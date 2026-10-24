@@ -6,6 +6,7 @@ export interface ScenarioBusinessInputs {
 export interface ScenarioBusinessResult extends ScenarioBusinessInputs {
   sgaAmountPerPiece: number | null
   operatingProfitPerPiece: number | null
+  exactValues?: { sgaAmountPerPiece: string | null; operatingProfitPerPiece: string | null }
   warnings: string[]
 }
 

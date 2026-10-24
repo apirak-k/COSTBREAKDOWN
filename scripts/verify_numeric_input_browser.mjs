@@ -245,7 +245,9 @@ try {
   // Measure the rendered input text using its actual font, alignment, padding,
   // and native scroll offset. Canvas is test instrumentation only, never layout.
   const inputMetrics = aria => evaluate(`(()=>{
-    const e=${visibleInputExpression(aria)},r=e.getBoundingClientRect(),s=getComputedStyle(e)
+    const e=${visibleInputExpression(aria)}
+    if(!e)throw new Error(${JSON.stringify(`Visible numeric input not found: ${aria}`)})
+    const r=e.getBoundingClientRect(),s=getComputedStyle(e)
     const canvas=document.createElement('canvas').getContext('2d')
     canvas.font=[s.fontStyle,s.fontWeight,s.fontSize,s.fontFamily].join(' ')
     const mirror=document.createElement('span')

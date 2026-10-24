@@ -1335,7 +1335,8 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
       analysisAfterDataset.snapshot,
       analysisResult.afterCost,
       analysisResult.parameterSavingPerPiece,
-      analysisAfterDataset.economicInputs
+      analysisAfterDataset.economicInputs,
+      analysisResult.parameterSavingExact
     ),
     [analysisAfterDataset, analysisResult]
   )
@@ -1344,7 +1345,11 @@ export const SimulationPage: React.FC<SimulationPageProps> = ({
     calculateScenarioBusinessMetrics({
       sellingPrice: analysisBeforeDataset.snapshot.product.sellingPrice ?? null,
       sgaPercent: analysisBeforeDataset.snapshot.product.sgaPercent ?? null
-    }, analysisResult.beforeCost.total)
+    }, analysisResult.beforeCost.total, {
+      sellingPrice: analysisBeforeDataset.snapshot.product.exactDecimalInputs?.sellingPrice,
+      sgaPercent: analysisBeforeDataset.snapshot.product.exactDecimalInputs?.sgaPercent,
+      standardCost: analysisResult.beforeCost.exactValues?.total ?? undefined
+    })
   ), [analysisBeforeDataset, analysisResult])
   const comparisonAfterFinancial = useMemo(
     () => createScenarioFinancialResult(analysisResult.afterCost, economicResult.business),

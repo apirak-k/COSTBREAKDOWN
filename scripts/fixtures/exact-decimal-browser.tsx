@@ -38,6 +38,8 @@ function StoreControls() {
     updateMasterDataUiState,
     addMasterDataBOMItem,
     clearMasterDataDataset,
+    saveMasterDataWorkingDataset,
+    resetMasterDataWorkingDataset,
     undoMasterDataEdit,
     redoMasterDataEdit
   } = useAppStore()
@@ -97,6 +99,8 @@ function StoreControls() {
       })}>Other product</button>
       <button type="button" data-testid="exact-product-return" onClick={() => switchProduct(originalProductId.current)}>Return product</button>
       <button type="button" data-testid="exact-clear-current" onClick={() => clearMasterDataDataset('current')}>Clear dataset</button>
+      <button type="button" data-testid="exact-save-current" onClick={() => saveMasterDataWorkingDataset('current')}>Save current</button>
+      <button type="button" data-testid="exact-reset-current" onClick={() => resetMasterDataWorkingDataset('current')}>Reset current</button>
       <button type="button" data-testid="exact-undo" onClick={undoMasterDataEdit}>Undo</button>
       <button type="button" data-testid="exact-redo" onClick={redoMasterDataEdit}>Redo</button>
       <output data-testid="exact-decimal-state">{JSON.stringify(state)}</output>

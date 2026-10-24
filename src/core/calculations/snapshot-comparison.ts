@@ -16,6 +16,15 @@ import { calculateSnapshotCost } from './snapshot-cost'
 import { calculateSnapshotBOMDetail } from './snapshot-bom-detail'
 import { calculateSnapshotRoutingDetail } from './snapshot-routing-detail'
 import { areNumericValuesEquivalent, safeAdd } from '../utils/guards'
+import {
+  addExactDecimals,
+  compareExactDecimals,
+  exactDecimalInputValue,
+  exactDecimalToNumber,
+  exactDecimalToString,
+  parseExactDecimal,
+  subtractExactDecimals
+} from '../utils/exact-decimal'
 
 type SnapshotRow = {
   id: string
@@ -45,6 +54,7 @@ function combinedConfidence(reference: SnapshotRow | undefined, current: Snapsho
 const COMPARISON_METADATA_FIELDS = new Set([
   'id',
   'confidence',
+  'exactDecimalInputs',
   'sourceRef',
   'additionalFields',
   'note',
@@ -75,6 +85,48 @@ function valuesEqual(left: unknown, right: unknown): boolean {
         && valuesEqual((left as Record<string, unknown>)[key], (right as Record<string, unknown>)[key]))
   }
   return false
+}
+
+const EXACT_NUMERIC_FIELDS = new Set([
+  'consumption', 'price', 'loss', 'manning', 'capacity', 'yield', 'laborRate', 'burdenRate', 'sellingPrice', 'sgaPercent'
+])
+
+function exactRowField(row: SnapshotRow, field: string) {
+  const numeric = (row as unknown as Record<string, number | null | undefined>)[field]
+  if (typeof numeric !== 'number') return null
+  const exactInputs = (row as SnapshotRow & { exactDecimalInputs?: Record<string, string> }).exactDecimalInputs
+  return exactDecimalInputValue(numeric, exactInputs?.[field], field === 'loss' || field === 'yield')
+}
+
+function equalSupportedField(field: string, reference: SnapshotRow, current: SnapshotRow): boolean {
+  if (EXACT_NUMERIC_FIELDS.has(field)) {
+    const referenceExact = exactRowField(reference, field)
+    const currentExact = exactRowField(current, field)
+    if (referenceExact && currentExact) return compareExactDecimals(referenceExact, currentExact) === 0
+    return areNumericValuesEquivalent(
+      (reference as unknown as Record<string, number | null>)[field],
+      (current as unknown as Record<string, number | null>)[field]
+    )
+  }
+  return valuesEqual(
+    (reference as unknown as Record<string, unknown>)[field],
+    (current as unknown as Record<string, unknown>)[field]
+  )
+}
+
+function exactFieldDisplay(row: SnapshotRow, field: string): unknown {
+  const exact = exactRowField(row, field)
+  return exact ? exactDecimalToString(exact) : (row as unknown as Record<string, unknown>)[field]
+}
+
+function numericInputEqual(left: SnapshotRow, right: SnapshotRow, field: string): boolean {
+  const exactLeft = exactRowField(left, field)
+  const exactRight = exactRowField(right, field)
+  if (exactLeft && exactRight) return compareExactDecimals(exactLeft, exactRight) === 0
+  return areNumericValuesEquivalent(
+    (left as unknown as Record<string, number | null>)[field],
+    (right as unknown as Record<string, number | null>)[field]
+  )
 }
 
 function addAdditionalFieldDiffs(
@@ -108,8 +160,10 @@ function diffSupportedFields<T extends SnapshotRow>(
     if (COMPARISON_METADATA_FIELDS.has(field) || ignoredFields.has(field)) return
     const referenceValue = (reference as unknown as Record<string, unknown>)[field]
     const currentValue = (current as unknown as Record<string, unknown>)[field]
-    if (!valuesEqual(referenceValue, currentValue)) {
-      diffs[field] = { reference: referenceValue, current: currentValue }
+    if (!equalSupportedField(field, reference, current)) {
+      diffs[field] = EXACT_NUMERIC_FIELDS.has(field)
+        ? { reference: exactFieldDisplay(reference, field), current: exactFieldDisplay(current, field) }
+        : { reference: referenceValue, current: currentValue }
     }
   })
   addAdditionalFieldDiffs(diffs, reference.additionalFields, current.additionalFields)
@@ -129,10 +183,20 @@ function diffProductFields(reference: CostSnapshot['product'], current: CostSnap
   ])
   const fields = new Set([...Object.keys(reference), ...Object.keys(current)])
   fields.forEach(field => {
-    if (metadata.has(field)) return
+    if (metadata.has(field) || field === 'exactDecimalInputs') return
     const referenceValue = (reference as unknown as Record<string, unknown>)[field]
     const currentValue = (current as unknown as Record<string, unknown>)[field]
-    if (!valuesEqual(referenceValue, currentValue)) diffs[field] = { reference: referenceValue, current: currentValue }
+    if (EXACT_NUMERIC_FIELDS.has(field)) {
+      const referenceExact = (reference as unknown as { exactDecimalInputs?: Record<string, string> }).exactDecimalInputs?.[field]
+      const currentExact = (current as unknown as { exactDecimalInputs?: Record<string, string> }).exactDecimalInputs?.[field]
+      const left = exactDecimalInputValue(referenceValue as number | null, referenceExact)
+      const right = exactDecimalInputValue(currentValue as number | null, currentExact)
+      const equal = left && right ? compareExactDecimals(left, right) === 0 : valuesEqual(referenceValue, currentValue)
+      if (!equal) diffs[field] = {
+        reference: left ? exactDecimalToString(left) : referenceValue,
+        current: right ? exactDecimalToString(right) : currentValue
+      }
+    } else if (!valuesEqual(referenceValue, currentValue)) diffs[field] = { reference: referenceValue, current: currentValue }
   })
   addAdditionalFieldDiffs(diffs, reference.additionalFields, current.additionalFields)
   return diffs
@@ -270,9 +334,9 @@ function routingFlags(
   costEffect?: ComparisonRecordCostEffect
 ): ChangeFlags {
   const movedWorkCenter = reference.workCenterId !== current.workCenterId
-  const changedInputs = !areNumericValuesEquivalent(reference.manning, current.manning)
-    || !areNumericValuesEquivalent(reference.capacity, current.capacity)
-    || !areNumericValuesEquivalent(reference.yield, current.yield)
+  const changedInputs = !numericInputEqual(reference, current, 'manning')
+    || !numericInputEqual(reference, current, 'capacity')
+    || !numericInputEqual(reference, current, 'yield')
   const changedRate = !movedWorkCenter && !changedInputs && [
     costEffect?.gap.labor,
     costEffect?.gap.burden,
@@ -284,8 +348,8 @@ function routingFlags(
 
 function rateFlags(reference: SnapshotWorkCenterRate, current: SnapshotWorkCenterRate): ChangeFlags {
   return {
-    changedRate: !areNumericValuesEquivalent(reference.laborRate, current.laborRate)
-      || !areNumericValuesEquivalent(reference.burdenRate, current.burdenRate)
+    changedRate: !numericInputEqual(reference, current, 'laborRate')
+      || !numericInputEqual(reference, current, 'burdenRate')
   }
 }
 
@@ -298,7 +362,7 @@ function calculationWarnings(snapshotId: string, warnings: string[]): Comparison
 
 function materialCostEffect(reference: SnapshotBOMItem | undefined, current: SnapshotBOMItem | undefined): ComparisonRecordCostEffect {
   const detail = calculateSnapshotBOMDetail({ reference, current })
-  const materialGap = gap(detail.currentCost, detail.referenceCost)
+  const materialGap = detail.costGap
   return {
     reference: { material: detail.referenceCost, labor: 0, burden: 0, total: detail.referenceCost },
     current: { material: detail.currentCost, labor: 0, burden: 0, total: detail.currentCost },
@@ -313,12 +377,17 @@ function routingCostEffect(
   currentRates: SnapshotWorkCenterRate[]
 ): ComparisonRecordCostEffect {
   const detail = calculateSnapshotRoutingDetail({ reference, current }, referenceRates, currentRates)
-  const laborGap = gap(detail.currentLaborCost, detail.referenceLaborCost)
-  const burdenGap = gap(detail.currentBurdenCost, detail.referenceBurdenCost)
+  const laborGap = gap(detail.currentLaborCost, detail.referenceLaborCost, detail.exactValues?.currentLaborCost, detail.exactValues?.referenceLaborCost)
+  const burdenGap = gap(detail.currentBurdenCost, detail.referenceBurdenCost, detail.exactValues?.currentBurdenCost, detail.exactValues?.referenceBurdenCost)
   return {
     reference: { material: 0, labor: detail.referenceLaborCost, burden: detail.referenceBurdenCost, total: detail.referenceTotal },
     current: { material: 0, labor: detail.currentLaborCost, burden: detail.currentBurdenCost, total: detail.currentTotal },
-    gap: { material: 0, labor: laborGap, burden: burdenGap, total: gap(detail.currentTotal, detail.referenceTotal) }
+    gap: {
+      material: 0,
+      labor: laborGap,
+      burden: burdenGap,
+      total: gap(detail.currentTotal, detail.referenceTotal, detail.exactValues?.currentTotal, detail.exactValues?.referenceTotal)
+    }
   }
 }
 
@@ -341,13 +410,13 @@ function difference(left: number | null, right: number | null): number | null {
   return value === null ? null : Math.abs(value)
 }
 
-function gap(current: number | null, reference: number | null): number | null {
+function gap(current: number | null, reference: number | null, currentExact?: string | null, referenceExact?: string | null): number | null {
   if (current === null || reference === null) return null
+  if (currentExact && referenceExact) {
+    const exactGap = subtractExactDecimals(parseExactDecimal(currentExact)!, parseExactDecimal(referenceExact)!)
+    return exactDecimalToNumber(exactGap)
+  }
   return areNumericValuesEquivalent(current, reference) ? 0 : safeAdd(current, -reference)
-}
-
-function addCost(total: number | null, value: number | null): number | null {
-  return total === null || value === null ? null : safeAdd(total, value)
 }
 
 function routingEquivalent(reference: SnapshotRoutingStep[], current: SnapshotRoutingStep[]): boolean {
@@ -357,9 +426,9 @@ function routingEquivalent(reference: SnapshotRoutingStep[], current: SnapshotRo
     const index = remaining.findIndex(currentStep =>
       normalizeKey(referenceStep.processName) === normalizeKey(currentStep.processName)
       && normalizeKey(referenceStep.workCenterId) === normalizeKey(currentStep.workCenterId)
-      && areNumericValuesEquivalent(referenceStep.manning, currentStep.manning)
-      && areNumericValuesEquivalent(referenceStep.capacity, currentStep.capacity)
-      && areNumericValuesEquivalent(referenceStep.yield, currentStep.yield))
+      && numericInputEqual(referenceStep, currentStep, 'manning')
+      && numericInputEqual(referenceStep, currentStep, 'capacity')
+      && numericInputEqual(referenceStep, currentStep, 'yield'))
     if (index < 0) return false
     remaining.splice(index, 1)
     return true
@@ -381,33 +450,50 @@ function aggregateRoutingCost(
   side: 'reference' | 'current',
   referenceRates: SnapshotWorkCenterRate[],
   currentRates: SnapshotWorkCenterRate[]
-): { labor: number | null; burden: number | null; total: number | null } {
-  let labor: number | null = 0
-  let burden: number | null = 0
+): {
+  labor: number | null
+  burden: number | null
+  total: number | null
+  exactLabor: string | null
+  exactBurden: string | null
+  exactTotal: string | null
+} {
+  let exactLabor = parseExactDecimal(0)
+  let exactBurden = parseExactDecimal(0)
   for (const step of steps) {
     const detail = calculateSnapshotRoutingDetail(
       side === 'reference' ? { reference: step } : { current: step },
       referenceRates,
       currentRates
     )
-    labor = addCost(labor, side === 'reference' ? detail.referenceLaborCost : detail.currentLaborCost)
-    burden = addCost(burden, side === 'reference' ? detail.referenceBurdenCost : detail.currentBurdenCost)
+    const exactLaborValue = side === 'reference' ? detail.exactValues?.referenceLaborCost : detail.exactValues?.currentLaborCost
+    const exactBurdenValue = side === 'reference' ? detail.exactValues?.referenceBurdenCost : detail.exactValues?.currentBurdenCost
+    exactLabor = exactLabor && exactLaborValue ? addExactDecimals(exactLabor, parseExactDecimal(exactLaborValue)!) : null
+    exactBurden = exactBurden && exactBurdenValue ? addExactDecimals(exactBurden, parseExactDecimal(exactBurdenValue)!) : null
   }
-  return { labor, burden, total: addCost(labor, burden) }
+  const exactTotal = exactLabor && exactBurden ? addExactDecimals(exactLabor, exactBurden) : null
+  return {
+    labor: exactLabor ? exactDecimalToNumber(exactLabor) : null,
+    burden: exactBurden ? exactDecimalToNumber(exactBurden) : null,
+    total: exactTotal ? exactDecimalToNumber(exactTotal) : null,
+    exactLabor: exactLabor ? exactDecimalToString(exactLabor) : null,
+    exactBurden: exactBurden ? exactDecimalToString(exactBurden) : null,
+    exactTotal: exactTotal ? exactDecimalToString(exactTotal) : null
+  }
 }
 
 function processingCostEffect(
-  reference: { labor: number | null; burden: number | null; total: number | null },
-  current: { labor: number | null; burden: number | null; total: number | null }
+  reference: { labor: number | null; burden: number | null; total: number | null; exactLabor?: string | null; exactBurden?: string | null; exactTotal?: string | null },
+  current: { labor: number | null; burden: number | null; total: number | null; exactLabor?: string | null; exactBurden?: string | null; exactTotal?: string | null }
 ): ComparisonRecordCostEffect {
   return {
     reference: { material: 0, labor: reference.labor, burden: reference.burden, total: reference.total },
     current: { material: 0, labor: current.labor, burden: current.burden, total: current.total },
     gap: {
       material: 0,
-      labor: gap(current.labor, reference.labor),
-      burden: gap(current.burden, reference.burden),
-      total: gap(current.total, reference.total)
+      labor: gap(current.labor, reference.labor, current.exactLabor, reference.exactLabor),
+      burden: gap(current.burden, reference.burden, current.exactBurden, reference.exactBurden),
+      total: gap(current.total, reference.total, current.exactTotal, reference.exactTotal)
     }
   }
 }
@@ -453,10 +539,10 @@ function buildProcessingFindings(
     }
     const referenceCost = hasReference
       ? aggregateRoutingCost(referenceSteps, 'reference', referenceRates, currentRates)
-      : { labor: 0, burden: 0, total: 0 }
+      : { labor: 0, burden: 0, total: 0, exactLabor: '0', exactBurden: '0', exactTotal: '0' }
     const currentCost = hasCurrent
       ? aggregateRoutingCost(currentSteps, 'current', referenceRates, currentRates)
-      : { labor: 0, burden: 0, total: 0 }
+      : { labor: 0, burden: 0, total: 0, exactLabor: '0', exactBurden: '0', exactTotal: '0' }
     const costEffect = processingCostEffect(referenceCost, currentCost)
     const rate = currentRate ?? referenceRate
     const route = currentSteps[0] ?? referenceSteps[0]
@@ -533,10 +619,10 @@ export function compareSnapshots(reference: CostSnapshot, current: CostSnapshot)
     workCenterFindings
   )
 
-  const materialGap = gap(currentCost.material, referenceCost.material)
-  const laborGap = gap(currentCost.labor, referenceCost.labor)
-  const burdenGap = gap(currentCost.burden, referenceCost.burden)
-  const totalGap = gap(currentCost.total, referenceCost.total)
+  const materialGap = gap(currentCost.material, referenceCost.material, currentCost.exactValues?.material, referenceCost.exactValues?.material)
+  const laborGap = gap(currentCost.labor, referenceCost.labor, currentCost.exactValues?.labor, referenceCost.exactValues?.labor)
+  const burdenGap = gap(currentCost.burden, referenceCost.burden, currentCost.exactValues?.burden, referenceCost.exactValues?.burden)
+  const totalGap = gap(currentCost.total, referenceCost.total, currentCost.exactValues?.total, referenceCost.exactValues?.total)
 
   const recordEffectGaps = {
     material: sumRecordEffects(bomFindings, 'material'),

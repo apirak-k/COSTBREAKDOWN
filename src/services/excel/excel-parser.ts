@@ -1,5 +1,7 @@
 import * as XLSX from 'xlsx'
 import { ProductMaster, WorkCenterRate, BOMItem, RoutingStep, ExcelImportResult } from '../../core'
+import { exactDecimalToString, multiplyExactDecimals, parseExactDecimal } from '../../core/utils/exact-decimal'
+import { readExactNumericCells } from './exact-numeric-cells'
 
 /**
  * Parses any Cost Model Excel workbook with dynamic header detection:
@@ -11,6 +13,12 @@ export async function parseExcelInputFile(file: File): Promise<ExcelImportResult
   try {
     const data = await file.arrayBuffer()
     const workbook = XLSX.read(data, { type: 'array' })
+    let exactNumericCells: Awaited<ReturnType<typeof readExactNumericCells>> = {}
+    try {
+      exactNumericCells = await readExactNumericCells(data)
+    } catch {
+      // Keep the existing XLS parser path for non-ZIP legacy workbooks.
+    }
 
     const warnings: string[] = []
 
@@ -31,7 +39,15 @@ export async function parseExcelInputFile(file: File): Promise<ExcelImportResult
     function readSheet(name: string): (string | number | null)[][] {
       const ws = workbook.Sheets[name]
       if (!ws) return []
-      return XLSX.utils.sheet_to_json(ws, { header: 1, defval: null }) as (string | number | null)[][]
+      const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null }) as (string | number | null)[][]
+      const rawValues = exactNumericCells[name]
+      if (!rawValues) return rows
+      rows.forEach((row, rowIndex) => row.forEach((_, columnIndex) => {
+        const address = XLSX.utils.encode_cell({ r: rowIndex, c: columnIndex })
+        const exactValue = rawValues.get(address)
+        if (exactValue !== undefined) row[columnIndex] = exactValue
+      }))
+      return rows
     }
 
     function str(v: string | number | null | undefined): string {
@@ -39,8 +55,24 @@ export async function parseExcelInputFile(file: File): Promise<ExcelImportResult
     }
 
     function num(v: string | number | null | undefined): number {
-      const n = parseFloat(str(v))
+      const text = str(v).replace(/,/g, '').replace(/%$/, '')
+      const n = parseFloat(text)
       return isNaN(n) ? 0 : n
+    }
+
+    function numericText(v: string | number | null | undefined): string | undefined {
+      const text = str(v).replace(/,/g, '').replace(/%$/, '').trim()
+      return text === '' || !Number.isFinite(Number(text)) ? undefined : text
+    }
+
+    function percentInput(v: string | number | null | undefined, storedFraction: number): string {
+      const text = str(v).replace(/,/g, '').trim()
+      if (text.endsWith('%')) return text.slice(0, -1).trim()
+      const input = numericText(v)
+      if (!input) return String(storedFraction * 100)
+      const exact = parseExactDecimal(input)
+      const percent = Number(input) > 1 ? exact : exact ? multiplyExactDecimals(exact, parseExactDecimal(100)!) : null
+      return percent ? exactDecimalToString(percent) : String(storedFraction * 100)
     }
 
     // ── 1_MASTER_RATES ─────────────────────────────────────────────────────
@@ -94,6 +126,10 @@ export async function parseExcelInputFile(file: File): Promise<ExcelImportResult
           description: dept,
           laborRate: labor,
           burdenRate: burden,
+          exactDecimalInputs: {
+            ...(numericText(row[1]) === undefined ? {} : { laborRate: numericText(row[1]) }),
+            ...(numericText(row[2]) === undefined ? {} : { burdenRate: numericText(row[2]) })
+          },
           effectiveDate: effDate,
           sourceRef
         })
@@ -148,8 +184,12 @@ export async function parseExcelInputFile(file: File): Promise<ExcelImportResult
 
       if (!code && !desc && q === 0 && p0 === 0 && p1 === 0) continue
 
-      if (l0 > 1) l0 = l0 / 100
-      if (l1 > 1) l1 = l1 / 100
+      const l0Source = str(row[7]).trim()
+      const l1Source = str(row[8]).trim()
+      if (l0Source.endsWith('%')) l0 = l0 / 100
+      else if (l0 > 1) l0 = l0 / 100
+      if (l1Source.endsWith('%')) l1 = l1 / 100
+      else if (l1 > 1) l1 = l1 / 100
 
       bom.push({
         id: `bom-${bom.length + 1}`,
@@ -161,6 +201,13 @@ export async function parseExcelInputFile(file: File): Promise<ExcelImportResult
         activePrice: p1 > 0 ? p1 : p0,
         baseLoss: l0,
         activeLoss: l1 > 0 ? l1 : l0,
+        exactDecimalInputs: {
+          ...(numericText(row[3]) === undefined ? {} : { consumption: numericText(row[3]) }),
+          ...(numericText(row[5]) === undefined ? {} : { basePrice: numericText(row[5]) }),
+          ...(numericText(row[6]) === undefined ? {} : { activePrice: num(row[6]) > 0 ? numericText(row[6]) : numericText(row[5]) }),
+          baseLoss: percentInput(row[7], l0),
+          activeLoss: num(row[8]) > 0 ? percentInput(row[8], l1) : percentInput(row[7], l0)
+        },
         sourceRef: ref || 'Cost declare row 111'
       })
     }
@@ -216,8 +263,12 @@ export async function parseExcelInputFile(file: File): Promise<ExcelImportResult
 
       if (!name && !dept && cap0 === 0 && cap1 === 0) continue
 
-      if (y0 > 1) y0 = y0 / 100
-      if (y1 > 1) y1 = y1 / 100
+      const y0Source = str(row[7]).trim()
+      const y1Source = str(row[8]).trim()
+      if (y0Source.endsWith('%')) y0 = y0 / 100
+      else if (y0 > 1) y0 = y0 / 100
+      if (y1Source.endsWith('%')) y1 = y1 / 100
+      else if (y1 > 1) y1 = y1 / 100
 
       if (y0 === 0) y0 = 1.0
       if (y1 === 0) y1 = (y0 > 0 ? y0 : 1.0)
@@ -232,6 +283,13 @@ export async function parseExcelInputFile(file: File): Promise<ExcelImportResult
         activeCap: cap1 > 0 ? cap1 : cap0,
         baseYield: y0,
         activeYield: y1 > 0 ? y1 : y0,
+        exactDecimalInputs: {
+          manning: num(row[4]) === 0 ? '1' : numericText(row[4]) ?? String(man),
+          ...(numericText(row[5]) === undefined ? {} : { baseCap: numericText(row[5]) }),
+          ...(numericText(row[6]) === undefined ? {} : { activeCap: num(row[6]) > 0 ? numericText(row[6]) : numericText(row[5]) }),
+          baseYield: num(row[7]) === 0 ? '100' : percentInput(row[7], y0),
+          activeYield: num(row[8]) > 0 ? percentInput(row[8], y1) : (num(row[8]) === 0 ? percentInput(row[7], y0) : percentInput(row[8], y1))
+        },
         sourceRef: ref || 'Cost declare Row 28'
       })
     }

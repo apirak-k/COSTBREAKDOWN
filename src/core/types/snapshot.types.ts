@@ -28,7 +28,7 @@ export interface SnapshotBOMItem {
   itemCode: string
   description: string
   consumption: number | null
-  /** Exact accepted editor text; the numeric field remains the calculation value. */
+  /** Exact accepted decimal text; percentage inputs (Loss/Yield) are stored in entered percent units. */
   exactDecimalInputs?: Partial<Record<'consumption' | 'price' | 'loss', string>>
   unit: string
   price: number | null
@@ -52,7 +52,7 @@ export interface SnapshotRoutingStep {
   processName: string
   workCenterId?: string
   manning: number | null
-  /** Exact accepted editor text; the numeric fields remain the calculation values. */
+  /** Exact accepted decimal text; percentage inputs (Loss/Yield) are stored in entered percent units. */
   exactDecimalInputs?: Partial<Record<'manning' | 'capacity' | 'yield', string>>
   capacity: number | null
   yield: number | null
@@ -71,7 +71,7 @@ export interface SnapshotWorkCenterRate {
   workCenterCode: string
   description: string
   laborRate: number | null
-  /** Exact accepted editor text; the numeric fields remain the calculation values. */
+  /** Exact accepted decimal text for source values used by calculations. */
   exactDecimalInputs?: Partial<Record<'laborRate' | 'burdenRate', string>>
   burdenRate: number | null
   effectiveDate: string
@@ -105,6 +105,8 @@ export interface SnapshotCost {
   labor: number | null
   burden: number | null
   total: number | null
+  /** Base-10 calculation results retained for precise downstream differences and business formulas. */
+  exactValues?: Partial<Record<'material' | 'labor' | 'burden' | 'total', string | null>>
   status: CalculationStatus
   warnings: string[]
 }

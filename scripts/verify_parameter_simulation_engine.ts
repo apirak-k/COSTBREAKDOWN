@@ -87,8 +87,20 @@ assert.equal(calculateParameterSimulation(current, tinyCapacitySnapshot).afterCo
 const preciseYieldEdit = updateSimulationParameter(state, sources, 'current-cut', 'routing.yield', 0.99123456789, 'current')
 const preciseYieldSnapshot = getEffectiveSimulationDataset(sources, preciseYieldEdit, 'current').snapshot
 assert.equal(preciseYieldSnapshot.routing[0]?.yield, 0.99123456789, 'Yield accepts high precision while retaining its stored fractional domain')
+assert.equal(preciseYieldSnapshot.routing[0]?.exactDecimalInputs?.yield, '99.123456789',
+  'Simulation-generated Yield editor text converts the stored fraction back to percentage points')
 assertClose(calculateParameterSimulation(current, preciseYieldSnapshot).afterCost.labor, 100 / (100 * 0.99123456789) + 0.1,
   'Yield calculation uses the stored high-precision fraction')
+
+const subUlpPriceEdit = updateSimulationParameter(
+  state, sources, 'current-steel', 'bom.price', 10, 'current', '10.00000000000000001'
+)
+const subUlpPriceSnapshot = getEffectiveSimulationDataset(sources, subUlpPriceEdit, 'current').snapshot
+const subUlpPriceResult = calculateParameterSimulation(current, subUlpPriceSnapshot)
+assert.equal(subUlpPriceResult.afterCost.exactValues?.material, '21.000000000000000021',
+  'Simulation Standard Cost uses exact Price text when the JavaScript Number is unchanged')
+assert.equal(subUlpPriceResult.parameterSavingExact, '-0.000000000000000021',
+  'Simulation parameter savings retain sub-ULP decimal changes')
 
 const priceAttribution = calculateMultiplicativeCostAttribution(21, 25.2, [
   { key: 'price', baseline: 10, target: 12 },

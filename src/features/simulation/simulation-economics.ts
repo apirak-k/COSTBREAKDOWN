@@ -1,5 +1,15 @@
 import { calculateScenarioBusinessMetrics } from '../../core/calculations/scenario-business'
 import { isMasterDataNumericValueValid } from '../../core/utils/master-data-validation'
+import {
+  addExactDecimals,
+  divideExactDecimals,
+  exactDecimalToNumber,
+  exactDecimalToString,
+  compareExactDecimals,
+  parseExactDecimal,
+  subtractExactDecimals,
+  type ExactDecimal
+} from '../../core/utils/exact-decimal'
 import type { CostSnapshot, ScenarioBusinessResult, SnapshotCost } from '../../core/types'
 
 export interface EconomicSimulationDraft {
@@ -26,6 +36,10 @@ export interface EconomicSimulationResult {
   simulationStandardCost: number | null
   sgaPerPiece: number | null
   operatingProfitPerPiece: number | null
+  exactValues?: Partial<Record<
+    'fixedCostPerPiece' | 'requiredSavingPerPiece' | 'parameterSavingPerPiece' | 'economicMarginPerPiece'
+    | 'preciseBreakEvenQuantity' | 'simulationStandardCost', string | null
+  >>
   business: ScenarioBusinessResult
   warnings: string[]
 }
@@ -123,42 +137,74 @@ function finiteResult(value: number, label: string, warnings: string[]): number 
   return value
 }
 
+function exactDraftValue(raw: string, parsed: number | null): ExactDecimal | null {
+  if (raw.trim()) return parseExactDecimal(raw)
+  return parsed === null ? null : parseExactDecimal(parsed)
+}
+
+function calculatedNumber(value: ExactDecimal | null, label: string, warnings: string[]): number | null {
+  if (!value) return null
+  const result = exactDecimalToNumber(value)
+  return result === null ? finiteResult(Number.NaN, label, warnings) : finiteResult(result, label, warnings)
+}
+
 export function calculateEconomicSimulation(
   afterSnapshot: CostSnapshot,
   afterCost: SnapshotCost | null,
   parameterSavingPerPiece: number | null,
-  draft: EconomicSimulationDraft
+  draft: EconomicSimulationDraft,
+  parameterSavingExact?: string | null
 ): EconomicSimulationResult {
   const warnings: string[] = []
   const fixedActionCost = parseInput(draft.fixedActionCost, 'fixedActionCost', 'Fixed Action Cost', warnings)
   const variableActionCostPerPiece = parseInput(draft.variableActionCostPerPiece, 'variableActionCostPerPiece', 'Variable Action Cost / pc', warnings)
   const batchSize = parseInput(draft.batchSize, 'batchSize', 'Batch Size', warnings)
-  const fixedCostPerPiece = fixedActionCost !== null && batchSize !== null && batchSize > 0
-    ? finiteResult(fixedActionCost / batchSize, 'Fixed Cost / pc', warnings)
+  const exactFixedActionCost = exactDraftValue(draft.fixedActionCost, fixedActionCost)
+  const exactVariableActionCost = exactDraftValue(draft.variableActionCostPerPiece, variableActionCostPerPiece)
+  const exactBatchSize = exactDraftValue(draft.batchSize, batchSize)
+  const exactFixedCostPerPiece = exactFixedActionCost && exactBatchSize && batchSize !== null && batchSize > 0
+    ? divideExactDecimals(exactFixedActionCost, exactBatchSize)
+    : null
+  const fixedCostPerPiece = exactFixedActionCost !== null && exactBatchSize !== null && batchSize !== null && batchSize > 0
+    ? calculatedNumber(exactFixedCostPerPiece, 'Fixed Cost / pc', warnings)
+    : null
+  const exactRequiredSavingPerPiece = exactFixedCostPerPiece && exactVariableActionCost
+    ? addExactDecimals(exactFixedCostPerPiece, exactVariableActionCost)
     : null
   const requiredSavingPerPiece = fixedCostPerPiece !== null && variableActionCostPerPiece !== null
-    ? finiteResult(fixedCostPerPiece + variableActionCostPerPiece, 'Required Saving / pc', warnings)
+    ? calculatedNumber(exactRequiredSavingPerPiece, 'Required Saving / pc', warnings)
     : null
-  const parameterSaving = parameterSavingPerPiece !== null && Number.isFinite(parameterSavingPerPiece)
-    ? parameterSavingPerPiece
+  const exactParameterSaving = parameterSavingPerPiece !== null && Number.isFinite(parameterSavingPerPiece)
+    ? (parameterSavingExact?.trim() ? parseExactDecimal(parameterSavingExact) : parseExactDecimal(parameterSavingPerPiece))
     : null
+  const parameterSaving = exactParameterSaving ? exactDecimalToNumber(exactParameterSaving) : null
   if (parameterSavingPerPiece !== null && parameterSaving === null) {
     warnings.push('Parameter Saving / pc must be a finite number.')
   }
+  const exactEconomicMargin = exactParameterSaving && exactRequiredSavingPerPiece
+    ? subtractExactDecimals(exactParameterSaving, exactRequiredSavingPerPiece)
+    : null
   const economicMarginPerPiece = parameterSaving !== null && requiredSavingPerPiece !== null
-    ? finiteResult(parameterSaving - requiredSavingPerPiece, 'Economic Margin / pc', warnings)
+    ? calculatedNumber(exactEconomicMargin, 'Economic Margin / pc', warnings)
+    : null
+  const exactNetSaving = exactParameterSaving && exactVariableActionCost
+    ? subtractExactDecimals(exactParameterSaving, exactVariableActionCost)
     : null
   const netSavingPerPiece = parameterSaving !== null && variableActionCostPerPiece !== null
-    ? finiteResult(parameterSaving - variableActionCostPerPiece, 'Net Saving / pc', warnings)
+    ? calculatedNumber(exactNetSaving, 'Net Saving / pc', warnings)
     : null
   let preciseBreakEvenQuantity: number | null = null
+  let exactPreciseBreakEvenQuantity: ExactDecimal | null = null
   let breakEvenQuantity: number | null = null
   let breakEvenNotAchievable = false
   if (fixedActionCost !== null && netSavingPerPiece !== null) {
-    if (netSavingPerPiece <= 0) {
+    if (!exactNetSaving || compareExactDecimals(exactNetSaving, parseExactDecimal(0)!) <= 0) {
       breakEvenNotAchievable = true
     } else {
-      preciseBreakEvenQuantity = finiteResult(fixedActionCost / netSavingPerPiece, 'Break-even Quantity', warnings)
+      exactPreciseBreakEvenQuantity = exactFixedActionCost && exactNetSaving
+        ? divideExactDecimals(exactFixedActionCost, exactNetSaving)
+        : null
+      preciseBreakEvenQuantity = calculatedNumber(exactPreciseBreakEvenQuantity, 'Break-even Quantity', warnings)
       if (preciseBreakEvenQuantity !== null) {
         const roundingTolerance = Number.EPSILON * Math.max(1, Math.abs(preciseBreakEvenQuantity)) * 4
         const roundedQuantity = Math.ceil(preciseBreakEvenQuantity - roundingTolerance)
@@ -192,7 +238,18 @@ export function calculateEconomicSimulation(
   if (rawStandardCost !== null && simulationStandardCost === null) {
     warnings.push('SIM Standard Cost must be a finite number.')
   }
-  const business = calculateScenarioBusinessMetrics({ sellingPrice, sgaPercent }, simulationStandardCost)
+  const exactSellingPrice = draft.sellingPriceOverride.trim()
+    ? draft.sellingPriceOverride
+    : afterSnapshot.product.exactDecimalInputs?.sellingPrice
+  const exactSGAPercent = draft.sgaPercentOverride.trim()
+    ? draft.sgaPercentOverride
+    : afterSnapshot.product.exactDecimalInputs?.sgaPercent
+  const exactStandardCost = rawStandardCost === null ? undefined : afterCost?.exactValues?.total ?? String(rawStandardCost)
+  const business = calculateScenarioBusinessMetrics({ sellingPrice, sgaPercent }, simulationStandardCost, {
+    sellingPrice: exactSellingPrice,
+    sgaPercent: exactSGAPercent,
+    standardCost: exactStandardCost
+  })
 
   return {
     fixedActionCost,
@@ -208,6 +265,14 @@ export function calculateEconomicSimulation(
     simulationStandardCost,
     sgaPerPiece: business.sgaAmountPerPiece,
     operatingProfitPerPiece: business.operatingProfitPerPiece,
+    exactValues: {
+      fixedCostPerPiece: exactFixedCostPerPiece ? exactDecimalToString(exactFixedCostPerPiece) : null,
+      requiredSavingPerPiece: exactRequiredSavingPerPiece ? exactDecimalToString(exactRequiredSavingPerPiece) : null,
+      parameterSavingPerPiece: exactParameterSaving ? exactDecimalToString(exactParameterSaving) : null,
+      economicMarginPerPiece: exactEconomicMargin ? exactDecimalToString(exactEconomicMargin) : null,
+      preciseBreakEvenQuantity: preciseBreakEvenQuantity === null ? null : exactPreciseBreakEvenQuantity ? exactDecimalToString(exactPreciseBreakEvenQuantity) : null,
+      simulationStandardCost: exactStandardCost ?? null
+    },
     business,
     warnings: [...new Set([...warnings, ...business.warnings])]
   }

@@ -138,7 +138,16 @@ try {
     return response.result.result.value
   }
   const waitUntil = async (expression, label, timeoutMs = 15000) => {
-    await waitFor(async () => Boolean(await evaluate(expression)), label, timeoutMs)
+    try {
+      await waitFor(async () => Boolean(await evaluate(expression)), label, timeoutMs)
+    } catch (error) {
+      const state = await evaluate(`(()=>({
+        url:location.href,
+        fixture:document.querySelector('[data-testid="exact-decimal-state"]')?.textContent??null,
+        numericEditors:[...document.querySelectorAll('input[data-grid-field]')].map(input=>({field:input.dataset.gridField,rowId:input.dataset.gridRowId,value:input.value,visible:input.getClientRects().length>0}))
+      }))()`)
+      throw new Error(`${error.message}; browser state: ${JSON.stringify(state)}`)
+    }
   }
   const click = async selector => {
     await evaluate(`(()=>{const target=document.querySelector(${JSON.stringify(selector)});if(!target)throw Error('Missing ${selector}');target.focus();target.click();return true})()`)
@@ -182,10 +191,24 @@ try {
     await waitUntil(`document.querySelector(${JSON.stringify(selector)})?.value===${JSON.stringify(expected)}`, 'exact editable value after focus')
   }
   const replaceInput = async (selector, value) => {
-    await evaluate(`(()=>{const input=document.querySelector(${JSON.stringify(selector)});if(!input)throw Error('Missing exact decimal editor');input.focus();input.select();return true})()`)
+    await evaluate(`(()=>{const input=document.querySelector(${JSON.stringify(selector)});if(!input)throw Error('Missing exact decimal editor');input.focus();return new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))})()`)
+    await evaluate(`document.querySelector(${JSON.stringify(selector)})?.select()`)
     await send('Input.insertText', { text: value })
     await waitUntil(`document.querySelector(${JSON.stringify(selector)})?.value===${JSON.stringify(value)}`, 'typed exact string')
     await waitUntil(`JSON.parse(document.querySelector('[data-testid="exact-decimal-state"]').textContent).exact===${JSON.stringify(value)}`, 'application state exact string')
+  }
+  const pasteInput = async (selector, value) => {
+    await send('Browser.grantPermissions', {
+      origin: new URL(baseUrl).origin,
+      permissions: ['clipboardReadWrite', 'clipboardSanitizedWrite']
+    })
+    await evaluate(`navigator.clipboard.writeText(${JSON.stringify(value)})`)
+    await evaluate(`(()=>{const input=document.querySelector(${JSON.stringify(selector)});if(!input)throw Error('Missing exact decimal editor');input.focus();input.select();return true})()`)
+    const modifier = process.platform === 'darwin' ? 4 : 2
+    await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'v', code: 'KeyV', modifiers: modifier, commands: ['paste'] })
+    await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'v', code: 'KeyV', modifiers: modifier })
+    await waitUntil(`document.querySelector(${JSON.stringify(selector)})?.value===${JSON.stringify(value)}`, 'clipboard-pasted exact text')
+    await waitUntil(`JSON.parse(document.querySelector('[data-testid="exact-decimal-state"]').textContent).exact===${JSON.stringify(value)}`, 'clipboard exact sidecar')
   }
   const blurWithoutChangingContext = async () => evaluate(`document.querySelector('[data-testid="exact-role-current"]').focus()`)
   await send('Page.enable')
@@ -242,6 +265,13 @@ try {
   state = await readState()
   check(state.exact === critical, 'Exact critical decimal is authoritative application state', state)
   check(state.calculation === Number(critical), 'Calculation value remains the existing JavaScript number', { actual: state.calculation, expected: Number(critical) })
+
+  const pastedExact = '12.34567890123456789'
+  await pasteInput(inputSelector, pastedExact)
+  state = await readState()
+  check(state.exact === pastedExact && state.calculation === Number(pastedExact),
+    'Real clipboard paste preserves all meaningful decimal digits in the owning Master Data state', state)
+  await replaceInput(inputSelector, critical)
 
   await blurWithoutChangingContext()
   await focusInput(inputSelector, critical)
@@ -354,6 +384,12 @@ try {
   }
 
   await replaceInput(inputSelector, critical)
+  await click('button[data-testid="exact-save-current"]')
+  await replaceInput(inputSelector, '123456789012345.123456790')
+  await click('button[data-testid="exact-reset-current"]')
+  await waitUntil(`JSON.parse(document.querySelector('[data-testid="exact-decimal-state"]').textContent).exact===${JSON.stringify(critical)}`,
+    'Reset restores the saved exact decimal sidecar')
+  check((await readState()).exact === critical, 'Save and Reset retain the original precise Working value')
   state = await readState()
   const beforeClear = { rowId: state.rowId, rowCount: state.rowCount }
   await click('button[data-testid="exact-clear-current"]')

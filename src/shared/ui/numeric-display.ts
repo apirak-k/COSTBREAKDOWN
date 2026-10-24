@@ -1,3 +1,5 @@
+import { cleanMachineFloatingPointResidue } from '../../core/utils/exact-decimal'
+
 export interface NumericDisplayOptions {
   integer?: boolean
   /** Stable capacity of the numeric set, excluding the sign. */
@@ -65,38 +67,11 @@ export function formatFullNumericValue(value: number | null | undefined): string
   return `${sign}${digits.slice(0, point)}.${digits.slice(point)}`
 }
 
-function numberSpacing(value: number): number {
-  const absolute = Math.abs(value)
-  if (absolute === 0 || absolute < 2 ** -1022) return Number.MIN_VALUE
-  return 2 ** (Math.floor(Math.log2(absolute)) - 52)
-}
-
-function removeFloatingPointResidue(value: number, text: string): string {
-  const decimalIndex = text.indexOf('.')
-  if (decimalIndex < 0) return text
-
-  const fractionDigits = text.length - decimalIndex - 1
-  if (fractionDigits < 3) return text
-
-  // Only collapse a long decimal tail when a materially shorter decimal is
-  // within two representable Number steps. Do not normalize small values to 0.
-  for (let digits = 0; digits <= Math.min(100, fractionDigits - 3); digits += 1) {
-    const candidate = value.toFixed(digits)
-    if (/[eE]/.test(candidate)) continue
-    const candidateValue = Number(candidate)
-    if (value !== 0 && candidateValue === 0) continue
-    const tolerance = 2 * Math.max(numberSpacing(value), numberSpacing(candidateValue))
-    if (Math.abs(candidateValue - value) <= tolerance) return candidate
-  }
-
-  return text
-}
-
 /** Format a Number fallback draft without exposing a narrow binary residue tail. */
 export function formatFocusedNumericValue(value: number | null | undefined, integer = false): string {
   const full = formatFullNumericValue(value)
   if (!full) return full
-  const clean = removeFloatingPointResidue(value as number, full)
+  const clean = cleanMachineFloatingPointResidue(value as number, full)
   if (integer) return clean
   const [whole, fraction = ''] = clean.split('.')
   return `${whole}.${fraction.padEnd(2, '0')}`

@@ -81,12 +81,17 @@ function combineConfidence(
 
 function mergedProduct(reference: ProductMaster, current: ProductMaster): ProductMaster {
   return {
+    ...current,
     productCode: current.productCode || reference.productCode,
     productDescription: current.productDescription || reference.productDescription,
     uom: current.uom || reference.uom,
     note: current.note ?? '',
     customer: current.customer || reference.customer,
-    effectiveDate: current.effectiveDate || reference.effectiveDate
+    effectiveDate: current.effectiveDate || reference.effectiveDate,
+    exactDecimalInputs: {
+      ...reference.exactDecimalInputs,
+      ...current.exactDecimalInputs
+    }
   }
 }
 
@@ -102,6 +107,15 @@ function projectBOM(reference: SnapshotBOMItem | undefined, current: SnapshotBOM
       : current?.itemCode || reference?.itemCode || `ITEM-${index + 1}`,
     description: current?.description || reference?.description || '',
     consumption: current?.consumption ?? reference?.consumption ?? 0,
+    exactDecimalInputs: {
+      ...(current?.exactDecimalInputs?.consumption === undefined && reference?.exactDecimalInputs?.consumption === undefined
+        ? {}
+        : { consumption: current?.exactDecimalInputs?.consumption ?? reference?.exactDecimalInputs?.consumption }),
+      ...(reference?.exactDecimalInputs?.price === undefined ? {} : { basePrice: reference.exactDecimalInputs.price }),
+      ...(current?.exactDecimalInputs?.price === undefined ? {} : { activePrice: current.exactDecimalInputs.price }),
+      ...(reference?.exactDecimalInputs?.loss === undefined ? {} : { baseLoss: reference.exactDecimalInputs.loss }),
+      ...(current?.exactDecimalInputs?.loss === undefined ? {} : { activeLoss: current.exactDecimalInputs.loss })
+    },
     unit: current?.unit || reference?.unit || 'PC',
     basePrice: reference?.price ?? 0,
     activePrice: current?.price ?? 0,
@@ -122,6 +136,15 @@ function projectRouting(reference: SnapshotRoutingStep | undefined, current: Sna
     description: current?.processName || reference?.processName || '',
     wc: current?.workCenterId || reference?.workCenterId || '',
     manning: current?.manning ?? reference?.manning ?? 0,
+    exactDecimalInputs: {
+      ...(current?.exactDecimalInputs?.manning === undefined && reference?.exactDecimalInputs?.manning === undefined
+        ? {}
+        : { manning: current?.exactDecimalInputs?.manning ?? reference?.exactDecimalInputs?.manning }),
+      ...(reference?.exactDecimalInputs?.capacity === undefined ? {} : { baseCap: reference.exactDecimalInputs.capacity }),
+      ...(current?.exactDecimalInputs?.capacity === undefined ? {} : { activeCap: current.exactDecimalInputs.capacity }),
+      ...(reference?.exactDecimalInputs?.yield === undefined ? {} : { baseYield: reference.exactDecimalInputs.yield }),
+      ...(current?.exactDecimalInputs?.yield === undefined ? {} : { activeYield: current.exactDecimalInputs.yield })
+    },
     baseCap: reference?.capacity ?? 0,
     activeCap: current?.capacity ?? 0,
     baseYield: reference?.yield ?? 0,
@@ -140,6 +163,7 @@ function projectRate(rate: SnapshotWorkCenterRate, index: number): WorkCenterRat
     description: rate.description,
     laborRate: rate.laborRate ?? 0,
     burdenRate: rate.burdenRate ?? 0,
+    exactDecimalInputs: rate.exactDecimalInputs ? { ...rate.exactDecimalInputs } : undefined,
     effectiveDate: rate.effectiveDate,
     note: rate.note,
     sourceRef: rate.sourceRef || '',

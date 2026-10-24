@@ -128,7 +128,14 @@ function effectInput(step: SnapshotRoutingStep | undefined, rate: SnapshotWorkCe
     capacity: step?.capacity ?? null,
     yield: step?.yield ?? null,
     laborRate: rate?.laborRate ?? null,
-    burdenRate: rate?.burdenRate ?? null
+    burdenRate: rate?.burdenRate ?? null,
+    exactInputs: {
+      manning: step?.exactDecimalInputs?.manning,
+      capacity: step?.exactDecimalInputs?.capacity,
+      yield: step?.exactDecimalInputs?.yield,
+      laborRate: rate?.exactDecimalInputs?.laborRate,
+      burdenRate: rate?.exactDecimalInputs?.burdenRate
+    }
   }
 }
 

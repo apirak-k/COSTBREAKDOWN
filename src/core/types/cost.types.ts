@@ -8,6 +8,7 @@ export interface WorkCenterRate {
   description: string
   laborRate: number // THB/MHr
   burdenRate: number // THB/MHr
+  exactDecimalInputs?: Partial<Record<'laborRate' | 'burdenRate', string>>
   effectiveDate: string
   sourceRef: string
   confidence?: DataConfidence
@@ -26,6 +27,7 @@ export interface BOMItem {
   activePrice: number // P1 (THB/Unit)
   baseLoss: number // L0 (e.g. 0.30 = 30%)
   activeLoss: number // L1 (e.g. 0.30 = 30%)
+  exactDecimalInputs?: Partial<Record<'consumption' | 'basePrice' | 'activePrice' | 'baseLoss' | 'activeLoss', string>>
   sourceRef: string
   confidence?: DataConfidence
   note?: string
@@ -45,6 +47,7 @@ export interface RoutingStep {
   activeCap: number // C1 (pcs/hr)
   baseYield: number // Y0 (e.g. 0.95 = 95%)
   activeYield: number // Y1 (e.g. 0.90 = 90%)
+  exactDecimalInputs?: Partial<Record<'manning' | 'baseCap' | 'activeCap' | 'baseYield' | 'activeYield', string>>
   sourceRef: string
   confidence?: DataConfidence
   note?: string
