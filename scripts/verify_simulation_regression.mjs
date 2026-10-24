@@ -20,6 +20,7 @@ try {
     'verify_simulation_dataset_overrides',
     'verify_simulation_economics',
     'verify_simulation_history',
+    'verify_simulation_send_all_history',
     'verify_simulation_workspace',
     'verify_simulation_context',
     'verify_legacy_active_tab_migration',

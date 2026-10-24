@@ -66,8 +66,8 @@ assert.match(navbar, /const handleUndo = \(\) => isMasterData\s*\? undoMasterDat
   'Header routes Undo to the independent active-page history')
 assert.match(navbar, /const handleRedo = \(\) => isMasterData\s*\? redoMasterDataEdit\(\)\s*: isCostBreakdown\s*\? cbdReorderUndoRedo\?\.redo\(\)\s*: isSimulation \? simulationUndoRedo\?\.redo\(\) : undefined/,
   'Header routes Redo to the independent active-page history')
-assert.match(app, /simulationUndoRedo=\{\{[\s\S]*?canUndo: matchingSimulationHistory\?\.undo\.length[\s\S]*?canRedo: matchingSimulationHistory\?\.redo\.length[\s\S]*?undo: \(\) => runSimulationHistory\('undo'\)[\s\S]*?redo: \(\) => runSimulationHistory\('redo'\)/,
-  'Simulation Header controls use the currently valid role-scoped Simulation history')
+assert.match(app, /simulationUndoRedo=\{\{[\s\S]*?canUndo: Boolean\(simulationUndoHistory && simulationUndoDataset[\s\S]*?canRedo: Boolean\(simulationRedoHistory && simulationRedoDataset[\s\S]*?undo: \(\) => runSimulationHistory\('undo'\)[\s\S]*?redo: \(\) => runSimulationHistory\('redo'\)/,
+  'Simulation Header controls use the next chronologically owned and valid role-scoped history')
 assert.match(app, /cbdReorderUndoRedo=\{\{[\s\S]*?canUndo: candidateReorderHistory\.undo\.length > 0[\s\S]*?canRedo: candidateReorderHistory\.redo\.length > 0[\s\S]*?undo: \(\) => setCandidateReorderHistory\(undoCandidateReorder\)[\s\S]*?redo: \(\) => setCandidateReorderHistory\(redoCandidateReorder\)/,
   'Cost Breakdown Header controls use only the Candidate reorder history')
 assert.match(app, /const setCandidateManualOrder = \(type: CandidateTableType, keys: string\[\]\) => \{\s*setCandidateReorderHistory\(history => recordCandidateReorder\(history, type, keys\)\)\s*\}/,

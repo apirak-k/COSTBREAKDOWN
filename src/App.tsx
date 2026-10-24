@@ -34,11 +34,17 @@ import {
   applySimulationEditableSnapshot,
   captureSimulationEditableSnapshot,
   clearSimulationHistory,
+  clearSimulationHistoryChronologyRoles,
   createSimulationHistory,
+  createSimulationHistoryChronology,
+  peekSimulationHistoryChronology,
   recordSimulationHistory,
+  recordSimulationHistoryChronology,
   redoSimulationHistory,
+  takeSimulationHistoryChronology,
   undoSimulationHistory,
-  type SimulationHistory
+  type SimulationHistory,
+  type SimulationHistoryChronology
 } from './features/simulation/simulation-history'
 import type { MasterDataQualityItem } from './features/master-data/prepare-dataset'
 import type { WarningNavigationTarget } from './features/master-data/hooks/useWarningNavigationFocus'
@@ -74,7 +80,7 @@ const AppRouter: React.FC = () => {
     () => omitSimulationViewStateMap(loadFromSession(STORAGE_KEYS.SIMULATION_STATES, {})) as Record<string, SimulationWorkspaceState>
   )
   const [simulationHistoriesByProduct, setSimulationHistoriesByProduct] = useState<Record<string, Partial<Record<MasterDataRole, SimulationHistory>>>>({})
-  const [simulationHistoryRolesByProduct, setSimulationHistoryRolesByProduct] = useState<Record<string, MasterDataRole>>({})
+  const [simulationHistoryChronologyByProduct, setSimulationHistoryChronologyByProduct] = useState<Record<string, SimulationHistoryChronology>>({})
   const [candidateReorderHistory, setCandidateReorderHistory] = useState(createCandidateReorderHistory)
   const pendingSimulationEditRef = useRef<{
     productId: string
@@ -107,11 +113,20 @@ const AppRouter: React.FC = () => {
   )
   const analysisBeforeDataset = effectiveDatasets[simulationState.comparisonBefore]
   const analysisAfterDataset = effectiveDatasets[simulationState.comparisonAfter]
-  const simulationHistoryRole = simulationHistoryRolesByProduct[activeProductId] ?? simulationState.activeDataset
-  const simulationHistoryDataset = getEffectiveSimulationDataset(masterDataSnapshots, simulationState, simulationHistoryRole)
-  const selectedSimulationHistory = simulationHistoriesByProduct[activeProductId]?.[simulationHistoryRole]
-  const matchingSimulationHistory = selectedSimulationHistory?.basisFingerprint === simulationHistoryDataset.basisFingerprint
-    ? selectedSimulationHistory
+  const simulationHistoryChronology = simulationHistoryChronologyByProduct[activeProductId] ?? createSimulationHistoryChronology()
+  const simulationUndoRole = peekSimulationHistoryChronology(simulationHistoryChronology, 'undo')
+  const simulationRedoRole = peekSimulationHistoryChronology(simulationHistoryChronology, 'redo')
+  const simulationUndoDataset = simulationUndoRole
+    ? getEffectiveSimulationDataset(masterDataSnapshots, simulationState, simulationUndoRole)
+    : undefined
+  const simulationUndoHistory = simulationUndoRole
+    ? simulationHistoriesByProduct[activeProductId]?.[simulationUndoRole]
+    : undefined
+  const simulationRedoDataset = simulationRedoRole
+    ? getEffectiveSimulationDataset(masterDataSnapshots, simulationState, simulationRedoRole)
+    : undefined
+  const simulationRedoHistory = simulationRedoRole
+    ? simulationHistoriesByProduct[activeProductId]?.[simulationRedoRole]
     : undefined
   const navigateToPrepareDatasetIssue = (item: MasterDataQualityItem) => {
     setPrepareDatasetNavigationRequest(previous => ({
@@ -166,7 +181,7 @@ const AppRouter: React.FC = () => {
     const liveProductIds = new Set(productSessions.map(session => session.id))
     setSimulationStatesByProduct(previous => retainSimulationStatesForProducts(previous, liveProductIds))
     setSimulationHistoriesByProduct(previous => Object.fromEntries(Object.entries(previous).filter(([id]) => liveProductIds.has(id))))
-    setSimulationHistoryRolesByProduct(previous => Object.fromEntries(Object.entries(previous).filter(([id]) => liveProductIds.has(id))))
+    setSimulationHistoryChronologyByProduct(previous => Object.fromEntries(Object.entries(previous).filter(([id]) => liveProductIds.has(id))))
   }, [productSessions])
 
   useEffect(() => {
@@ -186,17 +201,15 @@ const AppRouter: React.FC = () => {
       const pending = pendingSimulationEditRef.current
       if (pending?.productId === activeProductId && staleRoles.includes(pending.role)) pendingSimulationEditRef.current = null
     }
-    const historyRole = simulationHistoryRolesByProduct[activeProductId]
-    if (historyRole && staleRoles.includes(historyRole)) {
-      const fallbackHistoryRole = (['reference', 'current', 'custom'] as const).find(role => {
-        const history = histories?.[role]
-        return !staleRoles.includes(role)
-          && history?.basisFingerprint === simulationState.datasets[role].basisFingerprint
-          && Boolean(history.undo.length || history.redo.length)
-      }) ?? simulationState.activeDataset
-      setSimulationHistoryRolesByProduct(previous => ({ ...previous, [activeProductId]: fallbackHistoryRole }))
+    if (staleRoles.length) {
+      setSimulationHistoryChronologyByProduct(previous => ({
+        ...previous,
+        [activeProductId]: clearSimulationHistoryChronologyRoles(
+          previous[activeProductId] ?? createSimulationHistoryChronology(), staleRoles
+        )
+      }))
     }
-  }, [activeProductId, simulationHistoriesByProduct, simulationHistoryRolesByProduct, simulationState.datasets])
+  }, [activeProductId, simulationHistoriesByProduct, simulationState.datasets])
 
   useEffect(() => {
     saveToSession(STORAGE_KEYS.SIMULATION_STATES, omitSimulationViewStateMap(simulationStatesByProduct))
@@ -225,7 +238,12 @@ const AppRouter: React.FC = () => {
     })
     const recorded = nextHistory !== baseHistory
     if (recorded) {
-      setSimulationHistoryRolesByProduct(previous => ({ ...previous, [pending.productId]: pending.role }))
+      setSimulationHistoryChronologyByProduct(previous => ({
+        ...previous,
+        [pending.productId]: recordSimulationHistoryChronology(
+          previous[pending.productId] ?? createSimulationHistoryChronology(), pending.role, nextHistory.undo.length
+        )
+      }))
     }
     return { history: nextHistory, state: pending.latestState, sources: pending.sources, role: pending.role, basisFingerprint: pending.basisFingerprint, recorded }
   }
@@ -302,16 +320,25 @@ const AppRouter: React.FC = () => {
       [activeProductId]: { ...(previous[activeProductId] ?? {}), [role]: nextHistory }
     }))
     if (nextHistory !== currentHistory) {
-      setSimulationHistoryRolesByProduct(previous => ({ ...previous, [activeProductId]: role }))
+      setSimulationHistoryChronologyByProduct(previous => ({
+        ...previous,
+        [activeProductId]: recordSimulationHistoryChronology(
+          previous[activeProductId] ?? createSimulationHistoryChronology(), role, nextHistory.undo.length
+        )
+      }))
     }
   }
 
   const runSimulationHistory = (direction: 'undo' | 'redo') => {
     const committed = commitSimulationEdit()
-    const currentRole = committed?.recorded
-      ? committed.role
-      : simulationHistoryRolesByProduct[activeProductId] ?? simulationState.activeDataset
+    const chronology = simulationHistoryChronologyByProduct[activeProductId] ?? createSimulationHistoryChronology()
+    const currentChronology = committed?.recorded
+      ? recordSimulationHistoryChronology(chronology, committed.role, committed.history.undo.length)
+      : chronology
+    const currentRole = peekSimulationHistoryChronology(currentChronology, direction)
+    if (!currentRole) return
     const history = committed?.recorded
+      && committed.role === currentRole
       ? committed.history
       : simulationHistoriesByProduct[activeProductId]?.[currentRole]
     const currentState = committed?.state ?? simulationState
@@ -330,6 +357,10 @@ const AppRouter: React.FC = () => {
           [currentRole]: clearSimulationHistory(previous[activeProductId]?.[currentRole], currentDataset.basisFingerprint)
         }
       }))
+      setSimulationHistoryChronologyByProduct(previous => ({
+        ...previous,
+        [activeProductId]: clearSimulationHistoryChronologyRoles(currentChronology, [currentRole])
+      }))
       return
     }
     const nextState = applySimulationEditableSnapshot(sources, currentState, operation.snapshot, currentRole)
@@ -341,6 +372,10 @@ const AppRouter: React.FC = () => {
           [currentRole]: clearSimulationHistory(previous[activeProductId]?.[currentRole], currentDataset.basisFingerprint)
         }
       }))
+      setSimulationHistoryChronologyByProduct(previous => ({
+        ...previous,
+        [activeProductId]: clearSimulationHistoryChronologyRoles(currentChronology, [currentRole])
+      }))
       return
     }
     pendingSimulationEditRef.current = null
@@ -348,6 +383,11 @@ const AppRouter: React.FC = () => {
     setSimulationHistoriesByProduct(previous => ({
       ...previous,
       [activeProductId]: { ...(previous[activeProductId] ?? {}), [currentRole]: operation.history }
+    }))
+    const nextChronology = takeSimulationHistoryChronology(currentChronology, direction)
+    setSimulationHistoryChronologyByProduct(previous => ({
+      ...previous,
+      [activeProductId]: nextChronology.chronology
     }))
   }
 
@@ -406,7 +446,6 @@ const AppRouter: React.FC = () => {
     if (next === current) return
     const changedRoles = (['reference', 'current', 'custom'] as const).filter(role => next.datasets[role] !== current.datasets[role])
     setSimulationStatesByProduct(previous => ({ ...previous, [activeProductId]: next }))
-    const histories = simulationHistoriesByProduct[activeProductId] ?? {}
     setSimulationHistoriesByProduct(previous => {
       const productHistories = { ...(previous[activeProductId] ?? {}) }
       changedRoles.forEach(role => {
@@ -414,15 +453,13 @@ const AppRouter: React.FC = () => {
       })
       return { ...previous, [activeProductId]: productHistories }
     })
-    const historyRole = simulationHistoryRolesByProduct[activeProductId] ?? current.activeDataset
-    if (changedRoles.includes(historyRole)) {
-      const fallbackHistoryRole = (['reference', 'current', 'custom'] as const).find(role => {
-        const history = histories[role]
-        return !changedRoles.includes(role)
-          && history?.basisFingerprint === next.datasets[role].basisFingerprint
-          && Boolean(history.undo.length || history.redo.length)
-      }) ?? current.activeDataset
-      setSimulationHistoryRolesByProduct(previous => ({ ...previous, [activeProductId]: fallbackHistoryRole }))
+    if (changedRoles.length) {
+      setSimulationHistoryChronologyByProduct(previous => ({
+        ...previous,
+        [activeProductId]: clearSimulationHistoryChronologyRoles(
+          previous[activeProductId] ?? createSimulationHistoryChronology(), changedRoles
+        )
+      }))
     }
   }
 
@@ -435,8 +472,12 @@ const AppRouter: React.FC = () => {
     <AppLayout
       onNavigatePrepareDatasetIssue={navigateToPrepareDatasetIssue}
       simulationUndoRedo={{
-        canUndo: matchingSimulationHistory?.undo.length ? true : false,
-        canRedo: matchingSimulationHistory?.redo.length ? true : false,
+        canUndo: Boolean(simulationUndoHistory && simulationUndoDataset
+          && simulationUndoHistory.basisFingerprint === simulationUndoDataset.basisFingerprint
+          && simulationUndoHistory.undo.length),
+        canRedo: Boolean(simulationRedoHistory && simulationRedoDataset
+          && simulationRedoHistory.basisFingerprint === simulationRedoDataset.basisFingerprint
+          && simulationRedoHistory.redo.length),
         undo: () => runSimulationHistory('undo'),
         redo: () => runSimulationHistory('redo')
       }}

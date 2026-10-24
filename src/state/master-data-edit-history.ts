@@ -1,6 +1,7 @@
 import type { ComparisonRole, CostSnapshot, DatasetSizing, MasterDataRole, SnapshotPair } from '../core/types'
-import { applySnapshotPairToSession, sessionToSnapshotPair } from '../core'
+import { applySnapshotPairToSession, getSnapshotRoleReadiness, sessionToSnapshotPair } from '../core'
 import type { ProductSession } from '../core'
+import { cloneCostSnapshot, createEmptyCustomMasterData } from './master-data-datasets'
 import { markMasterDataChangedForSnapshotPair } from './master-data-revision'
 import { getMasterDataSnapshot } from './master-data-datasets'
 
@@ -31,6 +32,55 @@ export interface MasterDataEditHistory {
 }
 
 const MAX_HISTORY_ENTRIES = 100
+
+function cloneInitialBaselines(baselines: ProductSession['initialMasterDataBaseline']) {
+  return baselines
+    ? Object.fromEntries(Object.entries(baselines).map(([role, baseline]) => [role, baseline ? {
+      ...baseline,
+      snapshot: cloneCostSnapshot(baseline.snapshot),
+      sizing: { ...baseline.sizing }
+    } : undefined])) as ProductSession['initialMasterDataBaseline']
+    : undefined
+}
+
+function copyDatasetSizing(sizing?: ProductSession['datasetSizing']) {
+  return sizing ? {
+    reference: { ...(sizing.reference ?? {}) },
+    current: { ...(sizing.current ?? {}) }
+  } : undefined
+}
+
+export function createMasterDataPairWorkingEditEntry(
+  before: ProductSession,
+  after: ProductSession
+): MasterDataEditHistoryEntry {
+  const beforePair = before.snapshotPair ?? sessionToSnapshotPair(before)
+  const afterPair = after.snapshotPair ?? sessionToSnapshotPair(after)
+  return {
+    sessionId: before.id,
+    role: 'current',
+    before: cloneCostSnapshot(beforePair.current),
+    after: cloneCostSnapshot(afterPair.current),
+    beforePrepared: { ...getSnapshotRoleReadiness(before) },
+    afterPrepared: { ...getSnapshotRoleReadiness(after) },
+    beforeSizing: copyDatasetSizing(before.datasetSizing),
+    afterSizing: copyDatasetSizing(after.datasetSizing),
+    beforeInitialMasterDataBaseline: cloneInitialBaselines(before.initialMasterDataBaseline),
+    afterInitialMasterDataBaseline: cloneInitialBaselines(after.initialMasterDataBaseline),
+    beforePair: {
+      reference: cloneCostSnapshot(beforePair.reference),
+      current: cloneCostSnapshot(beforePair.current)
+    },
+    afterPair: {
+      reference: cloneCostSnapshot(afterPair.reference),
+      current: cloneCostSnapshot(afterPair.current)
+    },
+    beforeCustom: cloneCostSnapshot(before.customMasterData ?? createEmptyCustomMasterData(before.id)),
+    afterCustom: cloneCostSnapshot(after.customMasterData ?? createEmptyCustomMasterData(after.id)),
+    beforeCustomSizing: { ...(before.customDatasetSizing ?? {}) },
+    afterCustomSizing: { ...(after.customDatasetSizing ?? {}) }
+  }
+}
 
 export function createMasterDataEditHistory(): MasterDataEditHistory {
   return { undo: [], redo: [] }

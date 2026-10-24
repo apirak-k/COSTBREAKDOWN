@@ -25,10 +25,15 @@ try {
     applySimulationEditableSnapshot,
     captureSimulationEditableSnapshot,
     clearSimulationHistory,
+    clearSimulationHistoryChronologyRoles,
     createSimulationHistory,
+    createSimulationHistoryChronology,
     isSimulationEditableSnapshotEqual,
+    peekSimulationHistoryChronology,
     recordSimulationHistory,
+    recordSimulationHistoryChronology,
     redoSimulationHistory,
+    takeSimulationHistoryChronology,
     undoSimulationHistory
   } = await vite.ssrLoadModule('/src/features/simulation/simulation-history.ts')
   const { calculateEconomicSimulation } = await vite.ssrLoadModule('/src/features/simulation/simulation-economics.ts')
@@ -91,6 +96,60 @@ try {
 
   const unchanged = recordSimulationHistory(emptyHistory, baseValues, baseValues)
   assert.equal(unchanged.undo.length, 0, 'a no-op edit does not create a history entry')
+  let noOpChronology = createSimulationHistoryChronology()
+  if (unchanged !== emptyHistory) noOpChronology = recordSimulationHistoryChronology(noOpChronology, 'current', unchanged.undo.length)
+  assert.deepEqual(noOpChronology, createSimulationHistoryChronology(), 'a no-op edit does not enter cross-role chronology')
+
+  let chronologicalRoles = createSimulationHistoryChronology()
+  chronologicalRoles = recordSimulationHistoryChronology(chronologicalRoles, 'current', 1)
+  chronologicalRoles = recordSimulationHistoryChronology(chronologicalRoles, 'custom', 1)
+  assert.deepEqual(chronologicalRoles.undo, ['current', 'custom'], 'cross-role chronology records Current A then Custom B')
+  let chronologyStep = takeSimulationHistoryChronology(chronologicalRoles, 'undo')
+  assert.equal(chronologyStep.role, 'custom', 'first Header Undo targets the newest Custom action B')
+  chronologyStep = takeSimulationHistoryChronology(chronologyStep.chronology, 'undo')
+  assert.equal(chronologyStep.role, 'current', 'second Header Undo falls back to the previous Current action A')
+  assert.deepEqual(chronologyStep.chronology.undo, [], 'all chronological Undo entries are consumed')
+  assert.deepEqual(chronologyStep.chronology.redo, ['custom', 'current'], 'Undo stores inverse Redo order')
+  chronologyStep = takeSimulationHistoryChronology(chronologyStep.chronology, 'redo')
+  assert.equal(chronologyStep.role, 'current', 'first Header Redo restores Current action A')
+  chronologyStep = takeSimulationHistoryChronology(chronologyStep.chronology, 'redo')
+  assert.equal(chronologyStep.role, 'custom', 'second Header Redo restores Custom action B')
+  assert.deepEqual(chronologyStep.chronology.redo, [], 'all chronological Redo entries are consumed')
+
+  const rolePermutation = ['reference', 'current', 'custom'] as const
+  let permutation = createSimulationHistoryChronology()
+  rolePermutation.forEach(role => { permutation = recordSimulationHistoryChronology(permutation, role, 1) })
+  assert.equal(peekSimulationHistoryChronology(permutation, 'undo'), 'custom', 'latest role permutation Undo starts at Custom')
+  permutation = takeSimulationHistoryChronology(permutation, 'undo').chronology
+  assert.equal(peekSimulationHistoryChronology(permutation, 'undo'), 'current', 'next role permutation Undo falls back to Current')
+  permutation = takeSimulationHistoryChronology(permutation, 'undo').chronology
+  assert.equal(peekSimulationHistoryChronology(permutation, 'undo'), 'reference', 'next role permutation Undo falls back to Reference')
+  permutation = takeSimulationHistoryChronology(permutation, 'undo').chronology
+  assert.deepEqual(permutation.redo, ['custom', 'current', 'reference'], 'Reference / Current / Custom Redo order reverses Undo')
+  assert.equal(takeSimulationHistoryChronology(permutation, 'redo').role, 'reference')
+  assert.equal(takeSimulationHistoryChronology(takeSimulationHistoryChronology(permutation, 'redo').chronology, 'redo').role, 'current')
+
+  let sameRoleChronology = createSimulationHistoryChronology()
+  sameRoleChronology = recordSimulationHistoryChronology(sameRoleChronology, 'current', 1)
+  sameRoleChronology = recordSimulationHistoryChronology(sameRoleChronology, 'current', 2)
+  assert.deepEqual(sameRoleChronology.undo, ['current', 'current'], 'multiple actions in one role remain individually chronological')
+  const beforeVisibleRoleSwitch = structuredClone(sameRoleChronology)
+  setSimulationActiveDataset(base, 'custom')
+  assert.deepEqual(sameRoleChronology, beforeVisibleRoleSwitch, 'switching visible role without editing does not rewrite history ownership')
+  let sameRoleUndo = takeSimulationHistoryChronology(sameRoleChronology, 'undo')
+  assert.equal(sameRoleUndo.role, 'current')
+  sameRoleUndo = takeSimulationHistoryChronology(sameRoleUndo.chronology, 'undo')
+  assert.equal(sameRoleUndo.role, 'current', 'multiple same-role actions undo in reverse order')
+
+  let branchChronology = createSimulationHistoryChronology()
+  branchChronology = recordSimulationHistoryChronology(branchChronology, 'current', 1)
+  branchChronology = recordSimulationHistoryChronology(branchChronology, 'custom', 1)
+  branchChronology = takeSimulationHistoryChronology(branchChronology, 'undo').chronology
+  branchChronology = recordSimulationHistoryChronology(branchChronology, 'current', 2)
+  assert.deepEqual(branchChronology.undo, ['current', 'current'], 'a new Current edit appends to cross-role chronology')
+  assert.deepEqual(branchChronology.redo, ['custom'], 'a new edit clears only that role’s Redo, preserving another role’s local Redo')
+  assert.deepEqual(clearSimulationHistoryChronologyRoles(branchChronology, ['current']), { undo: [], redo: ['custom'] },
+    'basis invalidation removes only stale role chronology')
 
   const usageChanged = updateSimulationParameter(base, sources, firstBom.id, 'bom.consumption', (firstBom.consumption ?? 0) + 0.1, 'current')
   const usageValues = captureSimulationEditableSnapshot(sources, usageChanged, 'current')

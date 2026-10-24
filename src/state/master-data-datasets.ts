@@ -41,12 +41,12 @@ export function cloneMasterDataDatasetState(
   const copied = cloneMasterDataSnapshotForRole(sourceSnapshot, sourceRole, destinationRole, sourceSizing)
 
   if (destinationRole === 'custom') {
-    return setMasterDataInitialResetBaseline({
+    return {
       ...session,
       customMasterData: copied,
       customDatasetSizing: { ...sourceSizing },
       updatedAt: now
-    }, destinationRole)
+    }
   }
 
   const nextPair = { ...pair, [destinationRole]: copied }
@@ -64,7 +64,7 @@ export function cloneMasterDataDatasetState(
     },
     updatedAt: now
   }, nextPair)
-  return setMasterDataInitialResetBaseline(markMasterDataChangedForSnapshotPair(nextSession, pair, nextPair), destinationRole)
+  return markMasterDataChangedForSnapshotPair(nextSession, pair, nextPair)
 }
 
 export function createEmptyCustomMasterData(sessionId: string): CostSnapshot {
@@ -176,6 +176,37 @@ export function getMasterDataResetBaseline(
   role: MasterDataRole
 ): LastSavedMasterDataDataset | undefined {
   return getLastSavedMasterData(session, role) ?? session.initialMasterDataBaseline?.[role]
+}
+
+export function resetMasterDataDatasetState(
+  session: ProductSession,
+  role: MasterDataRole,
+  now = new Date().toISOString()
+): ProductSession {
+  const saved = getMasterDataResetBaseline(session, role)
+  if (!saved) return session
+  if (role === 'custom') {
+    return {
+      ...session,
+      customMasterData: cloneCostSnapshot(saved.snapshot),
+      customDatasetSizing: { ...(saved.sizing ?? saved.snapshot.sizing ?? {}) },
+      updatedAt: now
+    }
+  }
+
+  const pair = session.snapshotPair ?? sessionToSnapshotPair(session)
+  const nextPair = { ...pair, [role]: cloneCostSnapshot(saved.snapshot) }
+  const datasetSizing = {
+    reference: session.datasetSizing?.reference ?? pair.reference.sizing ?? {},
+    current: session.datasetSizing?.current ?? pair.current.sizing ?? {},
+    [role]: { ...(saved.sizing ?? saved.snapshot.sizing ?? {}) }
+  }
+  const preparedSnapshotRoles = {
+    ...getSnapshotRoleReadiness(session),
+    [role]: saved.prepared
+  }
+  const updated = applySnapshotPairToSession({ ...session, datasetSizing, preparedSnapshotRoles, updatedAt: now }, nextPair)
+  return markMasterDataChangedForSnapshotPair(updated, pair, nextPair)
 }
 
 export function setMasterDataSnapshot(

@@ -1,4 +1,4 @@
-import { areNumericValuesEquivalent, safeAdd, safeMultiply } from '../utils/guards'
+import { areNumericValuesEquivalent, safeAdd, safeDivide, safeMultiply } from '../utils/guards'
 import {
   addExactDecimals,
   compareExactDecimals,
@@ -102,7 +102,7 @@ function logarithmicRatio(
   const relativeExact = exactReference && exactCurrent
     ? divideExactDecimals(subtractExactDecimals(exactCurrent, exactReference), exactReference)
     : null
-  const relativeDifference = relativeExact ? exactDecimalToNumber(relativeExact) : (current - reference) / reference
+  const relativeDifference = relativeExact ? exactDecimalToNumber(relativeExact) : safeDivide(current - reference, reference)
   if (relativeDifference === null) return null
   const result = Number.isFinite(relativeDifference) && relativeDifference > -1
     ? Math.log1p(relativeDifference)
@@ -137,10 +137,11 @@ function lmdiEffect(
   currentFactor: number,
   exponent = 1,
   referenceExact?: ExactDecimal | null,
-  currentExact?: ExactDecimal | null
+  currentExact?: ExactDecimal | null,
+  exactInputIsAuthoritative = false
 ): number | null {
   if (!isPositiveFinite(referenceFactor) || !isPositiveFinite(currentFactor)) return null
-  if (referenceExact && currentExact
+  if (exactInputIsAuthoritative && referenceExact && currentExact
     ? compareExactDecimals(referenceExact, currentExact) === 0
     : areNumericValuesEquivalent(referenceFactor, currentFactor)) return 0
   const logRatio = logarithmicRatio(referenceFactor, currentFactor, referenceExact, currentExact)
@@ -160,12 +161,31 @@ function exactInput(
     : null
 }
 
+function hasAuthoritativeExactInput(
+  input: Record<string, unknown> & { exactInputs?: Record<string, string> },
+  field: string
+): boolean {
+  const value = input.exactInputs?.[field]
+  return typeof value === 'string' && value.trim().length > 0
+}
+
+function usesAuthoritativeExactInput(
+  left: Record<string, unknown> & { exactInputs?: Record<string, string> },
+  right: Record<string, unknown> & { exactInputs?: Record<string, string> },
+  field: string
+): boolean {
+  return hasAuthoritativeExactInput(left, field) || hasAuthoritativeExactInput(right, field)
+}
+
 function inputsEqual(
   left: Record<string, unknown> & { exactInputs?: Record<string, string> },
   right: Record<string, unknown> & { exactInputs?: Record<string, string> },
   field: string,
   percentEntry = false
 ): boolean {
+  if (!usesAuthoritativeExactInput(left, right, field)) {
+    return areNumericValuesEquivalent(left[field] as number | null, right[field] as number | null)
+  }
   const exactLeft = exactInput(left, field, percentEntry)
   const exactRight = exactInput(right, field, percentEntry)
   if (exactLeft && exactRight) return compareExactDecimals(exactLeft, exactRight) === 0
@@ -251,9 +271,12 @@ export function calculateBOMParameterCostEffects(
   const targetGap = exactDecimalToNumber(subtractExactDecimals(currentCostExact, referenceCostExact))
   if (logMean === null || targetGap === null) return UNAVAILABLE
 
-  const usageEffect = lmdiEffect(logMean, reference.usage, current.usage, 1, referenceUsage, currentUsage)
-  const priceEffect = lmdiEffect(logMean, reference.price, current.price, 1, referencePrice, currentPrice)
-  const lossEffect = lmdiEffect(logMean, referenceLossFactor, currentLossFactor, 1, referenceLossFactorExact, currentLossFactorExact)
+  const usageEffect = lmdiEffect(logMean, reference.usage, current.usage, 1, referenceUsage, currentUsage,
+    usesAuthoritativeExactInput(reference, current, 'usage'))
+  const priceEffect = lmdiEffect(logMean, reference.price, current.price, 1, referencePrice, currentPrice,
+    usesAuthoritativeExactInput(reference, current, 'price'))
+  const lossEffect = lmdiEffect(logMean, referenceLossFactor, currentLossFactor, 1, referenceLossFactorExact, currentLossFactorExact,
+    usesAuthoritativeExactInput(reference, current, 'loss'))
   if (usageEffect === null || priceEffect === null || lossEffect === null) return UNAVAILABLE
 
   const effects: BOMParameterCostEffects = {
@@ -325,14 +348,19 @@ function calculateElementEffects(
   if (!referenceManning || !currentManning || !referenceCapacity || !currentCapacity || !referenceYield || !currentYield
     || !referenceLaborRate || !currentLaborRate || !referenceBurdenRate || !currentBurdenRate) return null
 
-  const manningEffect = lmdiEffect(logMean, reference.manning, current.manning, 1, referenceManning, currentManning)
-  const capacityEffect = lmdiEffect(logMean, reference.capacity, current.capacity, -1, referenceCapacity, currentCapacity)
-  const yieldEffect = lmdiEffect(logMean, reference.yield, current.yield, -1, referenceYield, currentYield)
+  const manningEffect = lmdiEffect(logMean, reference.manning, current.manning, 1, referenceManning, currentManning,
+    usesAuthoritativeExactInput(reference, current, 'manning'))
+  const capacityEffect = lmdiEffect(logMean, reference.capacity, current.capacity, -1, referenceCapacity, currentCapacity,
+    usesAuthoritativeExactInput(reference, current, 'capacity'))
+  const yieldEffect = lmdiEffect(logMean, reference.yield, current.yield, -1, referenceYield, currentYield,
+    usesAuthoritativeExactInput(reference, current, 'yield'))
   const laborRateEffect = rateKey === 'laborRate'
-    ? lmdiEffect(logMean, reference.laborRate, current.laborRate, 1, referenceLaborRate, currentLaborRate)
+    ? lmdiEffect(logMean, reference.laborRate, current.laborRate, 1, referenceLaborRate, currentLaborRate,
+      usesAuthoritativeExactInput(reference, current, 'laborRate'))
     : 0
   const burdenRateEffect = rateKey === 'burdenRate'
-    ? lmdiEffect(logMean, reference.burdenRate, current.burdenRate, 1, referenceBurdenRate, currentBurdenRate)
+    ? lmdiEffect(logMean, reference.burdenRate, current.burdenRate, 1, referenceBurdenRate, currentBurdenRate,
+      usesAuthoritativeExactInput(reference, current, 'burdenRate'))
     : 0
   if (manningEffect === null || capacityEffect === null || yieldEffect === null
     || laborRateEffect === null || burdenRateEffect === null) return null

@@ -6,7 +6,11 @@ import { resizeMasterDataSnapshotForSizing } from '../src/state/dataset-sizing.t
 import { ProductSession, DatasetSizing, SnapshotPair, CostSnapshot } from '../src/core/types/index.ts'
 import ExcelJS from 'exceljs'
 import assert from 'node:assert/strict'
-import { cloneMasterDataSnapshotForRole } from '../src/state/master-data-datasets.ts'
+import {
+  cloneMasterDataDatasetState,
+  cloneMasterDataSnapshotForRole,
+  resetMasterDataDatasetState
+} from '../src/state/master-data-datasets.ts'
 
 async function runVerifications() {
   console.log('--- Verifying Master Data Dataset Sizing & Bi-directional Clone ---')
@@ -223,6 +227,86 @@ async function runVerifications() {
     throw new Error('Clone Current -> Reference failed to copy dataset sizing')
   }
   console.log('✓ Clone Current -> Reference copied dataset data and sizing')
+
+  const currentInitialBaseline: CostSnapshot = {
+    ...currentClonedFromRef,
+    id: 'current-initial-A',
+    sourceRef: 'Initial Current A',
+    product: { ...currentClonedFromRef.product, productName: 'Baseline A', exactDecimalInputs: { sellingPrice: '123.4567890123456789' } },
+    sizing: { bomCount: 1, wcCount: 1, routingCount: 1 },
+    bom: [{ ...currentClonedFromRef.bom[0], id: 'baseline-a-bom', price: 7, exactDecimalInputs: { price: '7.00000000000000001', loss: '2.50' } }]
+  }
+  const referenceSourceB: CostSnapshot = {
+    ...refSnapshot,
+    id: 'reference-source-B',
+    sourceRef: 'Reference Working B',
+    product: { ...refSnapshot.product, productName: 'Reference B' },
+    bom: [{ ...refSnapshot.bom[0], id: 'source-b-bom', price: 22, exactDecimalInputs: { price: '22.00000000000000001' } }]
+  }
+  const customInitialA: CostSnapshot = {
+    ...currentClonedFromRef,
+    id: 'custom-initial-A',
+    sourceRef: 'Initial Custom A',
+    bom: [{ ...currentClonedFromRef.bom[0], id: 'custom-a-bom', price: 9 }]
+  }
+  const resetBaselineFixture: ProductSession = {
+    ...session,
+    snapshotPair: { reference: referenceSourceB, current: currentInitialBaseline },
+    customMasterData: customInitialA,
+    datasetSizing: { reference: { bomCount: 15 }, current: { bomCount: 1 } },
+    customDatasetSizing: { bomCount: 1 },
+    initialMasterDataBaseline: {
+      reference: { snapshot: referenceSourceB, prepared: true, sizing: { bomCount: 1 } },
+      current: { snapshot: currentInitialBaseline, prepared: false, sizing: { bomCount: 1 } },
+      custom: { snapshot: customInitialA, prepared: false, sizing: { bomCount: 1 } }
+    }
+  }
+  const baselineBeforeClone = structuredClone(resetBaselineFixture.initialMasterDataBaseline)
+  const referenceToCurrent = cloneMasterDataDatasetState(resetBaselineFixture, 'reference', 'current', '2026-10-24T00:00:00.000Z')
+  assert.equal(referenceToCurrent.snapshotPair?.current.bom[0]?.price, 22, 'Reference → Current Clone copies source Working data')
+  assert.equal(referenceToCurrent.snapshotPair?.current.product.productName, 'Reference B', 'Clone copies product-level Working values')
+  assert.equal(referenceToCurrent.snapshotPair?.current.bom[0]?.id, 'source-b-bom', 'Reference → Current preserves source row IDs/order')
+  assert.equal(referenceToCurrent.snapshotPair?.current.bom[0]?.exactDecimalInputs?.price, '22.00000000000000001',
+    'Reference → Current preserves exact decimal sidecars')
+  assert.equal(referenceToCurrent.datasetSizing?.current.bomCount, 15, 'Reference → Current copies source sizing')
+  assert.deepEqual(referenceToCurrent.initialMasterDataBaseline, baselineBeforeClone,
+    'Clone does not redefine any Initial Reset Baseline')
+  assert.equal(referenceToCurrent.lastSavedMasterData?.current, undefined, 'Clone does not create Last Saved')
+  const resetAfterClone = resetMasterDataDatasetState(referenceToCurrent, 'current', '2026-10-24T00:00:01.000Z')
+  assert.deepEqual(resetAfterClone.snapshotPair?.current, currentInitialBaseline,
+    'Reset after Clone with no Last Saved returns to the original Current baseline A')
+  assert.deepEqual(resetAfterClone.initialMasterDataBaseline, baselineBeforeClone, 'Reset after Clone leaves the baseline unchanged')
+
+  const currentToCustom = cloneMasterDataDatasetState(referenceToCurrent, 'current', 'custom', '2026-10-24T00:00:02.000Z')
+  assert.equal(currentToCustom.customMasterData?.bom[0]?.price, 22, 'Current → Custom Clone copies source Working data')
+  assert.equal(currentToCustom.customMasterData?.bom[0]?.exactDecimalInputs?.price, '22.00000000000000001',
+    'Current → Custom preserves exact decimal sidecars')
+  assert.deepEqual(currentToCustom.initialMasterDataBaseline, baselineBeforeClone,
+    'Current → Custom does not redefine Custom Initial Reset Baseline')
+  const customToReference = cloneMasterDataDatasetState(currentToCustom, 'custom', 'reference', '2026-10-24T00:00:03.000Z')
+  assert.equal(customToReference.snapshotPair?.reference.bom[0]?.price, 22, 'Custom → Reference remains an allowed same-behavior Clone')
+  assert.deepEqual(customToReference.initialMasterDataBaseline, baselineBeforeClone,
+    'Custom → Reference leaves every Initial Reset Baseline unchanged')
+
+  const savedCurrent: CostSnapshot = {
+    ...currentInitialBaseline,
+    id: 'current-last-saved',
+    sourceRef: 'Explicit Last Saved',
+    bom: [{ ...currentInitialBaseline.bom[0], id: 'last-saved-bom', price: 5 }]
+  }
+  const withSavedCurrent: ProductSession = {
+    ...resetBaselineFixture,
+    lastSavedMasterData: { current: { snapshot: savedCurrent, prepared: true, sizing: { bomCount: 2 } } }
+  }
+  const cloneWithSaved = cloneMasterDataDatasetState(withSavedCurrent, 'reference', 'current', '2026-10-24T00:00:04.000Z')
+  const resetWithSaved = resetMasterDataDatasetState(cloneWithSaved, 'current', '2026-10-24T00:00:05.000Z')
+  assert.deepEqual(resetWithSaved.snapshotPair?.current, savedCurrent, 'Reset after Clone with Last Saved returns to Last Saved')
+  assert.equal(resetWithSaved.datasetSizing?.current.bomCount, 2, 'Reset after Clone restores Last Saved sizing')
+  assert.deepEqual(resetWithSaved.lastSavedMasterData, withSavedCurrent.lastSavedMasterData,
+    'Clone and Reset do not mutate Last Saved')
+  assert.deepEqual(resetWithSaved.initialMasterDataBaseline, baselineBeforeClone,
+    'Clone and Reset with Last Saved do not mutate Initial Reset Baseline')
+  console.log('✓ Clone preserves Initial Reset Baseline, Last Saved, exact decimals, row IDs, and sizing across all roles')
 
   // 4. Sizing reduction keeps the retained prefix and drops rows past the target.
   console.log('4. Checking exact row count on Sizing Reduction...')

@@ -120,6 +120,8 @@ Main-page Metadata appears as one compact horizontal row on desktop: each field 
 
 ## Canonical Workbook Format
 
+Master Data Excel import accepts only this canonical four-sheet snapshot format. Legacy paired-model Excel workbooks are not converted during import; paired-model migrations remain available only for supported legacy session data.
+
 The canonical Master Data workbook contains exactly four sheets in order:
 1. `META`
 2. `BOM`

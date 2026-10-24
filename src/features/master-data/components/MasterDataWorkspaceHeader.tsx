@@ -211,7 +211,7 @@ const CurrentAndAllAction: React.FC<CurrentAndAllActionProps> = ({
           ref={allActionRef}
           type="button"
           onClick={() => {
-            closeMenu()
+            closeMenu(true)
             onAll()
           }}
           className={`block min-h-8 w-full whitespace-nowrap px-2 text-left text-xs text-slate-800 ${destructive ? 'hover:bg-rose-50 hover:text-rose-700' : 'hover:bg-slate-100'} focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700`}

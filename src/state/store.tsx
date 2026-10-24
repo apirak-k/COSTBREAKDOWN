@@ -4,7 +4,6 @@ import {
   WorkCenterRate,
   BOMItem,
   RoutingStep,
-  ExcelImportResult,
   SnapshotImportResult,
   ProductSession,
   ProductSizingConfig,
@@ -38,7 +37,7 @@ import type { MasterDataHandoffStatus } from '../core'
 import { hasEnteredMasterData, importSnapshotForCustom, importSnapshotForRole, markSizingPlaceholderEdited, resizeMasterDataSnapshotForSizing, synchronizeDatasetSizingToRows } from './dataset-sizing'
 import { normalizeActiveTab } from './active-tab'
 import type { ActiveTab } from './active-tab'
-import { clearMasterDataDatasetState } from './clear-master-data-dataset'
+import { clearAllMasterDataWorkingState, clearMasterDataDatasetState } from './clear-master-data-dataset'
 import { moveSnapshotRows } from './master-data-row-order'
 import { migrateLegacyCandidateRcaRecords } from './rca-cases'
 import {
@@ -51,6 +50,7 @@ import {
   createEmptyCustomMasterData,
   getMasterDataResetBaseline,
   initializeMasterDataResetBaselines,
+  resetMasterDataDatasetState,
   setAllMasterDataInitialResetBaselines,
   setMasterDataInitialResetBaseline,
   setMasterDataSnapshot
@@ -60,6 +60,7 @@ import { normalizeMasterDataSnapshot } from '../core/utils/master-data-effective
 import { assertDatasetSizingCounts } from '../core/utils/sizing'
 import { propagateWorkCenterRenames } from './master-data-work-center-rename'
 import { replaceDevelopmentMockWorkingState } from './development-mock-data'
+import { applySimulationSnapshotsToMasterData } from './simulation-send-to-master-data'
 import {
   filterInvalidMasterDataNumericChanges,
   getMasterDataSnapshotValidationErrors,
@@ -67,6 +68,7 @@ import {
 } from '../core/utils/master-data-validation'
 import {
   createMasterDataEditHistory,
+  createMasterDataPairWorkingEditEntry,
   recordMasterDataEdit,
   undoMasterDataEdit as takeMasterDataUndo,
   redoMasterDataEdit as takeMasterDataRedo,
@@ -366,7 +368,6 @@ interface AppContextType {
   addWorkCenterRate: (rate: Omit<WorkCenterRate, 'id'>) => void
   updateWorkCenterRate: (wc: string, rate: Partial<WorkCenterRate>) => void
   deleteWorkCenterRate: (wc: string) => void
-  importFromExcel: (result: ExcelImportResult) => void
   importSnapshotFromExcel: (result: SnapshotImportResult) => void
   loadDevelopmentMockData: (pair: SnapshotPair) => void
   resetToDefault: () => void
@@ -441,32 +442,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }
 
   const recordMasterDataPairWorkingEdit = (before: ProductSession, after: ProductSession) => {
-    const beforePair = normalizeSnapshotPair(before.snapshotPair ?? sessionToSnapshotPair(before))
-    const afterPair = normalizeSnapshotPair(after.snapshotPair ?? sessionToSnapshotPair(after))
-    const entry: MasterDataEditHistoryEntry = {
-      sessionId: before.id,
-      role: 'current',
-      before: cloneCostSnapshot(beforePair.current),
-      after: cloneCostSnapshot(afterPair.current),
-      beforePrepared: { ...getSnapshotRoleReadiness(before) },
-      afterPrepared: { ...getSnapshotRoleReadiness(after) },
-      beforeSizing: copyDatasetSizing(before.datasetSizing),
-      afterSizing: copyDatasetSizing(after.datasetSizing),
-      beforeInitialMasterDataBaseline: copyMasterDataBaselines(before.initialMasterDataBaseline),
-      afterInitialMasterDataBaseline: copyMasterDataBaselines(after.initialMasterDataBaseline),
-      beforePair: {
-        reference: cloneCostSnapshot(beforePair.reference),
-        current: cloneCostSnapshot(beforePair.current)
-      },
-      afterPair: {
-        reference: cloneCostSnapshot(afterPair.reference),
-        current: cloneCostSnapshot(afterPair.current)
-      },
-      beforeCustom: cloneCostSnapshot(before.customMasterData ?? createEmptyCustomMasterData(before.id)),
-      afterCustom: cloneCostSnapshot(after.customMasterData ?? createEmptyCustomMasterData(after.id)),
-      beforeCustomSizing: { ...(before.customDatasetSizing ?? {}) },
-      afterCustomSizing: { ...(after.customDatasetSizing ?? {}) }
-    }
+    const entry = createMasterDataPairWorkingEditEntry(before, after)
     masterDataHistoryRef.current = recordMasterDataEdit(masterDataHistoryRef.current, entry)
     setMasterDataHistoryRevision(revision => revision + 1)
   }
@@ -949,40 +925,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const resetMasterDataWorkingDataset = (role: MasterDataRole) => {
     const session = activeSession
-    const now = new Date().toISOString()
-    const saved = getMasterDataResetBaseline(session, role)
-    if (!saved) return
-
-    const pair = session.snapshotPair ?? sessionToSnapshotPair(session)
-    if (role === 'custom') {
-      const updated = {
-        ...session,
-        customMasterData: cloneCostSnapshot(saved.snapshot),
-        customDatasetSizing: { ...(saved.sizing ?? saved.snapshot.sizing ?? {}) },
-        updatedAt: now
-      }
-      commitMasterDataWorkingSession(session, updated, role)
-      return
-    }
-    const nextPair: SnapshotPair = {
-      ...pair,
-      [role]: cloneCostSnapshot(saved.snapshot)
-    }
-    const nextSizing = {
-      reference: session.datasetSizing?.reference ?? pair.reference.sizing ?? {},
-      current: session.datasetSizing?.current ?? pair.current.sizing ?? {},
-      [role]: { ...(saved.sizing ?? saved.snapshot.sizing ?? {}) }
-    }
-    const nextPrepared = {
-      ...getSnapshotRoleReadiness(session),
-      [role]: saved.prepared
-    }
-    const updated = applyMasterDataSnapshotPair({
-      ...session,
-      datasetSizing: nextSizing,
-      preparedSnapshotRoles: nextPrepared,
-      updatedAt: now
-    }, nextPair)
+    const updated = resetMasterDataDatasetState(session, role)
+    if (updated === session) return
     commitMasterDataWorkingSession(session, updated, role)
   }
 
@@ -1141,61 +1085,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const sendSimulationSnapshotsToMasterData = (snapshots: Partial<Record<MasterDataRole, CostSnapshot>>) => {
     const session = activeSession
-    const pair = session.snapshotPair ?? sessionToSnapshotPair(session)
-    const roles = (['reference', 'current', 'custom'] as const).filter(role => snapshots[role] !== undefined)
-    if (!roles.length) return false
-    const nextPair = { ...pair }
-    const nextDatasetSizing = {
-      reference: session.datasetSizing?.reference ?? pair.reference.sizing ?? {},
-      current: session.datasetSizing?.current ?? pair.current.sizing ?? {}
-    }
-    const nextPreparedSnapshotRoles = { ...getSnapshotRoleReadiness(session) }
-    let nextCustomMasterData = session.customMasterData
-    let nextCustomDatasetSizing = session.customDatasetSizing
-
-    // Prepare and validate every requested role before changing the session.
-    for (const role of roles) {
-      const snapshot = snapshots[role]!
-      const currentDataset = getMasterDataSnapshot(session, pair, role)
-      const { comparisonRole: _comparisonRole, ...workingSnapshot } = cloneCostSnapshot(snapshot)
-      const sizing = {
-        ...(snapshot.sizing ?? {}),
-        wcCount: snapshot.rates.length,
-        bomCount: snapshot.bom.length,
-        routingCount: snapshot.routing.length
-      }
-      const nextDataset = normalizeMasterDataSnapshot({
-        ...workingSnapshot,
-        id: `${snapshot.id}:${role}`,
-        sourceRef: 'Copied from Simulation',
-        status: 'draft',
-        ...(role === 'custom' ? {} : { comparisonRole: role }),
-        sizing
-      }, currentDataset)
-      if (!isMasterDataSnapshotChangeValid(currentDataset, nextDataset)) return false
-      if (role === 'custom') {
-        nextCustomMasterData = nextDataset
-        nextCustomDatasetSizing = sizing
-      } else {
-        nextPair[role] = nextDataset
-        nextDatasetSizing[role] = sizing
-        nextPreparedSnapshotRoles[role] = hasEnteredMasterData(nextDataset)
-      }
-    }
-
-    const now = new Date().toISOString()
-    let updated: ProductSession = {
-      ...session,
-      updatedAt: now,
-      datasetSizing: nextDatasetSizing,
-      preparedSnapshotRoles: nextPreparedSnapshotRoles,
-      ...(nextCustomMasterData ? { customMasterData: nextCustomMasterData } : {}),
-      ...(nextCustomDatasetSizing ? { customDatasetSizing: nextCustomDatasetSizing } : {})
-    }
-    if (roles.some(role => role !== 'custom')) {
-      updated = applySnapshotPairToSession(updated, nextPair)
-      updated = markMasterDataChangedForSnapshotPair(updated, pair, nextPair)
-    }
+    const result = applySimulationSnapshotsToMasterData(session, snapshots)
+    if (!result) return false
+    const { session: updated, roles } = result
     if (roles.length === 3) {
       commitMasterDataAllWorkingDatasets(session, updated)
     } else if (roles.length === 1) {
@@ -1307,8 +1199,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const clearAllMasterDataWorkingDatasets = () => {
     const session = activeSession
-    const updated = (['reference', 'current', 'custom'] as const)
-      .reduce((working, role) => clearMasterDataDatasetState(working, role), session)
+    const updated = clearAllMasterDataWorkingState(session)
     commitMasterDataAllWorkingDatasets(session, updated)
   }
 
@@ -1556,31 +1447,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     patchActive({ rates: rates.filter(r => r.wc !== wc) })
   }
 
-  // Import creates a new DRAFT session per Section 7
-  const importFromExcel = (result: ExcelImportResult) => {
-    if (!result.success) return
-    const id = `ps-draft-import-${Date.now()}`
-    const now = new Date().toISOString()
-    const importedDraft: ProductSession = withSnapshotPair({
-      id,
-      product: result.product ?? product,
-      rates: result.rates ?? rates,
-      bom: result.bom ?? bom,
-      routing: result.routing ?? routing,
-      savedDrivers: [],
-      selectedDriverKeys: [],
-      rcaRecords: {},
-      preparedSnapshotRoles: { reference: false, current: true },
-      status: 'draft',
-      versionLabel: `Draft (Imported: ${result.product?.productCode || product.productCode || 'Excel'})`,
-      createdAt: now,
-      updatedAt: now
-    })
-    setProductSessions(prev => [...prev, importedDraft])
-    setActiveProductId(id)
-    setActiveTab('master')
-  }
-
   // Snapshot import keeps Reference and Current as independent datasets.
   const importSnapshotFromExcel = (result: SnapshotImportResult) => {
     if (!result.success || !result.snapshot) return
@@ -1770,7 +1636,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       addWorkCenterRate,
       updateWorkCenterRate,
       deleteWorkCenterRate,
-      importFromExcel,
       importSnapshotFromExcel,
       loadDevelopmentMockData,
       resetToDefault,

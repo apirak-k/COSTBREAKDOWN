@@ -43,7 +43,7 @@ export const ExcelUploadDropzone: React.FC<ExcelUploadDropzoneProps> = ({
     onParsingChange(true)
     try {
       const { parseSnapshotExcelInputFile } = await import('../../services/excel/snapshot-parser')
-      onParsed(await parseSnapshotExcelInputFile(file, importRole, { allowLegacy: false }))
+      onParsed(await parseSnapshotExcelInputFile(file, importRole))
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown parsing error'
       onParsed({ success: false, message: `Could not read the workbook: ${message}`, warnings: [], role: importRole })

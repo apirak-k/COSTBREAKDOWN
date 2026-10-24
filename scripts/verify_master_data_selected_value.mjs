@@ -164,8 +164,8 @@ try {
     const value = await replaceInput(selector, text)
     return value
   }
-  const pressKey = async (key, { shift = false, ctrl = false, meta = false } = {}) => {
-    const modifiers = (shift ? 8 : 0) | (ctrl ? 2 : 0) | (meta ? 4 : 0)
+  const pressKey = async (key, { shift = false, ctrl = false, meta = false, alt = false } = {}) => {
+    const modifiers = (alt ? 1 : 0) | (ctrl ? 2 : 0) | (meta ? 4 : 0) | (shift ? 8 : 0)
     const code = key === ' ' ? 'Space' : /^[a-z]$/i.test(key) ? `Key${key.toUpperCase()}` : key
     const virtualKey = ({ Enter: 13, Tab: 9, ArrowLeft: 37, ArrowUp: 38, ArrowRight: 39, ArrowDown: 40, ' ': 32 })[key]
       ?? (/^[a-z]$/i.test(key) ? key.toUpperCase().charCodeAt(0) : undefined)
@@ -1369,6 +1369,109 @@ try {
   await clickSelector('section[aria-label="Working dataset controls"] button[aria-label="Reset"]')
   await delay(350)
   await verifyWorkingSnapshot(savedCurrentSnapshot, 'Reset after Current Clear restores the Last Saved dataset')
+
+  const captureAllRoleSnapshots = async () => {
+    const snapshots = {}
+    for (const role of ['Reference', 'Current', 'Custom']) {
+      await chooseRole(role)
+      snapshots[role] = await captureWorkingDataset()
+    }
+    return snapshots
+  }
+  const verifyAllRoleSnapshots = async (expected, message) => {
+    const actual = await captureAllRoleSnapshots()
+    const differences = Object.fromEntries(Object.keys(expected).map(role => [role, firstSnapshotDifference(expected[role], actual[role])]))
+    verify(Object.values(differences).every(difference => difference === null), message, differences)
+    return actual
+  }
+  const openAllDatasetAction = async (label, checkEscape = false) => {
+    const trigger = `section[aria-label="Working dataset controls"] button[aria-label=${JSON.stringify(label)}]`
+    await evaluate(`(${visibleExpression(trigger)})?.focus()`)
+    await pressKey('ArrowDown', { alt: true })
+    const action = `section[aria-label="Working dataset controls"] [role="group"][aria-label=${JSON.stringify(`${label} all-dataset action`)}] button`
+    await waitFor(() => existsVisible(action), `${label} all-dataset action menu`)
+    if (checkEscape) {
+      await pressKey('Escape')
+      const escaped = await historyFocus()
+      verify(escaped.label === label && escaped.inWorkingToolbar,
+        `${label} secondary menu Escape restores focus to its toolbar trigger`, escaped)
+      await pressKey('ArrowDown', { alt: true })
+      await waitFor(() => existsVisible(action), `${label} all-dataset action menu after Escape`)
+    }
+    await clickTextButton(`${label} all datasets`)
+    await delay(180)
+  }
+
+  const beforeClearAll = await captureAllRoleSnapshots()
+  await chooseRole('Current')
+  await openAllDatasetAction('Clear', true)
+  const clearAllFocus = await historyFocus()
+  verify(clearAllFocus.label === 'Clear' && clearAllFocus.inWorkingToolbar && clearAllFocus.isGridCell !== 'true',
+    'Clear All returns focus to the Working dataset controls before the immediate keyboard shortcut', clearAllFocus)
+  const afterClearAll = await verifyAllRoleSnapshots(
+    Object.fromEntries(Object.keys(beforeClearAll).map(role => [role, {
+      metadata: beforeClearAll[role].metadata.map(([label]) => [label, '']),
+      tables: beforeClearAll[role].tables.map(table => ({ ...table, rows: table.rows.map(row => ({
+        ...row, fields: row.fields.map(([field]) => [field, ''])
+      })) }))
+    }])),
+    'Clear All blanks all Reference / Current / Custom values in one action'
+  )
+  await clickSelector('header button[aria-label="Undo"]')
+  await verifyAllRoleSnapshots(beforeClearAll, 'pointer Undo restores all three datasets from one Clear All action')
+  await clickSelector('header button[aria-label="Redo"]')
+  await verifyAllRoleSnapshots(afterClearAll, 'pointer Redo reapplies Clear All across Reference / Current / Custom')
+
+  await clickSelector('header button[aria-label="Undo"]')
+  await verifyAllRoleSnapshots(beforeClearAll, 'pointer Undo restores the pre-Clear All state before the keyboard regression')
+  await chooseRole('Current')
+  await openAllDatasetAction('Clear')
+  const clearAllImmediateFocus = await historyFocus()
+  await pressKey('z', { ctrl: true })
+  const clearAllKeyboardUndo = await captureAllRoleSnapshots()
+  const clearAllUndoEvent = (await evaluate('window.__clearHistoryKeyEvents ?? []')).at(-1)
+  verify(clearAllImmediateFocus.label === 'Clear' && clearAllImmediateFocus.inWorkingToolbar
+      && Object.keys(beforeClearAll).every(role => firstSnapshotDifference(beforeClearAll[role], clearAllKeyboardUndo[role]) === null),
+    'immediate Ctrl+Z after Clear All restores Reference / Current / Custom atomically', {
+      focus: clearAllImmediateFocus,
+      keyEvent: clearAllUndoEvent,
+      differences: Object.fromEntries(Object.keys(beforeClearAll).map(role => [role, firstSnapshotDifference(beforeClearAll[role], clearAllKeyboardUndo[role])]))
+    })
+  await chooseRole('Current')
+  await openAllDatasetAction('Clear')
+  await pressKey('y', { ctrl: true })
+  const clearAllKeyboardRedo = await captureAllRoleSnapshots()
+  verify(Object.keys(afterClearAll).every(role => firstSnapshotDifference(afterClearAll[role], clearAllKeyboardRedo[role]) === null),
+    'immediate Ctrl+Y after Clear All reapplies the complete all-dataset clear')
+  await clickSelector('header nav button[aria-current="page"]')
+  await pressKey('z', { ctrl: true })
+  const outsideShortcutSnapshot = await captureAllRoleSnapshots()
+  verify(Object.keys(afterClearAll).every(role => firstSnapshotDifference(afterClearAll[role], outsideShortcutSnapshot[role]) === null),
+    'Ctrl+Z outside Working dataset controls does not trigger Master Data history')
+
+  const beforeResetAll = await captureAllRoleSnapshots()
+  await chooseRole('Current')
+  await openAllDatasetAction('Reset')
+  const resetAllFocus = await historyFocus()
+  await pressKey('z', { meta: true })
+  const redoAvailableImmediately = await historyButtonState('Redo')
+  await pressKey('z', { meta: true, shift: true })
+  const afterResetAll = await captureAllRoleSnapshots()
+  await pressKey('z', { meta: true })
+  const resetAllKeyboardUndo = await captureAllRoleSnapshots()
+  const resetAllUndoDifference = Object.fromEntries(Object.keys(beforeResetAll).map(role => [role,
+    firstSnapshotDifference(beforeResetAll[role], resetAllKeyboardUndo[role])]))
+  verify(resetAllFocus.label === 'Reset' && resetAllFocus.inWorkingToolbar
+      && Object.values(resetAllUndoDifference).every(difference => difference === null),
+    'immediate Cmd+Z after Reset All restores the pre-Reset state for all three datasets', {
+      focus: resetAllFocus,
+      redoEnabledAfterImmediateUndo: redoAvailableImmediately,
+      differences: resetAllUndoDifference
+    })
+  await pressKey('z', { meta: true, shift: true })
+  const resetAllKeyboardRedo = await captureAllRoleSnapshots()
+  verify(Object.keys(afterResetAll).every(role => firstSnapshotDifference(afterResetAll[role], resetAllKeyboardRedo[role]) === null),
+    'keyboard Redo after Reset All reapplies the same role-by-role reset result')
 
   const consoleMessages = [...browserErrors]
   verify(consoleMessages.length === 0, 'browser has no uncaught errors or console warnings', consoleMessages)

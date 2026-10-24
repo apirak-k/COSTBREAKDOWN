@@ -5,6 +5,7 @@ import './verify_simulation_dataset_overrides.ts'
 
 const app = readFileSync(resolve(process.cwd(), 'src/App.tsx'), 'utf8')
 const store = readFileSync(resolve(process.cwd(), 'src/state/store.tsx'), 'utf8')
+const sendHelper = readFileSync(resolve(process.cwd(), 'src/state/simulation-send-to-master-data.ts'), 'utf8')
 
 assert.match(app, /simulationStatesByProduct\[activeProductId\]/, 'Simulation state remains scoped by product')
 assert.match(app, /saveToSession\(STORAGE_KEYS\.SIMULATION_STATES, omitSimulationViewStateMap\(simulationStatesByProduct\)\)/,
@@ -22,12 +23,11 @@ assert.ok(sendStart >= 0 && sendAdapterStart > sendStart && sendAdapterEnd > sen
   'same-role Simulation Send has bounded store adapters')
 const sendAllBody = store.slice(sendStart, sendAdapterStart)
 const sendOneBody = store.slice(sendAdapterStart, sendAdapterEnd)
-assert.match(sendAllBody, /\['reference', 'current', 'custom'\]/,
-  'the store prepares all three role mappings from the requested payload')
-assert.match(sendAllBody, /for \(const role of roles\)[\s\S]*?isMasterDataSnapshotChangeValid\(currentDataset, nextDataset\)[\s\S]*?return false/,
-  'every requested dataset is validated before any session commit')
-assert.ok(sendAllBody.indexOf('isMasterDataSnapshotChangeValid(currentDataset, nextDataset)')
-  < sendAllBody.indexOf('commitMasterDataAllWorkingDatasets(session, updated)'),
+assert.match(sendHelper, /\['reference', 'current', 'custom'\]/,
+  'the transaction helper prepares all three role mappings from the requested payload')
+assert.match(sendHelper, /for \(const role of roles\)[\s\S]*?isMasterDataSnapshotChangeValid\(currentDataset, nextDataset\)[\s\S]*?return undefined/,
+  'every requested destination is validated before the store can commit')
+assert.match(sendAllBody, /applySimulationSnapshotsToMasterData\(session, snapshots\)[\s\S]*if \(!result\) return false[\s\S]*commitMasterDataAllWorkingDatasets\(session, updated\)/,
 'Send All validates role payloads before its single atomic Working-data commit')
 assert.match(sendAllBody, /if \(roles\.length === 3\)\s*\{\s*commitMasterDataAllWorkingDatasets\(session, updated\)/,
   'Send All commits all three Working datasets as one operation')

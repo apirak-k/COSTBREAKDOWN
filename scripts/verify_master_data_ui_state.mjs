@@ -83,6 +83,7 @@ const vite = await createServer({
 
 const noOp = () => {}
 const headerSource = readFileSync(resolve(process.cwd(), 'src/features/master-data/components/MasterDataWorkspaceHeader.tsx'), 'utf8')
+const masterDataHistorySource = readFileSync(resolve(process.cwd(), 'src/state/master-data-edit-history.ts'), 'utf8')
 const tooltipComponentSource = readFileSync(resolve(process.cwd(), 'src/shared/ui/Tooltip.tsx'), 'utf8')
 const {
   formatProductIdentityForDisplay,
@@ -204,6 +205,11 @@ const renderAppLayout = async storeOverrides => {
     React.createElement('div', null, 'Workspace content')
   ))
 }
+const footerCostSummaryText = markup => {
+  const group = markup.match(/<div role="group" aria-label="Full Reference and Current standard costs and net gap in THB\/PC"[^>]*>([\s\S]*?)<\/div><\/div><\/footer>/)
+  assert.ok(group, 'Footer cost summary group remains available')
+  return group[1].replace(/<[^>]*>/g, '')
+}
 
 try {
   const { formatCurrency, formatNumber, formatPercent, formatVariance } = await vite.ssrLoadModule('/src/core/utils/formatters.ts')
@@ -271,7 +277,7 @@ try {
   assert.match(footerMarkup, /footer-dataset-status-tooltip[\s\S]*Reference[\s\S]*lucide-circle-x[\s\S]* 0[\s\S]*Current[\s\S]*lucide-circle-x[\s\S]* 0/, 'Footer readiness tooltip keeps Reference and Current blocker counts separate from warnings')
   assert.ok(footerMarkup.indexOf('REF STD') < footerMarkup.indexOf('CUR STD')
     && footerMarkup.indexOf('CUR STD') < footerMarkup.indexOf('NET GAP'), 'Footer cost summary orders Reference, Current, then Net Gap')
-  assert.match(footerMarkup, /REF STD<\/span>120\.00[\s\S]*CUR STD<\/span>125\.50[\s\S]*NET GAP<\/span><span class="font-semibold text-rose-300">\+5\.50<\/span><\/span><span class="ml-2 max-\[359px\]:basis-full max-\[359px\]:ml-0 max-\[359px\]:text-right cursor-default select-none font-sans font-bold text-slate-300">THB\/PC<\/span>/, 'Footer business values use fixed two decimals while its unit remains bold and secondary')
+  assert.equal(footerCostSummaryText(footerMarkup), 'REF STD120.00|CUR STD125.50|NET GAP+5.50THB/PC', 'Footer business values use fixed two decimals and keep the unit after the summary')
   assert.match(footerMarkup, /Full Reference and Current standard costs and net gap in THB\/PC/, 'Footer cost summary exposes the displayed unit to assistive technology')
   const matchingUomFooter = await renderAppLayout({
     snapshotPair: {
@@ -408,9 +414,12 @@ try {
       totalGap: null
     }
   })
-  assert.match(negativeGapMarkup, /NET GAP<\/span><span class="font-semibold text-emerald-300">-5\.50/, 'negative Net Gap is emerald and uses fixed two decimals')
-  assert.match(zeroGapMarkup, /NET GAP<\/span><span class="font-semibold text-slate-300">0\.00/, 'valid zero Net Gap remains visible with fixed two decimals')
-  assert.match(unavailableCostMarkup, /REF STD<\/span>—[\s\S]*NET GAP<\/span><span class="font-semibold text-slate-500">—/, 'unavailable Standard Cost and Net Gap remain dashes')
+  assert.equal(footerCostSummaryText(negativeGapMarkup), 'REF STD125.50|CUR STD120.00|NET GAP-5.50THB/PC', 'negative Net Gap uses fixed two decimals')
+  assert.match(negativeGapMarkup, /class="font-semibold text-emerald-300"/, 'negative Net Gap is emerald')
+  assert.equal(footerCostSummaryText(zeroGapMarkup), 'REF STD120.00|CUR STD120.00|NET GAP0.00THB/PC', 'valid zero Net Gap remains visible with fixed two decimals')
+  assert.match(zeroGapMarkup, /class="font-semibold text-slate-300"/, 'zero Net Gap remains neutral')
+  assert.equal(footerCostSummaryText(unavailableCostMarkup), 'REF STD—|CUR STD120.00|NET GAP—THB/PC', 'unavailable Standard Cost and Net Gap remain dashes')
+  assert.match(unavailableCostMarkup, /class="font-semibold text-slate-500"/, 'unavailable Net Gap stays subdued')
 
   const { INITIAL_MASTER_DATA_UI_STATE, reduceMasterDataUiState } = await vite.ssrLoadModule(
     '/src/features/master-data/master-data-ui-state.ts'
@@ -733,7 +742,7 @@ try {
   assert.doesNotMatch(headerSource, /currentDisabled|allDisabled/, 'Save, Reset, and Clear do not disable either dataset action based on state')
   const currentAndAllActionSource = headerSource.slice(headerSource.indexOf('const CurrentAndAllAction'), headerSource.indexOf('export const MasterDataWorkspaceHeader'))
   assert.match(currentAndAllActionSource, /onClick=\{\(\) => \{\s*closeMenu\(\)\s*onCurrent\(\)/, 'the primary Save/Reset/Clear action is always invokable for the viewed dataset')
-  assert.match(currentAndAllActionSource, /onClick=\{\(\) => \{\s*closeMenu\(\)\s*onAll\(\)/, 'the secondary menu has one direct all-dataset action')
+  assert.match(currentAndAllActionSource, /onClick=\{\(\) => \{\s*closeMenu\(true\)\s*onAll\(\)/, 'the secondary menu restores focus to its trigger before one direct all-dataset action')
   assert.match(currentAndAllActionSource, /onMouseEnter=\{\(\) => \{[\s\S]*setTimeout\(\(\) => setOpen\(true\), 120\)/, 'all-dataset action menus open after a short hover delay')
   assert.match(currentAndAllActionSource, /onMouseLeave=\{\(\) => \{[\s\S]*setTimeout\(\(\) => \{[\s\S]*\}, 150\)/, 'all-dataset action menus remain open long enough to move the pointer into them')
   assert.match(currentAndAllActionSource, /useTransientInteraction\(open, reason => closeMenu\(reason === 'escape'\)\)[\s\S]*aria-keyshortcuts="Alt\+ArrowDown"[\s\S]*event\.shiftKey && event\.key === 'F10'[\s\S]*openMenu\(true\)/, 'keyboard users can open the all-dataset action and shared Escape restores focus')
@@ -750,11 +759,9 @@ try {
     'Save, Reset, and Clear never disable their current or all-dataset action')
   assert.match(numericInputSource, /reserveMarker \? 'right-5' : 'right-1'/, 'opt-in Header spinner arrows sit inset and preserve the reserved marker zone')
   assert.match(numericInputSource, /showStepper = false/, 'ordinary Master Data editors do not opt into visible spinner controls')
-  assert.match(numericInputSource, /displayMode === 'header'[\s\S]*paddingRight: '2\.25rem'/, 'Header editors reserve fixed space for the percentage and spinner slots')
-  assert.match(numericInputSource, /reserveMarker\s*\?\s*\{\s*paddingRight:\s*showStepper\s*\?\s*'2\.5rem'\s*:\s*'1\.5rem'/, 'Blocker marker spacing remains intact for ordinary inputs')
-  assert.match(numericInputSource, /showStepper\s*\?\s*\{\s*paddingRight:\s*'1\.75rem'\s*\}\s*:\s*\{\}/, 'ordinary stepper inputs retain their existing padding without a spinner-only gutter')
+  assert.match(numericInputSource, /const rightPadding = displayMode === 'header' \? '2\.25rem' : reserveMarker\s*\?\s*showStepper \? '2\.5rem' : '1\.5rem'\s*:\s*showStepper \? '1\.75rem'/, 'Header and ordinary editors reserve only their existing percentage, marker, and visible-stepper space')
   assert.match(numericInputSource, /previousValueRef[\s\S]*previousFormattedValueRef[\s\S]*valueChanged && \(\s*draft === previousFormattedValueRef\.current/, 'focused numeric editors sync external Cut/Paste/Undo changes when no newer draft is being typed')
-  assert.match(numericInputSource, /event\.shiftKey && event\.currentTarget\.dataset\.gridCell === 'true'[\s\S]*onKeyDown\?\.\(event\)/, 'Shift+ArrowUp/Down in spreadsheet numeric cells reaches vertical range selection without stepping the value')
+  assert.match(numericInputSource, /if \(event\.key === 'ArrowUp' \|\| event\.key === 'ArrowDown'\)[\s\S]*event\.preventDefault\(\)[\s\S]*event\.stopPropagation\(\)[\s\S]*applyStep\(event\.key === 'ArrowUp' \? 1 : -1\)/, 'numeric editors keep ArrowUp/Down, including Shift-modified arrows, for value stepping instead of grid selection')
   assert.match(headerSource, /label="Save"[\s\S]*onCurrent=\{onSaveWorkingDataset\}[\s\S]*onAll=\{onSaveAllWorkingDatasets\}[\s\S]*label="Reset"[\s\S]*onCurrent=\{onResetWorkingDataset\}[\s\S]*onAll=\{onResetAllWorkingDatasets\}[\s\S]*label="Clear"[\s\S]*onCurrent=\{onClearDataset\}[\s\S]*onAll=\{onClearAllDatasets\}/, 'Save, Reset, and Clear expose current and all-dataset actions in the agreed order')
   assert.doesNotMatch(currentAndAllActionSource, /Chevron|Save Current|Reset Current|Clear Current/, 'action triggers have no visible chevrons or redundant current-dataset menu entries')
   const saveAllSource = storeSource.slice(storeSource.indexOf('const saveAllMasterDataWorkingDatasets'), storeSource.indexOf('const commitMasterDataWorkingSession'))
@@ -762,7 +769,7 @@ try {
   assert.match(saveAllSource, /lastSavedMasterData:\s*\{[\s\S]*reference,[\s\S]*current[\s\S]*customLastSavedMasterData: custom/, 'Save all writes Reference, Current, and Custom snapshots to their matching Last Saved slots')
   assert.match(storeSource, /resetAllMasterDataWorkingDatasets = \(\) =>[\s\S]*getMasterDataResetBaseline\(session, role\)[\s\S]*commitMasterDataAllWorkingDatasets\(session, updated\)/,
     'Reset all restores each dataset from its saved or initial baseline in one Working-state action')
-  assert.match(storeSource, /clearAllMasterDataWorkingDatasets = \(\) =>[\s\S]*reduce\(\(working, role\) => clearMasterDataDatasetState\(working, role\), session\)[\s\S]*commitMasterDataAllWorkingDatasets\(session, updated\)/, 'Clear all uses the existing clear semantics across Working datasets as one action')
+  assert.match(storeSource, /clearAllMasterDataWorkingDatasets = \(\) =>[\s\S]*clearAllMasterDataWorkingState\(session\)[\s\S]*commitMasterDataAllWorkingDatasets\(session, updated\)/, 'Clear All uses the shared raw Working-state transform across datasets as one action')
   assert.match(storeSource, /commitMasterDataAllWorkingDatasets = \(before: ProductSession, after: ProductSession\)[\s\S]*recordMasterDataPairWorkingEdit\(before, after\)/, 'all-dataset Working changes use the existing atomic Undo/Redo history entry')
   assert.match(headerSource, /const toolbarButton = 'grid h-8 w-8[^']*bg-transparent[^']*hover:bg-slate-100[^']*focus-visible:outline/, 'tool actions have borderless idle styling and retain 32px interaction targets')
   assert.match(headerSource, /<Tooltip label=\{isEditMode \? 'Switch to View' : 'Switch to Edit'\}[\s\S]*<button[\s\S]*role="switch"[\s\S]*<Eye className="h-4 w-4"[\s\S]*<Pencil className="h-4 w-4"/, 'View/Edit use one action-labelled icon-only sliding toggle containing both icons')
@@ -967,7 +974,7 @@ try {
   assert.match(rowSelectionSource, /selectionScope\]\)/, 'row selection resets only when its dataset scope changes, not on View/Edit mode')
   for (const [tableSource, tableLabel] of [[bomSource, 'BOM'], [wcSource, 'Work Centers'], [routingSource, 'Routing']]) {
     assert.match(tableSource, /onMouseDown=\{event => startDrag\(/, tableLabel + ' row selection works in View and Edit')
-    assert.match(tableSource, /Tooltip label=\{selectionState === 'all' \? 'Clear visible selection' : 'Select all visible rows'\}[\s\S]*<RowSelectionButton variant="light" state=\{selectionState\}[\s\S]*label=\{selectionState === 'all' \? 'Clear visible selection for .* rows' : 'Select all visible .* rows'\}/, tableLabel + ' # header toggles its filtered logical scope with an action-accurate label')
+    assert.match(tableSource, /Tooltip label=\{selectionState === 'all' \? 'Clear visible selection' : 'Select all visible rows'\}[\s\S]*<RowSelectionButton [^>]*variant="light" state=\{selectionState\}[\s\S]*label=\{selectionState === 'all' \? 'Clear visible selection for .* rows' : 'Select all visible .* rows'\}/, tableLabel + ' # header toggles its filtered logical scope with an action-accurate label')
     assert.match(tableSource, /onClick=\{\(\) => toggleAll\(selectionState !== 'all'\)\}/, tableLabel + ' # header selects all for none/mixed and clears only when all are selected')
     assert.match(tableSource, /const selectionState = getRowSelectionState\(selectedIds, filtered/, tableLabel + ' # header derives none/mixed/all from filtered rows')
     assert.match(tableSource, /<StickyTableHeader[\s\S]*?<thead className="border-y-2 border-slate-400 bg-slate-100 text-\[11px\] font-semibold uppercase tracking-wide text-slate-800"/, tableLabel + ' sticky column header restores the historical slate-100 appearance')
@@ -992,7 +999,7 @@ try {
     assert.match(tableSource, /useQualityNavigationCursor<MasterDataWarningItem>\(navigationScopeKey\)[\s\S]*nextWarningItem\(warningItems\)[\s\S]*onNavigateWarning\(target\)/, tableLabel + ' Warning traversal advances by stable issue identity')
     assert.doesNotMatch(tableSource, /warningIndexRef|blockerIndexRef|\[historyScope, warningItems, blockerItems\]/, tableLabel + ' traversal does not reset on regenerated issue-array references')
     assert.match(tableSource, /<MasterDataTableHeader title=.*warningCount=.*blockerCount=.*onNextWarning=.*onNextBlocker=.*onAddRow=/, tableLabel + ' header contains title, counts, Warning/Blocker jumps, and Add Row')
-    assert.match(tableSource, /isSelected \? 'text-slate-700' : 'text-slate-400'/, tableLabel + ' Grip handle is stronger for a selected row and muted otherwise')
+    assert.match(tableSource, /draggingIds\.has\([\w.]+\.id\) \? 'cursor-grabbing text-slate-700' : 'cursor-grab text-slate-400'/, tableLabel + ' Grip handle exposes grab and active-drag states')
     assert.doesNotMatch(tableSource, /MasterDataTableFooter|table-footer/, tableLabel + ' does not render a per-table footer')
     assert.match(tableSource, /overflow-x-auto/, tableLabel + ' can scroll horizontally when needed')
     assert.doesNotMatch(tableSource, /overflow-y-auto|max-h-\d/, tableLabel + ' does not create its own vertical scroll region')
@@ -1015,7 +1022,7 @@ try {
     [routingSource, 'Routing', ['Manning', 'Capacity', 'Yield']],
   ]) {
     for (const field of fields) {
-      assert.match(tableSource, new RegExp(`<th scope="col" className="[^"]*text-right">${field}<\\/th>`), `${tableLabel} ${field} heading is right aligned`)
+      assert.match(tableSource, new RegExp(`<th scope="col" className="px-2 py-2"><MasterDataNumericColumnHeader(?: percentage)?>${field}<\\/MasterDataNumericColumnHeader><\\/th>`), `${tableLabel} ${field} heading uses the shared centered numeric column header`)
     }
     assert.match(tableSource, /relative px-2 py-0\.5 text-right font-mono tabular-nums/, `${tableLabel} numeric body cells share a right-aligned column axis`)
     assert.match(tableSource, /numericClass[\s\S]*masterDataNumericEditorClass/, `${tableLabel} numeric edit controls use the shared right-aligned editor style`)
@@ -1029,11 +1036,11 @@ try {
     '<td className="relative px-2 py-0.5 text-right font-mono tabular-nums">',
     'masterDataPercentageShellClass',
   ].every(token => bomSource.includes(token)), 'BOM numeric fields use right-aligned shared tracks while Unit stays centered and Loss owns a stable percentage shell')
-  assert.match(wcSource, /className="relative ml-auto w-full max-w-24"[\s\S]*data-grid-field="laborRate"[\s\S]*className="relative ml-auto w-full max-w-24"[\s\S]*data-grid-field="burdenRate"/, 'Work Center rate controls restore compact right-aligned 24-unit tracks')
-  assert.match(routingSource, /className="relative ml-auto w-full max-w-20"[\s\S]*data-grid-field="manning"[\s\S]*className="relative ml-auto w-full max-w-24"[\s\S]*data-grid-field="capacity"[\s\S]*masterDataPercentageShellClass/, 'Routing controls restore compact right-aligned Manning and Capacity tracks with a compact Yield shell')
-  assert.match(bomSource, /relative ml-auto w-full max-w-20[\s\S]*MasterDataBlockerMarker/, 'BOM blocker marker overlays the restored compact numeric value field without taking layout width')
-  assert.match(wcSource, /relative ml-auto w-full max-w-24[\s\S]*MasterDataBlockerMarker/, 'Work Center blocker markers overlay restored compact numeric fields without taking layout width')
-  assert.match(routingSource, /relative ml-auto w-full max-w-20[\s\S]*MasterDataBlockerMarker/, 'Routing blocker markers overlay restored compact numeric fields without taking layout width')
+  assert.match(wcSource, /className="relative ml-auto w-full max-w-\[8\.5rem\]"[\s\S]*data-grid-field="laborRate"[\s\S]*className="relative ml-auto w-full max-w-\[8\.5rem\]"[\s\S]*data-grid-field="burdenRate"/, 'Work Center rate controls share fixed numeric frames with the other Master Data tables')
+  assert.match(routingSource, /className="relative ml-auto w-full max-w-\[8\.5rem\]"[\s\S]*data-grid-field="manning"[\s\S]*className="relative ml-auto w-full max-w-\[8\.5rem\]"[\s\S]*data-grid-field="capacity"[\s\S]*masterDataPercentageShellClass/, 'Routing controls share fixed numeric frames and a stable Yield percentage shell')
+  assert.match(bomSource, /relative ml-auto w-full max-w-\[8\.5rem\][\s\S]*MasterDataBlockerMarker/, 'BOM blocker marker overlays the fixed numeric value frame without taking layout width')
+  assert.match(wcSource, /relative ml-auto w-full max-w-\[8\.5rem\][\s\S]*MasterDataBlockerMarker/, 'Work Center blocker markers overlay fixed numeric frames without taking layout width')
+  assert.match(routingSource, /relative ml-auto w-full max-w-\[8\.5rem\][\s\S]*MasterDataBlockerMarker/, 'Routing blocker markers overlay fixed numeric frames without taking layout width')
   assert.match(pageSource, /setMasterDataRole\(item\.role\)[\s\S]*tableView: item\.table/, 'warning navigation selects the affected dataset and table')
   assert.match(pageSource, /updateMasterDataUiState\(\{ type: 'set-mode', mode: 'edit' \}\)[\s\S]*tableView: item\.table/, 'warning navigation switches to Edit and the affected table')
   assert.match(pageSource, /handleWarningNavigationHandled[\s\S]*current\?\.requestId === requestId \? undefined : current/, 'warning navigation consumes the completed request')
@@ -1155,7 +1162,7 @@ try {
   assert.match(storeSource, /getMasterDataSnapshotValidationErrors\(result\.snapshot\)/, 'the store rejects invalid or unresolved snapshots before applying an Import result')
   assert.match(developmentMockSource, /getMasterDataSnapshotValidationErrors\(nextPair\.reference\)[\s\S]*getMasterDataSnapshotValidationErrors\(nextPair\.current\)/, 'development mock data also passes the ordinary Working data validation boundary')
   assert.match(snapshotParserSource, /getMasterDataSnapshotValidationErrors\(snapshot\)[\s\S]*success: false[\s\S]*format: 'canonical'/, 'canonical imports reject invalid numeric values and unavailable nonblank Routing Work Centers')
-  assert.match(snapshotParserSource, /canonicalResult\.success \|\| canonicalResult\.format === 'canonical'/, 'validation-rejected canonical workbooks cannot fall through to legacy import parsing')
+  assert.match(snapshotParserSource, /return parseSnapshotWorkbookData\(data, role, exactNumericCells\)/, 'file imports use only the canonical snapshot workbook parser')
   assert.match(masterDataWorkbookSource, /const outputLabels = \['MAT', 'LABOR', 'BURDEN', 'STANDARD COST', 'SG&A AMOUNT', 'OP'\]/, 'the workbook verifier protects all six canonical META result labels')
   const workbookFormulaSource = masterDataWorkbookSource.slice(masterDataWorkbookSource.indexOf('function formulae('), masterDataWorkbookSource.indexOf('function styleLabel'))
   assert.equal((workbookFormulaSource.match(/\bifComplete\(/g) ?? []).length, 6, 'each canonical META output remains independently guarded')
@@ -1170,8 +1177,8 @@ try {
   ].every(guard => masterDataWorkbookSource.includes(guard)),
     'Excel guards cover every numeric BOM and Routing field with canonical stored-value domains')
   assert.match(masterDataWorkbookSource, /writeMetaSheet\(workbook, options, normalizedWorkCenterCodes\)[\s\S]*writeTableSheet\(workbook, 'BOM'[\s\S]*writeTableSheet\(workbook, 'WORK_CENTER'[\s\S]*writeTableSheet\(workbook, 'ROUTING'/, 'workbook sheet order remains META, BOM, WORK_CENTER, ROUTING')
-  assert.match(importDropzoneSource, /onParsed\(await parseSnapshotExcelInputFile\(file, importRole, \{ allowLegacy: false \}\)\)/,
-    'Import parses and validates a workbook before passing it back to the modal')
+  assert.match(importDropzoneSource, /onParsed\(await parseSnapshotExcelInputFile\(file, importRole\)\)/,
+    'Import parses and validates a canonical snapshot workbook before passing it back to the modal')
   assert.doesNotMatch(importDropzoneSource, /importSnapshotFromExcel|useAppStore/, 'file selection does not mutate Working data')
   assert.match(importModalSource, /canImport = !isParsing && parsedImport\?\.success === true[\s\S]*onImport\(parsedImport\)/,
     'Working data changes only after the explicit Import action')
@@ -1318,7 +1325,7 @@ try {
   assert.equal(sharedIndexColCount, 6, 'the visible sticky headers and body colgroups use the shared index width')
   assert.equal(sharedActionsColCount, 6, 'the visible sticky headers and body colgroups use the shared Actions width')
   assert.equal((allTablesSource.match(/className=\{masterDataTableClass\}/g) ?? []).length, 3, 'all body tables use one common fixed-width policy')
-  assert.match(fieldStylesSource, /masterDataTableClass = 'w-full min-w-\[77rem\] table-fixed border-collapse text-left text-xs'/, 'tables fill a shared desktop panel width while keeping their minimum width inside narrow horizontal scrollers')
+  assert.match(fieldStylesSource, /masterDataTableClass = 'w-full min-w-\[81rem\] table-fixed border-collapse text-left text-xs'/, 'tables fill a shared desktop panel width while keeping their minimum width inside narrow horizontal scrollers')
   assert.equal((allTablesSource.match(/\$\{masterDataIndexColumnClass\}/g) ?? []).length, 6, 'all three # headers and row handles match their fixed column width')
   assert.equal((allTablesSource.match(/\$\{masterDataActionsColumnClass\}/g) ?? []).length, 6, 'all three Actions headers and cells match their fixed column width')
   assert.match(fieldStylesSource, /masterDataIdentityColumnClass = 'w-56'/, 'all identity columns use one actual shared 14rem width token')
@@ -1335,8 +1342,8 @@ try {
   assert.match(allTablesSource, /isSelected \? 'bg-blue-100\/60 hover:bg-blue-100\/80' : 'bg-white hover:bg-slate-50'/, 'selected-row tint spans each row and strengthens on hover')
   assert.doesNotMatch(allTablesSource, /border-l-2 border-l-blue-700|outline-blue-700[^\n]*<tr/, 'selection adds no blue left border or whole-row outline')
   assert.match(allTablesSource, /isSelected \? 'bg-blue-700 text-white' : 'text-slate-600 hover:bg-slate-200'/, '# row handles remain the strongest local selection indicator')
-  assert.equal((allTablesSource.match(/<RowSelectionButton variant="light" state=\{selectionState\}/g) ?? []).length, 3, 'all three Master Data # controls share the historical light-header variant')
-  assert.match(sharedRowSelectionSource, /mx-auto grid h-7 w-7 shrink-0 place-items-center/, 'shared row selection control keeps its compact geometry')
+  assert.equal((allTablesSource.match(/<RowSelectionButton [^>]*variant="light" state=\{selectionState\}/g) ?? []).length, 3, 'all three Master Data # controls share the historical light-header variant')
+  assert.match(sharedRowSelectionSource, /mx-auto grid \$\{size === 32 \? 'h-8 w-8' : 'h-7 w-7'\} shrink-0 place-items-center/, 'shared row selection control supports compact and 32px header sizes')
   assert.doesNotMatch(sharedRowSelectionSource, /gold|amber/i, 'shared row selection control has no gold or amber palette variant')
   assert.match(sharedRowSelectionSource, /aria-checked=\{state === 'mixed' \? 'mixed' : state === 'all'\}/, 'shared row selection control exposes none/mixed/all checkbox ARIA states')
   assert.match(sharedRowSelectionSource, /border border-slate-800 bg-slate-700 text-white/, 'Master Data all state restores the historical dark-slate fill and border')
@@ -1408,7 +1415,7 @@ try {
   assert.match(blockerMarkerSource, /aria-label=\{label\}[\s\S]*pointer-events-none absolute[\s\S]*font-sans[\s\S]*text-\[11px\][\s\S]*font-bold[\s\S]*text-rose-600[\s\S]*>\s*\*\s*</, 'blocker star uses shared sans typography as a small bold accessible overlay outside field layout')
   assert.match(bomSource + wcSource + routingSource, /<MasterDataBlockerMarker/, 'BOM, Work Centers, and Routing render blocker stars through the shared overlay marker')
   assert.doesNotMatch(bomSource + wcSource + routingSource, /pr-(?:3|4|5)(?:\s|`)/, 'blocker markers do not reserve padding that shifts values or narrows their inputs')
-  assert.match(fieldStylesSource, /masterDataNumericDisplaySlotClass = `relative flex h-8 w-full min-w-0 items-center justify-end rounded-sm border border-transparent text-right[\s\S]*hover:border-slate-200 hover:bg-slate-50[\s\S]*\$\{masterDataCellFocusClass\}`/, 'View numeric fields keep a stable right-aligned focus target with neutral Edit-like hover')
+  assert.match(fieldStylesSource, /masterDataNumericDisplaySlotClass = `relative flex h-8 w-full min-w-0 items-center justify-end rounded-sm border border-transparent px-1\.5 text-right[\s\S]*hover:border-slate-200 hover:bg-slate-50[\s\S]*\$\{masterDataCellFocusClass\}`/, 'View numeric fields keep a stable right-aligned focus target with neutral Edit-like hover')
   assert.match(blockerMarkerSource, /className="pointer-events-none absolute right-1 top-1\/2[\s\S]*-translate-y-1\/2/, 'all Blocker stars use a shared right and vertical-center anchor')
   assert.match(routingSource, /showWarningHighlights && workCenterInvalid \? 'text-amber-900' : ''[\s\S]*showWarningHighlights && workCenterInvalid \? masterDataIssueDisplayClass : ''/,
     'Routing missing or unresolved Work Center hides both amber text and fill when highlights are off')
@@ -1527,7 +1534,8 @@ try {
   assert.match(storeSource, /replaceDevelopmentMockWorkingState\(source, pair\)/, 'the development button uses the verified Working-state replacement path')
   const mockLoaderSource = storeSource.slice(storeSource.indexOf('const loadDevelopmentMockData'), storeSource.indexOf('const resetToDefault'))
   assert.doesNotMatch(mockLoaderSource, /setActiveTab\s*\(/, 'Complete and Incomplete Mock are data actions and preserve the active page')
-  assert.match(storeSource, /beforeCustom: cloneCostSnapshot[\s\S]*afterCustom: cloneCostSnapshot/, 'the mock action keeps its Custom replacement inside one Undo/Redo entry')
+  assert.match(storeSource, /recordMasterDataPairWorkingEdit = \(before: ProductSession, after: ProductSession\)[\s\S]*createMasterDataPairWorkingEditEntry\(before, after\)/, 'compound Master Data changes use the shared history recorder')
+  assert.match(masterDataHistorySource, /beforeCustom: cloneCostSnapshot\(before\.customMasterData[\s\S]*afterCustom: cloneCostSnapshot\(after\.customMasterData/, 'compound history retains Custom replacement in the same Undo/Redo entry')
   assert.match(developmentMockSource, /customMasterData,[\s\S]*customDatasetSizing: \{\}/, 'mock replacement clears stale Custom Working placeholders and sizing')
 
   await vite.ssrLoadModule('/scripts/verify_master_data_rename_and_empty_edit.ts')

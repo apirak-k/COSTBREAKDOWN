@@ -166,8 +166,8 @@ assert.match(simulationPageSource, /bomAttribution\(row, baselineSnapshot, simul
 assert.match(simulationPageSource, /routingAttribution\(row, baselineSnapshot, simulationSnapshot\)/,
   'Routing Cost Effect attribution receives the selected role baseline and its Work Center rates')
 assert.match(simulationPageSource,
-  /calculateSnapshotRoutingDetail\(\s*\{ reference: baselineRecord, current: simRecord \},\s*baselineSnapshot\.rates,\s*simulationSnapshot\.rates/,
-  'Routing Cost Effect calculation uses the selected role rates on its baseline side')
+  /const referenceRate = baselineSnapshot\.rates\.find[\s\S]*const currentRate = simulationSnapshot\.rates\.find[\s\S]*laborRate: referenceRate\.laborRate[\s\S]*laborRate: currentRate\.laborRate/,
+  'Routing Cost Effect attribution uses the selected roles\' Work Center rates on each side')
 
 const result = calculateParameterSimulation(view(state, 'reference').snapshot, view(state, 'custom').snapshot)
 close(result.beforeCost.material, 11, 'Result Before uses effective Reference')

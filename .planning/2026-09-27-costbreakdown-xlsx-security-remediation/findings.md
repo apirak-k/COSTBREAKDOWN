@@ -1,5 +1,9 @@
 # Findings & Decisions
 
+## Current-state reconciliation — 2026-10-24
+
+This plan records the parser state investigated on 2026-09-27. Its references below to the paired-model Excel adapter and `allowLegacy` describe that historical state and are superseded: Round 4B now imports only canonical Reference / Current / Custom snapshots through `parseSnapshotExcelInputFile`; the obsolete Excel adapter and fallback have been removed. Paired-model conversion remains only for supported legacy session data through `session-to-snapshots.ts`. See the current Round 4B checkpoint in `HANDOFF.md` for verification and delivery status.
+
 ## Requirements
 - HAWS core/HAWS.md § dependency controls requires npm audit to report zero High or Critical findings before milestone completion.
 - HAWS requires package-lock.json to remain committed and forbids silently deleting or regenerating it to avoid dependency errors.

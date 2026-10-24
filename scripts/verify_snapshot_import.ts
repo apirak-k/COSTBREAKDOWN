@@ -222,32 +222,22 @@ XLSX.utils.book_append_sheet(legacyWorkbook, sheet([
   [10, 'Process', 'Cut', 'WC-1', 1, 100, 100, 0.9, 0.9, 'legacy.xlsx']
 ]), '3_ROUTING_BREAKDOWN')
 
-async function verifyLegacyAdapter(): Promise<void> {
+async function verifyLegacyFormatIsRejected(): Promise<void> {
   const legacyFile = new File([
     XLSX.write(legacyWorkbook, { type: 'array', bookType: 'xlsx' })
   ], 'legacy.xlsx')
   const legacyResult = await parseSnapshotExcelInputFile(legacyFile, 'reference')
-  const customLegacyResult = await parseSnapshotExcelInputFile(legacyFile, 'custom')
 
-  assert.equal(legacyResult.success, true)
-  assert.equal(legacyResult.format, 'legacy')
-  assert.equal(legacyResult.snapshot?.comparisonRole, 'reference')
-  assert.equal(legacyResult.snapshot?.product.productCode, 'LEGACY-001')
-  assert.equal(legacyResult.snapshot?.bom[0].price, 10)
-  assert.equal(legacyResult.snapshot?.routing[0].workCenterId, 'WC-1')
-  assert.ok(legacyResult.warnings?.some(warning => warning.includes('legacy paired')))
-  assert.equal(customLegacyResult.success, true)
-  assert.equal(customLegacyResult.role, 'custom')
-  assert.equal(customLegacyResult.snapshot?.comparisonRole, undefined, 'Legacy Custom imports remain independent of CBD roles')
+  assert.equal(legacyResult.success, false, 'Legacy paired-model workbooks are no longer importable')
+  assert.equal(legacyResult.format, undefined)
+  assert.equal(legacyResult.snapshot, undefined, 'unsupported legacy workbooks cannot produce importable snapshots')
 }
 
 async function verifyCanonicalXlsUpload(): Promise<void> {
   const xlsFile = new File([
     XLSX.write(workbook, { type: 'array', bookType: 'biff8' })
   ], 'canonical.xls')
-  const xlsResult = await parseSnapshotExcelInputFile(xlsFile, 'current', {
-    allowLegacy: false
-  })
+  const xlsResult = await parseSnapshotExcelInputFile(xlsFile, 'current')
 
   assert.equal(xlsResult.success, true)
   assert.equal(xlsResult.format, 'canonical')
@@ -255,7 +245,7 @@ async function verifyCanonicalXlsUpload(): Promise<void> {
 }
 
 verifyCanonicalTemplate()
-  .then(() => verifyLegacyAdapter())
+  .then(() => verifyLegacyFormatIsRejected())
   .then(() => verifyCanonicalXlsUpload())
   .then(() => console.log('Snapshot import self-check: PASS'))
   .catch(error => {

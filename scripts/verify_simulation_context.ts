@@ -114,10 +114,12 @@ assert.match(simulationPage, /beforeRole=\{analysisBeforeDataset\.role\}[\s\S]*?
   'the Result panel displays the selected role names and effective Before/After costs')
 assert.match(simulationPage, /onBeginEdit=\{\(\) => onBeginEdit\(state\.role\)\}/,
   'parameter edit history explicitly targets the active role')
-assert.match(app, /simulationHistoryRolesByProduct\[activeProductId\] \?\? simulationState\.activeDataset/,
-  'Global Simulation Undo/Redo follows the last edited role, falling back to activeDataset')
-assert.match(app, /const currentRole = committed\?\.recorded[\s\S]*?simulationHistoryRolesByProduct\[activeProductId\]/,
-  'activeDataset changes do not reinterpret the role owning an existing history entry')
+assert.match(app, /const simulationUndoRole = peekSimulationHistoryChronology\(simulationHistoryChronology, 'undo'\)[\s\S]*?const simulationRedoRole = peekSimulationHistoryChronology\(simulationHistoryChronology, 'redo'\)/,
+  'Global Simulation Undo/Redo resolves the next role from cross-role action chronology')
+assert.match(app, /recordSimulationHistoryChronology\([\s\S]*?role, nextHistory\.undo\.length/,
+  'recorded role edits update chronology without depending on the visible activeDataset')
+assert.match(app, /const currentRole = peekSimulationHistoryChronology\(currentChronology, direction\)[\s\S]*?const history = committed\?\.recorded[\s\S]*?simulationHistoriesByProduct\[activeProductId\]\?\.\[currentRole\]/,
+  'Undo/Redo applies the chronologically owning role history while history content remains role-scoped')
 assert.match(app, /const role = current\.activeDataset[\s\S]*?resetSimulationParameters\(current, sources\)/,
   'Reset scope remains activeDataset even when comparisonAfter differs')
 assert.match(app, /const activeDataset = current\.activeDataset[\s\S]*?prepareSimulationSend\(current, masterDataSnapshots\)[\s\S]*?sendSimulationSnapshotToMasterData\(activeDataset, payload\.snapshot\)/,

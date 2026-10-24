@@ -7,16 +7,13 @@ import {
   SnapshotImportResult,
   SnapshotRoutingStep,
   SnapshotWorkCenterRate,
-  SnapshotImportOptions,
   MasterDataRole,
   DataQualityStatus,
-  getFieldConfidence,
-  migratePairedModelToSnapshots
+  getFieldConfidence
 } from '../../core'
 import { normalizeMasterDataSnapshot } from '../../core/utils/master-data-effective'
 import { getMasterDataSnapshotValidationErrors } from '../../core/utils/master-data-validation'
 import { compareExactDecimals, divideExactDecimals, exactDecimalNumberText, exactDecimalToNumber, exactDecimalToString, multiplyExactDecimals, parseExactDecimal } from '../../core/utils/exact-decimal'
-import { parseExcelInputFile } from './excel-parser'
 import { readExactNumericCells, type ExactNumericCellValues } from './exact-numeric-cells'
 
 type CellValue = string | number | boolean | Date | null
@@ -312,10 +309,9 @@ function evidence(
 function productFromSheet(
   rows: Row[],
   meta: Map<string, string>,
-  warnings: string[],
-  sheetName = 'PRODUCT'
+  warnings: string[]
 ): { product: CostSnapshot['product']; rowCount: number } {
-  const labelValueMeta = sheetName === 'META' && hasLabelValueMeta(rows)
+  const labelValueMeta = hasLabelValueMeta(rows)
   const headerIndex = findHeaderRow(rows, [
     ['product name', 'productname', 'product description', 'productdescription', 'description', 'name'],
     ['uom', 'unit']
@@ -576,7 +572,6 @@ function parseRouting(
 function isCanonicalWorkbook(workbook: XLSX.WorkBook): boolean {
   const hasDataSheets = REQUIRED_DATA_SHEETS.every(sheet => Boolean(findSheetName(workbook, sheet)))
   if (!hasDataSheets) return false
-  if (findSheetName(workbook, 'PRODUCT')) return true
   const metaRows = rowsFor(workbook, 'META')
   return hasLabelValueMeta(metaRows) || findHeaderRow(metaRows, [
     ['product name', 'productname', 'product description', 'productdescription'],
@@ -605,15 +600,12 @@ export function parseSnapshotWorkbookData(
 
   const metaRows = rowsFor(workbook, 'META', exactNumericCells)
   const meta = metaValues(metaRows)
-  const legacyProductRows = rowsFor(workbook, 'PRODUCT', exactNumericCells)
-  const productSheetName = legacyProductRows.length > 0 ? 'PRODUCT' : 'META'
-  const productRows = legacyProductRows.length > 0 ? legacyProductRows : metaRows
-  const productResult = productFromSheet(productRows, meta, warnings, productSheetName)
+  const productResult = productFromSheet(metaRows, meta, warnings)
   const product = productResult.product
   if (productResult.rowCount !== 1) {
     return {
       success: false,
-      message: `PRODUCT must contain exactly one Product row; found ${productResult.rowCount}.`,
+      message: `META must describe exactly one Product; found ${productResult.rowCount}.`,
       format: 'canonical',
       warnings,
       role
@@ -664,74 +656,14 @@ export function parseSnapshotWorkbookData(
 
 export async function parseSnapshotExcelInputFile(
   file: File,
-  role: MasterDataRole,
-  options: SnapshotImportOptions = {}
+  role: MasterDataRole
 ): Promise<SnapshotImportResult> {
   const data = await file.arrayBuffer()
   let exactNumericCells: ExactNumericCellValues = {}
   try {
     exactNumericCells = await readExactNumericCells(data)
   } catch {
-    // Legacy XLS containers are handled by the existing adapter after canonical parsing fails.
+    // BIFF workbooks can still be parsed canonically, but do not expose XLSX XML lexemes.
   }
-  const canonicalResult = parseSnapshotWorkbookData(data, role, exactNumericCells)
-  if (canonicalResult.success || canonicalResult.format === 'canonical') return canonicalResult
-
-  if (options.allowLegacy === false) return canonicalResult
-
-  const legacyResult = await parseExcelInputFile(file)
-  if (!legacyResult.success) {
-    return {
-      success: false,
-      message: `${canonicalResult.message} Legacy parser: ${legacyResult.message}`,
-      warnings: [...(canonicalResult.warnings ?? []), ...(legacyResult.warnings ?? [])],
-      role
-    }
-  }
-
-  const legacyPair = migratePairedModelToSnapshots({
-    id: `legacy-import:${file.name}`,
-    product: legacyResult.product ?? {
-      productCode: '',
-      productDescription: '',
-      uom: '',
-      customer: '',
-      effectiveDate: ''
-    },
-    rates: legacyResult.rates ?? [],
-    bom: legacyResult.bom ?? [],
-    routing: legacyResult.routing ?? [],
-    status: 'draft',
-    sourceRef: file.name
-  })
-  const sourceSnapshot = role === 'reference' ? legacyPair.reference : legacyPair.current
-  const importedSnapshot = role === 'custom'
-    ? (() => {
-        const { comparisonRole: _comparisonRole, ...customSnapshot } = sourceSnapshot
-        return { ...customSnapshot, id: `${sourceSnapshot.id}:custom` }
-      })()
-    : sourceSnapshot
-  const snapshot = normalizeMasterDataSnapshot(importedSnapshot)
-  const validationErrors = getMasterDataSnapshotValidationErrors(snapshot)
-  if (validationErrors.length > 0) {
-    return {
-      success: false,
-      message: 'Import rejected: correct invalid numeric values and unavailable Routing Work Centers before importing.',
-      format: 'legacy',
-      warnings: [...(legacyResult.warnings ?? []), ...validationErrors],
-      role
-    }
-  }
-
-  return {
-    success: true,
-    message: `Imported ${role} snapshot through legacy paired workbook adapter: ${snapshot.rates.length} Work Centers, ${snapshot.bom.length} BOM Items, ${snapshot.routing.length} Routing Steps.`,
-    format: 'legacy',
-    snapshot,
-    warnings: [
-      ...(legacyResult.warnings ?? []),
-      'Imported through legacy paired workbook adapter; review defaulted fields and confidence before using the comparison.'
-    ],
-    role
-  }
+  return parseSnapshotWorkbookData(data, role, exactNumericCells)
 }

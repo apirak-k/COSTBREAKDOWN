@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import type { CostSnapshot, MasterDataRole, SnapshotBOMItem, SnapshotRoutingStep, SnapshotWorkCenterRate } from '../src/core/types'
 import { calculateMultiplicativeCostAttribution } from '../src/core/calculations/multiplicative-cost-attribution.ts'
 import { calculateParameterSimulation, updateSimulationParameter } from '../src/features/simulation/simulation-engine.ts'
+import { bomAttribution, routingAttribution as simulationRoutingAttribution } from '../src/features/simulation/SimulationPage.tsx'
 import {
   createEmptySimulationState,
   getEffectiveSimulationDataset,
@@ -101,6 +102,30 @@ assert.equal(subUlpPriceResult.afterCost.exactValues?.material, '21.000000000000
   'Simulation Standard Cost uses exact Price text when the JavaScript Number is unchanged')
 assert.equal(subUlpPriceResult.parameterSavingExact, '-0.000000000000000021',
   'Simulation parameter savings retain sub-ULP decimal changes')
+const assertAttributionReconciles = (effects: { totalEffect: number | null; effects: Record<string, number> | null }, label: string) => {
+  assert.ok(effects.totalEffect !== null && effects.totalEffect !== 0, `${label} retains the exact-only cost effect`)
+  assert.ok(effects.effects, `${label} remains available`)
+  const sum = Object.values(effects.effects ?? {}).reduce((total, value) => total + value, 0)
+  assert.equal(sum, effects.totalEffect, `${label} effects reconcile exactly after the designated residue assignment`)
+}
+const exactPriceAttribution = bomAttribution(subUlpPriceResult.records.find(row => row.kind === 'bom')!, current, subUlpPriceSnapshot)
+assertAttributionReconciles(exactPriceAttribution.effects, 'BOM Price')
+assert.notEqual(exactPriceAttribution.effects.effects?.price, 0,
+  'Parameter Cost Effect Price does not collapse an exact-only Price edit to its equal Number projection')
+
+const exactUsageState = updateSimulationParameter(state, sources, 'current-steel', 'bom.consumption', 2, 'current', '2.00000000000000001')
+const exactUsageSnapshot = getEffectiveSimulationDataset(sources, exactUsageState, 'current').snapshot
+const exactUsageResult = calculateParameterSimulation(current, exactUsageSnapshot)
+const exactUsageAttribution = bomAttribution(exactUsageResult.records.find(row => row.kind === 'bom')!, current, exactUsageSnapshot)
+assertAttributionReconciles(exactUsageAttribution.effects, 'BOM Usage')
+assert.notEqual(exactUsageAttribution.effects.effects?.usage, 0, 'BOM Usage exact-only effect uses its authoritative text')
+
+const exactLossState = updateSimulationParameter(state, sources, 'current-steel', 'bom.loss', 0.05, 'current', '5.00000000000000001')
+const exactLossSnapshot = getEffectiveSimulationDataset(sources, exactLossState, 'current').snapshot
+const exactLossResult = calculateParameterSimulation(current, exactLossSnapshot)
+const exactLossAttribution = bomAttribution(exactLossResult.records.find(row => row.kind === 'bom')!, current, exactLossSnapshot)
+assertAttributionReconciles(exactLossAttribution.effects, 'BOM Loss')
+assert.notEqual(exactLossAttribution.effects.effects?.loss, 0, 'BOM Loss exact-only effect uses percentage-point text before fraction conversion')
 
 const priceAttribution = calculateMultiplicativeCostAttribution(21, 25.2, [
   { key: 'price', baseline: 10, target: 12 },
@@ -142,6 +167,28 @@ const routingAttribution = calculateMultiplicativeCostAttribution(1.5, 1.2, [
 assert.ok(Math.abs(routingAttribution.totalEffect! + 0.3) < 1e-9)
 assert.ok(Math.abs(Object.values(routingAttribution.effects ?? {}).reduce((sum, value) => sum + value, 0) + 0.3) < 1e-9,
   'Routing parameter attribution reconciles to After Conversion Cost - Before Conversion Cost')
+
+const routingExactCases = [
+  ['manning', 1, '1.00000000000000001', 'Manning'],
+  ['capacity', 100, '100.00000000000000001', 'Capacity'],
+  ['yield', 1, '100.00000000000000001', 'Yield']
+] as const
+for (const [field, numberValue, exactValue, label] of routingExactCases) {
+  const parameter = `routing.${field}` as const
+  const exactState = updateSimulationParameter(state, sources, 'current-cut', parameter, numberValue, 'current', exactValue)
+  const exactSnapshot = getEffectiveSimulationDataset(sources, exactState, 'current').snapshot
+  const result = calculateParameterSimulation(current, exactSnapshot)
+  const attribution = simulationRoutingAttribution(result.records.find(row => row.kind === 'routing' && row.name === 'Cut')!, current, exactSnapshot)
+  assertAttributionReconciles(attribution.effects, `Routing ${label}`)
+  assert.notEqual(attribution.effects.effects?.[field], 0, `Routing ${label} exact-only effect uses authoritative editor text`)
+}
+
+const normalPriceAttribution = bomAttribution(priceResult.records.find(row => row.kind === 'bom')!, current, changedCurrentSnapshot)
+assertClose(normalPriceAttribution.effects.effects?.price, priceAttribution.effects?.price ?? NaN,
+  'normal-sized BOM Price attribution remains unchanged')
+const normalRoutingAttribution = simulationRoutingAttribution(routeResult.records.find(row => row.kind === 'routing' && row.name === 'Cut')!, current, changedRoutingSnapshot)
+assertClose(normalRoutingAttribution.effects.effects?.manning, routingAttribution.effects?.manning ?? NaN,
+  'normal-sized Routing Manning attribution remains unchanged')
 
 for (const [parameter, invalid] of [
   ['bom.price', -1], ['bom.price', Infinity], ['bom.price', NaN],

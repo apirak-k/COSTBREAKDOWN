@@ -3,11 +3,14 @@ import type { CostSnapshot, ComparisonRole } from '../src/core/types'
 import type { ProductSession } from '../src/core'
 import {
   createMasterDataEditHistory,
+  createMasterDataPairWorkingEditEntry,
   recordMasterDataEdit,
   undoMasterDataEdit,
   redoMasterDataEdit,
   applyMasterDataEditHistoryEntry
 } from '../src/state/master-data-edit-history'
+import { clearAllMasterDataWorkingState } from '../src/state/clear-master-data-dataset'
+import { normalizeMasterDataSnapshot } from '../src/core/utils/master-data-effective'
 
 function snapshot(id: string): CostSnapshot {
   return {
@@ -103,6 +106,85 @@ const redoneSession = applyMasterDataEditHistoryEntry(undoneSession, sessionEntr
 assert.ok(redoneSession, 'Redo reapplies an entry when the current Working snapshot matches its before state')
 assert.equal(redoneSession.snapshotPair?.current.id, afterCurrent.id, 'Redo restores the edited snapshot')
 assert.equal(redoneSession.datasetSizing?.current.bomCount, 2, 'Redo restores the after sizing state')
+
+function populatedSnapshot(id: string, name: string): CostSnapshot {
+  return {
+    ...snapshot(id),
+    sourceRef: `${id}-source`,
+    sizing: { bomCount: 1, wcCount: 1, routingCount: 1 },
+    rates: [{ id: `${id}-rate`, workCenterCode: 'WC-1', description: 'Cutting', laborRate: 100, burdenRate: 50, effectiveDate: '', confidence: {} }],
+    bom: [{
+      id: `${id}-bom`, itemCode: 'MAT-1', description: name, consumption: 2, unit: 'PC', price: 10, loss: 0.05,
+      exactDecimalInputs: { consumption: '2.00000000000000001', price: '10.00000000000000001', loss: '5.00000000000000001' },
+      confidence: {}
+    }],
+    routing: [{
+      id: `${id}-route`, operationCode: 'OP-10', processName: 'Cut', workCenterId: 'WC-1', manning: 1, capacity: 100, yield: 0.9,
+      exactDecimalInputs: { manning: '1.00000000000000001', capacity: '100.00000000000000001', yield: '90.00000000000000001' },
+      confidence: {}
+    }]
+  }
+}
+
+const beforeClearAll: ProductSession = {
+  ...session,
+  snapshotPair: {
+    reference: populatedSnapshot('all-ref', 'Reference material'),
+    current: populatedSnapshot('all-current', 'Current material')
+  },
+  customMasterData: populatedSnapshot('all-custom', 'Custom material'),
+  preparedSnapshotRoles: { reference: true, current: true },
+  datasetSizing: { reference: { bomCount: 1, wcCount: 1, routingCount: 1 }, current: { bomCount: 1, wcCount: 1, routingCount: 1 } },
+  customDatasetSizing: { bomCount: 1, wcCount: 1, routingCount: 1 },
+  lastSavedMasterData: {
+    reference: { snapshot: populatedSnapshot('saved-ref', 'Saved Reference'), prepared: true, sizing: { bomCount: 1 } },
+    current: { snapshot: populatedSnapshot('saved-current', 'Saved Current'), prepared: true, sizing: { bomCount: 1 } }
+  },
+  customLastSavedMasterData: { snapshot: populatedSnapshot('saved-custom', 'Saved Custom'), prepared: true, sizing: { bomCount: 1 } },
+  initialMasterDataBaseline: {
+    reference: { snapshot: populatedSnapshot('initial-ref', 'Initial Reference'), prepared: false, sizing: { bomCount: 1 } },
+    current: { snapshot: populatedSnapshot('initial-current', 'Initial Current'), prepared: false, sizing: { bomCount: 1 } },
+    custom: { snapshot: populatedSnapshot('initial-custom', 'Initial Custom'), prepared: false, sizing: { bomCount: 1 } }
+  }
+}
+const afterClearAll = clearAllMasterDataWorkingState(beforeClearAll)
+const clearAllEntry = createMasterDataPairWorkingEditEntry(beforeClearAll, afterClearAll)
+assert.ok(afterClearAll.snapshotPair?.reference.bom[0]?.description === ''
+  && normalizeMasterDataSnapshot(afterClearAll.snapshotPair.reference).bom[0]?.description === 'Material 1',
+'Clear All keeps raw blank business identity while normalization derives its UI label')
+const oldNormalizedEntry = {
+  ...clearAllEntry,
+  afterPair: {
+    reference: normalizeMasterDataSnapshot(afterClearAll.snapshotPair!.reference),
+    current: normalizeMasterDataSnapshot(afterClearAll.snapshotPair!.current)
+  }
+}
+assert.equal(applyMasterDataEditHistoryEntry(afterClearAll, oldNormalizedEntry, 'undo'), undefined,
+  'regression fixture reproduces Undo rejection when history stores normalized snapshots against raw Cleared Working state')
+const clearAllUndo = applyMasterDataEditHistoryEntry(afterClearAll, clearAllEntry, 'undo')
+assert.ok(clearAllUndo, 'one real Clear All history entry restores every dataset')
+assert.deepEqual(clearAllUndo.snapshotPair, beforeClearAll.snapshotPair, 'Undo restores Reference and Current snapshots exactly')
+assert.deepEqual(clearAllUndo.customMasterData, beforeClearAll.customMasterData, 'Undo restores Custom exactly')
+assert.deepEqual(clearAllUndo.datasetSizing, beforeClearAll.datasetSizing, 'Undo restores Reference / Current sizing')
+assert.deepEqual(clearAllUndo.customDatasetSizing, beforeClearAll.customDatasetSizing, 'Undo restores Custom sizing')
+assert.deepEqual(clearAllUndo.lastSavedMasterData, beforeClearAll.lastSavedMasterData, 'Undo preserves Last Saved')
+assert.deepEqual(clearAllUndo.customLastSavedMasterData, beforeClearAll.customLastSavedMasterData, 'Undo preserves Custom Last Saved')
+assert.equal(clearAllUndo.snapshotPair?.reference.bom[0]?.exactDecimalInputs?.price, '10.00000000000000001',
+  'Undo restores exact decimal input sidecars')
+assert.deepEqual(clearAllUndo.snapshotPair?.reference.bom.map(row => row.id), beforeClearAll.snapshotPair?.reference.bom.map(row => row.id),
+  'Undo preserves row IDs and row ordering')
+const clearAllRedo = applyMasterDataEditHistoryEntry(clearAllUndo, clearAllEntry, 'redo')
+assert.ok(clearAllRedo, 'one Redo reapplies the same real Clear All action')
+for (const [role, working, expectedId] of [
+  ['Reference', clearAllRedo.snapshotPair?.reference, 'all-ref-bom'],
+  ['Current', clearAllRedo.snapshotPair?.current, 'all-current-bom'],
+  ['Custom', clearAllRedo.customMasterData, 'all-custom-bom']
+] as const) {
+  assert.equal(working?.bom[0]?.description, '', `${role} Redo retains the raw blank identity`)
+  assert.equal(working?.bom[0]?.id, expectedId, `${role} Redo preserves the original row ID`)
+  assert.equal(working?.bom[0]?.exactDecimalInputs, undefined, `${role} Redo clears numeric sidecars with the values`)
+}
+assert.deepEqual(clearAllRedo.lastSavedMasterData, beforeClearAll.lastSavedMasterData, 'Redo leaves Last Saved unchanged')
 
 const preciseBefore = {
   ...snapshot('precise-before'),

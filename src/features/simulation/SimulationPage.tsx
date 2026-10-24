@@ -3,13 +3,15 @@ import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useSta
 import { ChevronDown, ChevronLeft, ChevronRight, RotateCcw, Search, Send, X } from 'lucide-react'
 import { safeAdd } from '../../core'
 import {
-  calculateMultiplicativeCostAttribution,
+  calculateBOMParameterCostEffects,
+  calculateRoutingParameterCostEffects,
   calculateScenarioBusinessMetrics,
   calculateSnapshotBOMDetail,
   calculateSnapshotRoutingDetail,
   createScenarioFinancialResult,
   createScenarioStory
 } from '../../core/calculations'
+import { safeDivide } from '../../core/utils/guards'
 import type {
   CostSnapshot,
   MasterDataRole,
@@ -70,7 +72,27 @@ const RTG_PARAMETERS = [
   { parameter: 'routing.yield', field: 'yield', label: 'Yield', scale: 100, effectKey: 'yield' }
 ] as const
 
-type EffectValues = ReturnType<typeof calculateMultiplicativeCostAttribution>
+interface EffectValues {
+  totalEffect: number | null
+  effects: Record<string, number> | null
+  shares: Record<string, number | null> | null
+}
+
+function effectValues(totalEffect: number | null, sourceEffects: object | null): EffectValues {
+  const effects = sourceEffects
+    ? Object.fromEntries(Object.entries(sourceEffects)) as Record<string, number>
+    : null
+  return {
+    totalEffect,
+    effects,
+    shares: totalEffect === null || totalEffect === 0 || effects === null
+      ? null
+      : Object.fromEntries(Object.entries(effects).map(([key, value]) => {
+          const share = safeDivide(value, totalEffect)
+          return [key, share === null ? null : share * 100]
+        }))
+  }
+}
 
 type ResultSemantic = 'cost' | 'neutral' | 'profit'
 
@@ -111,7 +133,7 @@ function rowIsSelectable(row: SimulationComparisonRow): boolean {
   return row.identityIssue === null && (row.status === 'CHANGED' || row.status === 'UNCHANGED' || row.status === 'ADDED')
 }
 
-function bomAttribution(
+export function bomAttribution(
   row: SimulationComparisonRow,
   baselineSnapshot: CostSnapshot,
   simulationSnapshot: CostSnapshot
@@ -123,16 +145,35 @@ function bomAttribution(
   if (!rowIsMatched(row)) return { simCost, effects: empty }
   const baselineRecord = singleRecord(baselineSnapshot.bom, row.beforeRecordId)
   if (!baselineRecord) return { simCost, effects: empty }
-  const pair = calculateSnapshotBOMDetail({ reference: baselineRecord, current: simRecord })
   const hasInputs = [baselineRecord.price, simRecord.price, baselineRecord.consumption, simRecord.consumption, baselineRecord.loss, simRecord.loss]
     .every(value => value !== null && Number.isFinite(value))
   if (!hasInputs) return { simCost, effects: empty }
-  const attribution = calculateMultiplicativeCostAttribution(pair.referenceCost, pair.currentCost, [
-    { key: 'price', baseline: baselineRecord.price!, target: simRecord.price! },
-    { key: 'usage', baseline: baselineRecord.consumption!, target: simRecord.consumption! },
-    { key: 'loss', baseline: 1 + baselineRecord.loss!, target: 1 + simRecord.loss! }
-  ])
-  return { simCost, effects: attribution }
+  const attribution = calculateBOMParameterCostEffects(
+    {
+      usage: baselineRecord.consumption!,
+      price: baselineRecord.price!,
+      loss: baselineRecord.loss!,
+      exactInputs: {
+        usage: baselineRecord.exactDecimalInputs?.consumption,
+        price: baselineRecord.exactDecimalInputs?.price,
+        loss: baselineRecord.exactDecimalInputs?.loss
+      }
+    },
+    {
+      usage: simRecord.consumption!,
+      price: simRecord.price!,
+      loss: simRecord.loss!,
+      exactInputs: {
+        usage: simRecord.exactDecimalInputs?.consumption,
+        price: simRecord.exactDecimalInputs?.price,
+        loss: simRecord.exactDecimalInputs?.loss
+      }
+    }
+  )
+  if (attribution.status !== 'available') return { simCost, effects: empty }
+  const effects = attribution.effects
+  const totalEffect = safeAdd(effects.usage, effects.price, effects.loss)
+  return { simCost, effects: effectValues(totalEffect, effects) }
 }
 
 function normalizeKey(value: string | undefined): string {
@@ -209,7 +250,7 @@ function resolveSimulationCostUnit(referenceSnapshot: CostSnapshot, currentSnaps
   return 'Unit'
 }
 
-function routingAttribution(
+export function routingAttribution(
   row: SimulationComparisonRow,
   baselineSnapshot: CostSnapshot,
   simulationSnapshot: CostSnapshot
@@ -224,22 +265,57 @@ function routingAttribution(
   if (!baselineRecord || normalizeKey(baselineRecord.workCenterId) !== normalizeKey(simRecord.workCenterId)) {
     return { simCost, effects: empty }
   }
-  const pair = calculateSnapshotRoutingDetail(
-    { reference: baselineRecord, current: simRecord },
-    baselineSnapshot.rates,
-    simulationSnapshot.rates
-  )
   const hasInputs = [baselineRecord.manning, simRecord.manning, baselineRecord.capacity, simRecord.capacity, baselineRecord.yield, simRecord.yield]
     .every(value => value !== null && Number.isFinite(value))
   if (!hasInputs || baselineRecord.capacity! <= 0 || simRecord.capacity! <= 0 || baselineRecord.yield! <= 0 || simRecord.yield! <= 0) {
     return { simCost, effects: empty }
   }
-  const attribution = calculateMultiplicativeCostAttribution(pair.referenceTotal, pair.currentTotal, [
-    { key: 'manning', baseline: baselineRecord.manning!, target: simRecord.manning! },
-    { key: 'capacity', baseline: 1 / baselineRecord.capacity!, target: 1 / simRecord.capacity! },
-    { key: 'yield', baseline: 1 / baselineRecord.yield!, target: 1 / simRecord.yield! }
-  ])
-  return { simCost, effects: attribution }
+  const referenceRate = baselineSnapshot.rates.find(rate => normalizeKey(rate.workCenterCode) === normalizeKey(baselineRecord.workCenterId))
+  const currentRate = simulationSnapshot.rates.find(rate => normalizeKey(rate.workCenterCode) === normalizeKey(simRecord.workCenterId))
+  if (!referenceRate || !currentRate) return { simCost, effects: empty }
+  const attribution = calculateRoutingParameterCostEffects(
+    {
+      manning: baselineRecord.manning!,
+      capacity: baselineRecord.capacity!,
+      yield: baselineRecord.yield!,
+      laborRate: referenceRate.laborRate,
+      burdenRate: referenceRate.burdenRate,
+      exactInputs: {
+        manning: baselineRecord.exactDecimalInputs?.manning,
+        capacity: baselineRecord.exactDecimalInputs?.capacity,
+        yield: baselineRecord.exactDecimalInputs?.yield,
+        laborRate: referenceRate.exactDecimalInputs?.laborRate,
+        burdenRate: referenceRate.exactDecimalInputs?.burdenRate
+      }
+    },
+    {
+      manning: simRecord.manning!,
+      capacity: simRecord.capacity!,
+      yield: simRecord.yield!,
+      laborRate: currentRate.laborRate,
+      burdenRate: currentRate.burdenRate,
+      exactInputs: {
+        manning: simRecord.exactDecimalInputs?.manning,
+        capacity: simRecord.exactDecimalInputs?.capacity,
+        yield: simRecord.exactDecimalInputs?.yield,
+        laborRate: currentRate.exactDecimalInputs?.laborRate,
+        burdenRate: currentRate.exactDecimalInputs?.burdenRate
+      }
+    }
+  )
+  if (attribution.status !== 'available'
+    || attribution.effects.conversion.laborRate !== 0
+    || attribution.effects.conversion.burdenRate !== 0) return { simCost, effects: empty }
+  const effects = attribution.effects.conversion
+  const totalEffect = safeAdd(effects.manning, effects.capacity, effects.yield)
+  return {
+    simCost,
+    effects: effectValues(totalEffect, {
+      manning: effects.manning,
+      capacity: effects.capacity,
+      yield: effects.yield
+    })
+  }
 }
 
 const resultActionButton = 'grid h-8 w-8 shrink-0 place-items-center rounded-sm bg-transparent text-slate-700 transition-colors hover:bg-slate-100 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700'

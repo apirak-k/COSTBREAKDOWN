@@ -87,3 +87,8 @@ export function clearMasterDataDatasetState(session: ProductSession, role: Maste
   // Current's legacy product projection otherwise falls back to Reference metadata.
   return role === 'current' ? { ...marked, product: { ...emptyProductMaster } } : marked
 }
+
+export function clearAllMasterDataWorkingState(session: ProductSession): ProductSession {
+  return (['reference', 'current', 'custom'] as const)
+    .reduce((working, role) => clearMasterDataDatasetState(working, role), session)
+}
