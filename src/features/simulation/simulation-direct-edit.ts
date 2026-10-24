@@ -1,15 +1,27 @@
 import { createContext, useContext } from 'react'
+import { compareExactDecimals, parseExactDecimal } from '../../core/utils/exact-decimal'
 
-// Presentation follows the existing pending history edit; it never owns a commit.
+export function simulationDirectEditValueToken(value: number | null | string | undefined, exactValue?: string | null): string {
+  return exactValue ?? (value == null ? '' : String(value))
+}
+
+export function areSimulationDirectEditValueTokensEqual(left: string, right: string): boolean {
+  if (left === right) return true
+  const leftDecimal = parseExactDecimal(left)
+  const rightDecimal = parseExactDecimal(right)
+  return leftDecimal !== null && rightDecimal !== null && compareExactDecimals(leftDecimal, rightDecimal) === 0
+}
+
+// Direct-source provenance is presentation state; history still owns commits.
 export const SimulationDirectEditContext = createContext({
-  sourceId: null as string | null,
-  edit: (_sourceId: string, update: () => void) => update()
+  sourceIds: [] as readonly string[],
+  edit: (_sourceId: string, _beforeValue: string, _afterValue: string, update: () => void) => update()
 })
 
-export function useSimulationDirectEdit(sourceId: string) {
-  const pending = useContext(SimulationDirectEditContext)
+export function useSimulationDirectEdit(sourceId: string, currentValue: string) {
+  const provenance = useContext(SimulationDirectEditContext)
   return {
-    directEditPending: pending.sourceId === sourceId,
-    edit: (update: () => void) => pending.edit(sourceId, update)
+    directEditPending: provenance.sourceIds.includes(sourceId),
+    edit: (nextValue: string, update: () => void) => provenance.edit(sourceId, currentValue, nextValue, update)
   }
 }

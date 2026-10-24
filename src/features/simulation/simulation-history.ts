@@ -23,7 +23,11 @@ export interface SimulationEditableSnapshot {
 export interface SimulationHistoryEntry {
   before: SimulationEditableSnapshot
   after: SimulationEditableSnapshot
+  directEditSourcesBefore: SimulationDirectEditProvenance
+  directEditSourcesAfter: SimulationDirectEditProvenance
 }
+
+export type SimulationDirectEditProvenance = Record<string, string>
 
 export interface SimulationHistory {
   basisFingerprint: string | null
@@ -115,6 +119,10 @@ function cloneSnapshot(snapshot: SimulationEditableSnapshot): SimulationEditable
   }
 }
 
+function cloneDirectEditProvenance(provenance: SimulationDirectEditProvenance): SimulationDirectEditProvenance {
+  return { ...provenance }
+}
+
 function equalRecord<T extends object>(left: Record<string, T>, right: Record<string, T>): boolean {
   const leftKeys = Object.keys(left).sort()
   const rightKeys = Object.keys(right).sort()
@@ -188,10 +196,17 @@ export function clearSimulationHistory(
 export function recordSimulationHistory(
   history: SimulationHistory,
   before: SimulationEditableSnapshot,
-  after: SimulationEditableSnapshot
+  after: SimulationEditableSnapshot,
+  directEditSourcesBefore: SimulationDirectEditProvenance = {},
+  directEditSourcesAfter: SimulationDirectEditProvenance = {}
 ): SimulationHistory {
   if (isSimulationEditableSnapshotEqual(before, after)) return history
-  const entry = { before: cloneSnapshot(before), after: cloneSnapshot(after) }
+  const entry = {
+    before: cloneSnapshot(before),
+    after: cloneSnapshot(after),
+    directEditSourcesBefore: cloneDirectEditProvenance(directEditSourcesBefore),
+    directEditSourcesAfter: cloneDirectEditProvenance(directEditSourcesAfter)
+  }
   return {
     ...history,
     undo: [...history.undo, entry].slice(-SIMULATION_HISTORY_LIMIT),
@@ -202,24 +217,26 @@ export function recordSimulationHistory(
 export function undoSimulationHistory(
   history: SimulationHistory,
   current: SimulationEditableSnapshot
-): { history: SimulationHistory; snapshot: SimulationEditableSnapshot | null } {
+): { history: SimulationHistory; snapshot: SimulationEditableSnapshot | null; directEditSources: SimulationDirectEditProvenance | null } {
   const entry = history.undo[history.undo.length - 1]
-  if (!entry || !isSimulationEditableSnapshotEqual(current, entry.after)) return { history, snapshot: null }
+  if (!entry || !isSimulationEditableSnapshotEqual(current, entry.after)) return { history, snapshot: null, directEditSources: null }
   return {
     history: { ...history, undo: history.undo.slice(0, -1), redo: [...history.redo, entry] },
-    snapshot: cloneSnapshot(entry.before)
+    snapshot: cloneSnapshot(entry.before),
+    directEditSources: cloneDirectEditProvenance(entry.directEditSourcesBefore)
   }
 }
 
 export function redoSimulationHistory(
   history: SimulationHistory,
   current: SimulationEditableSnapshot
-): { history: SimulationHistory; snapshot: SimulationEditableSnapshot | null } {
+): { history: SimulationHistory; snapshot: SimulationEditableSnapshot | null; directEditSources: SimulationDirectEditProvenance | null } {
   const entry = history.redo[history.redo.length - 1]
-  if (!entry || !isSimulationEditableSnapshotEqual(current, entry.before)) return { history, snapshot: null }
+  if (!entry || !isSimulationEditableSnapshotEqual(current, entry.before)) return { history, snapshot: null, directEditSources: null }
   return {
     history: { ...history, undo: [...history.undo, entry].slice(-SIMULATION_HISTORY_LIMIT), redo: history.redo.slice(0, -1) },
-    snapshot: cloneSnapshot(entry.after)
+    snapshot: cloneSnapshot(entry.after),
+    directEditSources: cloneDirectEditProvenance(entry.directEditSourcesAfter)
   }
 }
 

@@ -111,7 +111,7 @@ export const Navbar: React.FC<NavbarProps> = ({ cbdReorderUndoRedo, simulationUn
             </div>
           </div>
 
-          <nav aria-label="Main navigation" className="col-span-2 row-start-2 flex min-w-0 flex-wrap items-center justify-center gap-0.5 lg:col-span-1 lg:col-start-2 lg:row-start-1">
+          <nav aria-label="Main navigation" className="col-span-2 row-start-2 grid min-w-0 grid-cols-3 items-center justify-center gap-0.5 lg:col-span-1 lg:col-start-2 lg:row-start-1">
             {navItems.map(item => {
               const isActive = activeTab === item.id
               return (
@@ -120,7 +120,7 @@ export const Navbar: React.FC<NavbarProps> = ({ cbdReorderUndoRedo, simulationUn
                   type="button"
                   aria-current={isActive ? 'page' : undefined}
                   onClick={() => setActiveTab(item.id)}
-                  className={`relative flex h-10 shrink-0 items-center px-2.5 text-xs transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-400 ${
+                  className={`relative flex h-10 w-full min-w-0 items-center justify-center px-2.5 text-xs transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-400 ${
                     isActive ? 'font-semibold text-white' : 'text-slate-400 hover:text-slate-100'
                   }`}
                 >

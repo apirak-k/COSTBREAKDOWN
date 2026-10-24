@@ -32,7 +32,7 @@ import { RowSelectionButton } from '../../shared/ui/RowSelectionButton'
 import { normalizeProductIdentityValue } from '../../core/utils/master-data-effective'
 import { parameterEffectPresentation } from './parameter-effect-presentation'
 import { EconomicBreakEvenGraphPanel, EconomicSimulationPanel } from './EconomicSimulationPanel'
-import { useSimulationDirectEdit } from './simulation-direct-edit'
+import { simulationDirectEditValueToken, useSimulationDirectEdit } from './simulation-direct-edit'
 import { SimulationHistoryInputBoundary } from './SimulationHistoryInputBoundary'
 import { SimulationStoryGraph } from './SimulationStoryGraph'
 import { calculateEconomicSimulation, type EconomicSimulationField } from './simulation-economics'
@@ -484,8 +484,10 @@ interface SimulationParameterNumericInputProps extends NumericInputProps {
 }
 
 function SimulationParameterNumericInput({ selectionId, percentage = false, onBeginEdit, onCommitEdit, onValueChange, ...inputProps }: SimulationParameterNumericInputProps) {
-  const directEdit = useSimulationDirectEdit(selectionId)
-  const changeValue: typeof onValueChange = (value, exactValue) => directEdit.edit(() => onValueChange(value, exactValue))
+  const directEdit = useSimulationDirectEdit(selectionId, simulationDirectEditValueToken(inputProps.value, inputProps.exactValue))
+  const changeValue: typeof onValueChange = (value, exactValue) => directEdit.edit(
+    simulationDirectEditValueToken(value, exactValue), () => onValueChange(value, exactValue)
+  )
   const source = useSelectedValueSource({
     directEditPending: directEdit.directEditPending,
     value: inputProps.value,

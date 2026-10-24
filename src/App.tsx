@@ -29,7 +29,7 @@ import {
 } from './features/simulation/simulation-state'
 import { updateSimulationParameter } from './features/simulation/simulation-engine'
 import type { SimulationParameter } from './features/simulation/simulation-state'
-import { SimulationDirectEditContext } from './features/simulation/simulation-direct-edit'
+import { areSimulationDirectEditValueTokensEqual, SimulationDirectEditContext } from './features/simulation/simulation-direct-edit'
 import type { EconomicSimulationField } from './features/simulation/simulation-economics'
 import {
   applySimulationEditableSnapshot,
@@ -39,12 +39,12 @@ import {
   createSimulationHistory,
   createSimulationHistoryChronology,
   peekSimulationHistoryChronology,
-  isSimulationEditableSnapshotEqual,
   recordSimulationHistory,
   recordSimulationHistoryChronology,
   redoSimulationHistory,
   takeSimulationHistoryChronology,
   undoSimulationHistory,
+  type SimulationDirectEditProvenance,
   type SimulationHistory,
   type SimulationHistoryChronology
 } from './features/simulation/simulation-history'
@@ -59,6 +59,23 @@ import {
   undoCandidateReorder,
   type CandidateTableType
 } from './features/cost-breakdown/candidate-reorder-history'
+
+interface SimulationDirectEditScope {
+  basisFingerprint: string
+  sources: SimulationDirectEditProvenance
+}
+
+type SimulationDirectEditSourcesByProduct = Record<string, Partial<Record<MasterDataRole, SimulationDirectEditScope>>>
+
+function getSimulationDirectEditSources(
+  sourcesByProduct: SimulationDirectEditSourcesByProduct,
+  productId: string,
+  role: MasterDataRole,
+  basisFingerprint: string
+): SimulationDirectEditProvenance {
+  const scope = sourcesByProduct[productId]?.[role]
+  return scope?.basisFingerprint === basisFingerprint ? scope.sources : {}
+}
 
 const AppRouter: React.FC = () => {
   const {
@@ -83,14 +100,16 @@ const AppRouter: React.FC = () => {
   )
   const [simulationHistoriesByProduct, setSimulationHistoriesByProduct] = useState<Record<string, Partial<Record<MasterDataRole, SimulationHistory>>>>({})
   const [simulationHistoryChronologyByProduct, setSimulationHistoryChronologyByProduct] = useState<Record<string, SimulationHistoryChronology>>({})
+  const [simulationDirectEditSourcesByProduct, setSimulationDirectEditSourcesByProduct] = useState<SimulationDirectEditSourcesByProduct>({})
   const [candidateReorderHistory, setCandidateReorderHistory] = useState(createCandidateReorderHistory)
-  const [pendingSimulationDirectEditSource, setPendingSimulationDirectEditSource] = useState<string | null>(null)
   const pendingSimulationEditRef = useRef<{
     productId: string
-    basisFingerprint: string | null
+    basisFingerprint: string
     sources: SimulationSources
     role: MasterDataRole
     before: ReturnType<typeof captureSimulationEditableSnapshot>
+    directEditSourcesBefore: SimulationDirectEditProvenance
+    latestDirectEditSources: SimulationDirectEditProvenance
     latestState: SimulationWorkspaceState
   } | null>(null)
   const lastCandidateHistoryContextRef = useRef({ activeProductId, comparisonFingerprint: comparisonPair.fingerprint })
@@ -105,6 +124,31 @@ const AppRouter: React.FC = () => {
       : reconciledSimulationState,
     [activeTab, masterDataSnapshots, reconciledSimulationState, storedSimulationState]
   )
+  const simulationDirectEditSourceIds = (['reference', 'current', 'custom'] as const).flatMap(role =>
+    Object.keys(getSimulationDirectEditSources(
+      simulationDirectEditSourcesByProduct,
+      activeProductId,
+      role,
+      simulationState.datasets[role].basisFingerprint
+    ))
+  )
+  const setSimulationDirectEditSources = (
+    productId: string,
+    role: MasterDataRole,
+    basisFingerprint: string,
+    sources: SimulationDirectEditProvenance
+  ) => {
+    setSimulationDirectEditSourcesByProduct(previous => {
+      const product = { ...(previous[productId] ?? {}) }
+      if (Object.keys(sources).length) product[role] = { basisFingerprint, sources: { ...sources } }
+      else delete product[role]
+      if (Object.keys(product).length) return { ...previous, [productId]: product }
+      if (!previous[productId]) return previous
+      const next = { ...previous }
+      delete next[productId]
+      return next
+    })
+  }
   const effectiveDatasets = useMemo(() => ({
     reference: getEffectiveSimulationDataset(masterDataSnapshots, simulationState, 'reference'),
     current: getEffectiveSimulationDataset(masterDataSnapshots, simulationState, 'current'),
@@ -185,13 +229,17 @@ const AppRouter: React.FC = () => {
     setSimulationStatesByProduct(previous => retainSimulationStatesForProducts(previous, liveProductIds))
     setSimulationHistoriesByProduct(previous => Object.fromEntries(Object.entries(previous).filter(([id]) => liveProductIds.has(id))))
     setSimulationHistoryChronologyByProduct(previous => Object.fromEntries(Object.entries(previous).filter(([id]) => liveProductIds.has(id))))
+    setSimulationDirectEditSourcesByProduct(previous => Object.fromEntries(Object.entries(previous).filter(([id]) => liveProductIds.has(id))))
   }, [productSessions])
 
   useEffect(() => {
     const histories = simulationHistoriesByProduct[activeProductId]
+    const directEditScopes = simulationDirectEditSourcesByProduct[activeProductId]
     const staleRoles = (['reference', 'current', 'custom'] as const).filter(role => {
       const history = histories?.[role]
-      return history && history.basisFingerprint !== simulationState.datasets[role].basisFingerprint
+      const directEditScope = directEditScopes?.[role]
+      return (history && history.basisFingerprint !== simulationState.datasets[role].basisFingerprint)
+        || (directEditScope && directEditScope.basisFingerprint !== simulationState.datasets[role].basisFingerprint)
     })
     if (staleRoles.length) {
       setSimulationHistoriesByProduct(previous => {
@@ -204,8 +252,18 @@ const AppRouter: React.FC = () => {
       const pending = pendingSimulationEditRef.current
       if (pending?.productId === activeProductId && staleRoles.includes(pending.role)) {
         pendingSimulationEditRef.current = null
-        setPendingSimulationDirectEditSource(null)
       }
+    }
+    if (staleRoles.length) {
+      setSimulationDirectEditSourcesByProduct(previous => {
+        const productSources = { ...(previous[activeProductId] ?? {}) }
+        staleRoles.forEach(role => { delete productSources[role] })
+        if (Object.keys(productSources).length) return { ...previous, [activeProductId]: productSources }
+        if (!previous[activeProductId]) return previous
+        const next = { ...previous }
+        delete next[activeProductId]
+        return next
+      })
     }
     if (staleRoles.length) {
       setSimulationHistoryChronologyByProduct(previous => ({
@@ -215,7 +273,7 @@ const AppRouter: React.FC = () => {
         )
       }))
     }
-  }, [activeProductId, simulationHistoriesByProduct, simulationState.datasets])
+  }, [activeProductId, simulationDirectEditSourcesByProduct, simulationHistoriesByProduct, simulationState.datasets])
 
   useEffect(() => {
     saveToSession(STORAGE_KEYS.SIMULATION_STATES, omitSimulationViewStateMap(simulationStatesByProduct))
@@ -225,13 +283,18 @@ const AppRouter: React.FC = () => {
     const pending = pendingSimulationEditRef.current
     if (!pending) return null
     pendingSimulationEditRef.current = null
-    setPendingSimulationDirectEditSource(null)
     const after = captureSimulationEditableSnapshot(pending.sources, pending.latestState, pending.role)
     const history = simulationHistoriesByProduct[pending.productId]?.[pending.role]
     const baseHistory = history?.basisFingerprint === pending.basisFingerprint
       ? history
       : createSimulationHistory(pending.basisFingerprint)
-    const nextHistory = recordSimulationHistory(baseHistory, pending.before, after)
+    const nextHistory = recordSimulationHistory(
+      baseHistory,
+      pending.before,
+      after,
+      pending.directEditSourcesBefore,
+      pending.latestDirectEditSources
+    )
     setSimulationHistoriesByProduct(previous => {
       const productHistory = previous[pending.productId] ?? {}
       const previousHistory = productHistory[pending.role]
@@ -240,7 +303,13 @@ const AppRouter: React.FC = () => {
         : createSimulationHistory(pending.basisFingerprint)
       return { ...previous, [pending.productId]: {
         ...productHistory,
-        [pending.role]: recordSimulationHistory(currentHistory, pending.before, after)
+        [pending.role]: recordSimulationHistory(
+          currentHistory,
+          pending.before,
+          after,
+          pending.directEditSourcesBefore,
+          pending.latestDirectEditSources
+        )
       } }
     })
     const recorded = nextHistory !== baseHistory
@@ -252,7 +321,15 @@ const AppRouter: React.FC = () => {
         )
       }))
     }
-    return { history: nextHistory, state: pending.latestState, sources: pending.sources, role: pending.role, basisFingerprint: pending.basisFingerprint, recorded }
+    return {
+      history: nextHistory,
+      state: pending.latestState,
+      sources: pending.sources,
+      role: pending.role,
+      basisFingerprint: pending.basisFingerprint,
+      directEditSources: { ...pending.latestDirectEditSources },
+      recorded
+    }
   }
 
   useEffect(() => {
@@ -268,23 +345,35 @@ const AppRouter: React.FC = () => {
     const currentState = committed?.state ?? simulationState
     const sources = committed?.sources ?? masterDataSnapshots
     const dataset = getEffectiveSimulationDataset(sources, currentState, role)
+    const directEditSources = committed?.role === role && committed.basisFingerprint === dataset.basisFingerprint
+      ? committed.directEditSources
+      : getSimulationDirectEditSources(simulationDirectEditSourcesByProduct, activeProductId, role, dataset.basisFingerprint)
     pendingSimulationEditRef.current = {
       productId: activeProductId,
       basisFingerprint: dataset.basisFingerprint,
       sources,
       role,
       before: captureSimulationEditableSnapshot(sources, currentState, role),
+      directEditSourcesBefore: { ...directEditSources },
+      latestDirectEditSources: { ...directEditSources },
       latestState: currentState
     }
   }
 
-  const applyDirectSimulationEdit = (sourceId: string, update: () => void) => {
+  const applyDirectSimulationEdit = (sourceId: string, beforeValue: string, afterValue: string, update: () => void) => {
     const before = pendingSimulationEditRef.current?.latestState
     update()
     const pending = pendingSimulationEditRef.current
     if (pending && pending.latestState !== before) {
-      const after = captureSimulationEditableSnapshot(pending.sources, pending.latestState, pending.role)
-      setPendingSimulationDirectEditSource(isSimulationEditableSnapshotEqual(pending.before, after) ? null : sourceId)
+      const nextDirectEditSources = { ...pending.latestDirectEditSources }
+      const originalValue = nextDirectEditSources[sourceId]
+      if (originalValue !== undefined) {
+        if (areSimulationDirectEditValueTokensEqual(afterValue, originalValue)) delete nextDirectEditSources[sourceId]
+      } else if (!areSimulationDirectEditValueTokensEqual(beforeValue, afterValue)) {
+        nextDirectEditSources[sourceId] = beforeValue
+      }
+      pending.latestDirectEditSources = nextDirectEditSources
+      setSimulationDirectEditSources(pending.productId, pending.role, pending.basisFingerprint, nextDirectEditSources)
     }
   }
 
@@ -321,17 +410,25 @@ const AppRouter: React.FC = () => {
     const current = committed?.state ?? simulationState
     const role = current.activeDataset
     const sources = committed?.sources ?? masterDataSnapshots
+    const dataset = getEffectiveSimulationDataset(sources, current, role)
+    const directEditSourcesBefore = committed?.role === role
+      ? committed.directEditSources
+      : getSimulationDirectEditSources(simulationDirectEditSourcesByProduct, activeProductId, role, dataset.basisFingerprint)
     const next = resetSimulationParameters(current, sources)
-    if (next === current) return
+    if (next === current) {
+      setSimulationDirectEditSources(activeProductId, role, dataset.basisFingerprint, {})
+      return
+    }
     const before = captureSimulationEditableSnapshot(sources, current, role)
     const after = captureSimulationEditableSnapshot(sources, next, role)
-    const fingerprint = getEffectiveSimulationDataset(sources, current, role).basisFingerprint
+    const fingerprint = dataset.basisFingerprint
     const roleHistory = simulationHistoriesByProduct[activeProductId]?.[role]
     const currentHistory = committed?.role === role && committed.recorded
       ? committed.history
       : roleHistory?.basisFingerprint === fingerprint ? roleHistory : createSimulationHistory(fingerprint)
-    const nextHistory = recordSimulationHistory(currentHistory, before, after)
+    const nextHistory = recordSimulationHistory(currentHistory, before, after, directEditSourcesBefore, {})
     setSimulationStatesByProduct(previous => ({ ...previous, [activeProductId]: next }))
+    setSimulationDirectEditSources(activeProductId, role, fingerprint, {})
     setSimulationHistoriesByProduct(previous => ({
       ...previous,
       [activeProductId]: { ...(previous[activeProductId] ?? {}), [role]: nextHistory }
@@ -396,12 +493,12 @@ const AppRouter: React.FC = () => {
       return
     }
     pendingSimulationEditRef.current = null
-    setPendingSimulationDirectEditSource(null)
     setSimulationStatesByProduct(previous => ({ ...previous, [activeProductId]: nextState }))
     setSimulationHistoriesByProduct(previous => ({
       ...previous,
       [activeProductId]: { ...(previous[activeProductId] ?? {}), [currentRole]: operation.history }
     }))
+    setSimulationDirectEditSources(activeProductId, currentRole, currentDataset.basisFingerprint, operation.directEditSources ?? {})
     const nextChronology = takeSimulationHistoryChronology(currentChronology, direction)
     setSimulationHistoryChronologyByProduct(previous => ({
       ...previous,
@@ -461,6 +558,12 @@ const AppRouter: React.FC = () => {
     const committed = commitSimulationEdit()
     const current = reconcileSimulationState(committed?.state ?? simulationStatesByProduct[activeProductId] ?? simulationState, masterDataSnapshots)
     const next = resetAllSimulationParameters(current, masterDataSnapshots)
+    setSimulationDirectEditSourcesByProduct(previous => {
+      if (!previous[activeProductId]) return previous
+      const updated = { ...previous }
+      delete updated[activeProductId]
+      return updated
+    })
     if (next === current) return
     const changedRoles = (['reference', 'current', 'custom'] as const).filter(role => next.datasets[role] !== current.datasets[role])
     setSimulationStatesByProduct(previous => ({ ...previous, [activeProductId]: next }))
@@ -527,7 +630,7 @@ const AppRouter: React.FC = () => {
       )}
       {(activeTab === 'simulation' || hasVisitedSimulation) && (
         <div hidden={activeTab !== 'simulation'} className={activeTab === 'simulation' ? 'xl:flex xl:h-full xl:min-h-0 xl:min-w-0 xl:flex-col' : undefined}>
-          <SimulationDirectEditContext.Provider value={{ sourceId: pendingSimulationDirectEditSource, edit: applyDirectSimulationEdit }}>
+          <SimulationDirectEditContext.Provider value={{ sourceIds: simulationDirectEditSourceIds, edit: applyDirectSimulationEdit }}>
             <SimulationPage
               key={activeProductId}
               productId={activeProductId}

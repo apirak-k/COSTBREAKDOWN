@@ -6,7 +6,7 @@ import { formatBusinessNumber } from '../../shared/ui/numeric-display'
 import { NumericInput } from '../../shared/ui/NumericInput'
 import type { NumericInputProps } from '../../shared/ui/NumericInput'
 import { SelectedNumber, useSelectedValueSource } from '../../shared/ui/selected-value'
-import { useSimulationDirectEdit } from './simulation-direct-edit'
+import { simulationDirectEditValueToken, useSimulationDirectEdit } from './simulation-direct-edit'
 import { SimulationHistoryInputBoundary } from './SimulationHistoryInputBoundary'
 import type { EconomicSimulationDraft, EconomicSimulationResult, EconomicSimulationField } from './simulation-economics'
 
@@ -31,8 +31,10 @@ interface EconomicNumericInputProps extends NumericInputProps {
 }
 
 function EconomicNumericInput({ selectionId, percentage = false, onBeginEdit, onCommitEdit, onValueChange, ...inputProps }: EconomicNumericInputProps) {
-  const directEdit = useSimulationDirectEdit(selectionId)
-  const changeValue: typeof onValueChange = (value, exactValue) => directEdit.edit(() => onValueChange(value, exactValue))
+  const directEdit = useSimulationDirectEdit(selectionId, simulationDirectEditValueToken(inputProps.value, inputProps.exactValue))
+  const changeValue: typeof onValueChange = (value, exactValue) => directEdit.edit(
+    simulationDirectEditValueToken(value, exactValue), () => onValueChange(value, exactValue)
+  )
   const source = useSelectedValueSource({
     directEditPending: directEdit.directEditPending,
     value: inputProps.value,
@@ -174,8 +176,10 @@ function BreakEvenGraph({
   const markerX = batchSize === null ? null : toX(batchSize)
   const batchMax = Math.min(Number.MAX_SAFE_INTEGER, Math.max(1, Math.ceil(xMax)))
   const markerSourceId = `simulation:${selectionContext}:break-even:batch-size-marker`
-  const markerDirectEdit = useSimulationDirectEdit(markerSourceId)
-  const changeMarkerBatchSize = (value: string) => markerDirectEdit.edit(() => onBatchSizeChange(value))
+  const markerDirectEdit = useSimulationDirectEdit(markerSourceId, simulationDirectEditValueToken(batchSize, batchSizeExactValue))
+  const changeMarkerBatchSize = (value: string) => markerDirectEdit.edit(
+    simulationDirectEditValueToken(value), () => onBatchSizeChange(value)
+  )
   const markerSource = useSelectedValueSource({
     directEditPending: markerDirectEdit.directEditPending,
     value: batchSize,

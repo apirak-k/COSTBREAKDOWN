@@ -81,6 +81,33 @@ try {
   assert.equal(view(exactRedone).snapshot.bom[0].exactDecimalInputs?.price, criticalDecimal,
     'Redo reapplies every exact decimal digit to the reconstructed Simulation row')
 
+  const priceSource = 'simulation:current:bom:sample:price'
+  const usageSource = 'simulation:current:bom:sample:consumption'
+  const priceProvenance = { [priceSource]: String(firstBom.price) }
+  const exactHistoryWithProvenance = recordSimulationHistory(emptyHistory, exactBefore, exactAfter, {}, priceProvenance)
+  assert.equal(exactHistoryWithProvenance.undo.length, 1, 'direct-source metadata remains inside the existing single edit entry')
+  const provenanceUndo = undoSimulationHistory(exactHistoryWithProvenance, exactAfter)
+  assert.deepEqual(provenanceUndo.directEditSources, {},
+    'Undo restores source provenance to its pre-edit state')
+  assert.deepEqual(redoSimulationHistory(provenanceUndo.history, exactBefore).directEditSources, priceProvenance,
+    'Redo restores source provenance with the edited exact value')
+  const bothChanged = updateSimulationParameter(exactEdit, sources, firstBom.id, 'bom.consumption',
+    (firstBom.consumption ?? 0) + 0.1, 'current')
+  const bothChangedSnapshot = captureSimulationEditableSnapshot(sources, bothChanged, 'current')
+  const bothProvenance = { ...priceProvenance, [usageSource]: String(firstBom.consumption) }
+  const sequentialHistory = recordSimulationHistory(
+    exactHistoryWithProvenance,
+    exactAfter,
+    bothChangedSnapshot,
+    priceProvenance,
+    bothProvenance
+  )
+  const undoUsageWithProvenance = undoSimulationHistory(sequentialHistory, bothChangedSnapshot)
+  assert.deepEqual(undoUsageWithProvenance.directEditSources, priceProvenance,
+    'Undo of a later source preserves the earlier direct-source provenance')
+  assert.deepEqual(redoSimulationHistory(undoUsageWithProvenance.history, undoUsageWithProvenance.snapshot!).directEditSources, bothProvenance,
+    'Redo restores both sources without adding or regrouping history entries')
+
   const exactSellingPriceDraft = setSimulationEconomicInput(base, 'sellingPriceOverride', criticalDecimal, 'current')
   const exactEconomicView = view(exactSellingPriceDraft)
   const exactEconomicCalculation = calculateEconomicSimulation(

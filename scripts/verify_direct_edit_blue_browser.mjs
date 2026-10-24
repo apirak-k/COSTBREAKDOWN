@@ -143,6 +143,12 @@ try {
     await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: point.x, y: point.y, button: 'left', clickCount: 1 })
     await delay(120)
   }
+  const hoverSelector = async selector => {
+    const point = await evaluate(`(()=>{const element=${visibleExpression(selector)};if(!element)return null;const rect=element.getBoundingClientRect();return {x:rect.x+rect.width/2,y:rect.y+rect.height/2,w:rect.width,h:rect.height}})()`)
+    if (!point || point.w <= 0 || point.h <= 0) throw new Error(`Visible browser target not found: ${selector}`)
+    await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: point.x, y: point.y })
+    await delay(180)
+  }
   const clickTextButton = async label => {
     const point = await evaluate(`(()=>{const element=[...document.querySelectorAll('button')].find(item => item.getClientRects().length && item.innerText.trim() === ${JSON.stringify(label)});if(!element)return null;const rect=element.getBoundingClientRect();return {x:rect.x+rect.width/2,y:rect.y+rect.height/2}})()`)
     if (!point) throw new Error(`Button not found by visible text: ${label}`)
@@ -170,6 +176,18 @@ try {
   const expectBlue = async (selector, label) => { await delay(250); const s = await state(selector); check(s?.color === blue, label, s) }
   const expectNormal = async (selector, label) => { await delay(250); const s = await state(selector); check(!!s && s.color !== blue, label, s) }
   const blur = async () => { await evaluate('document.activeElement?.blur()'); await delay(180) }
+  const setViewport = async width => {
+    await send('Emulation.setDeviceMetricsOverride', { width, height: 1800, deviceScaleFactor: 1, mobile: false })
+    await delay(160)
+  }
+  const verifyNavigationGeometry = async label => {
+    const geometry = await evaluate(`(()=>{const nav=document.querySelector('header nav[aria-label="Main navigation"]');if(!nav)return null;return [...nav.querySelectorAll(':scope > button')].map(button=>{const rect=button.getBoundingClientRect();const underline=button.querySelector(':scope > span[aria-hidden="true"]');const underlineRect=underline?.getBoundingClientRect();return {label:button.innerText.trim(),width:rect.width,left:rect.left,center:rect.left+rect.width/2,active:button.getAttribute('aria-current')==='page',underline:underlineRect?{width:underlineRect.width,center:underlineRect.left+underlineRect.width/2}:null}})})()`)
+    check(geometry?.length === 3, `${label}: all three navigation tabs are rendered`, geometry)
+    const widths = geometry.map(item => item.width)
+    check(Math.max(...widths) - Math.min(...widths) <= 1.25, `${label}: navigation tabs have equal rendered widths within 1.25px`, geometry)
+    const active = geometry.find(item => item.active)
+    check(Boolean(active?.underline) && Math.abs(active.underline.center - active.center) <= 1.25, `${label}: active underline is centered under its tab within 1.25px`, active)
+  }
   const toolbar = 'section[aria-label="Working dataset controls"]'
   const field = (section, name) => `section[aria-label="${section} rows"] tbody tr:first-child input[data-grid-field="${name}"]`
   const price = field('Bill of Materials', 'price')
@@ -185,6 +203,10 @@ try {
   await clickTextButton('Complete Mock')
   await clickTextButton('Master Data')
   await waitFor(() => existsVisible(toolbar), 'Master Data workspace')
+  await verifyNavigationGeometry('1440px viewport')
+  await setViewport(390)
+  await verifyNavigationGeometry('390px viewport')
+  await setViewport(1440)
   await clickSelector(role('Current'))
   if (await evaluate(`document.querySelector('${toolbar} button[role="switch"]')?.getAttribute('aria-checked')==='false'`)) await clickSelector(`${toolbar} button[role="switch"]`)
   await clickSelector('[role="group"][aria-label="Master Data table section"] button:last-child')
@@ -272,30 +294,120 @@ try {
   await waitFor(() => existsVisible('section[data-simulation-table="bom"]'), 'Simulation')
   await clickTextButton('Current')
   const simPrice = 'section[data-simulation-table="bom"] input[aria-label$="Price in Current"]'
+  const simUsage = 'section[data-simulation-table="bom"] input[aria-label$="Usage in Current"]'
   await waitFor(() => existsVisible(simPrice), 'Simulation Price')
+  await waitFor(() => existsVisible(simUsage), 'Simulation Usage')
   const result = 'button[data-selected-number][aria-label="Material After"]'
   await expectNormal(simPrice, 'Simulation committed source initially normal')
+  const simPriceBefore = await inputValue(simPrice)
+  const simUsageBefore = await inputValue(simUsage)
   await replaceInput(simPrice, exact)
-  await expectBlue(simPrice, 'Simulation direct parameter is blue during pending gesture')
+  await expectBlue(simPrice, 'Simulation Price direct edit is blue during the pending gesture')
   await clickSelector(header)
   check(await inputValue(header) === exact, 'Simulation Header uses the same exact source writer', await state(header))
   await expectNormal(result, 'calculated Simulation Material After keeps normal color during direct edit')
   const derived = await evaluate(`(()=>[...document.querySelectorAll('[data-simulation-result-body] [data-selected-number], [data-economic-outcome-value] [data-selected-number]')].filter(e=>e.getClientRects().length).map(e=>({label:e.getAttribute('aria-label'),color:getComputedStyle(e).color,pending:e.getAttribute('data-direct-edit-pending')})))()`)
   check(derived.length > 0 && derived.every(e => e.color !== 'rgb(29, 78, 216)' && e.pending !== 'true'), 'Simulation results and Economic outputs never inherit source blue', derived)
   await blur()
-  await expectNormal(simPrice, 'Simulation parameter commit clears blue')
+  await expectBlue(simPrice, 'Simulation Price stays blue after blur commits its history action')
   await clickSelector(simPrice)
   check(await inputValue(simPrice) === exact, 'Simulation commit retains exact text on refocus')
+  const usageEdit = simUsageBefore === '3.13' ? '4.125987654321' : '3.125987654321'
+  await replaceInput(simUsage, usageEdit)
   await blur()
+  await expectBlue(simPrice, 'first Simulation source remains blue after an independent second edit')
+  await expectBlue(simUsage, 'second independent Simulation source stays blue after blur')
+  await expectNormal(result, 'calculated Simulation Material After stays normal after both direct edits')
+  const derivedAfterSecondEdit = await evaluate(`(()=>[...document.querySelectorAll('[data-simulation-result-body] [data-selected-number], [data-economic-outcome-value] [data-selected-number]')].filter(e=>e.getClientRects().length).map(e=>({label:e.getAttribute('aria-label'),color:getComputedStyle(e).color,pending:e.getAttribute('data-direct-edit-pending')})))()`)
+  check(derivedAfterSecondEdit.length > 0 && derivedAfterSecondEdit.every(e => e.color !== 'rgb(29, 78, 216)' && e.pending !== 'true'), 'derived Simulation results remain normal after multiple direct edits', derivedAfterSecondEdit)
+
   await clickSelector('header button[aria-label="Undo"]')
-  await expectNormal(simPrice, 'Simulation Undo restores committed normal source')
+  check(await inputValue(simUsage) === simUsageBefore, 'first Undo reverses only the latest Usage action')
+  await expectBlue(simPrice, 'Undo of Usage preserves the earlier Price provenance')
+  await expectNormal(simUsage, 'Undo of Usage removes only Usage provenance')
+  await clickSelector('header button[aria-label="Undo"]')
+  check(await inputValue(simPrice) === simPriceBefore && await inputValue(simUsage) === simUsageBefore, 'second Undo restores the complete pre-edit parameter snapshot')
+  await expectNormal(simPrice, 'Undo to the original parameter snapshot clears Price provenance')
+  await expectNormal(simUsage, 'Undo to the original parameter snapshot clears Usage provenance')
   await clickSelector('header button[aria-label="Redo"]')
-  await expectNormal(simPrice, 'Simulation Redo restores committed normal source')
+  await clickSelector(simPrice)
+  check(await inputValue(simPrice) === exact && await inputValue(simUsage) === simUsageBefore, 'first Redo reapplies only the first chronological Price action with its exact editable value')
+  await expectBlue(simPrice, 'Redo restores Price provenance with its edited value')
+  await expectNormal(simUsage, 'first Redo leaves Usage at its pre-edit value')
+  await clickSelector('header button[aria-label="Redo"]')
+  await clickSelector(simPrice)
+  const priceAfterSecondRedo = await inputValue(simPrice)
+  await clickSelector(simUsage)
+  check(priceAfterSecondRedo === exact && await inputValue(simUsage) === usageEdit, 'second Redo reapplies both sources in original order with their exact editable values')
+  await expectBlue(simPrice, 'second Redo preserves the earlier Price provenance')
+  await expectBlue(simUsage, 'second Redo restores Usage provenance with its edited value')
+
   const economic = 'input[aria-label="Fixed Action Cost"]'
-  await replaceInput(economic, '123.00000000000000001')
-  await expectBlue(economic, 'Economic direct source is blue while uncommitted')
+  const economicBefore = await inputValue(economic)
+  const economicEdit = '123.00000000000000001'
+  await replaceInput(economic, economicEdit)
   await blur()
-  await expectNormal(economic, 'Economic source commit clears blue')
+  await expectBlue(economic, 'Economic direct input stays blue after blur commits its history action')
+  await clickSelector('header button[aria-label="Undo"]')
+  check(await inputValue(economic) === economicBefore, 'Economic Undo restores its exact pre-edit editable value')
+  await expectNormal(economic, 'Economic Undo removes its direct-edit provenance')
+  await clickSelector('header button[aria-label="Redo"]')
+  await clickSelector(economic)
+  check(await inputValue(economic) === economicEdit, 'Economic Redo restores the exact edited value')
+  await expectBlue(economic, 'Economic Redo restores direct-edit provenance')
+
+  const resetEdit = '14.25'
+  await replaceInput(simPrice, resetEdit)
+  await blur()
+  await expectBlue(simPrice, 'Simulation source is marked before Main Reset')
+  await clickSelector('button[aria-label="Reset"]')
+  check(await inputValue(simPrice) === simPriceBefore, 'Main Reset restores the source to its role baseline')
+  await expectNormal(simPrice, 'Main Reset removes stale provenance from the reset source')
+  await clickSelector('header button[aria-label="Undo"]')
+  check(await inputValue(simPrice) === resetEdit, 'Undo of Main Reset restores the exact pre-reset edit')
+  await expectBlue(simPrice, 'Undo of Main Reset restores its direct-edit provenance')
+  await clickSelector('header button[aria-label="Redo"]')
+  check(await inputValue(simPrice) === simPriceBefore, 'Redo of Main Reset reapplies the role baseline')
+  await expectNormal(simPrice, 'Redo of Main Reset removes stale provenance again')
+
+  const reconciledEdit = '24.125'
+  await replaceInput(simPrice, reconciledEdit)
+  await blur()
+  await expectBlue(simPrice, 'direct source is marked before same-role Send reconciliation')
+  await clickSelector('button[aria-label="Send to Master Data"]')
+  await clickSelector(simPrice)
+  check(await inputValue(simPrice) === reconciledEdit, 'same-role Send preserves the newly authoritative Working value')
+  await expectNormal(simPrice, 'same-role Send reconciliation prunes stale direct-edit provenance')
+
+  const selectSimulationRole = async roleName => {
+    await clickSelector(`button[aria-label="Select ${roleName} as active dataset"]`)
+    await delay(250)
+  }
+  await selectSimulationRole('Reference')
+  const referencePrice = 'section[data-simulation-table="bom"] input[aria-label$="Price in Reference"]'
+  const referenceEdit = '11.25'
+  await waitFor(() => existsVisible(referencePrice), 'Simulation Reference Price')
+  await replaceInput(referencePrice, referenceEdit)
+  await blur()
+  await expectBlue(referencePrice, 'Reference direct source stays blue after blur')
+  await selectSimulationRole('Current')
+  const secondRoleEdit = '13.75'
+  await replaceInput(simPrice, secondRoleEdit)
+  await blur()
+  await expectBlue(simPrice, 'Current direct source stays blue after blur')
+  await selectSimulationRole('Reference')
+  await expectBlue(referencePrice, 'Reference direct source survives switching away and back')
+
+  await hoverSelector('button[aria-label="Reset"]')
+  await waitFor(() => evaluate('Boolean([...document.querySelectorAll("button")].find(button=>button.getClientRects().length&&button.innerText.trim()==="Reset all"))'), 'Reset all menu action')
+  await clickTextButton('Reset all')
+  await delay(300)
+  const resetAllActiveRole = await evaluate(`document.querySelector('button[aria-pressed="true"][aria-label^="Select "]')?.getAttribute('aria-label')??null`)
+  check(resetAllActiveRole === 'Select Custom as active dataset', 'Reset all restores the canonical Custom active role', resetAllActiveRole)
+  await selectSimulationRole('Reference')
+  await expectNormal(referencePrice, 'Reset all clears Reference source provenance')
+  await selectSimulationRole('Current')
+  await expectNormal(simPrice, 'Reset all leaves Current source without stale provenance')
   await clickTextButton('Cost Breakdown')
   await delay(400)
   const cbd = await evaluate(`(()=>[...document.querySelectorAll('main [data-selected-number]')].filter(e=>e.getClientRects().length).map(e=>({color:getComputedStyle(e).color,pending:e.dataset.directEditPending})))()`)
