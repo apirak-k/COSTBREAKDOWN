@@ -144,6 +144,12 @@ try {
     await delay(180)
   }
   const clickSelector = async selector => clickAt(await evaluate(`(()=>{const e=document.querySelector(${JSON.stringify(selector)});if(!e||!e.getClientRects().length)return null;const r=e.getBoundingClientRect();return {x:r.left+r.width/2,y:r.top+r.height/2}})()`))
+  const moveTo = async selector => {
+    const point = await evaluate(`(()=>{const e=document.querySelector(${JSON.stringify(selector)});if(!e||!e.getClientRects().length)return null;e.scrollIntoView({block:'center',inline:'nearest'});const r=e.getBoundingClientRect();return{x:r.left+r.width/2,y:r.top+r.height/2}})()`)
+    if (!point) throw new Error(`No visible hover target: ${selector}`)
+    await send('Input.dispatchMouseEvent', { type: 'mouseMoved', ...point })
+    return point
+  }
   const clickButtonText = async label => clickAt(await evaluate(`(()=>{const e=[...document.querySelectorAll('button')].find(b=>b.getClientRects().length&&b.innerText.trim()===${JSON.stringify(label)});if(!e)return null;const r=e.getBoundingClientRect();return {x:r.left+r.width/2,y:r.top+r.height/2}})()`))
   const clickRole = async label => clickAt(await evaluate(`(()=>{const e=[...document.querySelectorAll('button[aria-pressed]')].find(b=>b.getClientRects().length&&b.innerText.trim()===${JSON.stringify(label)});if(!e)return null;const r=e.getBoundingClientRect();return {x:r.left+r.width/2,y:r.top+r.height/2}})()`))
   const clickComparisonOption = async (side, label) => clickAt(await evaluate(`(()=>{const e=[...document.querySelectorAll('[role="menu"][aria-label=${JSON.stringify(`${side} dataset choices`)}] button[role="menuitem"]')].find(b=>b.innerText.trim()===${JSON.stringify(label)});if(!e)return null;const r=e.getBoundingClientRect();return{x:r.left+r.width/2,y:r.top+r.height/2}})()`))
@@ -239,12 +245,10 @@ try {
     const fixtureHeader=()=>evaluate(`(()=>{const input=document.querySelector('[data-header-numeric-zone] input[aria-label="Selected value"]'),output=document.querySelector('[data-header-numeric-zone] [data-selected-value-output]');return input?{kind:'input',value:input.value,source:input.getAttribute('data-selected-value-source')}:output?{kind:'output',value:output.textContent.trim(),source:output.title}:null})()`)
     const fixtureGraphState=selector=>evaluate(`(()=>{const text=document.querySelector(${JSON.stringify(selector)});if(!text)return null;const id=text.getAttribute('data-selected-value-source'),background=[...document.querySelectorAll('[data-selected-number-background]')].find(item=>item.getAttribute('data-selected-number-background')===id),glyph=text.getBBox(),box=background?.getBBox();return{text:text.textContent.trim(),aria:text.getAttribute('aria-label'),pressed:text.getAttribute('aria-pressed'),id,fill:getComputedStyle(text).fill,glyph:{x:glyph.x,y:glyph.y,width:glyph.width,height:glyph.height},background:box?{x:box.x,y:box.y,width:box.width,height:box.height,pointerEvents:background.getAttribute('pointer-events')}:null}})()`)
     const fixtureTargets=[
-      ['Reference Standard Cost','svg text[data-graph-standard-cost-value="reference"]'],
       ['Visible +','svg text[data-graph-visible-total-side="positive"]'],
       ['Visible −','svg text[data-graph-visible-total-side="negative"]'],
       ['GAP 1 total','svg text[data-graph-total="gap1"]'],
-      ['GAP 2 total','svg text[data-graph-total="gap2"]'],
-      ['Y-axis tick','svg text[data-axis-tick="1"]']
+      ['GAP 2 total','svg text[data-graph-total="gap2"]']
     ]
     const fixtureSelections=[]
     for(const [label,selector] of fixtureTargets){
@@ -256,12 +260,11 @@ try {
       const unpinned=await fixtureGraphState(selector)
       fixtureSelections.push({label,before,preview:await preview,pinned,unpinned})
     }
-    check('SVG bridge selects Standard Cost, Visible +/−, both GAP totals, and Y-axis ticks through the shared Header provider',fixtureSelections.length===6&&fixtureSelections.every(item=>item.before?.id&&item.before.pressed==='false'&&item.preview?.kind==='output'&&item.preview.value!=='—'&&item.pinned?.pressed==='true'&&item.unpinned?.pressed==='false'&&item.pinned.background?.pointerEvents==='none'&&Math.abs(item.pinned.background.x-item.pinned.glyph.x+2)<0.1&&Math.abs(item.pinned.background.y-item.pinned.glyph.y+1)<0.5&&Math.abs(item.pinned.background.width-item.pinned.glyph.width-4)<0.1&&Math.abs(item.pinned.background.height-item.pinned.glyph.height-2)<0.5),fixtureSelections)
+    check('Visible +/− and both numeric GAP totals retain shared Header preview/pin/unpin and tight SVG backgrounds',fixtureSelections.length===4&&fixtureSelections.every(item=>item.before?.id&&item.before.pressed==='false'&&item.preview?.kind==='output'&&item.preview.value!=='—'&&item.pinned?.pressed==='true'&&item.unpinned?.pressed==='false'&&item.pinned.background?.pointerEvents==='none'&&Math.abs(item.pinned.background.x-item.pinned.glyph.x+2)<0.1&&Math.abs(item.pinned.background.y-item.pinned.glyph.y+1)<0.5&&Math.abs(item.pinned.background.width-item.pinned.glyph.width-4)<0.1&&Math.abs(item.pinned.background.height-item.pinned.glyph.height-2)<0.5),fixtureSelections)
     const fixtureTooltips=[]
     for(const [label,selector,expected] of [
-      ['Standard Cost','svg text[data-graph-standard-cost-value="reference"]','Reference Standard Cost'],
-      ['Visible +','svg text[data-graph-visible-total-side="positive"]','Current Visible +'],
-      ['Visible −','svg text[data-graph-visible-total-side="negative"]','Current Visible −'],
+      ['Visible +','svg text[data-graph-visible-total-side="positive"]',null],
+      ['Visible −','svg text[data-graph-visible-total-side="negative"]',null],
       ['GAP 1 total','svg text[data-graph-total="gap1"]','Current − Reference'],
       ['GAP 2 total','svg text[data-graph-total="gap2"]','Custom − Current']
     ]){
@@ -269,27 +272,10 @@ try {
       await delay(400)
       const tooltip=await evaluate(`document.querySelector('[data-graph-tooltip-host] > div[aria-hidden="true"]')?.textContent??null`)
       const aria=await evaluate(`document.querySelector(${JSON.stringify(selector)})?.getAttribute('aria-label')??null`)
-      fixtureTooltips.push({label,tooltip,aria,expected})
+      fixtureTooltips.push({label,tooltip,aria,expected:expected??aria?.split(' ').slice(0,3).join(' ')})
     }
     const fixtureLabels=await evaluate(`(()=>[...document.querySelectorAll('svg text')].filter(text=>/^GAP [12]$/.test(text.textContent.trim())).map(text=>({text:text.textContent.trim(),target:!!text.hasAttribute('data-graph-tooltip'),label:text.getAttribute('aria-label'),selected:!!text.hasAttribute('data-selected-value-source')})))()`)
-    check('SVG graph context tooltips omit visible amounts, preserve exact GAP context, and leave GAP category text tooltip-free',fixtureTooltips.length===5&&fixtureTooltips.every(item=>item.tooltip===item.expected&&!/[+-]?\d[\d,]*(?:\.\d+)?/.test(item.tooltip))&&fixtureLabels.length===2&&fixtureLabels.every(item=>!item.target&&!item.label&&!item.selected),{fixtureTooltips,fixtureLabels})
-    const rulerTarget=await evaluate(`(()=>{const e=document.querySelector('svg [role="slider"][aria-label="Simulation comparison ruler"]'),r=e?.getBoundingClientRect();return r?{x:r.left+r.width/2,y:r.top+r.height/2}:null})()`)
-    await send('Input.dispatchMouseEvent',{type:'mouseMoved',x:1437,y:10})
-    const dwellTarget='svg text[data-graph-standard-cost-value="reference"]'
-    await moveTo(dwellTarget)
-    await delay(220)
-    const early=await evaluate(`document.querySelector('[data-graph-tooltip-host] > div[aria-hidden="true"]')?.textContent??null`)
-    await send('Input.dispatchMouseEvent',{type:'mouseMoved',x:1437,y:10})
-    await delay(180)
-    const cancelled=await evaluate(`document.querySelector('[data-graph-tooltip-host] > div[aria-hidden="true"]')?.textContent??null`)
-    await moveTo(dwellTarget)
-    await delay(390)
-    const active=await evaluate(`document.querySelector('[data-graph-tooltip-host] > div[aria-hidden="true"]')?.textContent??null`)
-    await send('Input.dispatchMouseEvent',{type:'mouseMoved',x:1437,y:10})
-    const hidden=await evaluate(`document.querySelector('[data-graph-tooltip-host] > div[aria-hidden="true"]')?.textContent??null`)
-    if(rulerTarget){await send('Input.dispatchMouseEvent',{type:'mouseMoved',...rulerTarget});await delay(400)}
-    const rulerTooltip=await evaluate(`document.querySelector('[data-graph-tooltip-host] > div[aria-hidden="true"]')?.textContent??null`)
-    check('Graph tooltip dwell is 350 ms and cancellable, active tooltips hide on leave, and ruler keeps no tooltip',Boolean(!early&&!cancelled&&active==='Reference Standard Cost'&&!hidden&&!rulerTooltip),{early,cancelled,active,hidden,rulerTooltip})
+    check('SVG graph context tooltips omit visible amounts, preserve both GAP explanations, and leave GAP category text tooltip-free',fixtureTooltips.length===4&&fixtureTooltips.every(item=>item.tooltip===item.expected&&!/[+-]?\d[\d,]*(?:\.\d+)?/.test(item.tooltip))&&fixtureLabels.length===2&&fixtureLabels.every(item=>!item.target&&!item.label&&!item.selected),{fixtureTooltips,fixtureLabels})
     await clickButtonText('Mixed sign')
     const axisBefore=await evaluate(`(()=>({values:[...document.querySelectorAll('svg text[data-axis-tick]')].map(e=>e.textContent.trim()),min:document.querySelector('svg [role="slider"][aria-label="Simulation comparison ruler"]')?.getAttribute('aria-valuemin'),max:document.querySelector('svg [role="slider"][aria-label="Simulation comparison ruler"]')?.getAttribute('aria-valuemax')}))()`)
     const axisSelector='svg text[data-axis-tick="1"]'
@@ -347,12 +333,6 @@ try {
   await screenshot('simulation-seeded-1440-before-expansion')
 
   if (selectedValueOnly) {
-    const moveTo = async selector => {
-      const point = await evaluate(`(()=>{const e=document.querySelector(${JSON.stringify(selector)});if(!e||!e.getClientRects().length)return null;e.scrollIntoView({block:'center',inline:'nearest'});const r=e.getBoundingClientRect();return{x:r.left+r.width/2,y:r.top+r.height/2}})()`)
-      if (!point) throw new Error(`No visible hover target: ${selector}`)
-      await send('Input.dispatchMouseEvent', { type: 'mouseMoved', ...point })
-      return point
-    }
     const visibleHeader = () => evaluate(`(()=>{const input=document.querySelector('[data-header-numeric-zone] input[aria-label="Selected value"]');if(input)return{kind:'input',value:input.value,source:input.getAttribute('data-selected-value-source')};const output=document.querySelector('[data-header-numeric-zone] [data-selected-value-output]');return output?{kind:'output',value:output.textContent.trim(),title:output.title}:null})()`)
     const hoverSelectedNumber = async (selector, dwell = 420) => {
       await moveTo(selector)
@@ -385,6 +365,11 @@ try {
     check('Activating the same Result value again removes its pin', await evaluate(`document.querySelector(${JSON.stringify(materialBefore)})?.getAttribute('aria-pressed')`) === 'false')
     await clickSelector(materialAfter)
     await clickSelector(materialChange)
+    check('Result Change pin transfers directly between numeric sources', Boolean(
+      await evaluate(`document.querySelector(${JSON.stringify(materialAfter)})?.getAttribute('aria-pressed')`) === 'false'
+      && await evaluate(`document.querySelector(${JSON.stringify(materialChange)})?.getAttribute('aria-pressed')`) === 'true'
+    ))
+    await clickSelector(materialChange)
     const resultPresentation=[]
     for(const [label,selector] of [
       ['Material Change','button[aria-label="Material Change"]'],
@@ -401,13 +386,26 @@ try {
       resultPresentation.push({label,idle,preview,pinned,unpinned})
     }
     check('Result Change and percent preserve their source foreground, sign, suffix, and weight through Selected Value states',resultPresentation.length===2&&resultPresentation.every(item=>item.idle&&item.preview&&item.pinned&&item.unpinned&&item.idle.color===item.idle.parentColor&&item.preview.color===item.preview.parentColor&&item.pinned.color===item.pinned.parentColor&&item.unpinned.color===item.unpinned.parentColor&&item.idle.color===item.preview.color&&item.idle.fontWeight===item.preview.fontWeight&&item.pinned.pressed==='true'&&item.unpinned.pressed==='false'&&(item.label==='Material percent change'?item.idle.suffix==='%':true)),resultPresentation)
-    check('Result Change pin transfers directly between numeric sources', Boolean(
-      await evaluate(`document.querySelector(${JSON.stringify(materialAfter)})?.getAttribute('aria-pressed')`) === 'false'
-      && await evaluate(`document.querySelector(${JSON.stringify(materialChange)})?.getAttribute('aria-pressed')`) === 'true'
-    ))
     const unavailableResultCells = await evaluate(`(()=>[...document.querySelectorAll('[data-simulation-result-body] td')].filter(cell=>cell.textContent.trim()==='—').map(cell=>({text:cell.textContent.trim(),selectable:!!cell.querySelector('button[data-selected-number]')})))()`)
     check('Unavailable Result em-dash values have no SelectedNumber target', unavailableResultCells.every(cell => !cell.selectable), unavailableResultCells)
-    await clickSelector(materialChange)
+
+    const economicOutcomePresentation=[]
+    for(const label of ['Parameter Saving','Required Saving','Economic Margin','Operating Profit']){
+      const selector=`section[aria-labelledby="simulation-economic-inputs-title"] [data-economic-outcome-value="${label}"] [data-selected-number]`
+      const available=await evaluate(`Boolean(document.querySelector(${JSON.stringify(selector)})?.getClientRects().length)`)
+      if(!available){economicOutcomePresentation.push({label,unavailable:true,text:await evaluate(`document.querySelector('section[aria-labelledby="simulation-economic-inputs-title"] [data-economic-outcome-value="${label}"]')?.textContent.trim()??null`)});continue}
+      const read=()=>evaluate(`(()=>{const value=document.querySelector(${JSON.stringify(selector)}),wrapper=value?.parentElement,raw=value?.textContent.trim().replaceAll(',','')??'',number=Number(raw),rgb=(getComputedStyle(value??document.body).color.match(/[\\d.]+/g)??[]).slice(0,3).map(Number),linear=rgb.map(channel=>{const c=channel/255;return c<=0.04045?c/12.92:((c+0.055)/1.055)**2.4}),luminance=0.2126*linear[0]+0.7152*linear[1]+0.0722*linear[2],contrast=(1.05)/(luminance+0.05);return value?{text:raw,number,color:getComputedStyle(value).color,parentColor:getComputedStyle(wrapper).color,className:wrapper.className,pressed:value.getAttribute('aria-pressed'),contrast}:null})()`)
+      const idle=await read()
+      const preview=await hoverSelectedNumber(selector)
+      const hovered=await read()
+      await clickSelector(selector)
+      const pinned=await read()
+      await clickSelector(selector)
+      const unpinned=await read()
+      economicOutcomePresentation.push({label,idle,preview,hovered,pinned,unpinned})
+    }
+    const availableEconomicOutcomes=economicOutcomePresentation.filter(item=>!item.unavailable)
+    check('Economic outcome colors follow favorable/unfavorable/neutral semantics and remain readable through Preview and Pin',economicOutcomePresentation.length===4&&availableEconomicOutcomes.length>=2&&economicOutcomePresentation.every(item=>item.unavailable?item.text==='—':item.idle&&item.preview?.kind==='output'&&item.idle.color===item.idle.parentColor&&item.hovered.color===item.idle.color&&item.pinned.color===item.idle.color&&item.unpinned.color===item.idle.color&&item.pinned.pressed==='true'&&item.unpinned.pressed==='false'&&item.idle.contrast>=4.5&&(item.label==='Required Saving'?item.idle.className.includes('slate'):item.idle.number>0?item.idle.className.includes('emerald'):item.idle.number<0?item.idle.className.includes('rose'):item.idle.number===0?item.idle.className.includes('slate'):false)),economicOutcomePresentation)
 
     const variableBodySelector = 'input[aria-label="Variable Action Cost / Unit"]'
     const replaceInput = async (ariaLabel, value) => typeIntoInput(ariaLabel, value)
@@ -579,7 +577,7 @@ try {
       ['MAT-A Loss in Current','bom.loss'],
       ['OP-10 Yield in Current','routing.yield']
     ]) {
-      await focusInput(ariaLabel)
+      await clickSelector(`input[aria-label=${JSON.stringify(ariaLabel)}]`)
       const state=await parameterSourceState(ariaLabel)
       check(`${ariaLabel} remains the sole native focus target and publishes percentage semantics`,Boolean(state.input!==null&&state.source?.includes(`:${field}`)&&state.source===state.headerSource&&state.active&&state.percentageSlot==='%'&&!state.duplicateSelectedNumber),state)
       const previous=state.input
@@ -641,10 +639,14 @@ try {
     }
     check('BOM individual and Total effects remain read-only, preserve semantic colors/Total annotation, and support preview/pin/unpin',effectResults.length===2&&effectResults.every(item=>item.idle&&item.preview?.kind==='output'&&item.previewState.color===item.previewState.parentColor&&item.idle.color===item.idle.parentColor&&item.pinned.pressed==='true'&&item.unpinned.pressed==='false'&&!item.idle.hasInput&&(item.label==='Total Parameter Cost Effect'?item.idle.totalAnnotation==='Total':true)),effectResults)
 
-    const mobileCalculated=await setViewport(390).then(()=>evaluate(`(()=>{
+    await setViewport(390)
+    const routingCardHeading='section[data-simulation-table="routing"] article[aria-expanded="false"] h3'
+    const routingCardNeedsExpansion=await evaluate(`(()=>{const heading=document.querySelector(${JSON.stringify(routingCardHeading)});if(!heading)return false;heading.scrollIntoView({block:'center'});return !heading.closest('article')?.querySelector('button[data-selected-number][aria-label$="Total Parameter Cost Effect"]')})()`)
+    if(routingCardNeedsExpansion)await clickSelector(routingCardHeading)
+    const mobileCalculated=await evaluate(`(()=>{
       const visible=section=>[...section.querySelectorAll('button[data-selected-number]')].filter(button=>button.getClientRects().length&&button.getBoundingClientRect().width>0)
       return ['bom','routing'].map(kind=>{const section=document.querySelector('section[data-simulation-table="'+kind+'"]'),buttons=visible(section),cost=buttons.find(button=>/Material Cost|Conversion Cost/.test(button.getAttribute('aria-label')??'')),effect=buttons.find(button=>(button.getAttribute('aria-label')??'').endsWith('Total Parameter Cost Effect'));return{kind,count:buttons.length,cost:cost?.getAttribute('aria-label')??null,readOnly:!cost?.closest('dd')?.querySelector('input'),effect:effect?.getAttribute('aria-label')??null,effectReadOnly:!effect?.closest('dd')?.querySelector('input')}})
-    })()`))
+    })()`)
     check('Mobile BOM/Routing card paths keep calculated read-only values selectable',mobileCalculated.length===2&&mobileCalculated.every(result=>result.count>0&&result.cost&&result.readOnly&&result.effect&&result.effectReadOnly),mobileCalculated)
     const mobileTotalEffect='section[data-simulation-table="bom"] article button[data-selected-number][aria-label$="Total Parameter Cost Effect"]'
     const mobileEffectPreview=await hoverSelectedNumber(mobileTotalEffect)
@@ -675,13 +677,14 @@ try {
     const svgSelectionState=selector=>evaluate(`(()=>{
       const text=document.querySelector(${JSON.stringify(selector)});if(!text)return null
       const id=text.getAttribute('data-selected-value-source'),background=[...document.querySelectorAll('[data-selected-number-background]')].find(item=>item.getAttribute('data-selected-number-background')===id),glyph=text.getBBox(),box=background?.getBBox(),style=getComputedStyle(text)
-      return {text:text.textContent.trim(),aria:text.getAttribute('aria-label'),selected:text.getAttribute('aria-pressed'),id,fill:style.fill,fontSize:style.fontSize,fontWeight:style.fontWeight,tooltipTarget:text.getAttribute('data-graph-tooltip'),glyph:{x:glyph.x,y:glyph.y,width:glyph.width,height:glyph.height},background:box?{x:box.x,y:box.y,width:box.width,height:box.height,pointerEvents:background.getAttribute('pointer-events')}:null,sourceTag:text.tagName,role:text.getAttribute('role')}
+      return {text:text.textContent.trim(),aria:text.getAttribute('aria-label'),selected:text.getAttribute('aria-pressed'),id,fill:style.fill,fontSize:style.fontSize,fontWeight:style.fontWeight,focused:text.matches(':focus-visible'),tooltipTarget:text.getAttribute('data-graph-tooltip'),glyph:{x:glyph.x,y:glyph.y,width:glyph.width,height:glyph.height},background:box?{x:box.x,y:box.y,width:box.width,height:box.height,pointerEvents:background.getAttribute('pointer-events'),stroke:background.getAttribute('stroke'),fill:background.getAttribute('fill')}:null,sourceTag:text.tagName,role:text.getAttribute('role')}
     })()`)
     const graphSelectors=[
       ['Standard Cost','svg text[data-graph-standard-cost-value="reference"]'],
       ['Visible +','svg text[data-graph-visible-total-side="positive"]'],
       ['Visible −','svg text[data-graph-visible-total-side="negative"]'],
       ['GAP total','svg text[data-graph-total="gap1"]'],
+      ['GAP 2 total','svg text[data-graph-total="gap2"]'],
       ['Y-axis tick','svg text[data-axis-tick="1"]']
     ]
     const graphSurfaceResults=[]
@@ -700,14 +703,31 @@ try {
       const svgColorAfter=await evaluate(`getComputedStyle(document.querySelector(${JSON.stringify(selector)})).fill`)
       graphSurfaceResults.push({label,selectorState,preview,hovered,header,previewTooltip,pinned,pinnedHeader,unpinned,svgColorAfter})
     }
-    check('Visible graph Standard Cost, Visible +/−, GAP total, and Y-axis ticks use shared preview/pin/unpin with tight SVG backgrounds',graphSurfaceResults.length===5&&graphSurfaceResults.every(item=>!item.missing&&item.preview?.kind==='output'&&item.hovered?.sourceTag==='text'&&item.hovered?.role==='button'&&item.hovered?.id&&item.hovered.fill===item.svgColorAfter&&item.pinned?.selected==='true'&&item.unpinned?.selected==='false'&&item.pinned.background?.pointerEvents==='none'&&Math.abs(item.pinned.background.x-item.pinned.glyph.x+2)<0.1&&Math.abs(item.pinned.background.y-item.pinned.glyph.y+1)<0.1&&Math.abs(item.pinned.background.width-item.pinned.glyph.width-4)<0.1&&Math.abs(item.pinned.background.height-item.pinned.glyph.height-2)<0.1&&item.header?.kind==='output'&&item.pinnedHeader?.kind==='output'),graphSurfaceResults)
+    const graphSurfacePass=item=>item.label==='GAP 2 total'&&item.missing?true:item.preview?.kind==='output'&&item.hovered?.sourceTag==='text'&&item.hovered?.role==='button'&&item.hovered?.id&&item.hovered.fill===item.svgColorAfter&&item.hovered.background?.stroke==='none'&&item.pinned?.selected==='true'&&item.unpinned?.selected==='false'&&item.pinned.background?.pointerEvents==='none'&&item.pinned.background?.fill==='#dbeafe'&&item.pinned.background?.stroke==='none'&&Math.abs(item.pinned.background.x-item.pinned.glyph.x+2)<0.1&&Math.abs(item.pinned.background.y-item.pinned.glyph.y+1)<0.1&&Math.abs(item.pinned.background.width-item.pinned.glyph.width-4)<0.1&&Math.abs(item.pinned.background.height-item.pinned.glyph.height-2)<0.1&&item.header?.kind==='output'&&item.pinnedHeader?.kind==='output'
+    check('Visible graph Standard Cost, Visible +/−, available GAP totals, and Y-axis ticks preserve semantic color and use tight mouse-pin backgrounds without a focus ring',graphSurfaceResults.length===6&&graphSurfaceResults.every(graphSurfacePass),graphSurfaceResults)
+
+    const keyboardFocusTarget='svg text[data-graph-total="gap1"]'
+    const keyboardFocusSetup=await evaluate(`(()=>{const target=document.querySelector(${JSON.stringify(keyboardFocusTarget)}),focusable=[...document.querySelectorAll('a[href],button,input,select,textarea,[tabindex]')].filter(e=>e.tabIndex>=0&&!e.disabled&&e.getClientRects().length&&!e.closest('[aria-hidden="true"]')),index=focusable.indexOf(target),previous=focusable[index-1];if(!target||index<1||!previous)return null;previous.focus();return{targetIndex:index,previous:previous.getAttribute('aria-label')??previous.textContent.trim()}})()`)
+    await send('Input.dispatchKeyEvent',{type:'keyDown',key:'Tab',code:'Tab',windowsVirtualKeyCode:9,nativeVirtualKeyCode:9})
+    await send('Input.dispatchKeyEvent',{type:'keyUp',key:'Tab',code:'Tab',windowsVirtualKeyCode:9,nativeVirtualKeyCode:9})
+    const keyboardFocused=await svgSelectionState(keyboardFocusTarget)
+    await send('Input.dispatchKeyEvent',{type:'keyDown',key:' ',code:'Space',windowsVirtualKeyCode:32,nativeVirtualKeyCode:32})
+    await send('Input.dispatchKeyEvent',{type:'keyUp',key:' ',code:'Space',windowsVirtualKeyCode:32,nativeVirtualKeyCode:32})
+    await delay(80)
+    const keyboardSpacePinned=await svgSelectionState(keyboardFocusTarget)
+    await send('Input.dispatchKeyEvent',{type:'keyDown',key:'Enter',code:'Enter',windowsVirtualKeyCode:13,nativeVirtualKeyCode:13})
+    await send('Input.dispatchKeyEvent',{type:'keyUp',key:'Enter',code:'Enter',windowsVirtualKeyCode:13,nativeVirtualKeyCode:13})
+    await delay(80)
+    const keyboardEnterUnpinned=await svgSelectionState(keyboardFocusTarget)
+    check('Selected SVG values retain a visible keyboard focus ring and Space/Enter toggle Pin',Boolean(keyboardFocusSetup&&keyboardFocused?.focused&&keyboardFocused.background?.stroke==='#1d4ed8'&&keyboardFocused.selected==='false'&&keyboardSpacePinned?.focused&&keyboardSpacePinned.selected==='true'&&keyboardSpacePinned.background?.fill==='#dbeafe'&&keyboardSpacePinned.background?.stroke==='#1d4ed8'&&keyboardEnterUnpinned?.focused&&keyboardEnterUnpinned.selected==='false'&&keyboardEnterUnpinned.background?.stroke==='#1d4ed8'),{keyboardFocusSetup,keyboardFocused,keyboardSpacePinned,keyboardEnterUnpinned})
 
     const tooltipContentResults=[]
     for(const [label,selector,expected] of [
       ['Reference Standard Cost','svg text[data-graph-standard-cost-value="reference"]','Reference Standard Cost'],
       ['Visible +','svg text[data-graph-visible-total-side="positive"]',null],
       ['Visible −','svg text[data-graph-visible-total-side="negative"]',null],
-      ['GAP 1 total','svg text[data-graph-total="gap1"]','Current − Reference']
+      ['GAP 1 total','svg text[data-graph-total="gap1"]','Current − Reference'],
+      ['GAP 2 total','svg text[data-graph-total="gap2"]','Custom − Current']
     ]){
       const target=await evaluate(`(()=>document.querySelector(${JSON.stringify(selector)})?.getAttribute('aria-label')??null)()`)
       if(!target){tooltipContentResults.push({label,missing:true});continue}
@@ -719,7 +739,21 @@ try {
       tooltipContentResults.push({label,tooltip,aria,expected:expectedTooltip,repeatsNumber:Boolean(tooltip&&/[+-]?\d[\d,]*(?:\.\d+)?/.test(tooltip)),matches:tooltip===expectedTooltip})
     }
     const gapLabelsWithoutTooltip=await evaluate(`(()=>[...document.querySelectorAll('svg text')].filter(text=>/^GAP [12]$/.test(text.textContent.trim())).map(text=>({text:text.textContent.trim(),self:text.hasAttribute('data-graph-tooltip'),label:text.getAttribute('aria-label'),ancestorTarget:text.closest('[data-graph-tooltip]')?.getAttribute('data-graph-tooltip')??null,source:!!text.hasAttribute('data-selected-value-source')})) )()`)
-    check('Graph numeric tooltips use context-only Standard Cost/Visible/GAP wording and GAP text labels have no tooltip',tooltipContentResults.length===4&&tooltipContentResults.every(item=>!item.missing&&item.matches&&!item.repeatsNumber)&&gapLabelsWithoutTooltip.length===2&&gapLabelsWithoutTooltip.every(item=>!item.self&&!item.label&&!item.ancestorTarget&&item.source===false),{tooltipContentResults,gapLabelsWithoutTooltip})
+    check('Graph numeric tooltips use context-only Standard Cost/Visible/GAP wording and GAP text labels have no tooltip',tooltipContentResults.length===5&&tooltipContentResults.every(item=>item.label==='GAP 2 total'&&item.missing||!item.missing&&item.matches&&!item.repeatsNumber)&&gapLabelsWithoutTooltip.length===2&&gapLabelsWithoutTooltip.every(item=>!item.self&&!item.label&&!item.ancestorTarget&&item.source===false),{tooltipContentResults,gapLabelsWithoutTooltip})
+
+    const gapLabelBehavior=[]
+    await send('Input.dispatchMouseEvent',{type:'mouseMoved',x:1437,y:10})
+    await delay(80)
+    for(const gap of ['gap1','gap2']){
+      const selector=`svg text[data-graph-gap-label="${gap}"]`
+      const before={header:await visibleHeader(),activeRole:await evaluate(`document.querySelector('svg foreignObject button[aria-pressed="true"]')?.getAttribute('aria-label')??null`),pinned:await evaluate(`document.querySelectorAll('svg [data-selected-number][aria-pressed="true"]').length`)}
+      const label=await evaluate(`(()=>{const e=document.querySelector(${JSON.stringify(selector)});return e?{text:e.textContent.trim(),cursor:getComputedStyle(e).cursor,tabIndex:e.getAttribute('tabindex'),role:e.getAttribute('role'),source:e.hasAttribute('data-selected-value-source'),tooltip:e.hasAttribute('data-graph-tooltip'),aria:e.getAttribute('aria-label'),ancestorTooltip:e.closest('[data-graph-tooltip]')?.getAttribute('data-graph-tooltip')??null}:null})()`)
+      await clickSelector(selector)
+      await delay(400)
+      const after={header:await visibleHeader(),activeRole:await evaluate(`document.querySelector('svg foreignObject button[aria-pressed="true"]')?.getAttribute('aria-label')??null`),pinned:await evaluate(`document.querySelectorAll('svg [data-selected-number][aria-pressed="true"]').length`),tooltip:await graphTooltip()}
+      gapLabelBehavior.push({gap,before,label,after})
+    }
+    check('GAP 1/2 category text stays default-cursor, non-focusable, tooltip-free, and has no click/Header/Pin behavior',gapLabelBehavior.length===2&&gapLabelBehavior.every(item=>item.label?.text===item.gap.replace('gap','GAP ')&&item.label.cursor==='default'&&item.label.tabIndex===null&&item.label.role===null&&!item.label.source&&!item.label.tooltip&&!item.label.aria&&!item.label.ancestorTooltip&&item.before.header?.value===item.after.header?.value&&item.before.header?.source===item.after.header?.source&&item.before.activeRole===item.after.activeRole&&item.before.pinned===item.after.pinned&&!item.after.tooltip),gapLabelBehavior)
 
     await moveTo('svg text[data-graph-standard-cost-value="reference"]')
     await delay(220)
@@ -747,13 +781,14 @@ try {
     check('Graphical-only Material segment retains its numeric tooltip value and unit',Boolean(graphicalOnly&&segmentTooltip?.includes('Reference Material:')&&/\d[\d,]*(?:\.\d+)? THB\//.test(segmentTooltip)),{graphicalOnly,segmentTooltip})
 
     const layoutEvidence=await evaluate(`(()=>{
-      const root=document.querySelector('[data-simulation-layout-root]'),upper=root?.children[0],graph=upper?.children[0],result=upper?.children[1],economics=upper?.children[2],svg=graph?.querySelector('svg'),texts=[...svg?.querySelectorAll('[data-graph-standard-cost-value],[data-graph-visible-total-value],[data-graph-total],[data-axis-tick]')??[]],boxes=texts.map(e=>{const r=e.getBBox();return{label:e.getAttribute('aria-label')??e.textContent.trim(),x:r.x,y:r.y,right:r.x+r.width,bottom:r.y+r.height}}),overlaps=[]
+      const root=document.querySelector('[data-simulation-layout-root]'),upper=root?.querySelector('[data-simulation-upper-workspace]'),graph=upper?.querySelector('[data-simulation-upper-graph]'),right=upper?.querySelector('[data-simulation-upper-right]'),result=right?.querySelector('[data-simulation-layout-column="result-and-break-even"]'),economics=right?.children[1],lower=root?.children[1],bom=document.querySelector('section[data-simulation-table="bom"]'),routing=document.querySelector('section[data-simulation-table="routing"]'),svg=graph?.querySelector('svg'),texts=[...svg?.querySelectorAll('[data-graph-standard-cost-value],[data-graph-visible-total-value],[data-graph-total],[data-axis-tick]')??[]],boxes=texts.map(e=>{const r=e.getBBox();return{label:e.getAttribute('aria-label')??e.textContent.trim(),x:r.x,y:r.y,right:r.x+r.width,bottom:r.y+r.height}}),overlaps=[]
       for(let i=0;i<boxes.length;i++)for(let j=i+1;j<boxes.length;j++)if(boxes[i].x<boxes[j].right&&boxes[i].right>boxes[j].x&&boxes[i].y<boxes[j].bottom&&boxes[i].bottom>boxes[j].y)overlaps.push([boxes[i].label,boxes[j].label])
       const barWidths=[...svg.querySelectorAll('rect[data-graph-part]')].map(e=>Number(e.getAttribute('width'))),centers=[...svg.querySelectorAll('foreignObject button[aria-label^="Select "]')].map(e=>{const r=e.getBoundingClientRect(),s=svg.getBoundingClientRect(),vb=svg.viewBox.baseVal;return (r.left+r.width/2-s.left)/s.width*vb.width}).concat([...svg.querySelectorAll('text')].filter(e=>/^GAP [12]$/.test(e.textContent.trim())).map(e=>{const b=e.getBBox();return b.x+b.width/2})).sort((a,b)=>a-b)
       const rect=e=>{const r=e?.getBoundingClientRect();return r?{width:r.width,left:r.left,right:r.right}:null}
-      return {upper:rect(upper),graph:rect(graph),result:rect(result),economics:rect(economics),graphRatio:graph?.getBoundingClientRect().width/(upper?.getBoundingClientRect().width??1),rightResultShare:result?.getBoundingClientRect().width/((result?.getBoundingClientRect().width??0)+(economics?.getBoundingClientRect().width??0)),barWidths:[...new Set(barWidths)],centers,centerGaps:centers.slice(1).map((x,i)=>x-centers[i]),viewBox:svg?.getAttribute('viewBox'),overlaps,selectedTargets:texts.length,graphFont:[...svg.querySelectorAll('[data-graph-standard-cost-value],[data-graph-visible-total-value]')].map(e=>getComputedStyle(e).fontSize)}
+      const upperBox=rect(upper),graphBox=rect(graph),rightBox=rect(right),bomBox=rect(bom),routingBox=rect(routing)
+      return {upper:upperBox,graph:graphBox,right:rightBox,result:rect(result),economics:rect(economics),bom:bomBox,routing:routingBox,upperTrackDifference:Math.abs((graphBox?.width??0)-(rightBox?.width??0)),lowerTrackDifference:Math.abs((bomBox?.width??0)-(routingBox?.width??0)),upperDivider:(graphBox?.right+rightBox?.left)/2,lowerDivider:(bomBox?.right+routingBox?.left)/2,splitAlignment:Math.abs((graphBox?.right+rightBox?.left)/2-(bomBox?.right+routingBox?.left)/2),rightResultShare:result?.getBoundingClientRect().width/((result?.getBoundingClientRect().width??0)+(economics?.getBoundingClientRect().width??0)),barWidths:[...new Set(barWidths)],centers,centerGaps:centers.slice(1).map((x,i)=>x-centers[i]),viewBox:svg?.getAttribute('viewBox'),overlaps,selectedTargets:texts.length,graphFont:[...svg.querySelectorAll('[data-graph-standard-cost-value],[data-graph-visible-total-value]')].map(e=>getComputedStyle(e).fontSize)}
     })()`)
-    check('Story Graph uses about half of the upper workspace, keeps both right columns sensible and preserves bar width/readable labels',Boolean(layoutEvidence&&layoutEvidence.graphRatio>=0.47&&layoutEvidence.graphRatio<=0.54&&layoutEvidence.rightResultShare>=0.55&&layoutEvidence.rightResultShare<=0.75&&layoutEvidence.barWidths.includes(54)&&layoutEvidence.barWidths.includes(50)&&layoutEvidence.centers.length===5&&layoutEvidence.centerGaps.every(gap=>gap<=110)&&layoutEvidence.overlaps.length===0&&layoutEvidence.graphFont.every(size=>parseFloat(size)>=9)),layoutEvidence)
+    check('Story Graph and the complete right upper workspace use equal desktop tracks aligned with BOM/Routing while retaining readable graph geometry',Boolean(layoutEvidence&&layoutEvidence.upperTrackDifference<=0.5&&layoutEvidence.lowerTrackDifference<=0.5&&layoutEvidence.splitAlignment<=1&&layoutEvidence.rightResultShare>=0.55&&layoutEvidence.rightResultShare<=0.75&&layoutEvidence.barWidths.includes(54)&&layoutEvidence.barWidths.includes(50)&&layoutEvidence.centers.length===5&&layoutEvidence.centerGaps.every(gap=>gap<=110)&&layoutEvidence.overlaps.length===0&&layoutEvidence.graphFont.every(size=>parseFloat(size)>=9)),layoutEvidence)
 
     await evaluate('document.activeElement?.blur()')
     await send('Input.dispatchMouseEvent',{type:'mouseMoved',x:1437,y:10})
@@ -1752,11 +1787,11 @@ try {
       check('1440px Simulation table initial values have no premature scientific fallback',
         ordinaryCheck.length === 0, ordinaryCheck);
       const outcomeShade = await evaluate(`(()=>{
-        const greenElements = [...document.querySelectorAll('section[aria-label="Economic Simulation"] dd')];
-        return greenElements.map(e => ({ text: e.textContent, color: getComputedStyle(e).color, className: e.className }));
+        const names=['Parameter Saving','Economic Margin','Operating Profit'];
+        return names.map(name=>{const element=document.querySelector('section[aria-labelledby="simulation-economic-inputs-title"] [data-economic-outcome-value="'+name+'"]'),raw=element?.textContent.trim().replaceAll(',','')??'',value=Number(raw),color=getComputedStyle(element??document.body).color,rgb=(color.match(/[\\d.]+/g)??[]).slice(0,3).map(Number),linear=rgb.map(channel=>{const c=channel/255;return c<=0.04045?c/12.92:((c+0.055)/1.055)**2.4}),luminance=0.2126*linear[0]+0.7152*linear[1]+0.0722*linear[2];return{name,value,color,className:element?.className??'',contrast:1.05/(luminance+0.05)}});
       })()`);
-      check('1440px Economic Simulation panel positive outcomes use emerald-800',
-        outcomeShade.every(item => !item.className.includes('emerald-700')), outcomeShade);
+      check('1440px Simulation outcomes use readable semantic green/red and neutral zero',
+        outcomeShade.length===3&&outcomeShade.every(item=>Number.isFinite(item.value)&&item.contrast>=4.5&&(item.value>0?item.className.includes('emerald'):item.value<0?item.className.includes('rose'):item.className.includes('slate'))), outcomeShade);
     }
     if (width >= 768) {
       const balancedFields = frameMetrics.filter(metric => metric?.frame)

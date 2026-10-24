@@ -201,9 +201,10 @@ function SelectedSvgNumber({ value, selectionId, tooltipText, onTooltipEnter, on
           source.pin()
         }
       }}
-      onFocus={() => {
+      onPointerDown={() => setFocused(false)}
+      onFocus={event => {
         refreshBounds()
-        setFocused(true)
+        setFocused(event.currentTarget.matches(':focus-visible'))
       }}
       onBlur={() => setFocused(false)}
       style={{ cursor: 'pointer', ...textProps.style }}
@@ -656,7 +657,7 @@ export function SimulationStoryGraph({ story, unit, selectionContext, activeRole
   }) : []
 
   return (
-    <figure aria-labelledby="simulation-story-title" className="min-w-0 border border-slate-300 bg-white px-2.5 py-2.5 xl:flex xl:min-h-0 xl:flex-col">
+    <figure data-simulation-upper-graph="true" aria-labelledby="simulation-story-title" className="min-w-0 border border-slate-300 bg-white px-2.5 py-2.5 xl:flex xl:min-h-0 xl:flex-col">
       <div className="flex min-w-0 flex-col gap-1.5 border-b border-slate-200 pb-1.5 min-[720px]:flex-row min-[720px]:items-center xl:gap-1 xl:flex-nowrap">
         <h2 id="simulation-story-title" className="shrink-0 text-xs font-semibold text-slate-900 xl:whitespace-nowrap">Cost Structure</h2>
         <ul aria-label="Simulation graph legend" className="flex min-w-0 flex-wrap gap-x-2.5 gap-y-1 border-t border-slate-200 pt-1.5 text-[11px] min-[720px]:flex-1 min-[720px]:border-l min-[720px]:border-t-0 min-[720px]:pl-2.5 min-[720px]:pt-0 xl:flex-none xl:flex-nowrap xl:gap-x-1 xl:pl-1.5">
@@ -990,7 +991,7 @@ export function SimulationStoryGraph({ story, unit, selectionContext, activeRole
                 >{signed(category.value)}</SelectedSvgNumber>
               )}
               {category.isGap ? (
-                <text x={category.x} y="306" textAnchor="middle" fill="#0f172a" fontSize="11px" fontWeight="700" fontFamily="ui-monospace, monospace">
+                <text data-graph-gap-label={category.key} x={category.x} y="306" textAnchor="middle" fill="#0f172a" fontSize="11px" fontWeight="700" fontFamily="ui-monospace, monospace" cursor="default">
                   {category.label}
                 </text>
               ) : (

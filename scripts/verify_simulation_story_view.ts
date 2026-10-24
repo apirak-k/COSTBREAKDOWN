@@ -381,7 +381,7 @@ try {
     assert.ok(graphMarkup.includes(`background-color:${color}`), `${part} uses the exact CBD palette color in the legend`)
   }
   assert.match(graphMarkup, /Cost Structure/)
-  assert.match(graphMarkup, /<figure aria-labelledby="simulation-story-title"/,
+  assert.match(graphMarkup, /<figure(?:\s+data-[^=]+="[^"]+")*\s+aria-labelledby="simulation-story-title"/,
     'the graph figure has an accessible name from its visible heading')
   assert.match(graphMarkup, /<svg aria-labelledby="simulation-story-title" aria-describedby="simulation-story-svg-description"/,
     'the SVG retains both its accessible name and description')

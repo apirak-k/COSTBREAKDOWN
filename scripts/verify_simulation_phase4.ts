@@ -242,12 +242,12 @@ const inputFor = (markup: string, label: string) => [...markup.matchAll(/<input\
   .map(match => match[0]).find(input => input.includes(`aria-label="${label}"`)) ?? ''
 
 const pairPage = renderPage(state, 'reference', 'custom')
-const graphPanelIndex = pairPage.indexOf('<figure aria-labelledby="simulation-story-title"')
+const graphPanelIndex = pairPage.indexOf('<figure data-simulation-upper-graph="true"')
 const resultColumnIndex = pairPage.indexOf('data-simulation-layout-column="result-and-break-even"')
 const breakEvenPanelIndex = pairPage.indexOf('id="break-even-graph-title"')
 const businessEconomicPanelIndex = pairPage.indexOf('data-simulation-layout-column="inputs"')
 assert.ok(graphPanelIndex >= 0 && graphPanelIndex < resultColumnIndex && resultColumnIndex < breakEvenPanelIndex && breakEvenPanelIndex < businessEconomicPanelIndex,
-  'desktop source order is Graph, Result plus Break-even, then far-right Business/Economic')
+  'desktop source order is Graph, then the right workspace with Result, Break-even, and Business/Economic')
 const pairResult = resultPanel(pairPage)
 assert.ok(pairResult, 'Simulation Result panel renders')
 const resultHeader = pairResult.match(/<header data-simulation-result-header="true"[\s\S]*?<\/header>/)?.[0] ?? ''
@@ -426,20 +426,20 @@ assert.match(pageSource, /data-simulation-layout-root="true"[^>]*xl:grid-rows-\[
   '[source contract] the desktop Simulation workspace sizes its upper content naturally and gives the tables the remaining height')
 assert.doesNotMatch(pageSource, /xl:flex-\[(?:7|3)_1_0%\]/,
   '[source contract] desktop Simulation no longer fixes the upper and lower regions to a 70/30 ratio')
-const upperWorkspaceStart = pageSource.indexOf('<div className="grid min-w-0 gap-2 xl:min-h-0 xl:grid-cols-[')
+const upperWorkspaceStart = pageSource.indexOf('<div data-simulation-upper-workspace="true"')
 const lowerWorkspaceStart = pageSource.indexOf('<div className="grid min-w-0 gap-2 xl:min-h-0 xl:grid-cols-2 xl:grid-rows-1 xl:items-stretch">', upperWorkspaceStart)
 const upperWorkspaceSource = upperWorkspaceStart >= 0 && lowerWorkspaceStart > upperWorkspaceStart
   ? pageSource.slice(upperWorkspaceStart, lowerWorkspaceStart)
   : ''
 assert.ok(upperWorkspaceSource, '[source contract] desktop upper workspace source is present')
-assert.match(upperWorkspaceSource, /xl:grid-cols-\[minmax\(0,[\d.]+fr\)_minmax\(0,[\d.]+fr\)_minmax\(max-content,[\d.]+fr\)\]/,
-  '[source contract] graph, Result/Break-even, and Business/Economic retain their established desktop column order and proportions')
+assert.match(upperWorkspaceSource, /data-simulation-upper-workspace="true" className="grid[^\"]*xl:grid-cols-2[^\"]*"[\s\S]*?<SimulationStoryGraph[\s\S]*?<div data-simulation-upper-right="true" className="grid[^\"]*xl:grid-cols-\[minmax\(0,[\d.]+fr\)_minmax\(max-content,[\d.]+fr\)\]/,
+  '[source contract] graph and full right workspace occupy equal desktop halves, with Result/Break-even and Business/Economic grouped on the right')
 const lowerWorkspaceSource = lowerWorkspaceStart >= 0 ? pageSource.slice(lowerWorkspaceStart) : ''
 assert.match(lowerWorkspaceSource, /xl:grid-cols-2 xl:grid-rows-1 xl:items-stretch[\s\S]*?<SimulationParameterTable[\s\S]*?<SimulationParameterTable/,
   '[source contract] BOM and Routing share the flexible lower workspace without a fixed vertical ratio')
 const resultColumnSource = upperWorkspaceSource.match(/<div data-simulation-layout-column="result-and-break-even"[\s\S]*?<EconomicSimulationPanel/)?.[0] ?? ''
 assert.match(resultColumnSource, /<ResultPanel[\s\S]*?<EconomicBreakEvenGraphPanel[\s\S]*?<\/div>\s*<EconomicSimulationPanel/,
-  '[source contract] Result sits above Break-even in the middle column before far-right Business/Economic')
+  '[source contract] Result sits above Break-even alongside Business/Economic within the right workspace')
 assert.match(resultColumnSource, /xl:grid-rows-\[auto_minmax\(0,1fr\)\]/,
   '[source contract] Result sizes to content above Break-even without vertical overflow')
 assert.match(pageSource, /label="Send"[\s\S]*?secondaryLabel="Send all datasets"[\s\S]*?onPrimary=\{onSend\}[\s\S]*?onSecondary=\{onSendAll\}/,
