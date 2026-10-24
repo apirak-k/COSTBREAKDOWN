@@ -29,6 +29,7 @@ import {
 } from './features/simulation/simulation-state'
 import { updateSimulationParameter } from './features/simulation/simulation-engine'
 import type { SimulationParameter } from './features/simulation/simulation-state'
+import { SimulationDirectEditContext } from './features/simulation/simulation-direct-edit'
 import type { EconomicSimulationField } from './features/simulation/simulation-economics'
 import {
   applySimulationEditableSnapshot,
@@ -38,6 +39,7 @@ import {
   createSimulationHistory,
   createSimulationHistoryChronology,
   peekSimulationHistoryChronology,
+  isSimulationEditableSnapshotEqual,
   recordSimulationHistory,
   recordSimulationHistoryChronology,
   redoSimulationHistory,
@@ -82,6 +84,7 @@ const AppRouter: React.FC = () => {
   const [simulationHistoriesByProduct, setSimulationHistoriesByProduct] = useState<Record<string, Partial<Record<MasterDataRole, SimulationHistory>>>>({})
   const [simulationHistoryChronologyByProduct, setSimulationHistoryChronologyByProduct] = useState<Record<string, SimulationHistoryChronology>>({})
   const [candidateReorderHistory, setCandidateReorderHistory] = useState(createCandidateReorderHistory)
+  const [pendingSimulationDirectEditSource, setPendingSimulationDirectEditSource] = useState<string | null>(null)
   const pendingSimulationEditRef = useRef<{
     productId: string
     basisFingerprint: string | null
@@ -199,7 +202,10 @@ const AppRouter: React.FC = () => {
         return { ...previous, [activeProductId]: productHistory }
       })
       const pending = pendingSimulationEditRef.current
-      if (pending?.productId === activeProductId && staleRoles.includes(pending.role)) pendingSimulationEditRef.current = null
+      if (pending?.productId === activeProductId && staleRoles.includes(pending.role)) {
+        pendingSimulationEditRef.current = null
+        setPendingSimulationDirectEditSource(null)
+      }
     }
     if (staleRoles.length) {
       setSimulationHistoryChronologyByProduct(previous => ({
@@ -219,6 +225,7 @@ const AppRouter: React.FC = () => {
     const pending = pendingSimulationEditRef.current
     if (!pending) return null
     pendingSimulationEditRef.current = null
+    setPendingSimulationDirectEditSource(null)
     const after = captureSimulationEditableSnapshot(pending.sources, pending.latestState, pending.role)
     const history = simulationHistoriesByProduct[pending.productId]?.[pending.role]
     const baseHistory = history?.basisFingerprint === pending.basisFingerprint
@@ -268,6 +275,16 @@ const AppRouter: React.FC = () => {
       role,
       before: captureSimulationEditableSnapshot(sources, currentState, role),
       latestState: currentState
+    }
+  }
+
+  const applyDirectSimulationEdit = (sourceId: string, update: () => void) => {
+    const before = pendingSimulationEditRef.current?.latestState
+    update()
+    const pending = pendingSimulationEditRef.current
+    if (pending && pending.latestState !== before) {
+      const after = captureSimulationEditableSnapshot(pending.sources, pending.latestState, pending.role)
+      setPendingSimulationDirectEditSource(isSimulationEditableSnapshotEqual(pending.before, after) ? null : sourceId)
     }
   }
 
@@ -379,6 +396,7 @@ const AppRouter: React.FC = () => {
       return
     }
     pendingSimulationEditRef.current = null
+    setPendingSimulationDirectEditSource(null)
     setSimulationStatesByProduct(previous => ({ ...previous, [activeProductId]: nextState }))
     setSimulationHistoriesByProduct(previous => ({
       ...previous,
@@ -509,27 +527,29 @@ const AppRouter: React.FC = () => {
       )}
       {(activeTab === 'simulation' || hasVisitedSimulation) && (
         <div hidden={activeTab !== 'simulation'} className={activeTab === 'simulation' ? 'xl:flex xl:h-full xl:min-h-0 xl:min-w-0 xl:flex-col' : undefined}>
-          <SimulationPage
-            key={activeProductId}
-            productId={activeProductId}
-            state={activeSimulationDataset}
-            workingSelection={activeSimulationDataset.workingSelection}
-            analysisBeforeDataset={analysisBeforeDataset}
-            analysisAfterDataset={analysisAfterDataset}
-            effectiveDatasets={effectiveDatasets}
-            onSelectActiveDataset={selectActiveDataset}
-            onChangeComparison={changeSimulationComparison}
-            onSend={sendSimulation}
-            onSendAll={sendAllSimulationDatasets}
-            onReset={resetSimulation}
-            onResetAll={resetAllSimulationDatasets}
-            onUpdateParameter={updateParameter}
-            onToggleWorkingTarget={toggleWorkingTarget}
-            onSetWorkingSelection={setWorkingSelection}
-            onUpdateEconomicInput={updateEconomicInput}
-            onBeginEdit={beginSimulationEdit}
-            onCommitEdit={commitSimulationEdit}
-          />
+          <SimulationDirectEditContext.Provider value={{ sourceId: pendingSimulationDirectEditSource, edit: applyDirectSimulationEdit }}>
+            <SimulationPage
+              key={activeProductId}
+              productId={activeProductId}
+              state={activeSimulationDataset}
+              workingSelection={activeSimulationDataset.workingSelection}
+              analysisBeforeDataset={analysisBeforeDataset}
+              analysisAfterDataset={analysisAfterDataset}
+              effectiveDatasets={effectiveDatasets}
+              onSelectActiveDataset={selectActiveDataset}
+              onChangeComparison={changeSimulationComparison}
+              onSend={sendSimulation}
+              onSendAll={sendAllSimulationDatasets}
+              onReset={resetSimulation}
+              onResetAll={resetAllSimulationDatasets}
+              onUpdateParameter={updateParameter}
+              onToggleWorkingTarget={toggleWorkingTarget}
+              onSetWorkingSelection={setWorkingSelection}
+              onUpdateEconomicInput={updateEconomicInput}
+              onBeginEdit={beginSimulationEdit}
+              onCommitEdit={commitSimulationEdit}
+            />
+          </SimulationDirectEditContext.Provider>
         </div>
       )}
     </AppLayout>

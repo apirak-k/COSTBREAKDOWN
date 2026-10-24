@@ -1,3 +1,4 @@
+import { clearMasterDataDirectEdits } from './master-data-direct-edits'
 import {
   applySnapshotPairToSession,
   getSnapshotRoleReadiness,
@@ -64,6 +65,7 @@ function clearSnapshotValues(snapshot: CostSnapshot, role: MasterDataRole): Cost
 }
 
 export function clearMasterDataDatasetState(session: ProductSession, role: MasterDataRole): ProductSession {
+  session = clearMasterDataDirectEdits(session, [role])
   const pair = session.snapshotPair ?? sessionToSnapshotPair(session)
   const clearedSnapshot = clearSnapshotValues(getMasterDataSnapshot(session, pair, role), role)
   if (role === 'custom') {

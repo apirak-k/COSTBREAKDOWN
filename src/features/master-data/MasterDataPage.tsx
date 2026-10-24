@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { MasterDataDirectEditsContext } from './direct-edit-presentation'
 import { useAppStore } from '../../state'
 import type { MasterDataRole } from '../../core'
 import { getDatasetSaveState } from '../../core/utils/master-data-effective'
@@ -38,6 +39,7 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({
   const pageRef = useRef<HTMLDivElement>(null)
   const workspaceHeaderRef = useRef<HTMLElement>(null)
   const {
+    activeSession,
     activeTab,
     activeProductId,
     masterDataSnapshots,
@@ -325,6 +327,7 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({
   )
 
   return (
+    <MasterDataDirectEditsContext.Provider value={activeSession?.masterDataDirectEdits?.[masterDataRole] ?? {}}>
     <div ref={pageRef} onKeyDown={handleWorkspaceHistoryShortcut} className="w-full space-y-2">
       <MasterDataWorkspaceHeader
         workspaceHeaderRef={workspaceHeaderRef}
@@ -405,5 +408,6 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({
         onSaveSizing={sizing => updateMasterDataDatasetSizing(masterDataRole, sizing)}
       />
     </div>
+    </MasterDataDirectEditsContext.Provider>
   )
 }

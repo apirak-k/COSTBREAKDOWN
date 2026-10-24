@@ -21,6 +21,7 @@ export interface NumericInputProps extends Omit<InputHTMLAttributes<HTMLInputEle
   value: number | null | undefined
   /** Durable exact editor text supplied by the owning application state. */
   exactValue?: string | null
+  directEditPending?: boolean
   onValueChange: (value: number | null, exactValue?: string) => void
   allowSubMinimumDraft?: boolean
   stopAtMinimum?: boolean
@@ -39,6 +40,7 @@ const useIsomorphicLayoutEffect = typeof window === 'undefined' ? useEffect : us
 export function NumericInput({
   value,
   exactValue,
+  directEditPending = false,
   onValueChange,
   className,
   integer,
@@ -390,7 +392,7 @@ export function NumericInput({
           onPaste?.(event)
         }}
         onChange={event => handleChange(event.currentTarget.value)}
-        className={`${defaultInputClassName} ${className ?? ''}`.trim()}
+        className={`${defaultInputClassName} ${className ?? ''} ${directEditPending ? '!text-blue-700' : ''}`.trim()}
         style={{
           ...style,
           textAlign: ordinaryDecimal ? 'left' : style?.textAlign,
@@ -414,6 +416,7 @@ export function NumericInput({
         data-numeric-reserve-end={numericColumn ? columnReserveEnd : undefined}
         data-numeric-fit={numericColumn ? presentation.notation : undefined}
         data-numeric-fit-floor={numericColumn ? (columnMetrics.width - columnMetrics.borderLeft - columnMetrics.borderRight + 0.5 >= numericScientificFitFloor(measure, min === undefined || min < 0) + 2 * columnReserveEnd ? 'adequate' : 'insufficient') : undefined}
+        data-direct-edit-pending={directEditPending ? 'true' : undefined}
         data-numeric-editor="true"
         data-numeric-presentation={presentation.notation}
         data-numeric-fraction-digits={presentation.fractionDigits}

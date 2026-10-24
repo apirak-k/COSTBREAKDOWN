@@ -67,6 +67,7 @@ import {
   isMasterDataSnapshotChangeValid
 } from '../core/utils/master-data-validation'
 import {
+  clearSavedDirectEditHistory,
   createMasterDataEditHistory,
   createMasterDataPairWorkingEditEntry,
   recordMasterDataEdit,
@@ -81,6 +82,7 @@ import {
   type MasterDataUiAction,
   type MasterDataUiState
 } from '../features/master-data/master-data-ui-state'
+import { clearMasterDataDirectEdits, pruneMasterDataDirectEdits, recordMasterDataDirectEdits, type DirectEditField } from './master-data-direct-edits'
 import { STORAGE_KEYS, loadFromSession, saveToSession } from '../services/storage'
 
 import {
@@ -424,6 +426,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const beforePair = before.snapshotPair ?? sessionToSnapshotPair(before)
     const afterPair = after.snapshotPair ?? sessionToSnapshotPair(after)
     const entry: MasterDataEditHistoryEntry = {
+      beforeDirectEdits: before.masterDataDirectEdits,
+      afterDirectEdits: after.masterDataDirectEdits,
       sessionId: before.id,
       role,
       before: cloneCostSnapshot(getMasterDataSnapshot(before, beforePair, role)),
@@ -756,6 +760,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const copy: ProductSession = withSnapshotPair({
       ...source,
       id: newId,
+      masterDataDirectEdits: undefined,
       initialMasterDataBaseline: undefined,
       product: { ...source.product, productCode: `${source.product.productCode}-COPY` },
       bom: source.bom.map(b => ({ ...b, id: `bom-${Date.now()}-${b.id}` })),
@@ -784,6 +789,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const copy: ProductSession = withSnapshotPair({
       ...JSON.parse(JSON.stringify(source)),
       id: newId,
+      masterDataDirectEdits: undefined,
       initialMasterDataBaseline: undefined,
       status: 'draft',
       versionLabel: `Draft (${source.product.productCode || 'Working Copy'})`,
@@ -849,9 +855,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }
 
   const saveMasterDataWorkingDataset = (role: MasterDataRole) => {
+    masterDataHistoryRef.current = clearSavedDirectEditHistory(masterDataHistoryRef.current, [role], activeSession)
     const now = new Date().toISOString()
     setProductSessions(prev => prev.map(session => {
       if (session.id !== activeSession.id) return session
+      session = clearMasterDataDirectEdits(session, [role])
       const pair = session.snapshotPair ?? sessionToSnapshotPair(session)
       const snapshot = getMasterDataSnapshot(session, pair, role)
       const saved = {
@@ -874,7 +882,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }
 
   const saveAllMasterDataWorkingDatasets = () => {
-    const session = activeSession
+    masterDataHistoryRef.current = clearSavedDirectEditHistory(masterDataHistoryRef.current, ['reference', 'current', 'custom'], activeSession)
+    const session = clearMasterDataDirectEdits(activeSession, ['reference', 'current', 'custom'])
     const pair = session.snapshotPair ?? sessionToSnapshotPair(session)
     const readiness = getSnapshotRoleReadiness(session)
     const now = new Date().toISOString()
@@ -893,6 +902,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setProductSessions(previous => previous.map(candidate => candidate.id === session.id
       ? {
         ...candidate,
+        masterDataDirectEdits: session.masterDataDirectEdits,
         updatedAt: now,
         lastSavedMasterData: {
           ...candidate.lastSavedMasterData,
@@ -905,6 +915,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }
 
   const commitMasterDataWorkingSession = (before: ProductSession, after: ProductSession, role: MasterDataRole) => {
+    after = pruneMasterDataDirectEdits(after, role, getMasterDataSnapshot(after, after.snapshotPair ?? sessionToSnapshotPair(after), role))
     const beforePair = before.snapshotPair ?? sessionToSnapshotPair(before)
     const afterPair = after.snapshotPair ?? sessionToSnapshotPair(after)
     const beforeState = {
@@ -974,7 +985,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     const now = new Date().toISOString()
     const updated = applyMasterDataSnapshotPair({
-      ...session,
+      ...clearMasterDataDirectEdits(session, ['reference', 'current', 'custom']),
       datasetSizing: nextSizing,
       preparedSnapshotRoles: nextPrepared,
       customMasterData: nextCustom,
@@ -987,7 +998,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const updateMasterDataDataset = (
     mutate: (snapshot: CostSnapshot) => CostSnapshot,
     sizingField?: keyof DatasetSizing,
-    finalize?: (previous: CostSnapshot, normalizedNext: CostSnapshot) => CostSnapshot
+    finalize?: (previous: CostSnapshot, normalizedNext: CostSnapshot) => CostSnapshot,
+    directFields: DirectEditField[] = []
   ) => {
     const session = activeSession
     const role = masterDataUiState.role
@@ -1016,7 +1028,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         ...(sizingField ? { customDatasetSizing: nextCustomSizing } : {}),
         updatedAt: new Date().toISOString()
       }
-      commitMasterDataWorkingSession(session, updated, role)
+      commitMasterDataWorkingSession(session, recordMasterDataDirectEdits(updated, role, currentDataset, nextDataset, directFields), role)
       return
     }
     let nextPair: SnapshotPair = {
@@ -1035,15 +1047,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       updatedAt: new Date().toISOString(),
       preparedSnapshotRoles: { ...readiness, [role]: true }
     }, nextPair)
-    commitMasterDataWorkingSession(session, updated, role)
+    commitMasterDataWorkingSession(session, recordMasterDataDirectEdits(updated, role, currentDataset, nextDataset, directFields), role)
   }
 
   const updateMasterDataProduct = (nextProduct: ProductMaster) => {
-    updateMasterDataDataset(dataset => ({ ...dataset, product: { ...nextProduct } }))
+    updateMasterDataDataset(dataset => ({ ...dataset, product: { ...nextProduct } }), undefined, undefined,
+      Object.keys(nextProduct).filter(field => field !== 'exactDecimalInputs').map(field => ({ section: 'product', recordId: 'product', field })))
   }
 
   const updateMasterDataRemark = (remark: string) => {
-    updateMasterDataDataset(dataset => ({ ...dataset, remark }))
+    updateMasterDataDataset(dataset => ({ ...dataset, remark }), undefined, undefined, [{ section: 'dataset', recordId: 'dataset', field: 'remark' }])
   }
 
   const applyMasterDataHistoryEntry = (entry: MasterDataEditHistoryEntry, direction: 'undo' | 'redo') => {
@@ -1171,7 +1184,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         customDatasetSizing: nextRoleSizing,
         updatedAt: new Date().toISOString()
       }
-      commitMasterDataWorkingSession(session, updated, role)
+      commitMasterDataWorkingSession(session, recordMasterDataDirectEdits(updated, role,
+        { ...currentDataset, sizing: existingRoleSizing }, { ...updatedSnapshot, sizing: nextRoleSizing },
+        Object.keys(sizing).map(field => ({ section: 'sizing', recordId: 'sizing', field }))), role)
       return
     }
     const nextDatasetSizing: Record<ComparisonRole, DatasetSizing> = {
@@ -1188,7 +1203,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       datasetSizing: nextDatasetSizing,
       updatedAt: new Date().toISOString()
     }, nextPair)
-    commitMasterDataWorkingSession(session, updated, role)
+    commitMasterDataWorkingSession(session, recordMasterDataDirectEdits(updated, role,
+        { ...currentDataset, sizing: existingRoleSizing }, { ...updatedSnapshot, sizing: nextRoleSizing },
+        Object.keys(sizing).map(field => ({ section: 'sizing', recordId: 'sizing', field }))), role)
   }
 
   const clearMasterDataDataset = (role: MasterDataRole) => {
@@ -1242,7 +1259,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         const updated = { ...next, sourceRef, confidence }
         return changes.isGeneratedSizingPlaceholder === true ? updated : markSizingPlaceholderEdited(updated)
       })
-    }))
+    }), undefined, undefined, updates.flatMap(({ id, changes }) => Object.keys(changes).filter(field => !['exactDecimalInputs', 'sourceRef', 'isGeneratedSizingPlaceholder'].includes(field)).map(field => ({ section: 'bom', recordId: id, field }))))
   }
 
   const updateMasterDataBOMItem = (id: string, changes: Partial<Omit<SnapshotBOMItem, 'id' | 'confidence'>>) => {
@@ -1315,7 +1332,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         const updated = { ...next, sourceRef, confidence }
         return changes.isGeneratedSizingPlaceholder === true ? updated : markSizingPlaceholderEdited(updated)
       })
-    }))
+    }), undefined, undefined, updates.flatMap(({ id, changes }) => Object.keys(changes).filter(field => !['exactDecimalInputs', 'sourceRef', 'isGeneratedSizingPlaceholder'].includes(field)).map(field => ({ section: 'routing', recordId: id, field }))))
   }
 
   const updateMasterDataRoutingStep = (id: string, changes: Partial<Omit<SnapshotRoutingStep, 'id' | 'confidence'>>) => {
@@ -1383,7 +1400,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         ? new Map(Object.entries(options.routingRowIdsByRateId).map(([id, rowIds]) => [id, new Set(rowIds)]))
         : undefined
       return propagateWorkCenterRenames(previous, normalizedNext, updates, routingRowIdsByRateId)
-    })
+    }, updates.flatMap(({ id, changes }) => Object.keys(changes).filter(field => !['exactDecimalInputs', 'sourceRef', 'isGeneratedSizingPlaceholder'].includes(field)).map(field => ({ section: 'rates', recordId: id, field }))))
   }
 
   const updateMasterDataWorkCenterRate = (id: string, changes: Partial<Omit<SnapshotWorkCenterRate, 'id' | 'confidence'>>) => {
@@ -1453,12 +1470,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (getMasterDataSnapshotValidationErrors(result.snapshot).length > 0) return
 
     const source = activeSession
+    const importSession = clearMasterDataDirectEdits(source, [result.role])
     const existingPair = source.snapshotPair ?? sessionToSnapshotPair(source)
     const now = new Date().toISOString()
     if (result.role === 'custom') {
       const imported = importSnapshotForCustom(result.snapshot)
       const updated = setMasterDataInitialResetBaseline({
-        ...source,
+        ...importSession,
         customMasterData: normalizeMasterDataSnapshot(imported.snapshot),
         customDatasetSizing: imported.sizing,
         updatedAt: now
@@ -1478,7 +1496,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     const updated = setMasterDataInitialResetBaseline(applyMasterDataSnapshotPair(
       {
-        ...source,
+        ...importSession,
         datasetSizing: imported.datasetSizing,
         updatedAt: now,
         preparedSnapshotRoles
@@ -1496,7 +1514,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const source = activeSession
     const replaced = replaceDevelopmentMockWorkingState(source, pair)
     if (!replaced) return
-    const updated = setAllMasterDataInitialResetBaselines(replaced)
+    const updated = setAllMasterDataInitialResetBaselines(clearMasterDataDirectEdits(replaced, ['reference', 'current', 'custom']))
     setSelectedComparisonScope(null)
     setProductSessions(previous => previous.map(session => session.id === source.id ? updated : session))
     recordMasterDataPairWorkingEdit(source, updated)
@@ -1504,6 +1522,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const resetToDefault = () => {
     patchActive({
+      masterDataDirectEdits: undefined,
       initialMasterDataBaseline: undefined,
       product: { ...emptyProductMaster },
       rates: [],
@@ -1523,6 +1542,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const clearAllData = () => {
     patchActive({
+      masterDataDirectEdits: undefined,
       initialMasterDataBaseline: undefined,
       product: { ...emptyProductMaster },
       rates: [],

@@ -32,6 +32,7 @@ import { RowSelectionButton } from '../../shared/ui/RowSelectionButton'
 import { normalizeProductIdentityValue } from '../../core/utils/master-data-effective'
 import { parameterEffectPresentation } from './parameter-effect-presentation'
 import { EconomicBreakEvenGraphPanel, EconomicSimulationPanel } from './EconomicSimulationPanel'
+import { useSimulationDirectEdit } from './simulation-direct-edit'
 import { SimulationHistoryInputBoundary } from './SimulationHistoryInputBoundary'
 import { SimulationStoryGraph } from './SimulationStoryGraph'
 import { calculateEconomicSimulation, type EconomicSimulationField } from './simulation-economics'
@@ -483,7 +484,10 @@ interface SimulationParameterNumericInputProps extends NumericInputProps {
 }
 
 function SimulationParameterNumericInput({ selectionId, percentage = false, onBeginEdit, onCommitEdit, onValueChange, ...inputProps }: SimulationParameterNumericInputProps) {
+  const directEdit = useSimulationDirectEdit(selectionId)
+  const changeValue: typeof onValueChange = (value, exactValue) => directEdit.edit(() => onValueChange(value, exactValue))
   const source = useSelectedValueSource({
+    directEditPending: directEdit.directEditPending,
     value: inputProps.value,
     exactValue: inputProps.exactValue,
     editable: true,
@@ -494,7 +498,7 @@ function SimulationParameterNumericInput({ selectionId, percentage = false, onBe
       minExclusive: inputProps.minExclusive
     },
     percentage,
-    onValueChange,
+    onValueChange: changeValue,
     onBeginEdit,
     onCommitEdit,
     allowSubMinimumDraft: inputProps.allowSubMinimumDraft,
@@ -503,7 +507,8 @@ function SimulationParameterNumericInput({ selectionId, percentage = false, onBe
 
   return <NumericInput
     {...inputProps}
-    onValueChange={onValueChange}
+    onValueChange={changeValue}
+    directEditPending={directEdit.directEditPending}
     data-selected-value-source={selectionId}
     onPointerEnter={source.preview}
     onPointerLeave={source.clearPreview}

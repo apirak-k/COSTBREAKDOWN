@@ -1,3 +1,5 @@
+import { compareExactDecimals, parseExactDecimal } from '../../../core/utils/exact-decimal'
+import { useMasterDataDirectEdit } from '../direct-edit-presentation'
 import React, { useState, useEffect } from 'react'
 import { X, Check, Download } from 'lucide-react'
 import { MasterDataRole, CostSnapshot, DatasetSizing, ProductMaster } from '../../../core'
@@ -10,6 +12,13 @@ import { HeaderValue } from '../../../shared/layout/HeaderValue'
 import { useDialogFocus } from '../use-dialog-focus'
 import { masterDataTextEditorClass } from './master-data-field-styles'
 import { MasterDataNumericInput, masterDataSelectedValueId } from './MasterDataNumericValue'
+
+function numericDraftChanged(value: string, baseline: string) {
+  if (value === baseline) return false
+  const next = parseExactDecimal(value)
+  const before = parseExactDecimal(baseline)
+  return next && before ? compareExactDecimals(next, before) !== 0 : value !== baseline
+}
 
 const metadataNumericEditorClass = `${masterDataTextEditorClass} font-mono tabular-nums text-right`
 const metadataInlineLabelClass = 'shrink-0 whitespace-nowrap text-left text-[11px] font-medium text-slate-700'
@@ -45,6 +54,7 @@ export const DatasetSizingModal: React.FC<DatasetSizingModalProps> = ({
   currentSizing,
   onSaveSizing
 }) => {
+  const pending = useMasterDataDirectEdit()
   const [wcCount, setWcCount] = useState<string>(currentCount(currentSizing.wcCount, snapshot.rates.length))
   const [bomCount, setBomCount] = useState<string>(currentCount(currentSizing.bomCount, snapshot.bom.length))
   const [routingCount, setRoutingCount] = useState<string>(currentCount(currentSizing.routingCount, snapshot.routing.length))
@@ -172,6 +182,7 @@ export const DatasetSizingModal: React.FC<DatasetSizingModalProps> = ({
             value={value === '' ? null : Number(value)}
             onValueChange={next => { setValue(next === null ? '' : String(next)); setSizingError('') }}
             selectionId={sizingValueSourceId('sizing-rows', tableKey, 'count')}
+            directEditPending={numericDraftChanged(value, currentCount(currentSizing[tableKey === 'work-centers' ? 'wcCount' : tableKey === 'bom' ? 'bomCount' : 'routingCount'], tableKey === 'work-centers' ? snapshot.rates.length : tableKey === 'bom' ? snapshot.bom.length : snapshot.routing.length)) || pending('sizing', 'sizing', tableKey === 'work-centers' ? 'wcCount' : tableKey === 'bom' ? 'bomCount' : 'routingCount')}
             integer
             min={1}
             max={max}
@@ -221,7 +232,7 @@ export const DatasetSizingModal: React.FC<DatasetSizingModalProps> = ({
                     type="text"
                     value={productName}
                     onChange={event => { setProductName(event.target.value); setSizingError('') }}
-                    className={masterDataTextEditorClass}
+                    className={`${masterDataTextEditorClass} ${(productName !== (product.productName || '') || pending('product', 'product', 'productName')) ? '!text-blue-700' : ''}`}
                   />
                 </div>
               </div>
@@ -233,7 +244,7 @@ export const DatasetSizingModal: React.FC<DatasetSizingModalProps> = ({
                     type="text"
                     value={uom}
                     onChange={event => { setUom(event.target.value); setSizingError('') }}
-                    className={`${masterDataTextEditorClass} font-mono`}
+                    className={`${masterDataTextEditorClass} font-mono ${(uom !== (product.uom || '') || pending('product', 'product', 'uom')) ? '!text-blue-700' : ''}`}
                   />
                   <span aria-hidden="true" className="w-4" />
                 </div>
@@ -246,6 +257,7 @@ export const DatasetSizingModal: React.FC<DatasetSizingModalProps> = ({
                     aria-label="Selling Price (THB)"
                     value={sellingPrice === '' ? null : Number(sellingPrice)}
                     exactValue={sellingPrice}
+                    directEditPending={numericDraftChanged(sellingPrice, product.exactDecimalInputs?.sellingPrice ?? (product.sellingPrice == null ? '' : String(product.sellingPrice)))}
                     onValueChange={(value, exactValue) => { setSellingPrice(exactValue ?? (value === null ? '' : String(value))); setSizingError('') }}
                     selectionId={sizingValueSourceId('sizing-metadata', 'product', 'sellingPrice')}
                     {...getMasterDataNumericInputDomain('sellingPrice')}
@@ -262,6 +274,7 @@ export const DatasetSizingModal: React.FC<DatasetSizingModalProps> = ({
                     aria-label="SG&A"
                     value={sgaPercent === '' ? null : Number(sgaPercent)}
                     exactValue={sgaPercent}
+                    directEditPending={numericDraftChanged(sgaPercent, product.exactDecimalInputs?.sgaPercent ?? (product.sgaPercent == null ? '' : String(product.sgaPercent)))}
                     onValueChange={(value, exactValue) => { setSgaPercent(exactValue ?? (value === null ? '' : String(value))); setSizingError('') }}
                     selectionId={sizingValueSourceId('sizing-metadata', 'product', 'sgaPercent')}
                     percentage
@@ -279,7 +292,7 @@ export const DatasetSizingModal: React.FC<DatasetSizingModalProps> = ({
                     type="text"
                     value={remark}
                     onChange={event => { setRemark(event.target.value); setSizingError('') }}
-                    className={masterDataTextEditorClass}
+                    className={`${masterDataTextEditorClass} ${(remark !== (snapshot.remark || '') || pending('dataset', 'dataset', 'remark')) ? '!text-blue-700' : ''}`}
                   />
                 </div>
               </div>

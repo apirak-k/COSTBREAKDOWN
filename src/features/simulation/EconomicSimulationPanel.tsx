@@ -6,6 +6,7 @@ import { formatBusinessNumber } from '../../shared/ui/numeric-display'
 import { NumericInput } from '../../shared/ui/NumericInput'
 import type { NumericInputProps } from '../../shared/ui/NumericInput'
 import { SelectedNumber, useSelectedValueSource } from '../../shared/ui/selected-value'
+import { useSimulationDirectEdit } from './simulation-direct-edit'
 import { SimulationHistoryInputBoundary } from './SimulationHistoryInputBoundary'
 import type { EconomicSimulationDraft, EconomicSimulationResult, EconomicSimulationField } from './simulation-economics'
 
@@ -30,7 +31,10 @@ interface EconomicNumericInputProps extends NumericInputProps {
 }
 
 function EconomicNumericInput({ selectionId, percentage = false, onBeginEdit, onCommitEdit, onValueChange, ...inputProps }: EconomicNumericInputProps) {
+  const directEdit = useSimulationDirectEdit(selectionId)
+  const changeValue: typeof onValueChange = (value, exactValue) => directEdit.edit(() => onValueChange(value, exactValue))
   const source = useSelectedValueSource({
+    directEditPending: directEdit.directEditPending,
     value: inputProps.value,
     exactValue: inputProps.exactValue,
     editable: true,
@@ -41,7 +45,7 @@ function EconomicNumericInput({ selectionId, percentage = false, onBeginEdit, on
       minExclusive: inputProps.minExclusive
     },
     percentage,
-    onValueChange,
+    onValueChange: changeValue,
     onBeginEdit,
     onCommitEdit,
     allowSubMinimumDraft: inputProps.allowSubMinimumDraft,
@@ -51,7 +55,8 @@ function EconomicNumericInput({ selectionId, percentage = false, onBeginEdit, on
   return (
     <NumericInput
       {...inputProps}
-      onValueChange={onValueChange}
+      onValueChange={changeValue}
+      directEditPending={directEdit.directEditPending}
       data-selected-value-source={selectionId}
       onPointerEnter={source.preview}
       onPointerLeave={source.clearPreview}
@@ -169,12 +174,15 @@ function BreakEvenGraph({
   const markerX = batchSize === null ? null : toX(batchSize)
   const batchMax = Math.min(Number.MAX_SAFE_INTEGER, Math.max(1, Math.ceil(xMax)))
   const markerSourceId = `simulation:${selectionContext}:break-even:batch-size-marker`
+  const markerDirectEdit = useSimulationDirectEdit(markerSourceId)
+  const changeMarkerBatchSize = (value: string) => markerDirectEdit.edit(() => onBatchSizeChange(value))
   const markerSource = useSelectedValueSource({
+    directEditPending: markerDirectEdit.directEditPending,
     value: batchSize,
     exactValue: batchSizeExactValue,
     editable: true,
     domain: { integer: true, min: 1, max: batchMax },
-    onValueChange: (value, exactValue) => onBatchSizeChange(exactValue ?? (value === null ? '' : String(value))),
+    onValueChange: (value, exactValue) => changeMarkerBatchSize(exactValue ?? (value === null ? '' : String(value))),
     onBeginEdit,
     onCommitEdit
   }, markerSourceId)
@@ -196,7 +204,7 @@ function BreakEvenGraph({
     const pointerRatio = (pointerX - plot.left) / plotWidth
     const delta = Math.round((pointerRatio - dragStart.pointerRatio) * dragStart.xMax)
     const dragBatchMax = Math.min(Number.MAX_SAFE_INTEGER, Math.max(1, Math.ceil(dragStart.xMax)))
-    onBatchSizeChange(String(Math.max(1, Math.min(dragBatchMax, dragStart.batchSize + delta))))
+    changeMarkerBatchSize(String(Math.max(1, Math.min(dragBatchMax, dragStart.batchSize + delta))))
   }
 
   const handleBatchKeyDown = (event: KeyboardEvent<SVGGElement>) => {
@@ -212,13 +220,13 @@ function BreakEvenGraph({
     }
     if (event.key === 'Home') {
       event.preventDefault()
-      onBatchSizeChange('1')
+      changeMarkerBatchSize('1')
     } else if (event.key === 'End') {
       event.preventDefault()
-      onBatchSizeChange(String(batchMax))
+      changeMarkerBatchSize(String(batchMax))
     } else if (increments[event.key] !== undefined) {
       event.preventDefault()
-      onBatchSizeChange(String(Math.max(1, Math.min(batchMax, batchSize + increments[event.key]))))
+      changeMarkerBatchSize(String(Math.max(1, Math.min(batchMax, batchSize + increments[event.key]))))
     }
   }
 

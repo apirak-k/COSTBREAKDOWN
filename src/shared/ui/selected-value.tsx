@@ -8,6 +8,7 @@ import { isSafeWorkspaceDismissTarget } from './transient-interactions'
 interface SelectedValueBase {
   value: number | null | undefined
   exactValue?: string | null
+  directEditPending?: boolean
   percentage?: boolean
 }
 
@@ -83,7 +84,7 @@ const ADDITIONAL_PIN_PRESERVING_TARGET = [
   '[tabindex]:not([tabindex="-1"])'
 ].join(',')
 const asReadOnlyPreview = (source: SelectedValue): SelectedValue => source.editable
-  ? { id: source.id, value: source.value, exactValue: source.exactValue, editable: false, domain: source.domain, percentage: source.percentage }
+  ? { id: source.id, value: source.value, exactValue: source.exactValue, directEditPending: source.directEditPending, editable: false, domain: source.domain, percentage: source.percentage }
   : source
 
 export function SelectedValueProvider({ children, scopeKey }: { children: ReactNode; scopeKey?: string }) {
@@ -288,7 +289,7 @@ export function useSelectedValueSource(source: SelectedValueSource, sourceId?: s
 
   useBrowserLayoutEffect(() => {
     syncSelection(snapshot())
-  }, [syncSelection, snapshot, source.value, source.exactValue, source.editable, source.percentage, integer, min, max, minExclusive, allowSubMinimumDraft, stopAtMinimum])
+  }, [syncSelection, snapshot, source.value, source.exactValue, source.directEditPending, source.editable, source.percentage, integer, min, max, minExclusive, allowSubMinimumDraft, stopAtMinimum])
 
   useBrowserLayoutEffect(() => {
     current.current.mounted = true
@@ -316,6 +317,7 @@ export interface SelectedNumberProps extends Omit<ButtonHTMLAttributes<HTMLButto
   integer?: boolean
   percentage?: boolean
   selectionId?: string
+  directEditPending?: boolean
   stopKeyboardPropagation?: boolean
   numericColumn?: boolean
   numericColumnSigned?: boolean
@@ -327,8 +329,8 @@ export interface SelectedNumberProps extends Omit<ButtonHTMLAttributes<HTMLButto
   children?: ReactNode
 }
 
-export function SelectedNumber({ value, integer, percentage, selectionId, children, className, style, numericColumn = false, numericColumnSigned = true, compactPercentSuffix = false, darkSurface = false, signPositive, leadingAnnotation, sameLineAnnotation, stopKeyboardPropagation = true, onKeyDown, onKeyUp, ...props }: SelectedNumberProps) {
-  const { isPinned, preview, clearPreview, pin } = useSelectedValueSource({ value, editable: false, domain: { integer }, percentage }, selectionId)
+export function SelectedNumber({ value, integer, percentage, selectionId, directEditPending, children, className, style, numericColumn = false, numericColumnSigned = true, compactPercentSuffix = false, darkSurface = false, signPositive, leadingAnnotation, sameLineAnnotation, stopKeyboardPropagation = true, onKeyDown, onKeyUp, ...props }: SelectedNumberProps) {
+  const { isPinned, preview, clearPreview, pin } = useSelectedValueSource({ value, directEditPending, editable: false, domain: { integer }, percentage }, selectionId)
   const content = children ?? <BusinessNumber value={value} integer={integer} percent={percentage} leadingAnnotation={leadingAnnotation} />
   if (value == null || !Number.isFinite(value)) return numericColumn
     ? <BusinessNumber numericColumn value={value} integer={integer} percent={percentage} leadingAnnotation={leadingAnnotation} className={className} />

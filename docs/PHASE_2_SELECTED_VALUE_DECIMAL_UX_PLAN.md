@@ -1,6 +1,6 @@
 # Phase 2 — Selected Value / Decimal UX Execution Plan
 
-**Status:** Round 1 is CLOSED; Round 2 — Master Data is CLOSED; Round 3 — Cost Breakdown is CLOSED; original Round 4A historical UI polish is CLOSED; the pre-Round-4B corrective gate is EXTERNALLY ACCEPTED / CLOSED and human visual acceptance PASSED; Round 4B is IMPLEMENTED / AWAITING EXTERNAL AUDIT. Global authoritative-full-value-on-edit is IMPLEMENTED / EXTERNALLY ACCEPTED; Global direct-edit blue-value indicator is NOT STARTED; Round 5 is NOT STARTED.
+**Status:** Rounds 1–3 are CLOSED. Round 4 (including 4A / 4B and its corrective passes) is EXTERNALLY AUDITED / ACCEPTED / CLOSED. Global authoritative-full-value-on-edit is IMPLEMENTED / EXTERNALLY ACCEPTED. Global direct-edit blue-value indicator is IMPLEMENTED / INTERNALLY VERIFIED / AWAITING EXTERNAL AUDIT AND ACCEPTANCE. Round 5 is NOT STARTED.
 **Execution branch:** `feat/selected-value-ux`
 **Repository:** `https://github.com/apirak-k/COSTBREAKDOWN`
 
@@ -29,24 +29,24 @@ Do not overlap implementation rounds or add numbered sub-phases. A failing accep
 | Round 1 — Shared Foundation | Shared numeric source lifecycle, Header Value, SelectedNumber inspection primitive, exact model-value handling, and shared browser/runtime verification. | **CLOSED** | Shared focus/preview/pin model, source lifecycle, stale-writer guards, existing formatting/stepping/domain contracts, and runtime checks pass. Unpinned pointer hover has a frame/ring with no added fill and unchanged geometry; keyboard focus has a clear ring without the pinned fill; pin remains stronger. Final correction commit is recorded in the current Handoff. |
 | Round 2 — Master Data | Integrate the shared model into Master Data without changing its data, formulas, validation domains, dataset lifecycle, history, or spreadsheet semantics. Preserve the accepted native View-mode focus recovery and apply the later finalized hover/Header precision contract and final geometry polish. | **CLOSED** | Native grid focus owns View numeric values; source Preview uses a cancellable 350ms dwell; Focus/Pin remains anchored; only focused editable sources own Header writers; Header displays at most 8 decimals and keeps stable numeric / `%` / spinner regions and direct-interaction affordance; actual Chrome, regression, source audit, build, and diff checks pass. |
 | Round 3 — Cost Breakdown | Integrate eligible Cost Breakdown values and interactions with the shared Header/source model, retaining the finalized Candidate, detail, tooltip, row, ordering, and comparison behavior. | **CLOSED** | Shared no-focus `SelectedNumber` is transparent at rest, `#E9EEF4` on direct hover, and `blue-100` when pinned; Candidate row hover is independent. CHANGED-row cell whitespace expands/collapses while actual numeric, `#`, and reorder controls keep their own action. Targeted Chrome, Round 2 / Round 3 browser gates, build, source audit, and diff checks pass; no calculation or comparison semantics change. Implementation: `9536da7edec07d29e808bec8af8c45a16e8be621`. |
-| Round 4 — Simulation | 4A and the pre-Round-4B corrective gate are closed. Round 4B includes Result/Economic sources plus the corrective integration of BOM/Routing values, Footer totals, and visible Story Graph numeric labels/ticks. | **IMPLEMENTED / AWAITING EXTERNAL AUDIT.** | External audit and acceptance of Round 4B are required before closing Round 4. |
+| Round 4 — Simulation | 4A and the pre-Round-4B corrective gate are closed. Round 4B includes Result/Economic sources plus the corrective integration of BOM/Routing values, Footer totals, and visible Story Graph numeric labels/ticks. | **EXTERNALLY AUDITED / ACCEPTED / CLOSED.** | User confirmed external source audit acceptance for checkpoint `262bd3c54425a15d16065f45d80037c353afa656`. |
 | Round 5 — Final Cross-page Regression | Run the final shared + Master Data + Cost Breakdown + Simulation regression and verify that state does not leak across pages/scopes. | **NOT STARTED** | Rounds 1–3, all of Round 4 (4A and 4B), and both preceding global numeric UX items have passed their audit/acceptance gates; full cross-page regression, browser checks, build, and diff review pass. |
 
 ## Agreed next-work order
 
-These are workflow steps inside the existing five-round Phase 2 plan, not new numbered rounds. The pre-Round-4B gate is closed; external audit and acceptance of the current Round 4B implementation is the next gate.
+These are workflow steps inside the existing five-round Phase 2 plan, not new numbered rounds. Round 4 / Round 4B are now externally audited and closed. The current gate is external audit and acceptance of the global direct-edit blue-value indicator.
 
 1. GLOBAL authoritative-full-value-on-edit correction — implemented in the separate prior correction.
 2. Audit and accept that global numeric correction — externally accepted.
 3. Pre-Round-4B corrective gate — externally accepted / closed; human visual acceptance passed.
-4. Round 4B — implemented; external audit / acceptance pending.
-5. Audit / accept and close Round 4.
-6. Implement the GLOBAL direct-edit blue-value indicator.
-7. Audit and accept that global UX item.
+4. Round 4B — externally audited / accepted / closed.
+5. Round 4 — externally audited / accepted / closed.
+6. GLOBAL direct-edit blue-value indicator — implemented and internally verified.
+7. Audit and accept that global UX item — pending external audit.
 8. Run Round 5 — Final Cross-page Regression.
 9. After Phase 2: Excel validation → real-world usage test → portable distribution.
 
-Current statuses: pre-Round-4B corrective implementation **EXTERNALLY ACCEPTED / CLOSED**; human visual acceptance **PASSED**; Round 4B **IMPLEMENTED / AWAITING EXTERNAL AUDIT**; Global authoritative-full-value-on-edit **IMPLEMENTED / EXTERNALLY ACCEPTED**; Global direct-edit blue-value indicator **NOT STARTED**; Round 5 **NOT STARTED**.
+Current statuses: Round 4 / Round 4B **EXTERNALLY AUDITED / ACCEPTED / CLOSED**; Global authoritative-full-value-on-edit **IMPLEMENTED / EXTERNALLY ACCEPTED**; Global direct-edit blue-value indicator **IMPLEMENTED / INTERNALLY VERIFIED / AWAITING EXTERNAL AUDIT AND ACCEPTANCE**; Round 5 **NOT STARTED**.
 
 ## Round 4B Corrective Pass — numeric residue, keyboard ownership, CBD percentage rhythm — 2026-10-24
 
@@ -56,6 +56,12 @@ Current statuses: pre-Round-4B corrective implementation **EXTERNALLY ACCEPTED /
 - **Implementation details:** a Number fallback is shortened only when a materially shorter decimal is within a narrow representable-number distance, without writing that display draft on focus. Numeric editors stop horizontal-arrow propagation while retaining native caret movement; Master Data navigation also guards active numeric editors. The local centered Loss percentage slot preserves the existing numeric axis and table columns. Exact algorithms and slot proportions are implementation details.
 - **Verifier/test details:** full unit and real-browser NumericInput, exact-decimal lifecycle, Master Data, CBD, Round 4B selected-value, Simulation Story, Simulation regression, spreadsheet batch, edit history, import/export, and Simulation history checks are recorded in the current [HANDOFF](../HANDOFF.md). The CBD verifier reached every desktop/responsive assertion and passed all five viewports.
 - **Boundaries:** no formula, business rule/domain, persistence lifecycle, role behavior, or History ownership changed. No merge, Round 5, direct-edit blue-value indicator, or speculative wheel-direction change. External audit is required before closing Round 4B.
+
+## Current global direct-edit blue-value indicator — 2026-10-25
+
+- **Acceptance update:** The user confirmed the preceding Round 4B corrective implementation passed external source audit at remote `262bd3c54425a15d16065f45d80037c353afa656`. Round 4 / Round 4B are closed; the dated checkpoints below remain historical records.
+- **Implementation:** Only explicit manual source edits receive blue text. Master Data keeps role/field provenance alongside its existing session and history; successful dataset Save retires it. System replacements do not create manual provenance. Simulation uses its existing pending focus/gesture edit and clears color when that edit commits. Derived values remain normal.
+- **Gate:** Blue indicator implemented / internally verified / awaiting external audit and acceptance. Round 5 remains NOT STARTED. Exact checks and delivery SHA are recorded in the current Handoff.
 
 ## Round 4B Corrective / Reconciliation Pass — 2026-10-24
 

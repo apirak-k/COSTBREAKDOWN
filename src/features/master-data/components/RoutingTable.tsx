@@ -1,3 +1,4 @@
+import { useMasterDataDirectEdit } from '../direct-edit-presentation'
 import React, { useCallback, useMemo, useRef, useState } from 'react'
 import { ChevronDown, GripVertical, Trash2 } from 'lucide-react'
 import { SnapshotRoutingStep, SnapshotWorkCenterRate } from '../../../core'
@@ -76,6 +77,7 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
   warningNavigationTarget,
   onWarningNavigationHandled
 }) => {
+  const directEditPending = useMasterDataDirectEdit()
   const tableRef = useRef<HTMLTableElement | null>(null)
   const [draggingIds, setDraggingIds] = useState<ReadonlySet<string>>(() => new Set())
   const reorderDragRef = useRef<{ movingIds: string[] } | null>(null)
@@ -389,9 +391,9 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
                           data-grid-field="processName"
                           aria-label={`Process for Routing row ${rowNumber}`}
                           aria-invalid={identityInvalid}
-                          className={`${masterDataTextEditorClass} ${identityWarning && showWarningHighlights ? `${masterDataIssueEditorClass} ${masterDataIssuePlaceholderClass}` : ''} ${selectedCellKeys.has(tableCellKey(step.id, 'processName')) ? masterDataSpreadsheetSelectionClass : ''}`}
+                          className={`${directEditPending('routing', step.id, 'processName') ? '!text-blue-700' : ''} ${masterDataTextEditorClass} ${identityWarning && showWarningHighlights ? `${masterDataIssueEditorClass} ${masterDataIssuePlaceholderClass}` : ''} ${selectedCellKeys.has(tableCellKey(step.id, 'processName')) ? masterDataSpreadsheetSelectionClass : ''}`}
                         />
-                      ) : <div data-grid-cell="true" data-grid-row-id={step.id} data-grid-field="processName" tabIndex={viewCellTabIndex(step.id, 'processName')} aria-label={`Process identity for Routing row ${rowNumber}`} className={`${masterDataDisplaySlotClass} ${identityWarning && showWarningHighlights ? masterDataIssueDisplayClass : ''} ${selectedCellKeys.has(tableCellKey(step.id, 'processName')) ? masterDataSpreadsheetSelectionClass : ''}`}>{step.processName || <span className="text-slate-500">{placeholderNumber === undefined ? '—' : `Process ${placeholderNumber}`}</span>}</div>}
+                      ) : <div data-grid-cell="true" data-grid-row-id={step.id} data-grid-field="processName" tabIndex={viewCellTabIndex(step.id, 'processName')} aria-label={`Process identity for Routing row ${rowNumber}`} className={`${directEditPending('routing', step.id, 'processName') ? '!text-blue-700' : ''} ${masterDataDisplaySlotClass} ${identityWarning && showWarningHighlights ? masterDataIssueDisplayClass : ''} ${selectedCellKeys.has(tableCellKey(step.id, 'processName')) ? masterDataSpreadsheetSelectionClass : ''}`}>{step.processName || <span className="text-slate-500">{placeholderNumber === undefined ? '—' : `Process ${placeholderNumber}`}</span>}</div>}
                     </div>
                   </td>
                   <td className="relative px-2 py-0.5 text-left">
@@ -405,7 +407,7 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
                         data-grid-field="workCenterId"
                         aria-label={`Work Center for Routing row ${rowNumber}`}
                         aria-invalid={workCenterInvalid}
-                        className={`block w-full appearance-none pr-10 text-left ${masterDataTextEditorClass} ${showWarningHighlights && workCenterInvalid ? masterDataIssueEditorClass : ''} ${selectedCellKeys.has(tableCellKey(step.id, 'workCenterId')) ? masterDataSpreadsheetSelectionClass : ''}`}
+                        className={`${directEditPending('routing', step.id, 'workCenterId') ? '!text-blue-700' : ''} block w-full appearance-none pr-10 text-left ${masterDataTextEditorClass} ${showWarningHighlights && workCenterInvalid ? masterDataIssueEditorClass : ''} ${selectedCellKeys.has(tableCellKey(step.id, 'workCenterId')) ? masterDataSpreadsheetSelectionClass : ''}`}
                       >
                         <option value="">Select Work Center</option>
                         {step.workCenterId && !knownWorkCenters.has(step.workCenterId.trim().toLocaleLowerCase()) && (
@@ -420,7 +422,7 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
                       </div>
                     ) : (
                       <div className="relative flex h-8 w-full items-center justify-start">
-                        <span data-grid-cell="true" data-grid-row-id={step.id} data-grid-field="workCenterId" tabIndex={viewCellTabIndex(step.id, 'workCenterId')} aria-label={`Work Center identity for Routing row ${rowNumber}`} className={`${masterDataDisplaySlotClass} truncate ${workCenterInvalid ? 'pr-8' : ''} ${showWarningHighlights && workCenterInvalid ? 'text-amber-900' : ''} ${showWarningHighlights && workCenterInvalid ? masterDataIssueDisplayClass : ''} ${selectedCellKeys.has(tableCellKey(step.id, 'workCenterId')) ? masterDataSpreadsheetSelectionClass : ''}`}>
+                        <span data-grid-cell="true" data-grid-row-id={step.id} data-grid-field="workCenterId" tabIndex={viewCellTabIndex(step.id, 'workCenterId')} aria-label={`Work Center identity for Routing row ${rowNumber}`} className={`${directEditPending('routing', step.id, 'workCenterId') ? '!text-blue-700' : ''} ${masterDataDisplaySlotClass} truncate ${workCenterInvalid ? 'pr-8' : ''} ${showWarningHighlights && workCenterInvalid ? 'text-amber-900' : ''} ${showWarningHighlights && workCenterInvalid ? masterDataIssueDisplayClass : ''} ${selectedCellKeys.has(tableCellKey(step.id, 'workCenterId')) ? masterDataSpreadsheetSelectionClass : ''}`}>
                           {step.workCenterId || (workCenterInvalid ? 'Unavailable' : '—')}
                         </span>
                         {workCenterInvalid && <MasterDataBlockerMarker label="Missing or unavailable Work Center" />}
@@ -547,9 +549,9 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
                         data-grid-row-id={step.id}
                         data-grid-field="note"
                         aria-label={`Note for ${step.processName || `Routing row ${rowNumber}`}`}
-                        className={`${masterDataTextEditorClass} ${selectedCellKeys.has(tableCellKey(step.id, 'note')) ? masterDataSpreadsheetSelectionClass : ''}`}
+                        className={`${directEditPending('routing', step.id, 'note') ? '!text-blue-700' : ''} ${masterDataTextEditorClass} ${selectedCellKeys.has(tableCellKey(step.id, 'note')) ? masterDataSpreadsheetSelectionClass : ''}`}
                       />
-                    ) : <div data-grid-cell="true" data-grid-row-id={step.id} data-grid-field="note" tabIndex={viewCellTabIndex(step.id, 'note')} aria-label={`Note for ${step.processName || `Routing row ${rowNumber}`}`} className={`${masterDataDisplaySlotClass} ${selectedCellKeys.has(tableCellKey(step.id, 'note')) ? masterDataSpreadsheetSelectionClass : ''}`}>{step.note || '—'}</div>}
+                    ) : <div data-grid-cell="true" data-grid-row-id={step.id} data-grid-field="note" tabIndex={viewCellTabIndex(step.id, 'note')} aria-label={`Note for ${step.processName || `Routing row ${rowNumber}`}`} className={`${directEditPending('routing', step.id, 'note') ? '!text-blue-700' : ''} ${masterDataDisplaySlotClass} ${selectedCellKeys.has(tableCellKey(step.id, 'note')) ? masterDataSpreadsheetSelectionClass : ''}`}>{step.note || '—'}</div>}
                   </td>
                   <td className={`${masterDataActionsColumnClass} px-1 py-0.5 text-center`}>
                     <div className="flex items-center justify-center gap-0.5">

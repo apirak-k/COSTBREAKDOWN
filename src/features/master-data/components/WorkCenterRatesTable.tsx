@@ -1,3 +1,4 @@
+import { useMasterDataDirectEdit } from '../direct-edit-presentation'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { GripVertical, Trash2 } from 'lucide-react'
 import { SnapshotWorkCenterRate, SnapshotRoutingStep } from '../../../core'
@@ -79,6 +80,7 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
   warningNavigationTarget,
   onWarningNavigationHandled
 }) => {
+  const directEditPending = useMasterDataDirectEdit()
   const tableRef = useRef<HTMLTableElement | null>(null)
   const [draggingIds, setDraggingIds] = useState<ReadonlySet<string>>(() => new Set())
   const reorderDragRef = useRef<{ movingIds: string[] } | null>(null)
@@ -402,7 +404,7 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
                           data-grid-field="workCenterCode"
                           aria-label={`WC for row ${rowNumber}`}
                           aria-invalid={identityInvalid}
-                          className={`block w-full text-left ${masterDataTextEditorClass} ${identityWarning && showWarningHighlights ? `${masterDataIssueEditorClass} ${masterDataIssuePlaceholderClass}` : ''} ${selectedCellKeys.has(tableCellKey(rate.id, 'workCenterCode')) ? masterDataSpreadsheetSelectionClass : ''}`}
+                          className={`${directEditPending('rates', rate.id, 'workCenterCode') ? '!text-blue-700' : ''} block w-full text-left ${masterDataTextEditorClass} ${identityWarning && showWarningHighlights ? `${masterDataIssueEditorClass} ${masterDataIssuePlaceholderClass}` : ''} ${selectedCellKeys.has(tableCellKey(rate.id, 'workCenterCode')) ? masterDataSpreadsheetSelectionClass : ''}`}
                         />
                       </div>
                     ) : (
@@ -413,7 +415,7 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
                           data-grid-field="workCenterCode"
                           tabIndex={viewCellTabIndex(rate.id, 'workCenterCode')}
                           aria-label={`Work Center identity for row ${rowNumber}`}
-                          className={`${masterDataDisplaySlotClass} truncate font-sans font-normal ${identityWarning && showWarningHighlights ? masterDataIssueDisplayClass : ''} ${selectedCellKeys.has(tableCellKey(rate.id, 'workCenterCode')) ? masterDataSpreadsheetSelectionClass : ''}`}
+                          className={`${directEditPending('rates', rate.id, 'workCenterCode') ? '!text-blue-700' : ''} ${masterDataDisplaySlotClass} truncate font-sans font-normal ${identityWarning && showWarningHighlights ? masterDataIssueDisplayClass : ''} ${selectedCellKeys.has(tableCellKey(rate.id, 'workCenterCode')) ? masterDataSpreadsheetSelectionClass : ''}`}
                         >
                           {rate.workCenterCode || <span>{placeholderNumber ?? '—'}</span>}
                         </span>
@@ -495,9 +497,9 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
                         data-grid-row-id={rate.id}
                         data-grid-field="note"
                         aria-label={`Note for ${rate.workCenterCode || `WC row ${rowNumber}`}`}
-                        className={`${masterDataTextEditorClass} ${selectedCellKeys.has(tableCellKey(rate.id, 'note')) ? masterDataSpreadsheetSelectionClass : ''}`}
+                        className={`${directEditPending('rates', rate.id, 'note') ? '!text-blue-700' : ''} ${masterDataTextEditorClass} ${selectedCellKeys.has(tableCellKey(rate.id, 'note')) ? masterDataSpreadsheetSelectionClass : ''}`}
                       />
-                    ) : <div data-grid-cell="true" data-grid-row-id={rate.id} data-grid-field="note" tabIndex={viewCellTabIndex(rate.id, 'note')} aria-label={`Note for ${rate.workCenterCode || `Work Center row ${rowNumber}`}`} className={`${masterDataDisplaySlotClass} ${selectedCellKeys.has(tableCellKey(rate.id, 'note')) ? masterDataSpreadsheetSelectionClass : ''}`}>{rate.note || '—'}</div>}
+                    ) : <div data-grid-cell="true" data-grid-row-id={rate.id} data-grid-field="note" tabIndex={viewCellTabIndex(rate.id, 'note')} aria-label={`Note for ${rate.workCenterCode || `Work Center row ${rowNumber}`}`} className={`${directEditPending('rates', rate.id, 'note') ? '!text-blue-700' : ''} ${masterDataDisplaySlotClass} ${selectedCellKeys.has(tableCellKey(rate.id, 'note')) ? masterDataSpreadsheetSelectionClass : ''}`}>{rate.note || '—'}</div>}
                   </td>
                   <td className={`${masterDataActionsColumnClass} px-1 py-0.5 text-center`}>
                     <div className="flex items-center justify-center gap-0.5">

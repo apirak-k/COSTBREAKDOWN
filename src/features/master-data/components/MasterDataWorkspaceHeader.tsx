@@ -1,3 +1,4 @@
+import { useMasterDataDirectEdit } from '../direct-edit-presentation'
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import {
   Copy,
@@ -270,6 +271,7 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
       : tableView === 'routing'
         ? 'Search Routing'
         : 'Search BOM'
+  const directEditPending = useMasterDataDirectEdit()
   const metadataValueSourceId = (field: string) => masterDataSelectedValueId(role, selectionDatasetId, 'metadata', 'product', field)
 
   const clearCloneHoverTimer = () => {
@@ -564,10 +566,10 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
                   value={product.productName || ''}
                   onChange={event => onUpdateProduct({ ...product, productName: event.target.value, productDescription: event.target.value })}
                   placeholder=""
-                  className={fieldInput}
+                  className={`${fieldInput} ${directEditPending('product', 'product', 'productName') ? '!text-blue-700' : ''}`}
                 />
               ) : (
-                <span className="flex h-8 w-full min-w-0 items-center truncate rounded-sm border border-transparent px-2 text-xs text-slate-950" title={product.productName || undefined}>
+                <span className={`flex h-8 w-full min-w-0 items-center truncate rounded-sm border border-transparent px-2 text-xs text-slate-950 ${directEditPending('product', 'product', 'productName') ? '!text-blue-700' : ''}`} title={product.productName || undefined}>
                   {product.productName || ''}
                 </span>
               )}
@@ -584,10 +586,10 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
                   value={product.uom || ''}
                   onChange={event => onUpdateProduct({ ...product, uom: event.target.value })}
                   placeholder=""
-                  className={fieldInput + ' font-mono'}
+                  className={`${fieldInput} font-mono ${directEditPending('product', 'product', 'uom') ? '!text-blue-700' : ''}`}
                 />
               ) : (
-                <span className="flex h-8 w-full min-w-0 items-center truncate rounded-sm border border-transparent px-2 font-mono text-xs text-slate-950">{product.uom || ''}</span>
+                <span className={`flex h-8 w-full min-w-0 items-center truncate rounded-sm border border-transparent px-2 font-mono text-xs text-slate-950 ${directEditPending('product', 'product', 'uom') ? '!text-blue-700' : ''}`}>{product.uom || ''}</span>
               )}
             </dd>
           </div>
@@ -668,10 +670,10 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
                   value={snapshot.remark || ''}
                   onChange={event => onUpdateRemark(event.target.value)}
                   aria-label="Dataset Remark"
-                  className={fieldInput}
+                  className={`${fieldInput} ${directEditPending('dataset', 'dataset', 'remark') ? '!text-blue-700' : ''}`}
                 />
               ) : (
-                <span className="flex h-8 w-full min-w-0 items-center truncate rounded-sm border border-transparent px-2 text-xs text-slate-800" title={snapshot.remark || ''}>{snapshot.remark || ''}</span>
+                <span className={`flex h-8 w-full min-w-0 items-center truncate rounded-sm border border-transparent px-2 text-xs text-slate-800 ${directEditPending('dataset', 'dataset', 'remark') ? '!text-blue-700' : ''}`} title={snapshot.remark || ''}>{snapshot.remark || ''}</span>
               )}
             </dd>
           </div>

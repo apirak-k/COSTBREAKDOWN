@@ -1,4 +1,5 @@
 import React from 'react'
+import { useMasterDataSelectionPending } from '../direct-edit-presentation'
 import type { NumericInputProps } from '../../../shared/ui/NumericInput'
 import { NumericInput } from '../../../shared/ui/NumericInput'
 import { SelectedNumber, useSelectedValue, useSelectedValueSource } from '../../../shared/ui/selected-value'
@@ -26,9 +27,11 @@ interface MasterDataNumericInputProps extends NumericInputProps {
 }
 
 export function MasterDataNumericInput({ selectionId, percentage = false, ...props }: MasterDataNumericInputProps) {
+  const directEditPending = useMasterDataSelectionPending(selectionId) || props.directEditPending
   const { clearFocus } = useSelectedValue()
   const { focus, preview, clearPreview } = useSelectedValueSource({
     value: props.value,
+    directEditPending,
     exactValue: props.exactValue,
     editable: true,
     domain: {
@@ -46,6 +49,7 @@ export function MasterDataNumericInput({ selectionId, percentage = false, ...pro
   return (
     <NumericInput
       {...props}
+      directEditPending={directEditPending}
       numericColumn={props['data-grid-cell'] === 'true'}
       data-selected-value-source={selectionId}
       onPointerEnter={event => {
@@ -109,6 +113,7 @@ export function MasterDataSelectedNumber({
   contentClassName,
   unavailableContent
 }: MasterDataSelectedNumberProps) {
+  const directEditPending = useMasterDataSelectionPending(selectionId)
   const displayValue = value != null && Number.isFinite(value) ? formatBusinessNumber(value, { integer, integerDigits }) : unavailableContent ?? '—'
   const hasFiniteValue = value != null && Number.isFinite(value)
   const nonSelectableContent = (
@@ -133,9 +138,10 @@ export function MasterDataSelectedNumber({
   }
 
   return (
-    <span className={`${className ?? ''} ${contentClassName ?? ''} ${reserveMarker ? 'pr-6' : ''}`.trim()}>
+    <span className={`${directEditPending ? '!text-blue-700' : ''} ${className ?? ''} ${contentClassName ?? ''} ${reserveMarker ? 'pr-6' : ''}`.trim()}>
       <SelectedNumber
         value={value}
+        directEditPending={directEditPending}
         integer={integer}
         percentage={percentage}
         selectionId={selectionId}
@@ -183,7 +189,8 @@ export function MasterDataFocusedNumber({
   missingMarker = false
 }: MasterDataFocusedNumberProps) {
   const { clearFocus } = useSelectedValue()
-  const { focus, preview, clearPreview } = useSelectedValueSource({ value, editable: false, domain: { integer }, percentage }, selectionId)
+  const directEditPending = useMasterDataSelectionPending(selectionId)
+  const { focus, preview, clearPreview } = useSelectedValueSource({ value, directEditPending, editable: false, domain: { integer }, percentage }, selectionId)
 
   return (
     <span
@@ -204,7 +211,7 @@ export function MasterDataFocusedNumber({
         const headerSourceId = header?.querySelector('[data-selected-value-source]')?.getAttribute('data-selected-value-source')
         if (headerSourceId !== selectionId) clearFocus(selectionId)
       }}
-      className={`${className ?? ''} !px-0`.trim()}
+      className={`${className ?? ''} !px-0 ${directEditPending ? '!text-blue-700' : ''}`.trim()}
     >
       <BusinessNumber value={value} integer={integer} numericColumn numericColumnSigned={false} numericColumnReserveEnd={reserveMarker ? 8 : 0} />
       {missingMarker && <MasterDataBlockerMarker />}

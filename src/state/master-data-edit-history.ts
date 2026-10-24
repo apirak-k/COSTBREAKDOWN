@@ -4,8 +4,11 @@ import type { ProductSession } from '../core'
 import { cloneCostSnapshot, createEmptyCustomMasterData } from './master-data-datasets'
 import { markMasterDataChangedForSnapshotPair } from './master-data-revision'
 import { getMasterDataSnapshot } from './master-data-datasets'
+import { directEditMatches } from './master-data-direct-edits'
 
 export interface MasterDataEditHistoryEntry {
+  beforeDirectEdits?: ProductSession['masterDataDirectEdits']
+  afterDirectEdits?: ProductSession['masterDataDirectEdits']
   sessionId: string
   role: MasterDataRole
   before: CostSnapshot
@@ -57,6 +60,8 @@ export function createMasterDataPairWorkingEditEntry(
   const beforePair = before.snapshotPair ?? sessionToSnapshotPair(before)
   const afterPair = after.snapshotPair ?? sessionToSnapshotPair(after)
   return {
+    beforeDirectEdits: before.masterDataDirectEdits,
+    afterDirectEdits: after.masterDataDirectEdits,
     sessionId: before.id,
     role: 'current',
     before: cloneCostSnapshot(beforePair.current),
@@ -133,6 +138,16 @@ export function applyMasterDataEditHistoryEntry(
 ): ProductSession | undefined {
   if (session.id !== entry.sessionId) return undefined
 
+  const withDirectEdits = (restored: ProductSession): ProductSession => {
+    const restoredMarks = direction === 'undo' ? entry.beforeDirectEdits : entry.afterDirectEdits
+    const marks = { ...session.masterDataDirectEdits }
+    const roles: MasterDataRole[] = entry.beforePair ? ['reference', 'current', 'custom'] : [entry.role]
+    roles.forEach(role => {
+      if (restoredMarks?.[role]) marks[role] = restoredMarks[role]
+      else delete marks[role]
+    })
+    return { ...restored, masterDataDirectEdits: marks }
+  }
   const pair = session.snapshotPair ?? sessionToSnapshotPair(session)
   if (entry.beforePair && entry.afterPair) {
     const expectedPair = direction === 'undo' ? entry.afterPair : entry.beforePair
@@ -158,11 +173,11 @@ export function applyMasterDataEditHistoryEntry(
       updatedAt: new Date().toISOString()
     }, nextPair)
     const updated = markMasterDataChangedForSnapshotPair(nextSession, pair, nextPair)
-    return nextCustom ? {
+    return withDirectEdits(nextCustom ? {
       ...updated,
       customMasterData: nextCustom,
       customDatasetSizing: { ...(customDatasetSizing ?? {}) }
-    } : updated
+    } : updated)
   }
 
   const expected = direction === 'undo' ? entry.after : entry.before
@@ -176,13 +191,13 @@ export function applyMasterDataEditHistoryEntry(
     ? entry.beforeInitialMasterDataBaseline
     : entry.afterInitialMasterDataBaseline
   if (entry.role === 'custom') {
-    return {
+    return withDirectEdits({
       ...session,
       ...(initialMasterDataBaseline ? { initialMasterDataBaseline } : {}),
       customMasterData: snapshot,
       customDatasetSizing: customDatasetSizing ? { ...customDatasetSizing } : {},
       updatedAt: new Date().toISOString()
-    }
+    })
   }
   const nextPair = {
     ...pair,
@@ -199,5 +214,22 @@ export function applyMasterDataEditHistoryEntry(
     updatedAt: new Date().toISOString()
   }, nextPair)
 
-  return markMasterDataChangedForSnapshotPair(nextSession, pair, nextPair)
+  return withDirectEdits(markMasterDataChangedForSnapshotPair(nextSession, pair, nextPair))
+}
+
+/** Retire only saved source values; unsaved redo values retain their provenance. */
+export function clearSavedDirectEditHistory(history: MasterDataEditHistory, roles: readonly MasterDataRole[], session: ProductSession): MasterDataEditHistory {
+  const clear = (marks: ProductSession['masterDataDirectEdits']) => {
+    const next = { ...marks }
+    const pair = session.snapshotPair ?? sessionToSnapshotPair(session)
+    roles.forEach(role => {
+      const saved = getMasterDataSnapshot(session, pair, role)
+      next[role] = Object.fromEntries(Object.entries(next[role] ?? {}).filter(([key, edit]) => !directEditMatches(saved, key, edit.after)))
+    })
+    return next
+  }
+  const clearEntry = (entry: MasterDataEditHistoryEntry) => entry.sessionId !== session.id ? entry : ({
+    ...entry, beforeDirectEdits: clear(entry.beforeDirectEdits), afterDirectEdits: clear(entry.afterDirectEdits)
+  })
+  return { undo: history.undo.map(clearEntry), redo: history.redo.map(clearEntry) }
 }

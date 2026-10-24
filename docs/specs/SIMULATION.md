@@ -305,3 +305,9 @@ Each history is scoped to its role's Working basis. A basis change invalidates o
 Typing is grouped into one committed edit per focused control. Spinner repeats and Batch Size graph dragging each form one action for the complete pointer gesture. Rejected or no-op values add no history entry. Reset is one action for the active role's parameter overrides and Economic inputs; view state is preserved. Undo restores the pre-Reset values and Redo reapplies the reset. Undo/Redo cannot cross-contaminate Reference, Current, and Custom.
 
 Simulation history is ephemeral for the current app session and remains separate from Master Data dataset-edit history and CBD Candidate reorder history.
+
+## Global Direct-edit Blue-value Indicator — 2026-10-25
+
+A directly accepted numeric edit is blue only while its existing focus/gesture history action is pending. BOM Price / Usage / Loss, Routing Manning / Capacity / Yield, and Business/Economic editors share this rule. Existing blur, end-gesture, or explicit action commit boundaries clear the color. A no-op or return to the pending action's starting editable snapshot is neutral. Committed Undo/Redo values remain normal; the indicator does not create a persistent Simulation dirty state or change action grouping. Header editing reflects that same source and uses the existing writer/commit boundary. Editing the graph's Batch Size marker does not classify the linked economic input as directly edited.
+
+Material/Conversion/Standard Cost, Result, Gaps, Parameter Cost Effect/Saving, Required Saving, Economic Margin, Operating Profit, Break-even and graph-derived values retain their normal semantic colors. Round 4 / Round 4B are externally audited / accepted / closed; this indicator is implemented and internally verified, awaiting its own external audit/acceptance. Round 5 is NOT STARTED. This status supersedes historical execution-status statements above without changing their historical record.

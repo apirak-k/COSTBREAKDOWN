@@ -1,3 +1,4 @@
+import { useMasterDataDirectEdit } from '../direct-edit-presentation'
 import React, { useCallback, useMemo, useRef, useState } from 'react'
 import { GripVertical, Trash2 } from 'lucide-react'
 import type { SnapshotBOMItem } from '../../../core'
@@ -73,6 +74,7 @@ export const BOMTable: React.FC<BOMTableProps> = ({
   warningNavigationTarget,
   onWarningNavigationHandled
 }) => {
+  const directEditPending = useMasterDataDirectEdit()
   const tableRef = useRef<HTMLTableElement | null>(null)
   const [draggingIds, setDraggingIds] = useState<ReadonlySet<string>>(() => new Set())
   const reorderDragRef = useRef<{ movingIds: string[] } | null>(null)
@@ -382,10 +384,10 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                           data-grid-field="description"
                           aria-label={`Name for BOM row ${rowNumber}`}
                           aria-invalid={identityInvalid}
-                          className={`${masterDataTextEditorClass} ${identityWarning && showWarningHighlights ? `${masterDataIssueEditorClass} ${masterDataIssuePlaceholderClass}` : ''} ${selectedCellKeys.has(tableCellKey(item.id, 'description')) ? masterDataSpreadsheetSelectionClass : ''}`}
+                          className={`${directEditPending('bom', item.id, 'description') ? '!text-blue-700' : ''} ${masterDataTextEditorClass} ${identityWarning && showWarningHighlights ? `${masterDataIssueEditorClass} ${masterDataIssuePlaceholderClass}` : ''} ${selectedCellKeys.has(tableCellKey(item.id, 'description')) ? masterDataSpreadsheetSelectionClass : ''}`}
                         />
                       ) : (
-                        <div data-grid-cell="true" data-grid-row-id={item.id} data-grid-field="description" tabIndex={viewCellTabIndex(item.id, 'description')} aria-label={`Material identity for BOM row ${rowNumber}`} className={`${masterDataDisplaySlotClass} ${identityWarning && showWarningHighlights ? masterDataIssueDisplayClass : ''} ${selectedCellKeys.has(tableCellKey(item.id, 'description')) ? masterDataSpreadsheetSelectionClass : ''}`}>
+                        <div data-grid-cell="true" data-grid-row-id={item.id} data-grid-field="description" tabIndex={viewCellTabIndex(item.id, 'description')} aria-label={`Material identity for BOM row ${rowNumber}`} className={`${directEditPending('bom', item.id, 'description') ? '!text-blue-700' : ''} ${masterDataDisplaySlotClass} ${identityWarning && showWarningHighlights ? masterDataIssueDisplayClass : ''} ${selectedCellKeys.has(tableCellKey(item.id, 'description')) ? masterDataSpreadsheetSelectionClass : ''}`}>
                           {item.description || <span className="text-slate-500">{placeholderNumber === undefined ? '—' : `Material ${placeholderNumber}`}</span>}
                         </div>
                       )}
@@ -434,7 +436,7 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                         data-grid-field="unit"
                         aria-label={`Unit for ${item.description || `BOM row ${rowNumber}`}`}
                         aria-invalid={!item.unit.trim()}
-                        className={`mx-auto block max-w-20 ${masterDataTextEditorClass} px-1 text-center ${showWarningHighlights && !item.unit.trim() ? masterDataIssueEditorClass : ''} ${selectedCellKeys.has(tableCellKey(item.id, 'unit')) ? masterDataSpreadsheetSelectionClass : ''}`}
+                        className={`${directEditPending('bom', item.id, 'unit') ? '!text-blue-700' : ''} mx-auto block max-w-20 ${masterDataTextEditorClass} px-1 text-center ${showWarningHighlights && !item.unit.trim() ? masterDataIssueEditorClass : ''} ${selectedCellKeys.has(tableCellKey(item.id, 'unit')) ? masterDataSpreadsheetSelectionClass : ''}`}
                       />
                     ) : <span
                       data-grid-cell="true"
@@ -442,7 +444,7 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                       data-grid-field="unit"
                       tabIndex={viewCellTabIndex(item.id, 'unit')}
                       aria-label={`Unit for ${item.description || `BOM row ${rowNumber}`}`}
-                      className={`mx-auto inline-flex h-8 w-full max-w-20 items-center justify-center rounded-sm border border-transparent px-1 text-center text-xs ${masterDataCellFocusClass} ${showWarningHighlights && !item.unit.trim() ? masterDataIssueDisplayClass : ''} ${selectedCellKeys.has(tableCellKey(item.id, 'unit')) ? masterDataSpreadsheetSelectionClass : ''}`}
+                      className={`${directEditPending('bom', item.id, 'unit') ? '!text-blue-700' : ''} mx-auto inline-flex h-8 w-full max-w-20 items-center justify-center rounded-sm border border-transparent px-1 text-center text-xs ${masterDataCellFocusClass} ${showWarningHighlights && !item.unit.trim() ? masterDataIssueDisplayClass : ''} ${selectedCellKeys.has(tableCellKey(item.id, 'unit')) ? masterDataSpreadsheetSelectionClass : ''}`}
                     >{item.unit || <span className="text-amber-700">—</span>}</span>}
                   </td>
                   <td className="relative px-2 py-0.5 text-right font-mono tabular-nums">
@@ -530,9 +532,9 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                         data-grid-row-id={item.id}
                         data-grid-field="note"
                         aria-label={`Note for ${item.description || `BOM row ${rowNumber}`}`}
-                        className={`${masterDataTextEditorClass} ${selectedCellKeys.has(tableCellKey(item.id, 'note')) ? masterDataSpreadsheetSelectionClass : ''}`}
+                        className={`${directEditPending('bom', item.id, 'note') ? '!text-blue-700' : ''} ${masterDataTextEditorClass} ${selectedCellKeys.has(tableCellKey(item.id, 'note')) ? masterDataSpreadsheetSelectionClass : ''}`}
                       />
-                    ) : <div data-grid-cell="true" data-grid-row-id={item.id} data-grid-field="note" tabIndex={viewCellTabIndex(item.id, 'note')} aria-label={`Note for ${item.description || `BOM row ${rowNumber}`}`} className={`${masterDataDisplaySlotClass} ${selectedCellKeys.has(tableCellKey(item.id, 'note')) ? masterDataSpreadsheetSelectionClass : ''}`}>{item.note || '—'}</div>}
+                    ) : <div data-grid-cell="true" data-grid-row-id={item.id} data-grid-field="note" tabIndex={viewCellTabIndex(item.id, 'note')} aria-label={`Note for ${item.description || `BOM row ${rowNumber}`}`} className={`${directEditPending('bom', item.id, 'note') ? '!text-blue-700' : ''} ${masterDataDisplaySlotClass} ${selectedCellKeys.has(tableCellKey(item.id, 'note')) ? masterDataSpreadsheetSelectionClass : ''}`}>{item.note || '—'}</div>}
                   </td>
                   <td className={`${masterDataActionsColumnClass} px-1 py-0.5 text-center`}>
                     <div className="flex items-center justify-center gap-0.5">

@@ -1,3 +1,4 @@
+import { clearMasterDataDirectEdits } from './master-data-direct-edits'
 import type { DatasetSizing, LastSavedMasterDataDataset, ProductSession } from '../core/types/product.types'
 import type { CostSnapshot, MasterDataRole, SnapshotPair } from '../core/types/snapshot.types'
 import { applySnapshotPairToSession, getSnapshotRoleReadiness, sessionToSnapshotPair } from '../core'
@@ -35,6 +36,7 @@ export function cloneMasterDataDatasetState(
   now = new Date().toISOString()
 ): ProductSession {
   if (sourceRole === destinationRole) return session
+  session = clearMasterDataDirectEdits(session, [destinationRole])
   const pair = session.snapshotPair ?? sessionToSnapshotPair(session)
   const sourceSnapshot = getMasterDataSnapshot(session, pair, sourceRole)
   const sourceSizing = getMasterDataSizing(session, sourceSnapshot, sourceRole)
@@ -185,6 +187,7 @@ export function resetMasterDataDatasetState(
 ): ProductSession {
   const saved = getMasterDataResetBaseline(session, role)
   if (!saved) return session
+  session = clearMasterDataDirectEdits(session, [role])
   if (role === 'custom') {
     return {
       ...session,

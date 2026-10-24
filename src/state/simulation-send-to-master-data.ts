@@ -1,3 +1,4 @@
+import { clearMasterDataDirectEdits } from './master-data-direct-edits'
 import type { CostSnapshot, MasterDataRole, ProductSession, SnapshotPair } from '../core/types'
 import { applySnapshotPairToSession, getSnapshotRoleReadiness, sessionToSnapshotPair } from '../core'
 import { hasEnteredMasterData } from './dataset-sizing'
@@ -20,6 +21,7 @@ export function applySimulationSnapshotsToMasterData(
   const pair = session.snapshotPair ?? sessionToSnapshotPair(session)
   const roles = (['reference', 'current', 'custom'] as const).filter(role => snapshots[role] !== undefined)
   if (!roles.length) return undefined
+  session = clearMasterDataDirectEdits(session, roles)
 
   const nextPair: SnapshotPair = { ...pair }
   const nextDatasetSizing = {

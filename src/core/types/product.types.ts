@@ -67,6 +67,8 @@ export interface LastSavedMasterDataDataset {
 
 // A self-contained product session — one "workbook" per product version
 export interface ProductSession {
+  /** Direct manual edits only; independent of Working-vs-Saved differences. */
+  masterDataDirectEdits?: Partial<Record<import('./snapshot.types').MasterDataRole, Record<string, { before: string; after: string }>>>
   id: string
   product: ProductMaster
   rates: WorkCenterRate[]

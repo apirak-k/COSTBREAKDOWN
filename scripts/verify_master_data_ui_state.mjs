@@ -1232,7 +1232,7 @@ try {
   assert.match(sizingModalSource, /renderRowCount\('Bill of Materials'[\s\S]*DATASET_SIZING_LIMITS\.bomCount, 'bom', true\)[\s\S]*renderRowCount\('Work Centers'[\s\S]*DATASET_SIZING_LIMITS\.wcCount, 'work-centers', true\)[\s\S]*renderRowCount\('Routing'[\s\S]*DATASET_SIZING_LIMITS\.routingCount, 'routing'\)/, 'row count groups align with the same three columns and do not add a trailing divider')
   assert.equal((sizingModalSource.match(/md:grid-cols-\[minmax\(0,20fr\)_minmax\(0,45fr\)_minmax\(0,35fr\)\]/g) ?? []).length, 1, 'Sizing metadata subgroup declares one responsive 20/45/35 track group')
   assert.equal((sizingModalSource.match(/md:grid-cols-3/g) ?? []).length, 1, 'Sizing row counts keep their separate three-column responsive layout')
-  assert.match(sizingModalSource, /Product Name :[\s\S]*className=\{masterDataTextEditorClass\}[\s\S]*Dataset Remark :[\s\S]*className=\{masterDataTextEditorClass\}/, 'Sizing text editors use the shared focus family on inline full-width rows')
+  assert.match(sizingModalSource, /Product Name :[\s\S]*className=\{`\$\{masterDataTextEditorClass\} \$\{\(productName[\s\S]*Dataset Remark :[\s\S]*className=\{`\$\{masterDataTextEditorClass\} \$\{\(remark/, 'Sizing text editors use the shared focus family on inline full-width rows')
   assert.match(sizingModalSource, /<Download className="h-3\.5 w-3\.5" aria-hidden="true" \/>[\s\S]*Download Template/, 'Download Template uses a down-arrow action icon')
   assert.match(sizingModalSource, /border-t border-slate-200 px-3 py-2 sm:flex-row sm:items-center sm:justify-between[\s\S]*Download Template[\s\S]*Apply Sizing/, 'Download Template stays at the lower left, secondary to Apply')
   assert.match(importDropzoneSource, /role="group"[\s\S]*type="button"[\s\S]*onClick=\{openFilePicker\}[\s\S]*onDragOver=\{event => \{ event\.preventDefault\(\); setIsDragging\(true\) \}\}[\s\S]*onDrop=\{handleDrop\}/,
@@ -1333,7 +1333,7 @@ try {
   assert.match(fieldStylesSource, /masterDataUnitColumnClass = 'w-24'/, 'the Unit column has a stable small-medium shared 6rem owner width')
   assert.equal((bomSource.match(/data-grid-field="unit"[\s\S]*?max-w-20/g) ?? []).length, 2, 'BOM Unit editor and display share the widened 5rem field width')
   assert.doesNotMatch(wcSource + routingSource, /max-w-40/, 'Work Center columns do not leave a capped 160px editor floating in excess column width')
-  assert.match(wcSource, /className=\{`block w-full text-left \$\{masterDataTextEditorClass\}/, 'Work Center editor uses the fixed shared identity width and stays left aligned')
+  assert.match(wcSource, /className=\{`\$\{directEditPending\('rates', rate\.id, 'workCenterCode'\) \? '!text-blue-700' : ''\} block w-full text-left \$\{masterDataTextEditorClass\}/, 'Work Center editor uses the fixed shared identity width and stays left aligned')
   assert.match(routingSource, /<div className="relative w-full min-w-0">[\s\S]*block w-full appearance-none pr-10 text-left \$\{masterDataTextEditorClass\}/, 'Routing Work Center selector uses the available compatible column width')
   assert.match(wcSource, /masterDataDisplaySlotClass\} truncate font-sans font-normal/, 'Work Center View typography matches the common identity family')
   assert.equal((wcColumnGroup.match(/masterDataIdentityColumnClass/g) ?? []).length, 1, 'Work Centers uses exactly one shared identity track')
@@ -1520,7 +1520,7 @@ try {
     storeSource.indexOf('const importSnapshotFromExcel'),
     storeSource.indexOf('const loadDevelopmentMockData')
   )
-  assert.ok(snapshotImportFlow.includes('...source'), 'Import replaces Working data within the existing session')
+  assert.match(snapshotImportFlow, /const source = activeSession[\s\S]*const importSession = clearMasterDataDirectEdits\(source, \[result\.role\]\)[\s\S]*\.\.\.importSession/, 'Import replaces Working data within the same session while clearing only destination direct-edit provenance')
   assert.ok(snapshotImportFlow.includes('importSnapshotForRole(existingPair, source.datasetSizing, result.role, result.snapshot)'), 'Reference/Current import replaces only the selected Working side')
   assert.ok(snapshotImportFlow.includes('customMasterData: normalizeMasterDataSnapshot(imported.snapshot)') && snapshotImportFlow.includes('customDatasetSizing: imported.sizing'), 'Custom import replaces only Custom Working data after identity normalization')
   assert.doesNotMatch(snapshotImportFlow, /lastSavedMasterData|customLastSavedMasterData/, 'Import never overwrites any dataset Last Saved state')

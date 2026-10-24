@@ -508,16 +508,18 @@ try {
     const root=document.querySelector('header [data-header-value]'),input=root?.querySelector('input[aria-label="Selected value"]'),stepper=root?.querySelector('[data-numeric-stepper] button')
     if(!root||!input||!stepper)return null
     const inputStyle=getComputedStyle(input),stepperStyle=getComputedStyle(stepper),headerStyle=getComputedStyle(input.closest('header'))
-    return {background:inputStyle.backgroundColor,color:inputStyle.color,borderColor:inputStyle.borderTopColor,borderWidth:inputStyle.borderTopWidth,borderStyle:inputStyle.borderTopStyle,headerBackground:headerStyle.backgroundColor,stepperColor:stepperStyle.color}
+    const source=[...document.querySelectorAll('main input[data-selected-value-source]')].find(e=>e.getAttribute('data-selected-value-source')===input.getAttribute('data-selected-value-source'))
+    return {sourcePending:source?.dataset.directEditPending==='true',background:inputStyle.backgroundColor,color:inputStyle.color,borderColor:inputStyle.borderTopColor,borderWidth:inputStyle.borderTopWidth,borderStyle:inputStyle.borderTopStyle,headerBackground:headerStyle.backgroundColor,stepperColor:stepperStyle.color}
   })()`)
   verify(Boolean(globalEditableStyle
       && globalEditableStyle.background === 'rgba(0, 0, 0, 0)'
-      && globalEditableStyle.color === 'rgb(241, 245, 249)'
+      && globalEditableStyle.sourcePending
+      && globalEditableStyle.color === 'rgb(147, 197, 253)'
       && globalEditableStyle.borderColor === 'rgb(96, 165, 250)'
       && globalEditableStyle.borderWidth === '1px'
       && globalEditableStyle.borderStyle === 'solid'
       && globalEditableStyle.stepperColor === 'rgb(226, 232, 240)'),
-    'focused global Header editor uses a dark integrated input, light text/arrows, and a clear focus border', globalEditableStyle)
+    'focused pending-source Header uses blue text, an integrated input, light arrows, and the existing focus border', globalEditableStyle)
   await saveScreenshot('header-editable-focused')
   await clickSelector(masterDataNavigation)
   const headerBlurState = await evaluate(`({
@@ -926,16 +928,17 @@ try {
     const root=document.querySelector('header [data-header-value]'),output=root?.querySelector('[data-selected-value-output]')
     if(!root||!output)return null
     const style=getComputedStyle(output)
-    return {background:style.backgroundColor,color:style.color,borderColor:style.borderTopColor,borderWidth:style.borderTopWidth,borderStyle:style.borderTopStyle,overflowX:style.overflowX,whiteSpace:style.whiteSpace}
+    return {sourceColor:getComputedStyle(${visibleExpression(firstViewPriceCell)}).color,background:style.backgroundColor,color:style.color,borderColor:style.borderTopColor,borderWidth:style.borderTopWidth,borderStyle:style.borderTopStyle,overflowX:style.overflowX,whiteSpace:style.whiteSpace}
   })()`)
   verify(Boolean(readOnlyHeaderStyle
       && readOnlyHeaderStyle.background === 'rgba(0, 0, 0, 0)'
-      && readOnlyHeaderStyle.color === 'rgb(241, 245, 249)'
+      && readOnlyHeaderStyle.sourceColor === 'rgb(29, 78, 216)'
+      && readOnlyHeaderStyle.color === 'rgb(147, 197, 253)'
       && readOnlyHeaderStyle.borderWidth === '1px'
       && readOnlyHeaderStyle.borderColor === 'rgba(0, 0, 0, 0)'
       && readOnlyHeaderStyle.overflowX === 'auto'
       && readOnlyHeaderStyle.whiteSpace === 'nowrap'),
-    'read-only Header is plain light text with only a transparent geometry-preserving boundary and safe internal overflow', readOnlyHeaderStyle)
+    'read-only pending-source Header preserves blue text, transparent boundary, and safe internal overflow', readOnlyHeaderStyle)
   await saveScreenshot('header-readonly-selected')
   await clickSelector(masterDataNavigation)
   verify(await textContent('header [data-header-value] [data-selected-value-output]') === '—',
