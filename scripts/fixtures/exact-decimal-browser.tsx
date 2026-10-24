@@ -1,11 +1,28 @@
-import React, { useEffect, useRef } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { AppProvider, useAppStore } from '../../src/state'
 import { AppLayout } from '../../src/shared/layout/AppLayout'
 import { MasterDataPage } from '../../src/features/master-data/MasterDataPage'
+import { NumericInput } from '../../src/shared/ui/NumericInput'
 import '../../src/index.css'
 
 const TEST_ITEM_CODE = 'EXACT-DECIMAL-VERIFIER'
+
+function ExactSourceResetProbe() {
+  const [exactValue, setExactValue] = useState<string | undefined>('9.000000000000004')
+  return <NumericInput
+    value={9.000000000000004}
+    exactValue={exactValue}
+    onValueChange={() => undefined}
+    aria-label="Exact sidecar reset probe"
+    onKeyDown={event => {
+      if (event.key === 'F6') {
+        event.preventDefault()
+        setExactValue(undefined)
+      }
+    }}
+  />
+}
 
 function StoreControls() {
   const {
@@ -39,8 +56,8 @@ function StoreControls() {
         description: 'Exact decimal lifecycle',
         consumption: null,
         unit: 'PC',
-        price: null,
-        loss: null,
+        price: 9.000000000000004,
+        loss: 0.29,
         sourceRef: 'Browser verifier'
       })
     }
@@ -58,6 +75,8 @@ function StoreControls() {
     itemCode: row?.itemCode ?? null,
     exact: row?.exactDecimalInputs?.price ?? null,
     calculation: row?.price ?? null,
+    lossExact: row?.exactDecimalInputs?.loss ?? null,
+    lossCalculation: row?.loss ?? null,
     rowCount: masterDataSnapshot.bom.length,
     productCount: productSessions.length
   }
@@ -81,6 +100,7 @@ function StoreControls() {
       <button type="button" data-testid="exact-undo" onClick={undoMasterDataEdit}>Undo</button>
       <button type="button" data-testid="exact-redo" onClick={redoMasterDataEdit}>Redo</button>
       <output data-testid="exact-decimal-state">{JSON.stringify(state)}</output>
+      <div className="fixed left-0 top-0 opacity-0"><ExactSourceResetProbe /></div>
     </div>
   )
 }

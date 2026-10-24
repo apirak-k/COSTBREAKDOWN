@@ -519,6 +519,13 @@ export function useTableKeyboardNav({
       const target = event.target as HTMLElement | null
       const cell = target?.closest<HTMLElement>('[data-grid-cell="true"]')
       if (!cell || !table.contains(cell)) return
+
+      const isEditableNumericEditor = target instanceof HTMLInputElement
+        && target.dataset.numericEditor === 'true'
+        && !target.disabled
+        && !target.readOnly
+      if (isEditableNumericEditor && event.key.startsWith('Arrow')) return
+
       const currentField = cell.dataset.gridField
       if (currentField) claimCellInteraction(currentField)
 

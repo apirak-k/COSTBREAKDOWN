@@ -67,7 +67,11 @@ try {
   const { NumericInput } = await vite.ssrLoadModule('/src/shared/ui/NumericInput.tsx')
   const { formatBusinessNumber, formatFullNumericValue, formatFocusedNumericValue, formatHeaderNumericValue, areNumericValuesEquivalent } = await vite.ssrLoadModule('/src/shared/ui/numeric-display.ts')
   regressionEqual(formatFocusedNumericValue(5e-13), '0.0000000000005', 'focused NumericInput draft retains every significant digit of 5e-13')
-  regressionEqual(formatFocusedNumericValue(9.000000000000004), '9.000000000000004', 'focused NumericInput draft retains the authoritative whole-number precision')
+  regressionEqual(formatFocusedNumericValue(9.000000000000004), '9.00', 'Number-only whole value hides ULP residue in the focused draft')
+  regressionEqual(formatFocusedNumericValue(28.999999999999996), '29.00', 'Number-only value immediately below a whole hides ULP residue')
+  regressionEqual(formatFocusedNumericValue(0.29 * 100), '29.00', 'percentage display conversion does not expose multiplication residue')
+  regressionEqual(formatFocusedNumericValue(9.000000000000004, true), '9', 'integer-domain fallback removes ULP residue during hydration')
+  regressionEqual(formatFocusedNumericValue(9.25, true), '9.25', 'integer-domain fallback leaves a meaningful non-integral Number unchanged')
   regressionTrue(areNumericValuesEquivalent(9.000000000000004, 9), 'semantic comparison absorbs clear whole-number floating point noise')
   regressionTrue(!areNumericValuesEquivalent(5e-13, 0), 'semantic comparison distinguishes a legitimate tiny value from zero')
   regressionTrue(areNumericValuesEquivalent(-0, 0), 'semantic comparison preserves ordinary zero equivalence for negative zero')
@@ -319,11 +323,18 @@ try {
     sourceRef: 'numeric-input-verifier',
     status: 'active',
     product: { productCode: 'NUM', productName: 'Numeric fixture', productDescription: 'Numeric fixture', uom: 'pc', customer: '', effectiveDate: '2026-10-11', sellingPrice: null, sgaPercent: null },
-    bom: [{ id: 'b1', itemCode: 'b1', description: 'Material', consumption: 1.23456, unit: 'pc', price: 2.34567, loss: 0.0123456, confidence: {} }],
+    // Imported Number-only row intentionally has no exactDecimalInputs sidecar.
+    bom: [{ id: 'b1', itemCode: 'b1', description: 'Material', consumption: 1.23456, unit: 'pc', price: 9.000000000000004, loss: 0.29, confidence: {} }],
     rates: [],
     routing: []
   }
   assert.deepEqual(getMasterDataSnapshotValidationErrors(importedPreciseSnapshot), [], 'import validation preserves valid source precision rather than rounding data')
+  assert.equal(importedPreciseSnapshot.bom[0].price, 9.000000000000004, 'imported Number value remains unchanged in the snapshot')
+  assert.equal(importedPreciseSnapshot.bom[0].loss, 0.29, 'imported percentage ratio remains unchanged in the snapshot')
+  assert.equal(Object.hasOwn(importedPreciseSnapshot.bom[0], 'exactDecimalInputs'), false, 'imported Number-only rows use the no-sidecar fallback')
+  regressionEqual(formatFocusedNumericValue(importedPreciseSnapshot.bom[0].price), '9.00', 'imported whole Number fallback does not show residue')
+  regressionEqual(formatFocusedNumericValue(importedPreciseSnapshot.bom[0].loss * 100), '29.00', 'imported percentage Number fallback does not show ×100 residue')
+  regressionEqual(formatFocusedNumericValue(12.3456789), '12.3456789', 'intentional long decimal Number input is not globally rounded')
 
   const { updateSimulationParameter } = await vite.ssrLoadModule('/src/features/simulation/simulation-engine.ts')
   const { createEmptySimulationState, getEffectiveSimulationDataset, reconcileSimulationState, setSimulationActiveDataset } = await vite.ssrLoadModule('/src/features/simulation/simulation-state.ts')

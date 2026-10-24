@@ -80,7 +80,6 @@ async function waitFor(check, label, timeoutMs = 15000) {
 function verify(condition, message, detail) {
   checks.push({ passed: Boolean(condition), message, ...(detail === undefined ? {} : { detail }) })
   process.stdout.write(`${condition ? 'PASS' : 'FAIL'} ${message}${detail === undefined ? '' : ` — ${JSON.stringify(detail)}`}\n`)
-  if (!condition) throw new Error(`Browser acceptance failed: ${message}`)
 }
 
 try {
@@ -1318,7 +1317,13 @@ try {
   process.stdout.write(`\nEvidence directory: ${evidenceDir}\n`)
   process.stdout.write(`Browser: ${baseUrl} in isolated Chrome; exercised Reference → Current, Current → Custom, Custom → Reference at 1440/1024/768/390/320px.\n`)
   process.stdout.write('This regression covers Cost Breakdown values, Candidate values, and the Master Data Selling Price and SG&A no-focus sources.\n')
-  process.stdout.write(`Checks: ${checks.filter(check => check.passed).length}/${checks.length} passed.\n`)
+  const failures = checks.filter(check => !check.passed)
+  process.stdout.write(`Checks: ${checks.length - failures.length}/${checks.length} passed.\n`)
+  if (failures.length > 0) {
+    process.stderr.write(`Assertion failures (${failures.length}):\n`)
+    for (const failure of failures) process.stderr.write(`- ${failure.message}${failure.detail === undefined ? '' : ` — ${JSON.stringify(failure.detail)}`}\n`)
+    process.exitCode = 1
+  }
 } catch (error) {
   process.stderr.write(`\nEvidence directory: ${evidenceDir}\n`)
   process.stderr.write(`${error.stack ?? error}\n`)

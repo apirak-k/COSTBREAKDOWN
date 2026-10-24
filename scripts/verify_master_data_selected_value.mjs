@@ -167,7 +167,8 @@ try {
   const pressKey = async (key, { shift = false, ctrl = false, meta = false } = {}) => {
     const modifiers = (shift ? 8 : 0) | (ctrl ? 2 : 0) | (meta ? 4 : 0)
     const code = key === ' ' ? 'Space' : /^[a-z]$/i.test(key) ? `Key${key.toUpperCase()}` : key
-    const virtualKey = key === 'Enter' ? 13 : key === ' ' ? 32 : /^[a-z]$/i.test(key) ? key.toUpperCase().charCodeAt(0) : undefined
+    const virtualKey = ({ Enter: 13, Tab: 9, ArrowLeft: 37, ArrowUp: 38, ArrowRight: 39, ArrowDown: 40, ' ': 32 })[key]
+      ?? (/^[a-z]$/i.test(key) ? key.toUpperCase().charCodeAt(0) : undefined)
     const text = key === 'Enter' ? '\r' : key === ' ' ? ' ' : undefined
     await send('Input.dispatchKeyEvent', { type: 'keyDown', key, code, modifiers, windowsVirtualKeyCode: virtualKey, nativeVirtualKeyCode: virtualKey, text, unmodifiedText: text })
     await send('Input.dispatchKeyEvent', { type: 'keyUp', key, code, modifiers, windowsVirtualKeyCode: virtualKey, nativeVirtualKeyCode: virtualKey })
@@ -625,29 +626,122 @@ try {
   await waitFor(async () => await inputValue('header [data-header-value] input[aria-label="Selected value"]') === '42.12345679', 'Master Data Redo updates the selected Header source presentation')
   verify(await evaluate('document.querySelectorAll("header [data-header-value] [data-numeric-stepper]").length') === 1, 'editable Header Value owns the only visible Selected Value spinner')
 
-  await clickSelector(mainInput('price'))
+  const priceKeyboard = mainInput('price')
+  await clickSelector(priceKeyboard)
+  const priceBeforeKeys = await inputValue(priceKeyboard)
+  const priceUnitsCaret = Math.max(0, priceBeforeKeys.indexOf('.') - 1)
+  await evaluate(`(()=>{const input=${visibleExpression(priceKeyboard)};input.setSelectionRange(${priceUnitsCaret},${priceUnitsCaret})})()`)
+  await pressKey('ArrowLeft')
+  const priceLeft = await evaluate(`(()=>({active:document.activeElement===${visibleExpression(priceKeyboard)},caret:document.activeElement?.selectionStart,value:document.activeElement?.value}))()`)
+  await pressKey('ArrowRight')
+  const priceRight = await evaluate(`(()=>({active:document.activeElement===${visibleExpression(priceKeyboard)},caret:document.activeElement?.selectionStart,value:document.activeElement?.value}))()`)
+  await evaluate(`(()=>{const input=${visibleExpression(priceKeyboard)};input.setSelectionRange(0,0)})()`)
+  await pressKey('ArrowLeft')
+  const priceLeftEdge = await evaluate(`(()=>({active:document.activeElement===${visibleExpression(priceKeyboard)},caret:document.activeElement?.selectionStart}))()`)
+  await evaluate(`(()=>{const input=${visibleExpression(priceKeyboard)};input.setSelectionRange(input.value.length,input.value.length)})()`)
+  await pressKey('ArrowRight')
+  const priceRightEdge = await evaluate(`(()=>({active:document.activeElement===${visibleExpression(priceKeyboard)},caret:document.activeElement?.selectionStart,length:document.activeElement?.value.length}))()`)
+  verify(priceLeft.active && priceLeft.caret === priceUnitsCaret - 1
+      && priceRight.active && priceRight.caret === priceUnitsCaret
+      && priceLeftEdge.active && priceLeftEdge.caret === 0
+      && priceRightEdge.active && priceRightEdge.caret === priceRightEdge.length,
+    'Master Data numeric ArrowLeft/Right move the caret only, including both edges', { priceBeforeKeys, priceLeft, priceRight, priceLeftEdge, priceRightEdge })
+
+  await evaluate(`(()=>{const input=${visibleExpression(priceKeyboard)};input.setSelectionRange(${priceUnitsCaret},${priceUnitsCaret})})()`)
+  await pressKey('ArrowUp')
+  const priceAfterUp = await evaluate(`(()=>({active:document.activeElement===${visibleExpression(priceKeyboard)},value:document.activeElement?.value}))()`)
+  await pressKey('ArrowDown')
+  const priceAfterDown = await evaluate(`(()=>({active:document.activeElement===${visibleExpression(priceKeyboard)},value:document.activeElement?.value}))()`)
+  verify(priceAfterUp.active && priceAfterDown.active
+      && Number(priceAfterUp.value) === Number(priceBeforeKeys) + 1
+      && priceAfterDown.value === priceBeforeKeys,
+    'Master Data numeric ArrowUp/Down step at the caret place and retain focus', { priceBeforeKeys, priceAfterUp, priceAfterDown })
+
+  await pressKey('Tab')
+  const priceTabNext = await evaluate(`(()=>({field:document.activeElement?.dataset.gridField,row:document.activeElement?.dataset.gridRowId}))()`)
+  await pressKey('Tab', { shift: true })
+  const priceTabBack = await evaluate(`(()=>({field:document.activeElement?.dataset.gridField,row:document.activeElement?.dataset.gridRowId}))()`)
+  await pressKey('Enter')
+  const priceEnterNext = await evaluate(`(()=>({field:document.activeElement?.dataset.gridField,row:document.activeElement?.dataset.gridRowId}))()`)
+  await pressKey('Enter', { shift: true })
+  const priceEnterBack = await evaluate(`(()=>({field:document.activeElement?.dataset.gridField,row:document.activeElement?.dataset.gridRowId}))()`)
+  verify(priceTabNext.field === 'loss' && priceTabBack.field === 'price'
+      && priceTabBack.row === priceEnterBack.row && priceEnterNext.field === 'price'
+      && priceEnterNext.row !== priceEnterBack.row && priceEnterBack.field === 'price',
+    'Master Data Tab/Shift+Tab traverse editable fields and Enter/Shift+Enter traverse same-field rows',
+    { priceTabNext, priceTabBack, priceEnterNext, priceEnterBack })
+
+  const lossKeyboard = mainInput('loss')
+  await clickSelector(lossKeyboard)
+  const lossBeforeKeys = await inputValue(lossKeyboard)
+  const lossCaret = Math.max(0, lossBeforeKeys.indexOf('.') - 1)
+  await evaluate(`(()=>{const input=${visibleExpression(lossKeyboard)};input.setSelectionRange(${lossCaret},${lossCaret})})()`)
+  await pressKey('ArrowUp')
+  const lossAfterUp = await evaluate(`(()=>({active:document.activeElement===${visibleExpression(lossKeyboard)},value:document.activeElement?.value}))()`)
+  await pressKey('ArrowDown')
+  const lossAfterDown = await evaluate(`(()=>({active:document.activeElement===${visibleExpression(lossKeyboard)},value:document.activeElement?.value}))()`)
+  verify(lossAfterUp.active && lossAfterDown.active
+      && Number(lossAfterUp.value) === Number(lossBeforeKeys) + 1
+      && lossAfterDown.value === lossBeforeKeys,
+    'Master Data percentage ArrowUp/Down steps the displayed percent at the caret place and retains focus',
+    { lossBeforeKeys, lossAfterUp, lossAfterDown })
+  await pressKey('Tab')
+  const lossTabNext = await evaluate(`(()=>({field:document.activeElement?.dataset.gridField,row:document.activeElement?.dataset.gridRowId}))()`)
+  await pressKey('Tab', { shift: true })
+  const lossTabBack = await evaluate(`(()=>({field:document.activeElement?.dataset.gridField,row:document.activeElement?.dataset.gridRowId}))()`)
+  await pressKey('Enter')
+  const lossEnterNext = await evaluate(`(()=>({field:document.activeElement?.dataset.gridField,row:document.activeElement?.dataset.gridRowId}))()`)
+  await pressKey('Enter', { shift: true })
+  const lossEnterBack = await evaluate(`(()=>({field:document.activeElement?.dataset.gridField,row:document.activeElement?.dataset.gridRowId}))()`)
+  verify(lossTabNext.field !== 'loss' && lossTabBack.field === 'loss'
+      && lossTabBack.row === lossEnterBack.row && lossEnterNext.field === 'loss'
+      && lossEnterNext.row !== lossEnterBack.row && lossEnterBack.field === 'loss',
+    'Master Data percentage editor participates in Tab and same-field Enter row traversal',
+    { lossTabNext, lossTabBack, lossEnterNext, lossEnterBack })
+
+  const textInput = mainInput('unit')
+  await clickSelector(textInput)
+  await evaluate(`(()=>{const input=${visibleExpression(textInput)};input.setSelectionRange(1,1)})()`)
+  await pressKey('ArrowLeft')
+  const textLeft = await evaluate(`(()=>({active:document.activeElement===${visibleExpression(textInput)},caret:document.activeElement?.selectionStart}))()`)
+  await pressKey('ArrowRight')
+  const textRight = await evaluate(`(()=>({active:document.activeElement===${visibleExpression(textInput)},caret:document.activeElement?.selectionStart}))()`)
+  verify(textLeft.active && textLeft.caret === 0 && textRight.active && textRight.caret === 1,
+    'Master Data text editors keep native caret ArrowLeft/Right behavior', { textInput, textLeft, textRight })
+
   await pressKey('ArrowDown', { shift: true })
-  const editPriceRange = await evaluate(`(()=>({
+  const editTextRange = await evaluate(`(()=>({
     activeRow: document.activeElement?.getAttribute('data-grid-row-id') ?? null,
-    cells: [...document.querySelectorAll('section[aria-label="Bill of Materials rows"] tbody input[data-grid-field="price"]')].map(cell => ({
-      row: cell.getAttribute('data-grid-row-id'),
-      selected: cell.classList.contains('outline-blue-500'),
-      value: cell.value
+    cells: [...document.querySelectorAll('section[aria-label="Bill of Materials rows"] tbody input[data-grid-field="unit"]')].map(cell => ({
+      row: cell.getAttribute('data-grid-row-id'), selected: cell.classList.contains('outline-blue-500'), value: cell.value
     }))
   }))()`)
-  verify(Boolean(editPriceRange?.cells.length >= 2
-      && editPriceRange.cells[0].selected
-      && editPriceRange.cells[1].selected
-      && editPriceRange.activeRow === editPriceRange.cells[1].row),
-    'Master Data Edit grid keeps native keyboard focus and contiguous range selection across numeric cells', editPriceRange)
+  verify(Boolean(editTextRange?.cells.length >= 2
+      && editTextRange.cells[0].selected
+      && editTextRange.cells[1].selected
+      && editTextRange.activeRow === editTextRange.cells[1].row),
+    'Master Data grid range selection remains available outside numeric editors', editTextRange)
   const copiedPriceRange = await evaluate(`(()=>{
     let result=null
     window.addEventListener('copy',event=>{result={text:event.clipboardData?.getData('text/plain')??null,defaultPrevented:event.defaultPrevented}}, {once:true})
     const commandSucceeded=document.execCommand('copy')
     return {...(result??{}),commandSucceeded}
   })()`)
-  verify(copiedPriceRange?.text === '42.12\n321.987654321' && copiedPriceRange.defaultPrevented && copiedPriceRange.commandSucceeded,
-    'grid range copy preserves the accepted full authoritative draft of its focused input and compact presentation of the blurred input', copiedPriceRange)
+  const expectedTextRange = editTextRange.cells.slice(0, 2).map(cell => cell.value).join('\n')
+  verify(copiedPriceRange?.text === expectedTextRange && copiedPriceRange.defaultPrevented && copiedPriceRange.commandSucceeded,
+    'grid range copy remains available for non-numeric text cells', { copiedPriceRange, expectedTextRange })
+
+  const workCenterSelect = 'section[aria-label="Routing rows"] select[data-grid-field="workCenterId"]'
+  const workCenterOptions = await evaluate(`(()=>{const select=${visibleExpression(workCenterSelect)};return select?{count:select.options.length,index:select.selectedIndex,value:select.value}:null})()`)
+  await clickSelector(workCenterSelect)
+  const selectKeyResults = []
+  for (const key of ['ArrowDown', 'ArrowUp']) {
+    await evaluate(`(()=>{const select=${visibleExpression(workCenterSelect)};select.addEventListener('keydown',event=>{if(event.key===${JSON.stringify(key)})window.__nativeSelectArrow={key:event.key,defaultPrevented:event.defaultPrevented}}, {once:true})})()`)
+    await pressKey(key)
+    selectKeyResults.push(await evaluate(`(()=>({active:document.activeElement===${visibleExpression(workCenterSelect)},key:window.__nativeSelectArrow?.key??null,defaultPrevented:window.__nativeSelectArrow?.defaultPrevented??null,index:${visibleExpression(workCenterSelect)}?.selectedIndex,value:${visibleExpression(workCenterSelect)}?.value}))()`))
+  }
+  verify(selectKeyResults.length === 2 && selectKeyResults.every(result => result.active && result.key && !result.defaultPrevented),
+    'Master Data Work Center select keeps ArrowUp/Down under native select ownership without grid focus movement', { workCenterOptions, selectKeyResults })
 
   await clickSelector(inputInSection('Bill of Materials rows', 'loss'))
   const lossHeaderBefore = await inputValue('header [data-header-value] input[aria-label="Selected value"]')

@@ -151,7 +151,8 @@ try {
     await delay(100)
   }
   const press = async key => {
-    const code = key === 'ArrowUp' ? 38 : 40
+    const code = ({ ArrowLeft: 37, ArrowUp: 38, ArrowRight: 39, ArrowDown: 40, F6: 117 })[key]
+    if (!code) throw new Error(`Unsupported physical key: ${key}`)
     await send('Input.dispatchKeyEvent', { type: 'keyDown', key, code: key, windowsVirtualKeyCode: code })
     await send('Input.dispatchKeyEvent', { type: 'keyUp', key, code: key, windowsVirtualKeyCode: code })
     await delay(80)
@@ -195,6 +196,46 @@ try {
   check(state.role === 'current' && state.rowId, 'Verifier row exists in Current', state)
   let inputSelector = selectorForState(state)
   await waitUntil(`Boolean(document.querySelector(${JSON.stringify(inputSelector)}))`, 'Current price input')
+
+  check(state.exact === null && state.calculation === 9.000000000000004,
+    'Number-only imported-style fixture starts without an exact sidecar and retains its calculation Number', state)
+  await focusInput(inputSelector, '9.00')
+  check((await readState()).exact === null, 'focusing a noisy whole Number does not invent an exact sidecar')
+  await blurWithoutChangingContext()
+  await focusInput(inputSelector, '9.00')
+  check((await readState()).calculation === 9.000000000000004,
+    'whole-number residue stays hidden after blur/refocus without changing calculation state')
+
+  const lossSelector = `input[data-grid-field="loss"][data-grid-row-id="${state.rowId}"]`
+  await focusInput(lossSelector, '29.00')
+  state = await readState()
+  check(state.lossExact === null && state.lossCalculation === 0.29,
+    'percentage ×100 residue is hidden for a Number-only no-sidecar Loss value', state)
+  await blurWithoutChangingContext()
+  await focusInput(lossSelector, '29.00')
+  await setCaret(lossSelector, 0)
+  for (const [key, expected] of [['ArrowUp', '30.00'], ['ArrowUp', '31.00'], ['ArrowDown', '30.00'], ['ArrowDown', '29.00']]) {
+    await press(key)
+    await waitUntil(`document.querySelector(${JSON.stringify(lossSelector)})?.value===${JSON.stringify(expected)}`, `repeated percentage ${key} caret-place step to ${expected}`)
+    state = await readState()
+    check(state.lossExact === expected, `percentage caret-place stepping preserves authoritative ${expected} text`, state)
+  }
+
+  await focusInput(inputSelector, '9.00')
+  await setCaret(inputSelector, 0)
+  for (const [key, expected] of [['ArrowUp', '10.00'], ['ArrowUp', '11.00'], ['ArrowDown', '10.00'], ['ArrowDown', '9.00']]) {
+    await press(key)
+    await waitUntil(`document.querySelector(${JSON.stringify(inputSelector)})?.value===${JSON.stringify(expected)}`, `repeated whole-number ${key} caret-place step to ${expected}`)
+    check((await readState()).exact === expected, `whole-number caret-place stepping retains ${expected} editor text`)
+  }
+
+  const resetProbe = 'input[aria-label="Exact sidecar reset probe"]'
+  await evaluate(`document.querySelector(${JSON.stringify(resetProbe)}).focus()`)
+  await waitUntil(`document.querySelector(${JSON.stringify(resetProbe)})?.value==='9.000000000000004'`, 'probe loads intentional exact sidecar text')
+  await press('F6')
+  await waitUntil(`document.querySelector(${JSON.stringify(resetProbe)})?.value==='9.00'`, 'exact sidecar removal rebuilds the focused draft from the Number fallback')
+  check(await evaluate(`document.activeElement===document.querySelector(${JSON.stringify(resetProbe)})`),
+    'removing exact sidecar while focused immediately drops stale exact draft text')
 
   const critical = '123456789012345.123456789'
   await replaceInput(inputSelector, critical)
@@ -304,7 +345,7 @@ try {
   state = await readState()
   check(state.exact === critical && state.calculation === Number(critical), 'Session reconstruction retains exact text and calculation value', state)
 
-  for (const ordinary of ['12.3456789', '0.00000123456789']) {
+  for (const ordinary of ['12.3456789', '0.00000123456789', '0.0000000000005']) {
     await replaceInput(inputSelector, ordinary)
     await blurWithoutChangingContext()
     await focusInput(inputSelector, ordinary)

@@ -437,8 +437,7 @@ export const CandidateFindingsTable: React.FC<CandidateFindingsTableProps> = ({
                   percentage={parameter.percentage}
                   selectionId={`${selectionIdPrefix}:parameter:${parameter.field}`}
                   aria-label={`${identityHeader} ${row.label} ${parameterHeaders[parameterIndex]} ${parameter.display}`}
-                  compactPercentSuffix={parameter.field === 'loss'}
-                  className={parameter.field === 'loss' ? 'text-right [&_[data-numeric-suffix]]:!ml-[max(25.84px,calc(3.9vw_-_25.48px))]' : 'text-right'}
+                  className={parameter.field === 'loss' ? 'mx-auto !w-[58.5%] text-right' : 'text-right'}
                 >{parameter.display}</SelectedNumber></td>)}
                 <td aria-label={gapLabel} className={`whitespace-nowrap px-1 py-2 text-right ${gapTextClass(row.gap)}`}><SelectedNumber numericColumn signPositive
                   value={row.gap}

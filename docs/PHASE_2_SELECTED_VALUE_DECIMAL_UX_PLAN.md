@@ -48,6 +48,15 @@ These are workflow steps inside the existing five-round Phase 2 plan, not new nu
 
 Current statuses: pre-Round-4B corrective implementation **EXTERNALLY ACCEPTED / CLOSED**; human visual acceptance **PASSED**; Round 4B **IMPLEMENTED / AWAITING EXTERNAL AUDIT**; Global authoritative-full-value-on-edit **IMPLEMENTED / EXTERNALLY ACCEPTED**; Global direct-edit blue-value indicator **NOT STARTED**; Round 5 **NOT STARTED**.
 
+## Round 4B Corrective Pass — numeric residue, keyboard ownership, CBD percentage rhythm — 2026-10-24
+
+- **Status:** `CORRECTIVE IMPLEMENTATION COMPLETE / VERIFICATION RESULTS RECORDED / AWAITING EXTERNAL AUDIT`; Round 4B remains open.
+- **Starting local and fetched remote HEAD:** `1e1bf2d7ca77ff223132c4ac8ee0af734fb11f91` on `feat/selected-value-ux`; local and remote matched before edits.
+- **User-approved requirements:** preserve intentional precision when exact text is authoritative; keep reconstructed Number residue out of focused editor drafts without globally rounding or collapsing tiny nonzero values; give editable numeric controls ownership of Left/Right caret movement and Up/Down stepping while retaining specified Tab/Enter navigation; keep BOM Loss and Routing Yield percentage suffix rhythm consistent in main and expanded Cost Breakdown presentations.
+- **Implementation details:** a Number fallback is shortened only when a materially shorter decimal is within a narrow representable-number distance, without writing that display draft on focus. Numeric editors stop horizontal-arrow propagation while retaining native caret movement; Master Data navigation also guards active numeric editors. The local centered Loss percentage slot preserves the existing numeric axis and table columns. Exact algorithms and slot proportions are implementation details.
+- **Verifier/test details:** full unit and real-browser NumericInput, exact-decimal lifecycle, Master Data, CBD, Round 4B selected-value, Simulation Story, Simulation regression, spreadsheet batch, edit history, import/export, and Simulation history checks are recorded in the current [HANDOFF](../HANDOFF.md). The CBD verifier reached every desktop/responsive assertion and passed all five viewports.
+- **Boundaries:** no formula, business rule/domain, persistence lifecycle, role behavior, or History ownership changed. No merge, Round 5, direct-edit blue-value indicator, or speculative wheel-direction change. External audit is required before closing Round 4B.
+
 ## Round 4B Corrective / Reconciliation Pass — 2026-10-24
 
 - **Status:** `IMPLEMENTED / LOCAL VERIFICATION PASSED / AWAITING EXTERNAL AUDIT`; Round 4B remains open.

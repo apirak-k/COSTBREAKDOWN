@@ -78,6 +78,7 @@ export function NumericInput({
   const lastEmittedValueRef = useRef(value)
   const authoritativeDraftRef = useRef(exactValue ?? formatFocusedNumericValue(value, integer))
   const authoritativeSourceRef = useRef(exactValue)
+  const exactValuePropRef = useRef(exactValue)
   const authoritativeDraftValueRef = useRef(value)
   const previousValueRef = useRef(value)
   const previousFormattedValueRef = useRef(formatValue(value))
@@ -173,11 +174,11 @@ export function NumericInput({
   useEffect(() => {
     const formattedValue = formatValue(value)
     const valueChanged = !Object.is(previousValueRef.current, value)
-    const exactValueChanged = exactValue !== undefined && !Object.is(authoritativeSourceRef.current, exactValue)
+    const exactValueChanged = !Object.is(exactValuePropRef.current, exactValue)
     const editorFocused = inputRef.current !== null && document.activeElement === inputRef.current
 
-    // The numeric prop remains the calculation representation. The owning model
-    // supplies exactValue so the accepted decimal survives editor reconstruction.
+    // The numeric prop remains the calculation representation. Preserve an
+    // owning exact string; otherwise rebuild the draft without Number residue.
     if (valueChanged && !Object.is(value, lastEmittedValueRef.current)) {
       authoritativeDraftRef.current = exactValue ?? formatFocusedNumericValue(value, integer)
       authoritativeSourceRef.current = exactValue
@@ -204,6 +205,7 @@ export function NumericInput({
 
     previousValueRef.current = value
     previousFormattedValueRef.current = formattedValue
+    exactValuePropRef.current = exactValue
   }, [draft, focused, value, exactValue, integer, min, max, minExclusive, displayMode, integerDigits, inputProps.readOnly, numericColumn, columnMetrics.width, columnMetrics.font, columnMetrics.letterSpacing, columnMetrics.fontRevision])
 
   useIsomorphicLayoutEffect(() => {
@@ -284,13 +286,16 @@ export function NumericInput({
   }
 
   const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
-      if (!canStepRef.current) {
+    if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+      if (canStepRef.current) {
+        preservedPlaceRef.current = null
+        event.stopPropagation()
         onKeyDown?.(event)
         return
       }
-      if (event.shiftKey && event.currentTarget.dataset.gridCell === 'true') {
-        preservedPlaceRef.current = null
+    }
+    if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+      if (!canStepRef.current) {
         onKeyDown?.(event)
         return
       }

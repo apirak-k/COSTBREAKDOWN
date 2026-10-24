@@ -152,6 +152,14 @@ try {
     const focused = await evaluate('document.activeElement?.getAttribute("aria-label")')
     assert.equal(focused, aria, `browser focus reaches ${aria}`)
   }
+  const pressBrowserKey = async (key, { shift = false } = {}) => {
+    const virtualKey = ({ Tab: 9, Enter: 13, ArrowLeft: 37, ArrowUp: 38, ArrowRight: 39, ArrowDown: 40 })[key]
+    if (!virtualKey) throw new Error(`Unsupported physical key: ${key}`)
+    const modifiers = shift ? 8 : 0
+    await send('Input.dispatchKeyEvent', { type: 'keyDown', key, code: key, modifiers, windowsVirtualKeyCode: virtualKey, nativeVirtualKeyCode: virtualKey, text: key === 'Enter' ? '\r' : undefined })
+    await send('Input.dispatchKeyEvent', { type: 'keyUp', key, code: key, modifiers, windowsVirtualKeyCode: virtualKey, nativeVirtualKeyCode: virtualKey })
+    await delay(100)
+  }
   const typeInto = async (aria, text) => {
     await clickInput(aria)
     await evaluate('document.activeElement?.select()')
@@ -443,6 +451,44 @@ try {
   const simulationDraft = await typeInto(simulationInput, '12.3456789')
   assert.equal(simulationDraft, '12.3456789', 'Simulation accepts the complete parameter draft')
   results.simulation = await blurInto(simulationInput, 'Selling Price')
+
+  await clickInput(simulationInput)
+  const simulationBeforeKeys = await inputValue(simulationInput)
+  const simulationDot = simulationBeforeKeys.indexOf('.')
+  await evaluate(`(()=>{const input=${visibleInputExpression(simulationInput)};input.setSelectionRange(4,4)})()`)
+  await pressBrowserKey('ArrowLeft')
+  const simulationLeft = await evaluate(`(()=>({active:document.activeElement?.getAttribute('aria-label'),caret:document.activeElement?.selectionStart}))()`)
+  await pressBrowserKey('ArrowRight')
+  const simulationRight = await evaluate(`(()=>({active:document.activeElement?.getAttribute('aria-label'),caret:document.activeElement?.selectionStart}))()`)
+  await evaluate(`(()=>{const input=${visibleInputExpression(simulationInput)};input.setSelectionRange(0,0)})()`)
+  await pressBrowserKey('ArrowLeft')
+  const simulationLeftEdge = await evaluate(`(()=>({active:document.activeElement?.getAttribute('aria-label'),caret:document.activeElement?.selectionStart}))()`)
+  await evaluate(`(()=>{const input=${visibleInputExpression(simulationInput)};input.setSelectionRange(input.value.length,input.value.length)})()`)
+  await pressBrowserKey('ArrowRight')
+  const simulationRightEdge = await evaluate(`(()=>({active:document.activeElement?.getAttribute('aria-label'),caret:document.activeElement?.selectionStart,length:document.activeElement?.value.length}))()`)
+  assert.deepEqual([simulationLeft.active,simulationLeft.caret,simulationRight.active,simulationRight.caret,simulationLeftEdge.active,simulationLeftEdge.caret,simulationRightEdge.active,simulationRightEdge.caret],
+    [simulationInput,3,simulationInput,4,simulationInput,0,simulationInput,simulationRightEdge.length],
+    'Simulation numeric ArrowLeft/Right move the caret only, including both edges')
+
+  await evaluate(`(()=>{const input=${visibleInputExpression(simulationInput)};input.setSelectionRange(${simulationDot + 2},${simulationDot + 2})})()`)
+  await pressBrowserKey('ArrowUp')
+  const simulationAfterUp = await evaluate(`(()=>({active:document.activeElement?.getAttribute('aria-label'),value:document.activeElement?.value}))()`)
+  await pressBrowserKey('ArrowDown')
+  const simulationAfterDown = await evaluate(`(()=>({active:document.activeElement?.getAttribute('aria-label'),value:document.activeElement?.value}))()`)
+  assert.equal(simulationAfterUp.active, simulationInput, 'Simulation Up step retains parameter focus')
+  assert.equal(Number(simulationAfterUp.value), Number(simulationBeforeKeys) + 0.01, 'Simulation Up steps at the selected caret place')
+  assert.deepEqual(simulationAfterDown, { active: simulationInput, value: simulationBeforeKeys }, 'Simulation Down restores the exact previous parameter draft without moving focus')
+
+  const simulationStart = await evaluate(`(()=>({label:document.activeElement?.getAttribute('aria-label'),row:document.activeElement?.closest('[data-simulation-row-index]')?.getAttribute('data-simulation-row-index')}))()`)
+  await pressBrowserKey('Tab')
+  const simulationTabNext = await evaluate(`(()=>({label:document.activeElement?.getAttribute('aria-label'),row:document.activeElement?.closest('[data-simulation-row-index]')?.getAttribute('data-simulation-row-index')}))()`)
+  await pressBrowserKey('Tab', { shift: true })
+  const simulationTabBack = await evaluate(`(()=>({label:document.activeElement?.getAttribute('aria-label'),row:document.activeElement?.closest('[data-simulation-row-index]')?.getAttribute('data-simulation-row-index')}))()`)
+  assert.equal(simulationTabBack.label, simulationInput, 'Simulation Shift+Tab returns focus to the original numeric parameter')
+  assert.equal(simulationTabBack.row, simulationStart.row, 'Simulation Shift+Tab remains in the source row')
+  assert.match(simulationTabNext.label ?? '', / Usage in /, 'Simulation Tab advances to the next editable parameter')
+  await typeInto(simulationInput, simulationBeforeKeys)
+  await blurNumeric()
 
   const businessDraft = await typeInto('Selling Price', '12.3456789')
   assert.equal(businessDraft, '12.3456789', 'Business accepts the complete decimal draft')

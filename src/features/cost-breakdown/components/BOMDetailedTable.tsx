@@ -150,8 +150,7 @@ export function BOMRecordDetails({
       percentage={percentage}
       selectionId={`${selectionIdPrefix}:${side}:${field}`}
       aria-label={`${label} ${field} ${visible}`}
-      compactPercentSuffix={percentage && field === 'loss'}
-      className={percentage && field === 'loss' ? 'text-right [&_[data-numeric-suffix]]:!ml-[max(25.84px,calc(3.9vw_-_25.48px))]' : 'text-right'}
+      className={percentage && field === 'loss' ? 'mx-auto !w-[58.5%] text-right' : 'text-right'}
     >{visible}</SelectedNumber>
   }
 
