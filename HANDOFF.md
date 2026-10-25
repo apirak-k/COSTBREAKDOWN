@@ -1,3 +1,12 @@
+## Current checkpoint — Simulation Routing persistence and Send All provenance verification — 2026-10-25
+
+- **Status:** Verification-gap-only corrective pass complete; **AWAITING EXTERNAL AUDIT / ACCEPTANCE**. Round 4 / Round 4B remain accepted and closed. Round 5 is **NOT STARTED**; no merge occurred.
+- **Branch / checkout:** `feat/selected-value-ux` / `E:\COSTBREAKDOWN\.worktrees\SIMULATION-FINALIZED`.
+- **Starting local and freshly fetched remote HEAD:** both `9277b573bf33e93277ac5608d5b2ff5db6e8f8a8`.
+- **Scope:** Browser verifier and this checkpoint only; no production source changes. Simulation Routing Manning direct edit now has real-browser coverage through blur, focus transfer, navigation away/back, exact refocus value, Undo, and Redo. Reference and Current Price direct edits are checked before and after Send All, including role-matched Master Data Working values, cleared blue provenance, and normal calculated outputs.
+- **Custom fixture boundary:** Complete Mock has no editable Custom BOM rows, so the Custom direct-parameter UI path is not practical in this browser scenario. The existing Send All history verifier covers all three role mappings, Last Saved preservation, and atomic Undo/Redo.
+- **Verification:** `node scripts/verify_direct_edit_blue_browser.mjs` — **107 assertions PASS**, no browser errors. `node --experimental-strip-types scripts/verify_simulation_history.ts` — **PASS**. `node scripts/verify_simulation_regression.mjs` — **PASS** (Vite WebSocket port 24678-in-use messages were non-failing). `E:\COSTBREAKDOWN\node_modules\.bin\jiti.cmd scripts/verify_master_data_direct_edits.ts` — **26 assertions PASS**. `node scripts/verify_numeric_input.mjs` — **354/354 PASS**. `npx tsc --noEmit --pretty false` — **PASS**. `npm run build` — **PASS**; existing ExcelJS / fast-csv externalization and large-chunk warnings remain. `git diff --check` — **PASS**. `scripts/verify_simulation_send_all_history.ts`, loaded through Vite SSR to resolve its extensionless TypeScript imports, — **PASS**; the runner emitted a non-failing Vite WebSocket port message.
+
 ## Current checkpoint — Global direct-edit indicator corrective pass — 2026-10-25
 
 - **Status:** Corrective implementation complete; focused internal verification passed; **AWAITING EXTERNAL AUDIT / ACCEPTANCE**. Round 4 / Round 4B remain **ACCEPTED / CLOSED**. Round 5 is **NOT STARTED**; no merge occurred.

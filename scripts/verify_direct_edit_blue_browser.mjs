@@ -175,6 +175,11 @@ try {
   const state = selector => evaluate(`(()=>{const e=${visibleExpression(selector)};return e?{value:e.value??e.textContent.trim(),color:getComputedStyle(e).color,pending:e.dataset.directEditPending??null,background:getComputedStyle(e).backgroundColor,border:getComputedStyle(e).borderColor,rect:{width:e.getBoundingClientRect().width,height:e.getBoundingClientRect().height}}:null})()`)
   const expectBlue = async (selector, label) => { await delay(250); const s = await state(selector); check(s?.color === blue, label, s) }
   const expectNormal = async (selector, label) => { await delay(250); const s = await state(selector); check(!!s && s.color !== blue, label, s) }
+  const expectDerivedNormal = async label => {
+    await delay(250)
+    const derived = await evaluate(`(()=>[...document.querySelectorAll('[data-simulation-result-body] [data-selected-number], [data-economic-outcome-value] [data-selected-number]')].filter(e=>e.getClientRects().length).map(e=>({label:e.getAttribute('aria-label'),color:getComputedStyle(e).color,pending:e.getAttribute('data-direct-edit-pending')})))()`)
+    check(derived.length > 0 && derived.every(e => e.color !== blue && e.pending !== 'true'), label, derived)
+  }
   const blur = async () => { await evaluate('document.activeElement?.blur()'); await delay(180) }
   const setViewport = async width => {
     await send('Emulation.setDeviceMetricsOverride', { width, height: 1800, deviceScaleFactor: 1, mobile: false })
@@ -342,6 +347,39 @@ try {
   await expectBlue(simPrice, 'second Redo preserves the earlier Price provenance')
   await expectBlue(simUsage, 'second Redo restores Usage provenance with its edited value')
 
+  const simManning = 'section[data-simulation-table="routing"] input[aria-label$="Manning in Current"]'
+  await waitFor(() => existsVisible(simManning), 'Simulation Current Manning')
+  await clickSelector(simManning)
+  const simManningBefore = await inputValue(simManning)
+  const simManningEdit = ['3.125', '3.25', '4.125'].find(candidate => Number(candidate) !== Number(simManningBefore))
+  assert.ok(simManningEdit, `Could not choose a Manning edit different from ${simManningBefore}`)
+  await expectNormal(simManning, 'Simulation Routing Manning starts normal before direct edit')
+  await send('Input.insertText', { text: simManningEdit })
+  await delay(150)
+  check(await inputValue(simManning) === simManningEdit, 'Simulation Routing Manning accepts the distinct exact edit', {before: simManningBefore, edited: await inputValue(simManning)})
+  await expectBlue(simManning, 'Simulation Routing Manning direct edit turns blue')
+  await blur()
+  await expectBlue(simManning, 'Simulation Routing Manning stays blue after blur')
+  await clickSelector(simUsage)
+  await expectBlue(simManning, 'Simulation Routing Manning stays blue after focus moves elsewhere')
+  await expectDerivedNormal('calculated Simulation and Economic outputs stay normal during Routing Manning edit')
+  await clickTextButton('Cost Breakdown')
+  await waitFor(() => evaluate(`document.querySelector('header nav[aria-label="Main navigation"] button[aria-current="page"]')?.innerText.trim()==='Cost Breakdown'`), 'Cost Breakdown after Routing edit')
+  await clickTextButton('Simulation')
+  await waitFor(async () => (await evaluate(`document.querySelector('header nav[aria-label="Main navigation"] button[aria-current="page"]')?.innerText.trim()==='Simulation'`)) && existsVisible(simManning), 'Simulation after returning from Cost Breakdown')
+  await expectBlue(simManning, 'Simulation Routing Manning stays blue after navigating away and back')
+  await clickSelector(simManning)
+  check(await inputValue(simManning) === simManningEdit, 'Simulation Routing Manning exact edit persists after navigating away and back', await state(simManning))
+  await expectDerivedNormal('calculated Simulation and Economic outputs stay normal after returning to the edited Routing source')
+  await clickSelector('header button[aria-label="Undo"]')
+  await clickSelector(simManning)
+  check(await inputValue(simManning) === simManningBefore, 'Simulation Routing Manning Undo restores the exact previous input', {before: simManningBefore, actual: await inputValue(simManning)})
+  await expectNormal(simManning, 'Simulation Routing Manning Undo clears direct-edit blue')
+  await clickSelector('header button[aria-label="Redo"]')
+  await clickSelector(simManning)
+  check(await inputValue(simManning) === simManningEdit, 'Simulation Routing Manning Redo restores the exact edited input', {expected: simManningEdit, actual: await inputValue(simManning)})
+  await expectBlue(simManning, 'Simulation Routing Manning Redo restores direct-edit blue')
+
   const economic = 'input[aria-label="Fixed Action Cost"]'
   const economicBefore = await inputValue(economic)
   const economicEdit = '123.00000000000000001'
@@ -408,6 +446,46 @@ try {
   await expectNormal(referencePrice, 'Reset all clears Reference source provenance')
   await selectSimulationRole('Current')
   await expectNormal(simPrice, 'Reset all leaves Current source without stale provenance')
+
+  const simulationPriceFor = roleName => `section[data-simulation-table="bom"] input[aria-label$="Price in ${roleName}"]`
+  const sendAllValues = {}
+  const sendAllCandidates = ['11.25', '13.75', '17.25']
+  for (const roleName of ['Reference', 'Current']) {
+    await selectSimulationRole(roleName)
+    const source = simulationPriceFor(roleName)
+    await waitFor(() => existsVisible(source), `Simulation ${roleName} Price before Send All`)
+    const before = await inputValue(source)
+    sendAllValues[roleName] = sendAllCandidates.find(candidate => Number(candidate) !== Number(before))
+    assert.ok(sendAllValues[roleName], `Could not choose a ${roleName} Price edit different from ${before}`)
+    await replaceInput(source, sendAllValues[roleName])
+    await blur()
+    check(await inputValue(source) === sendAllValues[roleName], `Simulation ${roleName} Price accepts the distinct exact edit`, {before, edited: await inputValue(source)})
+    await expectBlue(source, `Simulation ${roleName} direct Price edit is blue after blur before Send All`)
+  }
+  for (const roleName of ['Reference', 'Current']) {
+    await selectSimulationRole(roleName)
+    await expectBlue(simulationPriceFor(roleName), `Simulation ${roleName} Price provenance remains blue immediately before Send All`)
+  }
+  await expectDerivedNormal('calculated Simulation and Economic outputs remain normal before Send All')
+  await hoverSelector('button[aria-label="Send to Master Data"]')
+  await waitFor(() => existsVisible('[role="group"][aria-label="Send all-dataset action"] button'), 'Send All menu action')
+  await clickTextButton('Send all datasets')
+  await delay(400)
+  for (const roleName of ['Reference', 'Current']) {
+    await selectSimulationRole(roleName)
+    await expectNormal(simulationPriceFor(roleName), `Send All basis reconciliation clears ${roleName} direct-edit provenance`)
+  }
+  await expectDerivedNormal('calculated Simulation and Economic outputs remain normal after Send All reconciliation')
+  await clickTextButton('Master Data')
+  await waitFor(() => existsVisible(toolbar), 'Master Data after Send All')
+  for (const roleName of ['Reference', 'Current']) {
+    await clickSelector(role(roleName))
+    await waitFor(() => existsVisible(price), `Master Data ${roleName} Working Price after Send All`)
+    await waitFor(async () => await inputValue(price) === sendAllValues[roleName], `Master Data ${roleName} Working Price receives the sent value`)
+    check(await inputValue(price) === sendAllValues[roleName], `Send All writes the edited ${roleName} Price to its matching Master Data Working role`, {expected: sendAllValues[roleName], actual: await inputValue(price)})
+    await expectNormal(price, `Send All ${roleName} Working Price is normal, not manually blue`)
+  }
+
   await clickTextButton('Cost Breakdown')
   await delay(400)
   const cbd = await evaluate(`(()=>[...document.querySelectorAll('main [data-selected-number]')].filter(e=>e.getClientRects().length).map(e=>({color:getComputedStyle(e).color,pending:e.dataset.directEditPending})))()`)
