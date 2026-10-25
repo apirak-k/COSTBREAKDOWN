@@ -16,6 +16,7 @@ import type { CandidateTableType } from '../candidate-reorder-history'
 export type ItemizedTypeTab = 'all' | 'bom' | 'rtg'
 
 interface ItemizedComparisonTableProps {
+  active?: boolean
   comparison: CostComparison
   pair: CostBreakdownComparisonPair
   typeTab: ItemizedTypeTab
@@ -85,6 +86,7 @@ function applyManualOrder(rows: CandidateTableRow[], order: string[] | null): Ca
 }
 
 export const ItemizedComparisonTable: React.FC<ItemizedComparisonTableProps> = ({
+  active = true,
   comparison,
   pair,
   typeTab,
@@ -119,7 +121,7 @@ export const ItemizedComparisonTable: React.FC<ItemizedComparisonTableProps> = (
   }, [sortMode, sortResetToken, onResetManualOrderHistory])
 
   useEffect(() => {
-    if (expandedRows.size === 0) return
+    if (!active || expandedRows.size === 0) return
 
     const handlePointerDown = (event: PointerEvent) => {
       if (event.target instanceof Node && candidateRegionRef.current?.contains(event.target)) return
@@ -136,7 +138,7 @@ export const ItemizedComparisonTable: React.FC<ItemizedComparisonTableProps> = (
       document.removeEventListener('pointerdown', handlePointerDown)
       document.removeEventListener('keydown', handleKeyDown)
     }
-  }, [expandedRows.size])
+  }, [active, expandedRows.size])
 
   const toggleExpanded = (type: CandidateTableType, rowKey: string) => {
     setExpandedRows(current => toggleCandidateDetail(current, type, rowKey))

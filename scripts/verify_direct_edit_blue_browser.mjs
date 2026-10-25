@@ -41,7 +41,7 @@ const evidenceDir = await mkdtemp(join(tmpdir(), 'costbreakdown-blue-evidence-')
 // Pre-optimize the lazy import parser so opening Import cannot reload the test page.
 const vite = configuredBaseUrl ? null : spawn(process.execPath, ['--input-type=module', '-e', `
   import {createServer} from 'vite';
-  const server=await createServer({server:{host:'127.0.0.1',port:${vitePort},strictPort:true},optimizeDeps:{include:['xlsx']}});
+  const server=await createServer({server:{host:'127.0.0.1',port:${vitePort},strictPort:true},optimizeDeps:{include:['buffer','process','exceljs/lib/exceljs.bare.js','xlsx']}});
   await server.listen();server.printUrls();
 `], {cwd:repository,stdio:['ignore','pipe','pipe']})
 const viteOutput = []
@@ -474,9 +474,11 @@ try {
     const detailBlank = await blankPointIn(detail)
     check(Boolean(detailBlank?.blank), `${label} expanded detail target is blank whitespace`, detailBlank)
     await clickPoint(detailBlank)
-    check(!await isPinned(effectValue) && await rowExpanded(row) === 'true', `${label} expanded-detail blank space clears Pin and keeps the row expanded`, detailBlank)
+    check(!await isPinned(effectValue) && await rowExpanded(row) === 'false', `${label} passive expanded-detail click clears Pin and dismisses the disclosure`, detailBlank)
     await clickPoint(await blankNameCellPoint(row))
-    check(await rowExpanded(row) === 'false', `${label} row can still collapse after expanded-detail dismissal`)
+    check(await rowExpanded(row) === 'true', `${label} row can reopen after passive detail dismissal`)
+    await clickPoint(await blankNameCellPoint(row))
+    check(await rowExpanded(row) === 'false', `${label} reopened row remains collapsible`)
   }
 
   const focusedRow = await evaluate(`(()=>{const row=${visibleExpression(simBomRow)};row?.focus();return Boolean(row&&document.activeElement===row&&row.tabIndex===0)})()`)
@@ -564,9 +566,11 @@ try {
     const detailBlank = await blankPointIn(detail)
     check(Boolean(detailBlank?.blank), `mobile ${label} expanded detail target is blank whitespace`, detailBlank)
     await clickPoint(detailBlank)
-    check(!await isPinned(effectValue) && await rowExpanded(row) === 'true', `mobile ${label} expanded-detail blank space clears Pin and keeps the card expanded`, detailBlank)
+    check(!await isPinned(effectValue) && await rowExpanded(row) === 'false', `mobile ${label} passive expanded-detail click clears Pin and dismisses the disclosure`, detailBlank)
     await clickPoint(await blankMobileRowPoint(row))
-    check(await rowExpanded(row) === 'false', `mobile ${label} card remains collapsible after detail dismissal`)
+    check(await rowExpanded(row) === 'true', `mobile ${label} card can reopen after passive detail dismissal`)
+    await clickPoint(await blankMobileRowPoint(row))
+    check(await rowExpanded(row) === 'false', `mobile ${label} reopened card remains collapsible`)
   }
   await setViewport(1440)
 

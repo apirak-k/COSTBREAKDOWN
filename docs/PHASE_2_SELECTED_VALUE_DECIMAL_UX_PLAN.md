@@ -1,6 +1,6 @@
 # Phase 2 — Selected Value / Decimal UX Execution Plan
 
-**Status:** Rounds 1–3 are CLOSED. Round 4 (including 4A / 4B and its corrective passes) is EXTERNALLY AUDITED / ACCEPTED / CLOSED. Global authoritative-full-value-on-edit is IMPLEMENTED / EXTERNALLY ACCEPTED. Global direct-edit blue-value indicator is IMPLEMENTED / INTERNALLY VERIFIED / AWAITING EXTERNAL AUDIT AND ACCEPTANCE. Round 5 is NOT STARTED.
+**Status:** Rounds 1–3 are CLOSED. Round 4 (including 4A / 4B and its corrective passes) is EXTERNALLY AUDITED / ACCEPTED / CLOSED. Global authoritative-full-value-on-edit is IMPLEMENTED / EXTERNALLY ACCEPTED. Global direct-edit blue-value indicator is IMPLEMENTED / INTERNALLY VERIFIED / AWAITING EXTERNAL AUDIT AND ACCEPTANCE. **Round 5 final cross-page regression is PASS / READY FOR EXTERNAL AUDIT. Phase 2 final external acceptance remains PENDING.**
 **Execution branch:** `feat/selected-value-ux`
 **Repository:** `https://github.com/apirak-k/COSTBREAKDOWN`
 
@@ -30,23 +30,32 @@ Do not overlap implementation rounds or add numbered sub-phases. A failing accep
 | Round 2 — Master Data | Integrate the shared model into Master Data without changing its data, formulas, validation domains, dataset lifecycle, history, or spreadsheet semantics. Preserve the accepted native View-mode focus recovery and apply the later finalized hover/Header precision contract and final geometry polish. | **CLOSED** | Native grid focus owns View numeric values; source Preview uses a cancellable 350ms dwell; Focus/Pin remains anchored; only focused editable sources own Header writers; Header displays at most 8 decimals and keeps stable numeric / `%` / spinner regions and direct-interaction affordance; actual Chrome, regression, source audit, build, and diff checks pass. |
 | Round 3 — Cost Breakdown | Integrate eligible Cost Breakdown values and interactions with the shared Header/source model, retaining the finalized Candidate, detail, tooltip, row, ordering, and comparison behavior. | **CLOSED** | Shared no-focus `SelectedNumber` is transparent at rest, `#E9EEF4` on direct hover, and `blue-100` when pinned; Candidate row hover is independent. CHANGED-row cell whitespace expands/collapses while actual numeric, `#`, and reorder controls keep their own action. Targeted Chrome, Round 2 / Round 3 browser gates, build, source audit, and diff checks pass; no calculation or comparison semantics change. Implementation: `9536da7edec07d29e808bec8af8c45a16e8be621`. |
 | Round 4 — Simulation | 4A and the pre-Round-4B corrective gate are closed. Round 4B includes Result/Economic sources plus the corrective integration of BOM/Routing values, Footer totals, and visible Story Graph numeric labels/ticks. | **EXTERNALLY AUDITED / ACCEPTED / CLOSED.** | User confirmed external source audit acceptance for checkpoint `262bd3c54425a15d16065f45d80037c353afa656`. |
-| Round 5 — Final Cross-page Regression | Run the final shared + Master Data + Cost Breakdown + Simulation regression and verify that state does not leak across pages/scopes. | **NOT STARTED** | Rounds 1–3, all of Round 4 (4A and 4B), and both preceding global numeric UX items have passed their audit/acceptance gates; full cross-page regression, browser checks, build, and diff review pass. |
+| Round 5 — Final Cross-page Regression | Run the final shared + Master Data + Cost Breakdown + Simulation regression and verify that state does not leak across pages/scopes. | **PASS / READY FOR EXTERNAL AUDIT** | Six-direction browser navigation, page-local state/history, Selected Value ownership, CBD-only Selected Comparison, actual refresh contracts, direct-edit provenance, exact decimals, responsive interactions, calculations, TypeScript, build, and diff gates pass. External review remains required before claiming Phase 2 acceptance or closure. |
 
 ## Agreed next-work order
 
-These are workflow steps inside the existing five-round Phase 2 plan, not new numbered rounds. Round 4 / Round 4B are now externally audited and closed. The current gate is external audit and acceptance of the global direct-edit blue-value indicator.
+These are workflow steps inside the existing five-round Phase 2 plan, not new numbered rounds. Round 4 / Round 4B are externally audited and closed, including the Simulation disclosure corrective per user confirmation. Round 5 has passed internal verification and is ready for external audit. The direct-edit blue indicator remains internally verified and its external audit label remains pending.
 
 1. GLOBAL authoritative-full-value-on-edit correction — implemented in the separate prior correction.
 2. Audit and accept that global numeric correction — externally accepted.
 3. Pre-Round-4B corrective gate — externally accepted / closed; human visual acceptance passed.
 4. Round 4B — externally audited / accepted / closed.
 5. Round 4 — externally audited / accepted / closed.
-6. GLOBAL direct-edit blue-value indicator — implemented and internally verified.
-7. Audit and accept that global UX item — pending external audit.
-8. Run Round 5 — Final Cross-page Regression.
+6. GLOBAL direct-edit blue-value indicator — implemented and internally verified; its cross-page behavior is part of Round 5 and external audit status remains pending.
+7. Round 5 — Final Cross-page Regression — PASS / READY FOR EXTERNAL AUDIT.
+8. Audit / accept the Round 5 delivery; close Phase 2 only after the required external review.
 9. After Phase 2: Excel validation → real-world usage test → portable distribution.
 
-Current statuses: Round 4 / Round 4B **EXTERNALLY AUDITED / ACCEPTED / CLOSED**; Global authoritative-full-value-on-edit **IMPLEMENTED / EXTERNALLY ACCEPTED**; Global direct-edit blue-value indicator **IMPLEMENTED / INTERNALLY VERIFIED / AWAITING EXTERNAL AUDIT AND ACCEPTANCE**; Round 5 **NOT STARTED**.
+Current statuses: Round 4 / Round 4B **EXTERNALLY AUDITED / ACCEPTED / CLOSED**; Global authoritative-full-value-on-edit **IMPLEMENTED / EXTERNALLY ACCEPTED**; Global direct-edit blue-value indicator **IMPLEMENTED / INTERNALLY VERIFIED / AWAITING EXTERNAL AUDIT AND ACCEPTANCE**; Round 5 **PASS / READY FOR EXTERNAL AUDIT**; Phase 2 final external acceptance **PENDING**.
+
+## Round 5 — Final Cross-page Regression — 2026-10-25
+
+- **Result:** PASS / READY FOR EXTERNAL AUDIT; Phase 2 remains open pending external review.
+- **Integrated browser:** 60 assertions cover all six navigation directions, retained Master Data/CBD/Simulation state, Header ownership and history, CBD Selected Comparison isolation from Simulation, and actual refresh on all three pages with compact display plus exact focused values.
+- **Confirmed corrective:** hidden Cost Breakdown Candidate dismissal listeners no longer process interactions from other active pages. CBD expansion and selection survive navigation; active CBD still dismisses passive details normally.
+- **Regression evidence:** direct-edit blue / Import 207; CBD Selected Value 306/306; Simulation disclosure 202/202 plus 4/4 native-scroll checks; numeric browser 2367/2367; exact-decimal lifecycle 40; Master Data Selected Value 179/179; Simulation Round 4B Selected Value 70/70; Master Data UI state 9 scenarios; spreadsheet/sizing/clone/custom-data/toolbar suites and aggregate Simulation/CBD regression pass.
+- **Quality gates:** `npx tsc --noEmit --pretty false`, `npm run build`, and `git diff --check` pass. Build warnings about existing ExcelJS externalization and chunk size are non-failing; Vite's existing port 24678 WebSocket notices do not fail the regression suite.
+- **Verifier/environment findings:** stale source expectations and selector/expression issues were updated to reflect finalized behavior without weakening assertions. The Import verifier's first-run Vite dependency optimization was fixed in its runner; no Import production logic changed. Firefox/Safari, physical touch devices, and screen-reader behavior remain unverified.
 
 ## Round 4B Corrective Pass — numeric residue, keyboard ownership, CBD percentage rhythm — 2026-10-24
 

@@ -1117,7 +1117,7 @@ try {
   assert.match(navbarSource, /disabled=\{!canUndo\}/, 'Undo stays visible and reflects only the active page history')
   assert.match(navbarSource, /disabled=\{!canRedo\}/, 'Redo stays visible and reflects only the active page history')
   assert.match(navbarSource, /onClick=\{toggleMasterDataPrepareDataset\}[\s\S]*aria-label="Prepare Dataset"[\s\S]*<Info/, 'the Header Info icon toggles Prepare Dataset without competing with its hover preview')
-  assert.match(navbarSource, /col-span-2 row-start-2 flex min-w-0 flex-wrap items-center justify-center[\s\S]*lg:col-start-2/, 'Header navigation can wrap on narrow widths and stays in the centered desktop zone')
+  assert.match(navbarSource, /col-span-2 row-start-2 grid min-w-0 grid-cols-3 items-center justify-center gap-0\.5 lg:col-span-1 lg:col-start-2 lg:row-start-1/, 'Header navigation reflows into a centered three-column grid on narrow widths')
   assert.match(headerSource, /type="search"[\s\S]*aria-label="Search Master Data"[\s\S]*value=\{searchQuery\}[\s\S]*onSearchQueryChange\(event\.target\.value\)/, 'the existing search query is exposed locally in the Master Data toolbar')
   assert.match(headerSource, /tableView === 'all'[\s\S]*'Search all tables'[\s\S]*tableView === 'wc'[\s\S]*'Search Work Centers'[\s\S]*tableView === 'routing'[\s\S]*'Search Routing'[\s\S]*'Search BOM'/,
     'Search placeholder follows the active table view')

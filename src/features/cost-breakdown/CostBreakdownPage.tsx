@@ -393,6 +393,7 @@ export const CostBreakdownPage: React.FC<CostBreakdownPageProps> = ({ manualOrde
       <div role="region" aria-label="Candidate workspace" tabIndex={0} className="min-w-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700 max-lg:[contain:paint]">
         <ItemizedComparisonTable
           key={comparisonPair.fingerprint}
+          active={activeTab === 'breakdown'}
           comparison={costBreakdownFullComparison}
           pair={comparisonPair}
           typeTab={typeTab}

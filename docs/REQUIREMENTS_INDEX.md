@@ -6,6 +6,13 @@
 
 [`specs/FINAL_LOGIC_SPEC.md`](specs/FINAL_LOGIC_SPEC.md) is the latest authority for product logic and behavior, consolidating the user-finalized business logic decisions. It finalizes logic/behavior only; it does not replace the rest of the product contract. If an older specification, agreement, design document, implementation decision, or current code conflicts with Final Logic on product logic, follow Final Logic only for that conflicting behavior. Existing finalized or accepted UX/UI, layout, visual style, wording, interaction behavior, and other requirements remain valid when compatible. Absence from Final Logic does not automatically remove an older non-conflicting finalized requirement. Existing code is implementation evidence, not requirements authority.
 
+## Current Phase 2 Execution Status — 2026-10-25
+
+- Round 4 / 4B: **EXTERNALLY AUDITED / ACCEPTED / CLOSED**. User confirms external review / acceptance of the Simulation BOM/Routing disclosure corrective at `e5f8c426485151a15be9580d54288b6f8af1e003`.
+- Round 5 — Final Cross-page Regression: **PASS / READY FOR EXTERNAL AUDIT**. The integrated browser verified all six navigation directions, page-owned state/history, CBD-only Selected Comparison, and actual refresh contracts; numeric, direct-edit, Selected Value, disclosure, calculation, TypeScript, build, and diff gates passed.
+- Global direct-edit blue-value indicator: **IMPLEMENTED / INTERNALLY VERIFIED / AWAITING EXTERNAL AUDIT**; its cross-page lifecycle is included in Round 5.
+- Phase 2 final external acceptance: **PENDING** until the Round 5 delivery is externally reviewed.
+
 ## Canonical Specifications Map
 
 The active canonical specifications are:
