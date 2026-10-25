@@ -235,7 +235,7 @@ function BreakEvenGraph({
   }
 
   return (
-    <figure data-safe-workspace-interaction="true" aria-labelledby="break-even-graph-title" className="min-w-0 border border-slate-300 bg-white px-2.5 py-1.5 xl:flex xl:min-h-0 xl:flex-col">
+    <figure aria-labelledby="break-even-graph-title" className="min-w-0 border border-slate-300 bg-white px-2.5 py-1.5 xl:flex xl:min-h-0 xl:flex-col">
       <figcaption id="break-even-graph-title" className="mb-0.5 flex min-w-0 shrink-0 items-center justify-between gap-1 text-[10px] font-semibold text-slate-700 xl:mb-0">
         <span className="flex min-w-0 items-baseline gap-1 whitespace-nowrap">
           <span>Break-even</span>
@@ -460,7 +460,7 @@ export function EconomicSimulationPanel({ result, draft, afterSnapshot, unit, on
     className: 'text-slate-600'
   })
   return (
-    <div data-safe-workspace-interaction="true" data-simulation-layout-column="inputs" aria-label="Economic and Business" className="grid min-w-0 divide-y divide-slate-200 border border-slate-300 bg-white xl:h-full xl:min-h-0 xl:grid-rows-[minmax(min-content,.95fr)_minmax(0,2.45fr)]">
+    <div data-simulation-layout-column="inputs" aria-label="Economic and Business" className="grid min-w-0 divide-y divide-slate-200 border border-slate-300 bg-white xl:h-full xl:min-h-0 xl:grid-rows-[minmax(min-content,.95fr)_minmax(0,2.45fr)]">
       <section className="min-w-0 px-2.5 py-1.5 xl:min-h-0" aria-labelledby="simulation-business-inputs-title">
           <h2 id="simulation-business-inputs-title" className="text-xs font-semibold text-slate-900">Business</h2>
           <div className="mt-1 grid grid-cols-1 gap-y-1 xl:mt-0.5">

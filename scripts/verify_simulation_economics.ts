@@ -175,7 +175,9 @@ for (const text of [
   'Break-even Quantity', '(2,500 PC)', 'Selling Price', 'SG&amp;A %',
   'THB/PC', 'Quantity (PC)'
 ]) assert.ok(panelMarkup.includes(text), `finalized Economic/Business UI includes ${text}`)
-const inputsCardTag = panelMarkup.match(/<div data-safe-workspace-interaction="true" data-simulation-layout-column="inputs"[^>]*>/)?.[0] ?? ''
+const inputsCardTag = panelMarkup.match(/<div data-simulation-layout-column="inputs"[^>]*>/)?.[0] ?? ''
+assert.doesNotMatch(inputsCardTag, /data-safe-workspace-interaction="true"/,
+  'passive Business / Economic card does not claim workspace interaction ownership')
 assert.match(inputsCardTag, /class="[^"]*border border-slate-300[^\"]*bg-white/,
   'Business and Economic sections share one bordered outer card')
 assert.match(inputsCardTag, /class="[^"]*divide-y divide-slate-200/,
@@ -205,8 +207,10 @@ assert.doesNotMatch(businessPanel, /SIM Standard Cost|Operating Profit|<span>SG&
   'Business Inputs no longer repeats the outputs available in Result')
 assert.match(businessPanel, /aria-label="Selling Price"/, 'Business Selling Price input remains available')
 assert.match(businessPanel, /aria-label="SG&amp;A %"/, 'Business SG&A % input remains available')
-assert.match(panelMarkup, /<figure data-safe-workspace-interaction="true" aria-labelledby="break-even-graph-title"/,
-  'Break-even chart interactions remain protected from workspace outside-dismiss handling')
+const breakEvenFigureTag = panelMarkup.match(/<figure aria-labelledby="break-even-graph-title"[^>]*>/)?.[0] ?? ''
+assert.ok(breakEvenFigureTag, 'Break-even figure remains present')
+assert.doesNotMatch(breakEvenFigureTag, /data-safe-workspace-interaction="true"/,
+  'passive Break-even graph padding remains eligible for workspace dismissal')
 assert.match(panelMarkup, /role="slider"[^>]*aria-label="Batch Size"[^>]*aria-orientation="horizontal"[^>]*aria-valuemin="1"/,
   'Batch marker is an accessible horizontal integer slider')
 assert.match(panelMarkup, /aria-valuenow="5000"/)

@@ -886,7 +886,6 @@ function SimulationParameterTable({
                 <React.Fragment key={key}>
                   <tr
                     data-simulation-row-index={orderedIndex}
-                    data-safe-workspace-interaction="true"
                     aria-selected={selected}
                     aria-expanded={canExpand ? expanded : undefined}
                     aria-controls={canExpand && expanded ? detailId : undefined}
@@ -894,6 +893,10 @@ function SimulationParameterTable({
                     tabIndex={canExpand ? 0 : undefined}
                     onClick={event => {
                       if (!canExpand || suppressSelectionClickRef.current || isInteractiveTarget(event.target, event.currentTarget)) return
+                      if (event.target instanceof Element && event.target.closest('[data-simulation-row-detail="true"]')) {
+                        clearPinnedSelection()
+                        return
+                      }
                       if (!isRenderedContentAtPoint(event.target, event.clientX, event.clientY)) clearPinnedSelection()
                       toggleExpanded()
                     }}
@@ -904,7 +907,7 @@ function SimulationParameterTable({
                     }}
                     className={`transition-colors ${selected ? 'bg-blue-100/60 hover:bg-blue-100/80' : 'bg-white hover:bg-slate-50'} focus-visible:outline focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-blue-700 ${canExpand ? 'cursor-pointer' : ''}`}
                   >
-                    <td data-safe-workspace-interaction="true" className={`p-0 text-center font-normal ${groupEndClass}`}>
+                    <td className={`p-0 text-center font-normal ${groupEndClass}`}>
                       {canEdit && simulationRecord ? (
                         <button
                           type="button"
@@ -1006,7 +1009,7 @@ function SimulationParameterTable({
                     </td>
                   </tr>
                   {expanded && (
-                    <tr id={detailId} data-safe-workspace-interaction="true" className="bg-white">
+                    <tr id={detailId} data-simulation-row-detail="true" className="bg-white">
                       <td aria-hidden="true" className="border-b border-slate-200" />
                       <th scope="row" colSpan={2} className="border-b border-slate-200 py-2 pl-3 pr-2 text-left text-[10px] font-semibold text-slate-700">
                         <span className="ml-2 inline-block whitespace-nowrap border-l-2 border-slate-300 pl-3">Parameter Cost Effect</span>
@@ -1058,13 +1061,16 @@ function SimulationParameterTable({
             <article
               key={key}
               data-simulation-row-index={orderedIndex}
-              data-safe-workspace-interaction="true"
               aria-expanded={canExpand ? expanded : undefined}
               aria-controls={canExpand && expanded ? detailId : undefined}
               aria-label={canExpand ? `${tableIdentity}: ${row.name}; ${status}; activate to ${expanded ? 'collapse' : 'expand'} Parameter Cost Effect` : undefined}
               tabIndex={canExpand ? 0 : undefined}
               onClick={event => {
                 if (!canExpand || suppressSelectionClickRef.current || isInteractiveTarget(event.target, event.currentTarget)) return
+                if (event.target instanceof Element && event.target.closest('[data-simulation-row-detail="true"]')) {
+                  clearPinnedSelection()
+                  return
+                }
                 if (!isRenderedContentAtPoint(event.target, event.clientX, event.clientY)) clearPinnedSelection()
                 toggleExpanded()
               }}
@@ -1098,7 +1104,7 @@ function SimulationParameterTable({
                     }}
                     className={`min-h-7 min-w-7 shrink-0 rounded-sm px-1 font-mono text-[10px] ${selected ? 'bg-blue-700 text-white' : 'text-slate-600 hover:bg-slate-200'} focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700`}
                   >{sourceIndex + 1}</button>
-                ) : <span data-safe-workspace-interaction="true" className="min-w-7 pt-1 text-center font-mono text-[10px] text-slate-500">{sourceIndex + 1}</span>}
+                ) : <span className="min-w-7 pt-1 text-center font-mono text-[10px] text-slate-500">{sourceIndex + 1}</span>}
                 <div className="min-w-0 flex-1">
                   <h3 className="break-words text-xs font-medium text-slate-900">{row.name}</h3>
                 </div>
@@ -1161,7 +1167,7 @@ function SimulationParameterTable({
                 })}
               </div>
               {expanded && (
-                <div id={detailId} data-safe-workspace-interaction="true" className="mt-2 border-t border-slate-200 pt-2">
+                <div id={detailId} data-simulation-row-detail="true" className="mt-2 border-t border-slate-200 pt-2">
                   <h4 className="mb-1 ml-11 border-l-2 border-slate-300 pl-2 text-[10px] font-semibold text-slate-700">Parameter Cost Effect</h4>
                   <dl className="grid grid-cols-2 gap-x-3 gap-y-1 text-[9px]">
                     {parameters.map(parameter => {
@@ -1322,7 +1328,7 @@ function ResultPanel({
   })
 
   return (
-    <section data-safe-workspace-interaction="true" className="flex min-w-0 flex-col border border-slate-300 bg-white px-3 py-2 xl:min-h-0 xl:px-1 xl:py-1" aria-labelledby="simulation-result-title">
+    <section className="flex min-w-0 flex-col border border-slate-300 bg-white px-3 py-2 xl:min-h-0 xl:px-1 xl:py-1" aria-labelledby="simulation-result-title">
       <h2 id="simulation-result-title" className="sr-only">Result</h2>
       <header
         data-simulation-result-header="true"

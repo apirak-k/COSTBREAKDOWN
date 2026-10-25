@@ -1,6 +1,19 @@
-## Current checkpoint — Simulation BOM/Routing blank-row Pin dismissal — 2026-10-25
+## Current checkpoint — Simulation full-page Selected Value Pin dismissal — 2026-10-25
 
-- **Status:** Corrective implementation and focused verification complete; **AWAITING EXTERNAL AUDIT / ACCEPTANCE**. Round 4 / Round 4B remain accepted and closed. Round 5 is **NOT STARTED**; no merge occurred.
+- **Status:** Full-page corrective implementation and focused browser verification complete; **AWAITING EXTERNAL AUDIT / ACCEPTANCE**. Round 4 / Round 4B remain accepted and closed. Round 5 is **NOT STARTED**; no merge occurred.
+- **Branch / checkout:** feat/selected-value-ux / E:\COSTBREAKDOWN\.worktrees\SIMULATION-FINALIZED.
+- **Starting local and freshly fetched remote HEAD:** both d160f455a167e838d31af608c59821e164d793fc.
+- **Prior correction boundary:** d160f45 fixed blank expandable-row whitespace only and did not satisfy the full-page Simulation requirement.
+- **Root cause:** Simulation placed data-safe-workspace-interaction=true on passive Result, Business/Economic, Break-even, table-row, expanded-detail, and mobile-card containers. The shared capture-phase dismissal checks ancestors, so blank descendants were treated as intentional interactions. CBD and Master Data use native interactive controls and scoped interactive semantics; no shared dismissal logic or cross-page source was changed.
+- **Correction:** Removed broad safe-interaction markers from passive Simulation containers and row/card surfaces. Actual inputs, buttons, SelectedNumbers, selectors, and the graph slider keep native/action semantics. Expandable row ARIA, focusability, Enter/Space behavior, text-click expansion, blank-row dismissal, and mobile expanded-detail handling remain intact.
+- **Browser verification:** node scripts/verify_direct_edit_blue_browser.mjs — **203 assertions PASS**, no browser errors/warnings. Real Chrome coverage at 1440px and 390px confirms blank page-edge and inter-panel space, Result, Business/Economic, Break-even, BOM/Routing panels, rows, and expanded details clear Pin. SelectedNumber, row #, editable input, row keyboard actions, and draggable/keyboard graph slider retain their behavior.
+- **Verifier corrections:** scripts/verify_simulation_story_view.ts and scripts/verify_simulation_economics.ts now identify passive rows/cards by structural selectors and assert broad safe markers are absent; they no longer require the old marker as an implementation condition.
+- **Regression / build:** node scripts/verify_cbd_selected_value_browser.mjs — **306/306 PASS**. node scripts/verify_simulation_regression.mjs — **PASS** after updating stale marker-based expectations; its Vite WebSocket port 24678-in-use messages are non-failing. npx tsc --noEmit --pretty false — **PASS**. npm run build — **PASS** with existing ExcelJS / fast-csv externalization and >500 kB chunk notices. git diff --check — **PASS** before this checkpoint update. node scripts/verify_master_data_selected_value.mjs — **178 PASS / 1 FAIL** on the Work Center native-select ArrowUp/Down ownership assertion; the same failure reproduced on an isolated rerun. Its Clear Undo/Redo and Selected Value checks passed, and no Master Data/shared source changed.
+- **Scope and limits:** The canonical cross-cutting rule and calculations are unchanged. Browser evidence is from headless Chrome at 1440px and 390px; Firefox/Safari, physical touch, and screen readers were not exercised. External audit remains pending.
+
+## Previous checkpoint — Simulation BOM/Routing blank-row Pin dismissal (incomplete for full-page scope) — 2026-10-25
+
+- **Status:** Row-only correction was focused-verified but did not satisfy full-page Simulation background dismissal; superseded by the current checkpoint above. Round 5 is **NOT STARTED**; no merge occurred.
 - **Branch / checkout:** `feat/selected-value-ux` / `E:\COSTBREAKDOWN\.worktrees\SIMULATION-FINALIZED`.
 - **Starting local and freshly fetched remote HEAD:** both `ac2e471fb17eb42333301069977e08b63508f573`.
 - **Root cause:** the shared capture-phase Pin dismissal correctly preserves targets marked as safe or expandable, including Simulation rows with `data-safe-workspace-interaction`, `aria-expanded` and `tabIndex`. The later row click expanded/collapsed without dismissing Pin.

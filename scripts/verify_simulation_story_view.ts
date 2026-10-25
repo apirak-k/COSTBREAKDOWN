@@ -835,7 +835,9 @@ try {
     assert.match(mobileArticleSource, /event\.key !== 'Enter' && event\.key !== ' '/,
       'mobile candidate cards support Enter and Space expansion')
     const bomTable = initialMarkup.match(/<section data-simulation-table="bom"[\s\S]*?<\/section>/)?.[0] ?? ''
-    const initialBomRow = bomTable.match(/<tr[^>]*data-safe-workspace-interaction="true"[\s\S]*?<\/tr>/)?.[0] ?? ''
+    const initialBomRow = bomTable.match(/<tr[^>]*data-simulation-row-index="0"[\s\S]*?<\/tr>/)?.[0] ?? ''
+    assert.doesNotMatch(initialBomRow, /data-safe-workspace-interaction="true"/,
+      'passive expandable rows do not classify their blank space as a safe interaction')
     assert.match(initialBomRow, /aria-expanded="false"/, 'desktop candidate rows expose their collapsed state')
     assert.match(initialBomRow, /tabindex="0"/, 'desktop candidate rows are keyboard reachable')
     assert.match(initialBomRow, /aria-label="Bill of Materials: .* activate to expand Parameter Cost Effect"/,

@@ -157,17 +157,86 @@ try {
     await delay(180)
   }
   const clickPoint = async point => {
-    if (!point) throw new Error('Blank row whitespace point was not found')
+    if (!point) throw new Error('Blank workspace point was not found')
     await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: point.x, y: point.y, button: 'left', clickCount: 1 })
     await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: point.x, y: point.y, button: 'left', clickCount: 1 })
     await delay(120)
   }
   const inputValue = selector => evaluate(`(${visibleExpression(selector)})?.value ?? null`)
   const isPinned = selector => evaluate(`(${visibleExpression(selector)})?.getAttribute('aria-pressed') === 'true'`)
+  const ensurePinned = async selector => {
+    if (!await isPinned(selector)) await clickSelector(selector)
+    return isPinned(selector)
+  }
   const rowExpanded = selector => evaluate(`(${visibleExpression(selector)})?.getAttribute('aria-expanded') ?? null`)
   const blankNameCellPoint = selector => evaluate(`(()=>{const row=${visibleExpression(selector)};const cell=row?.querySelector('th[scope="row"]');if(!row||!cell)return null;const rect=cell.getBoundingClientRect();const range=document.createRange();range.selectNodeContents(cell);const textRects=[...range.getClientRects()];const x=rect.right-6,y=rect.top+rect.height/2,hit=document.elementFromPoint(x,y),insideText=textRects.some(text=>x>=text.left&&x<=text.right&&y>=text.top&&y<=text.bottom);return{x,y,blank:!insideText&&hit===cell&&!hit.closest('button,input,select,textarea,a,[role="button"]'),hitTag:hit?.tagName??null,cellWidth:rect.width,textRects:textRects.map(text=>({left:text.left,right:text.right,top:text.top,bottom:text.bottom})),rowRight:rect.right}})()`)
   const nameCellTextPoint = selector => evaluate(`(()=>{const row=${visibleExpression(selector)};const cell=row?.querySelector('th[scope="row"]');if(!row||!cell)return null;const range=document.createRange();range.selectNodeContents(cell);const rect=[...range.getClientRects()].find(item=>item.width>0&&item.height>0);if(!rect)return null;const x=rect.left+rect.width/2,y=rect.top+rect.height/2,hit=document.elementFromPoint(x,y);return{x,y,text:hit===cell&&x>=rect.left&&x<=rect.right&&y>=rect.top&&y<=rect.bottom,hitTag:hit?.tagName??null}})()`)
   const blankMobileRowPoint = selector => evaluate(`(()=>{const row=${visibleExpression(selector)};if(!row)return null;const rect=row.getBoundingClientRect(),x=rect.right-3,y=rect.top+5,hit=document.elementFromPoint(x,y);return{x,y,blank:hit===row&&!hit.closest('button,input,select,textarea,a,[role="button"]'),hitTag:hit?.tagName??null,rowRight:rect.right,topPaddingPoint:y-rect.top}})()`)
+  const blankPointIn = selector => evaluate(`(()=>{
+    const root=${visibleExpression(selector)};
+    if(!root)return null;
+    root.scrollIntoView({block:'center',inline:'nearest'});
+    const surface=root.matches('tr[data-simulation-row-detail="true"]')
+      ? root.querySelector('td[aria-hidden="true"]:last-child') ?? root
+      : root;
+    const rect=surface.getBoundingClientRect();
+    const inset=.5;
+    const candidates=[
+      [rect.left+inset,rect.top+inset],[rect.right-inset,rect.top+inset],
+      [rect.left+inset,rect.bottom-inset],[rect.right-inset,rect.bottom-inset],
+      [rect.left+inset,rect.top+rect.height/2],[rect.right-inset,rect.top+rect.height/2],
+      [rect.left+rect.width/2,rect.top+inset],[rect.left+rect.width/2,rect.bottom-inset]
+    ];
+    const textRects=[];
+    const walker=document.createTreeWalker(surface,NodeFilter.SHOW_TEXT);
+    while(walker.nextNode()){
+      const node=walker.currentNode;
+      if(!node.textContent?.trim())continue;
+      const range=document.createRange();range.selectNodeContents(node);
+      textRects.push(...range.getClientRects());
+    }
+    const interactive='button,input,select,textarea,label,summary,a[href],[role],[aria-expanded],[aria-haspopup],[tabindex]:not([tabindex="-1"]),[data-selected-number],[data-grid-cell="true"],[data-safe-workspace-interaction="true"],[contenteditable="true"],[draggable="true"]';
+    for(const [x,y] of candidates){
+      if(x<0||y<0||x>=innerWidth||y>=innerHeight)continue;
+      const hit=document.elementFromPoint(x,y);
+      const action=hit?.closest(interactive);
+      if(!hit||!(hit===surface||surface.contains(hit))||(action&&(action===root||root.contains(action))))continue;
+      if(textRects.some(text=>x>=text.left&&x<=text.right&&y>=text.top&&y<=text.bottom))continue;
+      return{x,y,blank:true,hitTag:hit.tagName,hitClass:typeof hit.className==='string'?hit.className:null,root:root.tagName,rootRect:{left:rect.left,right:rect.right,top:rect.top,bottom:rect.bottom}};
+    }
+    return{blank:false,root:root.tagName,rootRect:{left:rect.left,right:rect.right,top:rect.top,bottom:rect.bottom},textRectCount:textRects.length};
+  })()`)
+  const outerWorkspaceBlankPoint = () => evaluate(`(()=>{
+    const main=document.querySelector('main');
+    const layout=main?.querySelector('[data-simulation-layout-root]');
+    if(!main)return null;
+    main.scrollTop=0;
+    const rect=main.getBoundingClientRect();
+    const candidates=[[rect.left+8,rect.top+rect.height/2],[rect.right-8,rect.top+rect.height/2],[rect.left+8,rect.top+8],[rect.right-8,rect.top+8]];
+    const interactive='button,input,select,textarea,label,summary,a[href],[role],[aria-expanded],[aria-haspopup],[tabindex]:not([tabindex="-1"]),[data-selected-number],[data-grid-cell="true"],[data-safe-workspace-interaction="true"],[contenteditable="true"],[draggable="true"]';
+    for(const [x,y] of candidates){
+      if(x<0||y<0||x>=innerWidth||y>=innerHeight)continue;
+      const hit=document.elementFromPoint(x,y);
+      if(!hit||!(hit===main||main.contains(hit))||(layout&&(hit===layout||layout.contains(hit)))||hit.closest(interactive))continue;
+      return{x,y,blank:true,hitTag:hit.tagName,mainRect:{left:rect.left,right:rect.right,top:rect.top,bottom:rect.bottom},outsideSimulationLayout:true};
+    }
+    return{blank:false,mainRect:{left:rect.left,right:rect.right,top:rect.top,bottom:rect.bottom},layoutRect:layout?(()=>{const r=layout.getBoundingClientRect();return{left:r.left,right:r.right,top:r.top,bottom:r.bottom}})():null,candidates:candidates.map(([x,y])=>{const hit=document.elementFromPoint(x,y);return{x,y,hitTag:hit?.tagName??null,hitClass:typeof hit?.className==='string'?hit.className:null,withinMain:Boolean(hit&&(hit===main||main.contains(hit))),insideSimulationLayout:Boolean(hit&&layout&&(hit===layout||layout.contains(hit))),interactive:Boolean(hit?.closest(interactive))}})};
+  })()`)
+  const resultGraphGapPoint = () => evaluate(`(()=>{
+    const result=document.querySelector('section[aria-labelledby="simulation-result-title"]');
+    const graph=document.querySelector('figure[aria-labelledby="break-even-graph-title"]');
+    if(!result||!graph)return null;
+    const a=result.getBoundingClientRect(),b=graph.getBoundingClientRect();
+    const left=Math.max(a.left,b.left),right=Math.min(a.right,b.right),x=(left+right)/2,y=(a.bottom+b.top)/2,gap=b.top-a.bottom,hit=document.elementFromPoint(x,y);
+    return{x,y,gap,blank:gap>0&&right>left&&x>=a.left&&x<=a.right&&x>=b.left&&x<=b.right&&!result.contains(hit)&&!graph.contains(hit)&&Boolean(hit)&&!hit.closest('button,input,select,textarea,label,summary,a[href],[role],[aria-expanded],[aria-haspopup],[tabindex]:not([tabindex="-1"]),[data-selected-number],[data-grid-cell="true"]'),hitTag:hit?.tagName??null};
+  })()`)
+  const dragPoint = async (point, deltaX) => {
+    if (!point) throw new Error('Graph drag point was not found')
+    await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: point.x, y: point.y, button: 'left', clickCount: 1 })
+    await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: point.x + deltaX, y: point.y, button: 'left', buttons: 1 })
+    await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: point.x + deltaX, y: point.y, button: 'left', clickCount: 1 })
+    await delay(160)
+  }
   const replaceInput = async (selector, text, modifiers = 4) => {
     await clickSelector(selector)
     await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'a', code: 'KeyA', modifiers, windowsVirtualKeyCode: 65, nativeVirtualKeyCode: 65 })
@@ -367,6 +436,49 @@ try {
   check(!await isPinned(routingCostNumber), 'clicking blank Routing row whitespace also clears Pin while collapsing')
   check(await rowExpanded(simRoutingRow) === 'false', 'blank Routing row whitespace still collapses the row')
 
+  const verifyBlankDismissal = async (selector, label) => {
+    check(await ensurePinned(result), `${label}: Result value is pinned before the click`)
+    const point = await blankPointIn(selector)
+    check(Boolean(point?.blank), `${label}: target is rendered blank space with no real control`, point)
+    await clickPoint(point)
+    check(!await isPinned(result), `${label}: blank click clears the Pin`, point)
+  }
+  check(await ensurePinned(result), 'outer-workspace dismissal test starts with a pinned Result value')
+  const outerBlank = await outerWorkspaceBlankPoint()
+  check(Boolean(outerBlank?.blank && outerBlank.outsideSimulationLayout), 'outer-workspace target is blank page-edge space outside the Simulation layout', outerBlank)
+  await clickPoint(outerBlank)
+  check(!await isPinned(result), 'blank outer workspace / page edge clears Pin', outerBlank)
+
+  for (const [selector, label] of [
+    ['section[aria-labelledby="simulation-result-title"]', 'Result panel'],
+    ['[data-simulation-layout-column="inputs"]', 'Economic / Business panel'],
+    ['figure[aria-labelledby="break-even-graph-title"]', 'Break-even graph container'],
+    ['section[data-simulation-table="bom"]', 'BOM table container'],
+    ['section[data-simulation-table="routing"]', 'Routing table container']
+  ]) await verifyBlankDismissal(selector, label)
+
+  check(await ensurePinned(result), 'panel-gap dismissal test starts with a pinned Result value')
+  const panelGap = await resultGraphGapPoint()
+  check(Boolean(panelGap?.blank), 'panel-gap target is geometrically between Result and Break-even panels', panelGap)
+  await clickPoint(panelGap)
+  check(!await isPinned(result), 'clicking the blank gap between Simulation panels clears Pin', panelGap)
+
+  for (const [row, kind, label] of [[simBomRow, 'bom', 'BOM'], [simRoutingRow, 'routing', 'Routing']]) {
+    if (await rowExpanded(row) !== 'true') await clickPoint(await blankNameCellPoint(row))
+    const detail = `section[data-simulation-table="${kind}"] [data-simulation-row-detail="true"]`
+    const effectValue = `${detail} button[data-selected-number]`
+    await waitFor(() => existsVisible(effectValue), `${label} Parameter Cost Effect SelectedNumber`)
+    check(await ensurePinned(result), `${label} detail control test starts with a pinned Result value`)
+    await clickSelector(effectValue)
+    check(await isPinned(effectValue) && !await isPinned(result) && await rowExpanded(row) === 'true', `${label} detail SelectedNumber moves Pin without collapsing the row`)
+    const detailBlank = await blankPointIn(detail)
+    check(Boolean(detailBlank?.blank), `${label} expanded detail target is blank whitespace`, detailBlank)
+    await clickPoint(detailBlank)
+    check(!await isPinned(effectValue) && await rowExpanded(row) === 'true', `${label} expanded-detail blank space clears Pin and keeps the row expanded`, detailBlank)
+    await clickPoint(await blankNameCellPoint(row))
+    check(await rowExpanded(row) === 'false', `${label} row can still collapse after expanded-detail dismissal`)
+  }
+
   const focusedRow = await evaluate(`(()=>{const row=${visibleExpression(simBomRow)};row?.focus();return Boolean(row&&document.activeElement===row&&row.tabIndex===0)})()`)
   check(focusedRow, 'expandable BOM row remains keyboard focusable')
   const pressRowKey = async (key, code, keyCode) => {
@@ -414,6 +526,48 @@ try {
   await clickSelector(mobileRoutingNumber)
   await clickPoint(await blankMobileRowPoint(mobileRoutingRow))
   check(await rowExpanded(mobileRoutingRow) === 'false' && !await isPinned(mobileRoutingNumber), 'mobile Routing blank whitespace clears Pin and collapses in one click')
+
+  const pinMobileBomValue = async () => {
+    await evaluate(`(${visibleExpression(mobileBomRow)})?.scrollIntoView({block:'center',inline:'nearest'})`)
+    await delay(120)
+    return ensurePinned(mobileBomNumber)
+  }
+  check(await pinMobileBomValue(), 'mobile outer-workspace test starts with a pinned BOM value')
+  const mobileOuterBlank = await outerWorkspaceBlankPoint()
+  check(Boolean(mobileOuterBlank?.blank && mobileOuterBlank.outsideSimulationLayout), 'mobile outer-workspace target is blank page-edge space outside Simulation', mobileOuterBlank)
+  await clickPoint(mobileOuterBlank)
+  check(!await isPinned(mobileBomNumber), 'mobile blank outer workspace / page edge clears Pin', mobileOuterBlank)
+  for (const [selector, label] of [
+    ['section[aria-labelledby="simulation-result-title"]', 'Result panel'],
+    ['[data-simulation-layout-column="inputs"]', 'Economic / Business panel'],
+    ['figure[aria-labelledby="break-even-graph-title"]', 'Break-even graph container']
+  ]) {
+    check(await pinMobileBomValue(), `mobile ${label} test starts with a pinned BOM value`)
+    const point = await blankPointIn(selector)
+    check(Boolean(point?.blank), `mobile ${label} target is rendered blank space`, point)
+    await clickPoint(point)
+    check(!await isPinned(mobileBomNumber), `mobile ${label} blank click clears Pin`, point)
+  }
+  for (const [row, label, source] of [
+    [mobileBomRow, 'BOM', mobileBomNumber],
+    [mobileRoutingRow, 'Routing', mobileRoutingNumber]
+  ]) {
+    await evaluate(`(${visibleExpression(row)})?.scrollIntoView({block:'center',inline:'nearest'})`)
+    await delay(120)
+    if (await rowExpanded(row) !== 'true') await clickPoint(await blankMobileRowPoint(row))
+    const detail = `${row} [data-simulation-row-detail="true"]`
+    const effectValue = `${detail} button[data-selected-number]`
+    await waitFor(() => existsVisible(effectValue), `mobile ${label} Parameter Cost Effect SelectedNumber`)
+    check(await ensurePinned(source), `mobile ${label} detail test starts with a pinned row value`)
+    await clickSelector(effectValue)
+    check(await isPinned(effectValue) && !await isPinned(source) && await rowExpanded(row) === 'true', `mobile ${label} detail SelectedNumber moves Pin without collapsing the card`)
+    const detailBlank = await blankPointIn(detail)
+    check(Boolean(detailBlank?.blank), `mobile ${label} expanded detail target is blank whitespace`, detailBlank)
+    await clickPoint(detailBlank)
+    check(!await isPinned(effectValue) && await rowExpanded(row) === 'true', `mobile ${label} expanded-detail blank space clears Pin and keeps the card expanded`, detailBlank)
+    await clickPoint(await blankMobileRowPoint(row))
+    check(await rowExpanded(row) === 'false', `mobile ${label} card remains collapsible after detail dismissal`)
+  }
   await setViewport(1440)
 
   const simPriceBefore = await inputValue(simPrice)
@@ -589,6 +743,22 @@ try {
     await expectNormal(simulationPriceFor(roleName), `Send All basis reconciliation clears ${roleName} direct-edit provenance`)
   }
   await expectDerivedNormal('calculated Simulation and Economic outputs remain normal after Send All reconciliation')
+  const batchSizeSlider = 'figure[aria-labelledby="break-even-graph-title"] g[role="slider"][aria-label="Batch Size"]'
+  await replaceInput('input[aria-label="Batch Size"]', '100')
+  await blur()
+  await waitFor(() => existsVisible(batchSizeSlider), 'Break-even Batch Size slider')
+  check(await ensurePinned(result), 'Break-even slider control test starts with a pinned Result value')
+  const marker = await evaluate(`(()=>{const slider=${visibleExpression(batchSizeSlider)};if(!slider)return null;const rect=slider.getBoundingClientRect(),svg=slider.ownerSVGElement?.getBoundingClientRect();if(!svg)return null;const x=rect.left+rect.width/2;return{x,y:rect.top+rect.height/2,deltaX:x<svg.right-32?24:-24}})()`)
+  const beforeDrag = await evaluate(`(${visibleExpression(batchSizeSlider)})?.getAttribute('aria-valuenow') ?? null`)
+  await dragPoint(marker, marker?.deltaX)
+  const afterDrag = await evaluate(`(${visibleExpression(batchSizeSlider)})?.getAttribute('aria-valuenow') ?? null`)
+  check(beforeDrag !== null && afterDrag !== null && afterDrag !== beforeDrag, 'Break-even graph marker remains pointer-draggable', {beforeDrag,afterDrag,marker})
+  check(await isPinned(result), 'dragging the real graph slider preserves the Result Pin')
+  const beforeArrow = afterDrag
+  await pressRowKey('ArrowRight', 'ArrowRight', 39)
+  const afterArrow = await evaluate(`(${visibleExpression(batchSizeSlider)})?.getAttribute('aria-valuenow') ?? null`)
+  check(afterArrow !== null && afterArrow !== beforeArrow, 'Break-even graph slider remains keyboard-operable')
+  check(await isPinned(result), 'keyboard-operating the graph slider preserves the Result Pin')
   await clickTextButton('Master Data')
   await waitFor(() => existsVisible(toolbar), 'Master Data after Send All')
   for (const roleName of ['Reference', 'Current']) {
