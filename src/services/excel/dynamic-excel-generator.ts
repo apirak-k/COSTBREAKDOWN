@@ -1,5 +1,5 @@
 import { DynamicTemplateOptions } from '../../core'
-import { loadExcelJS } from './exceljs-runtime'
+import { loadExcelJS, writeExcelJSBuffer } from './exceljs-runtime'
 import { addMasterDataWorkbook } from './master-data-workbook'
 
 export async function generateDynamicExcelTemplate(options: DynamicTemplateOptions): Promise<Blob> {
@@ -21,6 +21,6 @@ export async function generateDynamicExcelTemplate(options: DynamicTemplateOptio
   })
   workbook.calcProperties = { fullCalcOnLoad: true }
 
-  const buffer = await workbook.xlsx.writeBuffer()
+  const buffer = await writeExcelJSBuffer(workbook)
   return new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
 }

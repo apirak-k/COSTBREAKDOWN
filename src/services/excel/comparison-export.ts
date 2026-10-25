@@ -1,5 +1,5 @@
 import type ExcelJS from 'exceljs'
-import { loadExcelJS } from './exceljs-runtime'
+import { loadExcelJS, writeExcelJSBuffer } from './exceljs-runtime'
 import {
   ComparisonFinding,
   ConfidenceStatus,
@@ -846,7 +846,7 @@ export async function generateSnapshotComparisonExcel(input: ComparisonExportInp
   writeRoutingSheet(workbook, model)
   writeWorkCenterSheet(workbook, model)
 
-  const buffer = await workbook.xlsx.writeBuffer()
+  const buffer = await writeExcelJSBuffer(workbook)
   return new Blob([buffer], {
     type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
   })

@@ -376,7 +376,8 @@ function parseWorkCenters(
   const headerIndex = findHeaderRow(rows, [
     ['wc', 'work center code', 'workcentercode', 'work center'],
     ['labor', 'labor rate'],
-    ['burden', 'burden rate']
+    ['burden', 'burden rate'],
+    ['note']
   ])
   if (headerIndex < 0) {
     warnings.push('WORK_CENTER header not found')
@@ -435,7 +436,10 @@ function parseBOM(
   const headerIndex = findHeaderRow(rows, [
     ['name', 'material name', 'description', 'material description', 'item code', 'itemcode', 'material code', 'material'],
     ['usage', 'consumption', 'quantity'],
-    ['price', 'material price']
+    ['unit', 'uom'],
+    ['price', 'material price'],
+    ['loss', 'loss rate'],
+    ['note']
   ])
   if (headerIndex < 0) {
     warnings.push('BOM header not found')
@@ -499,7 +503,10 @@ function parseRouting(
   const headerIndex = findHeaderRow(rows, [
     ['process', 'process name', 'description'],
     ['wc', 'work center code', 'work center id', 'work center'],
-    ['manning', 'headcount']
+    ['manning', 'headcount'],
+    ['capacity', 'cap'],
+    ['yield', 'yield rate'],
+    ['note']
   ])
   if (headerIndex < 0) {
     warnings.push('ROUTING header not found')
@@ -615,6 +622,19 @@ export function parseSnapshotWorkbookData(
   const effectiveDate = product.effectiveDate || metaValue(meta, ['effective date', 'effectivedate'])
   const snapshotId = metaValue(meta, ['snapshot id', 'snapshotid', 'id']) || `${product.productName || 'snapshot'}:${role}`
   const status = parseStatus(metaValue(meta, ['status', 'dataset status']), warnings)
+  const rates = parseWorkCenters(rowsFor(workbook, 'WORK_CENTER', exactNumericCells), sourceRef, effectiveDate, warnings)
+  const bom = parseBOM(rowsFor(workbook, 'BOM', exactNumericCells), sourceRef, warnings)
+  const routing = parseRouting(rowsFor(workbook, 'ROUTING', exactNumericCells), sourceRef, warnings)
+  const missingTableHeaders = warnings.filter(warning => /^(?:BOM|WORK_CENTER|ROUTING) header not found$/.test(warning))
+  if (missingTableHeaders.length > 0) {
+    return {
+      success: false,
+      message: 'Dataset workbook not recognized. Required table headers are missing or incomplete.',
+      format: 'canonical',
+      warnings: [...warnings],
+      role
+    }
+  }
 
   let snapshot: CostSnapshot = {
     id: snapshotId,
@@ -624,9 +644,9 @@ export function parseSnapshotWorkbookData(
     ...(role === 'custom' ? {} : { comparisonRole: role }),
     status,
     remark: metaValue(meta, ['remark', 'dataset remark']),
-    rates: parseWorkCenters(rowsFor(workbook, 'WORK_CENTER', exactNumericCells), sourceRef, effectiveDate, warnings),
-    bom: parseBOM(rowsFor(workbook, 'BOM', exactNumericCells), sourceRef, warnings),
-    routing: parseRouting(rowsFor(workbook, 'ROUTING', exactNumericCells), sourceRef, warnings),
+    rates,
+    bom,
+    routing,
     additionalFields: additionalMetaFields(meta),
     warnings
   }

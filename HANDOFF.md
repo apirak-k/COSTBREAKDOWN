@@ -1,4 +1,60 @@
-## Current checkpoint — Master Data confirmation / Undo-Redo reconciliation — 2026-10-26
+## Current checkpoint — Phase 2 closure and Excel Validation — 2026-10-26
+
+- **Phase 2:** **EXTERNALLY ACCEPTED / CLOSED.** The user reports `PHASE 2 FINAL EXTERNAL ACCEPTANCE: PASS` for commit `4c1d139f87bf7db6c5f1ad9f6337738674159012`; no new Phase 2 implementation blocker was found. The already accepted implementation was not reopened.
+- **Excel Validation:** **PASS.** The current application's template, Working-state export, staged import, explicit apply, and export → import paths were exercised with real XLSX files for Reference, Current, and Custom. The parser rejects incomplete required table headers; browser export now writes a browser-supported ArrayBuffer. No Phase 2 behavior was reopened.
+- **Repository checkpoint:** `feat/selected-value-ux`; local HEAD and freshly fetched `origin/feat/selected-value-ux` both `4c1d139f87bf7db6c5f1ad9f6337738674159012` before this validation work.
+- **Pre-existing dirty work:** `scripts/verify_simulation_round4a_layout.mjs` only. It remains byte-identical to its starting state (SHA-256 `2ec01095364638e865a86be49f1401c5bf359dc6e98c60ca293f7dc2e19c68af`) and unstaged.
+- **Roadmap:** Phase 2 CLOSED → Excel Validation PASS → Real-world Usage Test → Portable Distribution. Merge status remains separate from Phase 2 acceptance.
+- **Delivery:** The user authorized delivery after reviewing the results. Commit and push this Excel Validation scope to the existing feature branch; no merge.
+
+### Excel workflow and contract checked
+
+- **Application path:** `DatasetSizingModal` generates Download Template from the current sizing draft; `MasterDataWorkspaceHeader` exports the active role's Working snapshot; `ExcelImportModal` / `ExcelUploadDropzone` stage `.xlsx` input; explicit Import applies through `MasterDataPage` to the viewed role. `dataset-sizing.ts` owns row sizing/import initialization. Export leaves Working and Last Saved untouched; Import changes Working only after explicit apply.
+- **Libraries / services:** ExcelJS (`exceljs.bare.js` with browser shims) generates the canonical workbook; SheetJS parses `.xlsx`; JSZip preserves exact numeric XML lexemes. The workbook services audited were `exceljs-runtime.ts`, `master-data-workbook.ts`, `dynamic-excel-generator.ts`, `snapshot-export.ts`, `snapshot-parser.ts`, `exact-numeric-cells.ts`, `export.ts`, and `comparison-export.ts`.
+- **Other audited active files:** `DatasetSizingModal.tsx`, `MasterDataWorkspaceHeader.tsx`, `ExcelImportModal.tsx`, `ExcelUploadDropzone.tsx`, `MasterDataPage.tsx`, and `dataset-sizing.ts`, plus the existing Excel, snapshot, sizing, history, and numeric verifiers listed below.
+- **Canonical XLSX:** Independent SheetJS and ExcelJS inspection confirmed exactly `META`, `BOM`, `WORK_CENTER`, `ROUTING`, the specified headers and column order, expected metadata, configured row counts, hidden WC identity column, blank new BOM Units, formula cells, and a valid ZIP/XLSX package. No legacy paired-model sheets were emitted.
+- **Template:** Minimum (1 / 1 / 1), mixed (5 / 2 / 3), and normal (16 / 4 / 10) BOM / Work Center / Routing sizes passed. The browser downloaded a template using uncommitted sizing and metadata draft values; closing without Apply left Working unchanged.
+- **Export / roles / round-trip:** Reference, Current, and Custom unsaved Working snapshots were exported and imported through production parser functions. Product Name, UOM, Selling Price, SG&A, Dataset Remark, BOM, Work Centers, Routing, notes, counts, free-text Units, blanks, zero values, and exact numeric lexemes matched the expected business projection. IDs, status/source metadata, additional fields, and other internal-only state are not represented in the canonical workbook and are reconstructed on import as defined by the parser.
+- **Units / exact values:** Blank, `KG`, `BOX`, `LOT`, and `custom lot / batch` were preserved. Numeric cells remain numeric; exact authoritative decimal text is stored in XLSX numeric XML and recovered by the exact-cell parser without replacing it with a rounded JavaScript display value. Exact lexemes beyond ordinary display precision passed.
+- **Formula/value semantics:** Workbook formulas and references were inspected, `fullCalcOnLoad` is enabled, and independent representative arithmetic matched `calculateSnapshotCost`. Excel/LibreOffice formula cache recalculation was not completed in this environment; the workbook asks the spreadsheet application to recalculate on open.
+- **Invalid inputs:** Missing required sheets, incomplete/wrong headers, malformed/out-of-domain numeric values, invalid Routing values, empty workbooks, legacy/unsupported structures, and non-`.xlsx` selection followed the validation/rejection path. Failed parsing and cancel did not mutate Working or Last Saved; missing optional values remained blank/null rather than becoming zero.
+- **Real XLSX artifacts:** `/tmp/costbreakdown-excel-validation-2026-10-26/` contains `template-minimum.xlsx`, `template-mixed-draft.xlsx`, `template-normal.xlsx`, `export-reference.xlsx`, `export-current.xlsx`, `export-custom.xlsx`, `export-zero-inclusive.xlsx`, invalid workbook fixtures, and browser download artifacts.
+
+### Excel validation evidence
+
+- `node_modules/.bin/jiti scripts/verify_excel_validation_round.ts` — PASS; production service paths, independent workbook inspection, XLSX package integrity, all-role exact-value round trips, formulas, Sizing, and invalid workbooks.
+- `node scripts/verify_excel_validation_browser.mjs` — PASS; actual browser Download Template / Export / Import, Reference / Current / Custom Working-vs-Saved behavior, target role, staged cancel, invalid workbook rejection, and uncommitted Sizing draft.
+- `node scripts/verify_exact_decimal_lifecycle_browser.mjs` — PASS, 48 assertions.
+- `node_modules/.bin/jiti scripts/verify_snapshot_import.ts` — PASS.
+- `node_modules/.bin/jiti scripts/verify_import_mismatch_export.ts` — PASS.
+- `node_modules/.bin/jiti scripts/verify_dataset_sizing_and_clone.ts` — PASS.
+- `node_modules/.bin/jiti scripts/verify_dataset_sizing_preservation.ts` — PASS.
+- `node_modules/.bin/jiti scripts/verify_dataset_sizing_noop.ts` — PASS.
+- `node_modules/.bin/jiti scripts/verify_sizing_placeholders_ignored.ts` — PASS.
+- `node_modules/.bin/jiti scripts/verify_master_data_edit_history.ts` — PASS.
+- `node_modules/.bin/jiti scripts/verify_comparison_export.ts` — PASS.
+- `node_modules/.bin/jiti scripts/verify_numeric_value_integrity.ts` — PASS.
+- `node_modules/.bin/jiti scripts/verify_snapshot_full_flow.ts` — PASS.
+- `npx tsc -p tsconfig.json --noEmit --pretty false` — PASS.
+- `npm run build` — PASS; existing ExcelJS / fast-csv browser externalization and large-chunk notices remain.
+- `git diff --check` — PASS.
+- `node_modules/.bin/jiti scripts/verify_neutral_dataset_workbook.ts` — environment-limited: structural checks passed, but the verifier's Windows PowerShell / Excel COM formula-runtime step is unavailable here.
+- `/Users/bubu/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/bin/python /Users/bubu/.agents/skills/xlsx/scripts/recalc.py /tmp/costbreakdown-excel-validation-2026-10-26/export-reference-recalc.xlsx 90` — timed out after 89 seconds; formula cache recalculation remains unverified. No Microsoft Excel or LibreOffice GUI was available.
+- **NATIVE SPREADSHEET GUI SMOKE TEST: NOT VERIFIED.** Scripted validation is the primary gate and passed.
+
+### Files changed for this round
+
+- **Documentation:** `HANDOFF.md`, `docs/PHASE_2_SELECTED_VALUE_DECIMAL_UX_PLAN.md`, `docs/REQUIREMENTS_INDEX.md`, `docs/specs/CROSS_CUTTING.md`, `docs/specs/MASTER_DATA.md`, `docs/specs/MASTER_DATA_TOOLBAR_PREPARE_UX.md`, `docs/specs/SIMULATION.md`.
+- **Excel implementation:** `src/services/excel/exceljs-runtime.ts`, `dynamic-excel-generator.ts`, `snapshot-export.ts`, `comparison-export.ts`, and `snapshot-parser.ts`.
+- **New validation coverage:** `scripts/verify_excel_validation_round.ts` and `scripts/verify_excel_validation_browser.mjs`.
+
+### Boundaries / next action
+
+- Phase 2 remains closed at the externally accepted checkpoint; no accepted Phase 2 behavior was changed. This Excel Validation scope is being committed and pushed after the user's post-review authorization; no merge.
+- **EXCEL VALIDATION: PASS**
+- **NEXT: REAL-WORLD USAGE TEST** (not started in this round).
+
+## Previous checkpoint — Master Data confirmation / Undo-Redo reconciliation — 2026-10-26
 
 - **Status:** **MASTER DATA CONFIRMATION / UNDO-REDO RECONCILIATION: PASS.** This cleanup is technically ready for **PHASE 2 FINAL EXTERNAL ACCEPTANCE**, subject to the human external review. Prior accepted corrective/follow-up scopes remain passed. Phase 2 final external acceptance is pending. The user subsequently authorized committing and pushing this cleanup to the existing feature branch; merge and Phase 2 closure remain unauthorized.
 - **Audited branch / starting local and freshly fetched remote HEAD:** feat/selected-value-ux; both ccd086f0ed7c8b2ac8742c9c551a743352cbc579. Existing dirty file: scripts/verify_simulation_round4a_layout.mjs only, preserved exactly (SHA-256 2ec01095364638e865a86be49f1401c5bf359dc6e98c60ca293f7dc2e19c68af; 3 additions / 62 deletions versus HEAD).

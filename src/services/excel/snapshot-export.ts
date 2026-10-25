@@ -1,5 +1,5 @@
 import { CostSnapshot } from '../../core'
-import { loadExcelJS } from './exceljs-runtime'
+import { loadExcelJS, writeExcelJSBuffer } from './exceljs-runtime'
 import { addMasterDataWorkbook } from './master-data-workbook'
 import { normalizeMasterDataSnapshot } from '../../core/utils/master-data-effective'
 import { divideExactDecimals, exactDecimalNumberText, exactDecimalToString, parseExactDecimal } from '../../core/utils/exact-decimal'
@@ -71,7 +71,7 @@ export async function exportSnapshotToExcel(snapshot: CostSnapshot): Promise<Blo
     setExactCell(exactCells, 'ROUTING', `E${row}`, step.yield, step.exactDecimalInputs?.yield, true)
   })
 
-  const buffer = await workbook.xlsx.writeBuffer()
+  const buffer = await writeExcelJSBuffer(workbook)
   const exactBuffer = await writeExactNumericCells(buffer as Uint8Array, exactCells)
   return new Blob([exactBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
 }

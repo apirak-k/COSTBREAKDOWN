@@ -1,6 +1,6 @@
 # Phase 2 — Selected Value / Decimal UX Execution Plan
 
-**Status:** Prior accepted rounds and the passed follow-up remain unchanged. MASTER DATA CONFIRMATION / UNDO-REDO RECONCILIATION: PASS. The local cleanup is technically ready for PHASE 2 FINAL EXTERNAL ACCEPTANCE. Phase 2 final external acceptance remains PENDING; the user subsequently authorized commit and push of this cleanup, with no merge or Phase 2 closure.
+**Status:** **PHASE 2 EXTERNALLY ACCEPTED / CLOSED** after the user-reported final external acceptance of commit `4c1d139f87bf7db6c5f1ad9f6337738674159012`. Prior rounds and follow-ups retain their recorded PASS/CLOSED results, including MASTER DATA CONFIRMATION / UNDO-REDO RECONCILIATION: PASS. The separate Excel Validation has passed; the next scope is Real-world Usage Test, then Portable Distribution. Merge status remains separate from Phase 2 acceptance.
 **Execution branch:** `feat/selected-value-ux`
 **Repository:** `https://github.com/apirak-k/COSTBREAKDOWN`
 
@@ -30,35 +30,35 @@ Do not overlap implementation rounds or add numbered sub-phases. A failing accep
 | Round 2 — Master Data | Integrate the shared model into Master Data without changing its data, formulas, validation domains, dataset lifecycle, history, or spreadsheet semantics. Preserve the accepted native View-mode focus recovery and apply the later finalized hover/Header precision contract and final geometry polish. | **CLOSED** | Native grid focus owns View numeric values; source Preview uses a cancellable 350ms dwell; Focus/Pin remains anchored; only focused editable sources own Header writers; Header displays at most 8 decimals and keeps stable numeric / `%` / spinner regions and direct-interaction affordance; actual Chrome, regression, source audit, build, and diff checks pass. |
 | Round 3 — Cost Breakdown | Integrate eligible Cost Breakdown values and interactions with the shared Header/source model, retaining the finalized Candidate, detail, tooltip, row, ordering, and comparison behavior. | **CLOSED** | Shared no-focus `SelectedNumber` is transparent at rest, `#E9EEF4` on direct hover, and `blue-100` when pinned; Candidate row hover is independent. CHANGED-row cell whitespace expands/collapses while actual numeric, `#`, and reorder controls keep their own action. Targeted Chrome, Round 2 / Round 3 browser gates, build, source audit, and diff checks pass; no calculation or comparison semantics change. Implementation: `9536da7edec07d29e808bec8af8c45a16e8be621`. |
 | Round 4 — Simulation | 4A and the pre-Round-4B corrective gate are closed. Round 4B includes Result/Economic sources plus the corrective integration of BOM/Routing values, Footer totals, and visible Story Graph numeric labels/ticks. | **EXTERNALLY AUDITED / ACCEPTED / CLOSED.** | User confirmed external source audit acceptance for checkpoint `262bd3c54425a15d16065f45d80037c353afa656`. |
-| Round 5 — Final Cross-page Regression | Verify shared + Master Data + Cost Breakdown + Simulation behavior across pages/scopes. | **PRIOR CORRECTIVE PASS; FOLLOW-UP PASS** | The preceding Header-neutral, Batch Size, and exact zero-boundary corrections passed for their scope per user confirmation. This follow-up handles later findings separately. Phase 2 final external acceptance remains pending. |
+| Round 5 — Final Cross-page Regression | Verify shared + Master Data + Cost Breakdown + Simulation behavior across pages/scopes. | **CORRECTIVE PASS; FOLLOW-UP PASS; INCLUDED IN PHASE 2 ACCEPTANCE** | The corrective and follow-up scopes passed; Phase 2 later received final external acceptance for commit `4c1d139f87bf7db6c5f1ad9f6337738674159012`. |
 
 ## Agreed next-work order
 
-These are workflow steps inside the existing five-round Phase 2 plan. Round 4 / Round 4B remain accepted and closed. The preceding three-fix corrective round passed for its own scope. The later follow-up is separate and does not reopen those fixes; Phase 2 final external acceptance remains pending.
+These are workflow steps inside the existing five-round Phase 2 plan. Round 4 / Round 4B remain accepted and closed. The preceding three-fix corrective round passed for its own scope. The later follow-up is separate and does not reopen those fixes. This earlier roadmap checkpoint was superseded when Phase 2 received final external acceptance on 2026-10-26.
 
 1. GLOBAL authoritative-full-value-on-edit correction — implemented in the separate prior correction.
 2. Audit and accept that global numeric correction — externally accepted.
 3. Pre-Round-4B corrective gate — externally accepted / closed; human visual acceptance passed.
 4. Round 4B — externally audited / accepted / closed.
 5. Round 4 — externally audited / accepted / closed.
-6. GLOBAL direct-edit blue-value indicator — implemented and internally verified; its cross-page behavior is part of Round 5 and external audit status remains pending.
+6. GLOBAL direct-edit blue-value indicator — implemented, cross-page behavior verified in Round 5, and included in Phase 2's final external acceptance.
 7. Preceding three-fix corrective round — PASS for its own scope per user confirmation; later follow-up findings are handled separately.
-8. Verify this separate follow-up and submit the resulting delivery for the required Phase 2 external review; the Vite High/Critical audit gate is now satisfied.
-9. After Phase 2: Excel validation → real-world usage test → portable distribution.
+8. The separate follow-up was externally audited and accepted at the checkpoint recorded below; Phase 2 subsequently received final external acceptance.
+9. **Post-Phase-2 roadmap:** Excel Validation PASS → Real-world Usage Test → Portable Distribution.
 
-Current statuses: prior rounds/follow-up retain their recorded PASS/CLOSED states; final Master Data confirmation cleanup PASS / technically ready for external acceptance; Phase 2 final external acceptance PENDING. The former Unit-only confirmation observation is superseded by the latest immediate-apply / Undo-Redo decision.
+Current status: Phase 2 is EXTERNALLY ACCEPTED / CLOSED at `4c1d139f87bf7db6c5f1ad9f6337738674159012`. The final Master Data confirmation cleanup remains PASS. The former Unit-only confirmation observation is superseded by the immediate-apply / Undo-Redo decision. Excel Validation passed; Real-world Usage Test is next.
 
 ## Final Master Data Confirmation / Undo-Redo Cleanup — 2026-10-26
 
-- **Status:** MASTER DATA CONFIRMATION / UNDO-REDO RECONCILIATION: PASS. Technically ready for PHASE 2 FINAL EXTERNAL ACCEPTANCE; previous completed scopes remain passed.
+- **Status at this cleanup checkpoint:** MASTER DATA CONFIRMATION / UNDO-REDO RECONCILIATION: PASS and ready for external acceptance; previous completed scopes remained passed. Phase 2 later received final external acceptance as recorded at the top of this plan.
 - **Finalized rule:** Valid Sizing applies immediately for BOM, Work Centers, and Routing; all trailing rows follow the same rule. Existing Working Undo/Redo restores/reapplies counts and full row data without changing Last Saved.
 - **Cleanup:** Remove only confirmation-specific helper/classification and obsolete confirmation assertions. Preserve resizing, validation, no-op, placeholders, historical PC compatibility, Unit defaults, import/Clone, shared ConfirmModal, and Import staging.
 - **Reconciliation:** The prior Unit-only confirmation observation remains historical and is no longer classified as a bug/blocker. Header production behavior remains unchanged; stale Master Data wording is aligned with read-only clipping and native editable viewport behavior.
-- **Delivery:** Current evidence is in [HANDOFF](../HANDOFF.md). No commit, push, merge, or Phase 2 closure is authorized.
+- **Delivery at that checkpoint:** Evidence was in [HANDOFF](../HANDOFF.md); commit and push were authorized afterward and completed as `4c1d139`. Final Phase 2 external acceptance is recorded at the top of this plan.
 
 ## Round 5 — Final Cross-page Regression — 2026-10-25
 
-- **Result:** PASS / READY FOR EXTERNAL AUDIT; Phase 2 remains open pending external review.
+- **Result at that checkpoint:** PASS / READY FOR EXTERNAL AUDIT. Phase 2 was later externally accepted and closed, as recorded at the top of this plan.
 - **Integrated browser:** 60 assertions cover all six navigation directions, retained Master Data/CBD/Simulation state, Header ownership and history, CBD Selected Comparison isolation from Simulation, and actual refresh on all three pages with compact display plus exact focused values.
 - **Confirmed corrective:** hidden Cost Breakdown Candidate dismissal listeners no longer process interactions from other active pages. CBD expansion and selection survive navigation; active CBD still dismisses passive details normally.
 - **Regression evidence:** direct-edit blue / Import 207; CBD Selected Value 306/306; Simulation disclosure 202/202 plus 4/4 native-scroll checks; numeric browser 2367/2367; exact-decimal lifecycle 40; Master Data Selected Value 179/179; Simulation Round 4B Selected Value 70/70; Master Data UI state 9 scenarios; spreadsheet/sizing/clone/custom-data/toolbar suites and aggregate Simulation/CBD regression pass.
@@ -247,4 +247,4 @@ The closure below records the state before a later user-requested targeted corre
 
 ## Next action
 
-**Next:** external review of the technically ready Master Data confirmation / Undo-Redo cleanup for PHASE 2 FINAL EXTERNAL ACCEPTANCE. The user subsequently authorized committing and pushing the verified cleanup to the existing feature branch; no merge or Phase 2 closure is authorized.
+**Next roadmap:** Phase 2 CLOSED → Excel Validation PASS → Real-world Usage Test → Portable Distribution. Merge status remains a separate decision.
