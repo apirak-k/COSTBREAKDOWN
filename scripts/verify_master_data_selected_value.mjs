@@ -514,12 +514,12 @@ try {
   verify(Boolean(globalEditableStyle
       && globalEditableStyle.background === 'rgba(0, 0, 0, 0)'
       && globalEditableStyle.sourcePending
-      && globalEditableStyle.color === 'rgb(147, 197, 253)'
+      && globalEditableStyle.color === 'rgb(241, 245, 249)'
       && globalEditableStyle.borderColor === 'rgb(96, 165, 250)'
       && globalEditableStyle.borderWidth === '1px'
       && globalEditableStyle.borderStyle === 'solid'
       && globalEditableStyle.stepperColor === 'rgb(226, 232, 240)'),
-    'focused pending-source Header uses blue text, an integrated input, light arrows, and the existing focus border', globalEditableStyle)
+    'focused pending-source Header stays neutral while retaining its integrated input, light arrows, and existing focus border', globalEditableStyle)
   await saveScreenshot('header-editable-focused')
   await clickSelector(masterDataNavigation)
   const headerBlurState = await evaluate(`({
@@ -933,12 +933,12 @@ try {
   verify(Boolean(readOnlyHeaderStyle
       && readOnlyHeaderStyle.background === 'rgba(0, 0, 0, 0)'
       && readOnlyHeaderStyle.sourceColor === 'rgb(29, 78, 216)'
-      && readOnlyHeaderStyle.color === 'rgb(147, 197, 253)'
+      && readOnlyHeaderStyle.color === 'rgb(241, 245, 249)'
       && readOnlyHeaderStyle.borderWidth === '1px'
       && readOnlyHeaderStyle.borderColor === 'rgba(0, 0, 0, 0)'
       && readOnlyHeaderStyle.overflowX === 'auto'
       && readOnlyHeaderStyle.whiteSpace === 'nowrap'),
-    'read-only pending-source Header preserves blue text, transparent boundary, and safe internal overflow', readOnlyHeaderStyle)
+    'read-only pending-source Header remains neutral while the owning source stays blue and internal overflow remains safe', readOnlyHeaderStyle)
   await saveScreenshot('header-readonly-selected')
   await clickSelector(masterDataNavigation)
   verify(await textContent('header [data-header-value] [data-selected-value-output]') === '—',

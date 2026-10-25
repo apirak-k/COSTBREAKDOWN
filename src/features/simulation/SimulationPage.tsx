@@ -177,7 +177,8 @@ export function bomAttribution(
         price: simRecord.exactDecimalInputs?.price,
         loss: simRecord.exactDecimalInputs?.loss
       }
-    }
+    },
+    { allowZeroBoundary: true }
   )
   if (attribution.status !== 'available') return { simCost, effects: empty }
   const effects = attribution.effects
@@ -310,7 +311,8 @@ export function routingAttribution(
         laborRate: currentRate.exactDecimalInputs?.laborRate,
         burdenRate: currentRate.exactDecimalInputs?.burdenRate
       }
-    }
+    },
+    { allowZeroBoundary: true }
   )
   if (attribution.status !== 'available'
     || attribution.effects.conversion.laborRate !== 0

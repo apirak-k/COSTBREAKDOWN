@@ -504,6 +504,7 @@ export function EconomicSimulationPanel({ result, draft, afterSnapshot, unit, on
                       onCommitEdit={onCommitEdit}
                       value={effectiveInputValue(field, draft, afterSnapshot)}
                       integer={integer}
+                      alignIntegerToDecimalAxis={field === 'batchSize'}
                       min={min}
                       max={max}
                       exactValue={draft[field]}

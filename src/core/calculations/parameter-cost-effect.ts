@@ -51,6 +51,11 @@ export type ParameterCostEffectResult<T> =
   | { status: 'available'; effects: T }
   | { status: 'unavailable' }
 
+export interface ParameterCostEffectOptions {
+  /** Simulation accepts valid zero-cost boundaries; Cost Breakdown retains its positive-only attribution domain. */
+  allowZeroBoundary?: boolean
+}
+
 type ValidBOMParameterCostEffectInput = {
   usage: number
   price: number
@@ -71,6 +76,93 @@ const UNAVAILABLE: ParameterCostEffectResult<never> = { status: 'unavailable' }
 
 function isPositiveFinite(value: number | null): value is number {
   return value !== null && Number.isFinite(value) && value > 0
+}
+
+function isNonNegativeFinite(value: number | null): value is number {
+  return value !== null && Number.isFinite(value) && value >= 0
+}
+
+interface ExactAttributionFactor {
+  key: string
+  reference: ExactDecimal
+  current: ExactDecimal
+}
+
+function exactZeroBoundaryAttribution(
+  referenceCost: ExactDecimal,
+  currentCost: ExactDecimal,
+  factors: readonly ExactAttributionFactor[],
+  calculateCost: (values: ReadonlyMap<string, ExactDecimal>) => ExactDecimal | null
+): Record<string, number> | null {
+  const zero = parseExactDecimal(0)!
+  const zeroEffects = () => Object.fromEntries(factors.map(({ key }) => [key, 0]))
+  const referenceIsZero = compareExactDecimals(referenceCost, zero) === 0
+  const currentIsZero = compareExactDecimals(currentCost, zero) === 0
+  if (referenceIsZero && currentIsZero) return zeroEffects()
+
+  const changed = factors.filter(factor => compareExactDecimals(factor.reference, factor.current) !== 0)
+  if (changed.length === 0) return null
+
+  const totals = new Map(changed.map(({ key }) => [key, zero]))
+  let permutationCount = 0
+  let invalidPermutation = false
+  const applyOrder = (order: readonly ExactAttributionFactor[]) => {
+    const values = new Map(factors.map(({ key, reference }) => [key, reference]))
+    let previousCost = referenceCost
+    for (const factor of order) {
+      values.set(factor.key, factor.current)
+      const nextCost = calculateCost(values)
+      if (!nextCost) {
+        invalidPermutation = true
+        return
+      }
+      const marginal = subtractExactDecimals(nextCost, previousCost)
+      totals.set(factor.key, addExactDecimals(totals.get(factor.key)!, marginal))
+      previousCost = nextCost
+    }
+    if (compareExactDecimals(previousCost, currentCost) !== 0) {
+      invalidPermutation = true
+      return
+    }
+    permutationCount += 1
+  }
+  const enumerate = (remaining: readonly ExactAttributionFactor[], order: readonly ExactAttributionFactor[]) => {
+    if (remaining.length === 0) {
+      applyOrder(order)
+      return
+    }
+    remaining.forEach((factor, index) => enumerate(
+      [...remaining.slice(0, index), ...remaining.slice(index + 1)],
+      [...order, factor]
+    ))
+  }
+  enumerate(changed, [])
+  if (invalidPermutation || permutationCount === 0) return null
+
+  const divisor = parseExactDecimal(permutationCount)!
+  const averaged = new Map<string, ExactDecimal>()
+  for (const factor of changed) {
+    const average = divideExactDecimals(totals.get(factor.key)!, divisor)
+    if (!average) return null
+    averaged.set(factor.key, average)
+  }
+
+  const lastChanged = changed[changed.length - 1]
+  let preceding = zero
+  for (const factor of factors) {
+    if (factor.key === lastChanged.key) continue
+    const value = averaged.get(factor.key) ?? zero
+    preceding = addExactDecimals(preceding, value)
+  }
+  averaged.set(lastChanged.key, subtractExactDecimals(subtractExactDecimals(currentCost, referenceCost), preceding))
+
+  const result: Record<string, number> = {}
+  for (const { key } of factors) {
+    const value = exactDecimalToNumber(averaged.get(key) ?? zero)
+    if (value === null || !Number.isFinite(value)) return null
+    result[key] = value
+  }
+  return result
 }
 
 function hasBOMInputs(input: BOMParameterCostEffectInput): input is ValidBOMParameterCostEffectInput {
@@ -229,12 +321,14 @@ function reconcileLastEffect<T extends object>(
 /** Uses additive LMDI to split a matched BOM cost change across usage, price, and (1 + loss). */
 export function calculateBOMParameterCostEffects(
   reference: BOMParameterCostEffectInput,
-  current: BOMParameterCostEffectInput
+  current: BOMParameterCostEffectInput,
+  { allowZeroBoundary = false }: ParameterCostEffectOptions = {}
 ): ParameterCostEffectResult<BOMParameterCostEffects> {
   if (!hasBOMInputs(reference) || !hasBOMInputs(current)) return UNAVAILABLE
 
-  if (!isPositiveFinite(reference.usage) || !isPositiveFinite(reference.price)
-    || !isPositiveFinite(current.usage) || !isPositiveFinite(current.price)
+  const validProductInput = allowZeroBoundary ? isNonNegativeFinite : isPositiveFinite
+  if (!validProductInput(reference.usage) || !validProductInput(reference.price)
+    || !validProductInput(current.usage) || !validProductInput(current.price)
     || reference.loss < 0 || reference.loss > 1
     || current.loss < 0 || current.loss > 1) return UNAVAILABLE
 
@@ -267,9 +361,27 @@ export function calculateBOMParameterCostEffects(
       : UNAVAILABLE
   }
 
-  const logMean = logarithmicMean(referenceCost, currentCost, referenceCostExact, currentCostExact)
   const targetGap = exactDecimalToNumber(subtractExactDecimals(currentCostExact, referenceCostExact))
-  if (logMean === null || targetGap === null) return UNAVAILABLE
+  if (targetGap === null) return UNAVAILABLE
+
+  const orderedKeys = ['usage', 'price', 'loss'] as const
+  if (allowZeroBoundary && (compareExactDecimals(referenceCostExact, parseExactDecimal(0)!) === 0
+    || compareExactDecimals(currentCostExact, parseExactDecimal(0)!) === 0)) {
+    const zeroBoundaryEffects = exactZeroBoundaryAttribution(referenceCostExact, currentCostExact, [
+      { key: 'usage', reference: referenceUsage, current: currentUsage },
+      { key: 'price', reference: referencePrice, current: currentPrice },
+      { key: 'loss', reference: referenceLossFactorExact, current: currentLossFactorExact }
+    ], values => multiplyExactDecimals(values.get('usage')!, values.get('price')!, values.get('loss')!))
+    if (!zeroBoundaryEffects) return UNAVAILABLE
+    const reconciled = reconcileLastEffect(zeroBoundaryEffects, orderedKeys, changedKeys, targetGap)
+    return reconciled ? {
+      status: 'available',
+      effects: { usage: reconciled.usage, price: reconciled.price, loss: reconciled.loss }
+    } : UNAVAILABLE
+  }
+
+  const logMean = logarithmicMean(referenceCost, currentCost, referenceCostExact, currentCostExact)
+  if (logMean === null) return UNAVAILABLE
 
   const usageEffect = lmdiEffect(logMean, reference.usage, current.usage, 1, referenceUsage, currentUsage,
     usesAuthoritativeExactInput(reference, current, 'usage'))
@@ -285,7 +397,7 @@ export function calculateBOMParameterCostEffects(
     loss: lossEffect
   }
 
-  const reconciled = reconcileLastEffect(effects, ['usage', 'price', 'loss'], changedKeys, targetGap)
+  const reconciled = reconcileLastEffect(effects, orderedKeys, changedKeys, targetGap)
   return reconciled ? { status: 'available', effects: reconciled } : UNAVAILABLE
 }
 
@@ -298,8 +410,9 @@ interface RoutingSideCalculation {
   exactConversion: ExactDecimal
 }
 
-function calculateRoutingSide(input: ValidRoutingParameterCostEffectInput): RoutingSideCalculation | null {
-  if (!isPositiveFinite(input.manning) || !isPositiveFinite(input.capacity) || !isPositiveFinite(input.yield)
+function calculateRoutingSide(input: ValidRoutingParameterCostEffectInput, allowZeroManning = false): RoutingSideCalculation | null {
+  const validManning = allowZeroManning ? isNonNegativeFinite : isPositiveFinite
+  if (!validManning(input.manning) || !isPositiveFinite(input.capacity) || !isPositiveFinite(input.yield)
     || !isPositiveFinite(input.laborRate) || !isPositiveFinite(input.burdenRate)) return null
 
   const manning = exactInput(input, 'manning')
@@ -329,11 +442,11 @@ function calculateElementEffects(
   currentCost: number,
   referenceCostExact: ExactDecimal,
   currentCostExact: ExactDecimal,
-  rateKey: 'laborRate' | 'burdenRate'
+  rateKey: 'laborRate' | 'burdenRate',
+  allowZeroBoundary: boolean
 ): RoutingCostEffects | null {
-  const logMean = logarithmicMean(referenceCost, currentCost, referenceCostExact, currentCostExact)
   const targetGap = exactDecimalToNumber(subtractExactDecimals(currentCostExact, referenceCostExact))
-  if (logMean === null || targetGap === null) return null
+  if (targetGap === null) return null
 
   const referenceManning = exactInput(reference, 'manning')
   const currentManning = exactInput(current, 'manning')
@@ -347,6 +460,37 @@ function calculateElementEffects(
   const currentBurdenRate = exactInput(current, 'burdenRate')
   if (!referenceManning || !currentManning || !referenceCapacity || !currentCapacity || !referenceYield || !currentYield
     || !referenceLaborRate || !currentLaborRate || !referenceBurdenRate || !currentBurdenRate) return null
+
+  const orderedKeys = ['manning', 'capacity', 'yield', rateKey] as (keyof RoutingCostEffects)[]
+  const changedKeys = orderedKeys.filter(key => !inputsEqual(reference, current, key, key === 'yield'))
+  if (allowZeroBoundary && (compareExactDecimals(referenceCostExact, parseExactDecimal(0)!) === 0
+    || compareExactDecimals(currentCostExact, parseExactDecimal(0)!) === 0)) {
+    const referenceRate = rateKey === 'laborRate' ? referenceLaborRate : referenceBurdenRate
+    const currentRate = rateKey === 'laborRate' ? currentLaborRate : currentBurdenRate
+    const zeroBoundaryEffects = exactZeroBoundaryAttribution(referenceCostExact, currentCostExact, [
+      { key: 'manning', reference: referenceManning, current: currentManning },
+      { key: 'capacity', reference: referenceCapacity, current: currentCapacity },
+      { key: 'yield', reference: referenceYield, current: currentYield },
+      { key: rateKey, reference: referenceRate, current: currentRate }
+    ], values => {
+      const denominator = multiplyExactDecimals(values.get('capacity')!, values.get('yield')!)
+      const factor = divideExactDecimals(values.get('manning')!, denominator)
+      return factor ? multiplyExactDecimals(factor, values.get(rateKey)!) : null
+    })
+    if (!zeroBoundaryEffects) return null
+    const reconciled = reconcileLastEffect(zeroBoundaryEffects, orderedKeys, changedKeys, targetGap)
+    if (!reconciled) return null
+    return {
+      manning: reconciled.manning ?? 0,
+      capacity: reconciled.capacity ?? 0,
+      yield: reconciled.yield ?? 0,
+      laborRate: reconciled.laborRate ?? 0,
+      burdenRate: reconciled.burdenRate ?? 0
+    }
+  }
+
+  const logMean = logarithmicMean(referenceCost, currentCost, referenceCostExact, currentCostExact)
+  if (logMean === null) return null
 
   const manningEffect = lmdiEffect(logMean, reference.manning, current.manning, 1, referenceManning, currentManning,
     usesAuthoritativeExactInput(reference, current, 'manning'))
@@ -373,8 +517,6 @@ function calculateElementEffects(
     burdenRate: burdenRateEffect
   }
 
-  const orderedKeys = ['manning', 'capacity', 'yield', rateKey] as (keyof RoutingCostEffects)[]
-  const changedKeys = orderedKeys.filter(key => !inputsEqual(reference, current, key, key === 'yield'))
   if (changedKeys.length === 0) {
     return compareExactDecimals(referenceCostExact, currentCostExact) === 0
       ? { manning: 0, capacity: 0, yield: 0, laborRate: 0, burdenRate: 0 }
@@ -386,26 +528,28 @@ function calculateElementEffects(
 /** Uses additive LMDI for Labor and Burden independently, then sums matching parameter effects into Conversion. */
 export function calculateRoutingParameterCostEffects(
   reference: RoutingParameterCostEffectInput,
-  current: RoutingParameterCostEffectInput
+  current: RoutingParameterCostEffectInput,
+  { allowZeroBoundary = false }: ParameterCostEffectOptions = {}
 ): ParameterCostEffectResult<RoutingParameterCostEffects> {
   if (!hasRoutingInputs(reference) || !hasRoutingInputs(current)) return UNAVAILABLE
 
-  if (!isPositiveFinite(reference.manning) || !isPositiveFinite(reference.capacity) || !isPositiveFinite(reference.yield)
+  const validManning = allowZeroBoundary ? isNonNegativeFinite : isPositiveFinite
+  if (!validManning(reference.manning) || !isPositiveFinite(reference.capacity) || !isPositiveFinite(reference.yield)
     || !isPositiveFinite(reference.laborRate) || !isPositiveFinite(reference.burdenRate)
-    || !isPositiveFinite(current.manning) || !isPositiveFinite(current.capacity) || !isPositiveFinite(current.yield)
+    || !validManning(current.manning) || !isPositiveFinite(current.capacity) || !isPositiveFinite(current.yield)
     || !isPositiveFinite(current.laborRate) || !isPositiveFinite(current.burdenRate)) return UNAVAILABLE
 
-  const referenceCost = calculateRoutingSide(reference)
-  const currentCost = calculateRoutingSide(current)
+  const referenceCost = calculateRoutingSide(reference, allowZeroBoundary)
+  const currentCost = calculateRoutingSide(current, allowZeroBoundary)
   if (!referenceCost || !currentCost) return UNAVAILABLE
 
   const labor = calculateElementEffects(
     reference, current, referenceCost.labor, currentCost.labor,
-    referenceCost.exactLabor, currentCost.exactLabor, 'laborRate'
+    referenceCost.exactLabor, currentCost.exactLabor, 'laborRate', allowZeroBoundary
   )
   const burden = calculateElementEffects(
     reference, current, referenceCost.burden, currentCost.burden,
-    referenceCost.exactBurden, currentCost.exactBurden, 'burdenRate'
+    referenceCost.exactBurden, currentCost.exactBurden, 'burdenRate', allowZeroBoundary
   )
   if (!labor || !burden) return UNAVAILABLE
 

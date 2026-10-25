@@ -289,7 +289,7 @@ try {
     }
     const group=suffix?.parentElement??e.parentElement,suffixRect=suffix?.getBoundingClientRect()
     return {
-      focused:document.activeElement===e,fit:e.dataset.numericFit,font:s.fontFamily,scrollWidth:e.scrollWidth,clientWidth:e.clientWidth,scrollLeft:e.scrollLeft,reserveEnd:Number(e.dataset.numericReserveEnd||0),headerCenter,regionCenter:(r.left+r.right)/2,text:e.value,x:r.x,width:r.width,height:r.height,right:r.right,textAlign:s.textAlign,paddingLeft:s.paddingLeft,paddingRight:s.paddingRight,
+      focused:document.activeElement===e,fit:e.dataset.numericFit,font:s.fontFamily,scrollWidth:e.scrollWidth,clientWidth:e.clientWidth,scrollLeft:e.scrollLeft,reserveEnd:Number(e.dataset.numericReserveEnd||0),headerCenter,regionCenter:(r.left+r.right)/2,text:e.value,x:r.x,y:r.y,width:r.width,height:r.height,right:r.right,textAlign:s.textAlign,paddingLeft:s.paddingLeft,paddingRight:s.paddingRight,
       decimal:point<0?null:start+pointOffset,
       tokenRight:start+textWidth,
       visibleTokenRight:Math.min(start+textWidth,r.right-parseFloat(s.borderRightWidth)),
@@ -534,13 +534,67 @@ try {
   }
 
   const batchOriginal=await inputValue('Batch Size')
+  const fixedActionCostOriginal=await inputValue('Fixed Action Cost')
+  await typeInto('Fixed Action Cost','250');await blurNumeric()
+  const fixedAxis=await inputMetrics('Fixed Action Cost')
+  assert.equal(fixedAxis.text,'250.00','Economic decimal sibling provides the shared decimal axis')
+  const batchFrame = metric => [metric.x,metric.y,metric.width,metric.height]
+  for(const value of ['37','1234567']) {
+    await typeInto('Batch Size',value);await blurNumeric()
+    const blurred=await inputMetrics('Batch Size')
+    assert.equal(blurred.text,value,`semantic Batch Size ${value} stays an integer without .00`)
+    assert.ok(Math.abs(blurred.tokenRight-fixedAxis.decimal)<0.6,`Batch Size ${value} ends on the Economic decimal axis: ${JSON.stringify({batch:blurred.tokenRight,decimal:fixedAxis.decimal})}`)
+    await clickInput('Batch Size')
+    const focused=await inputMetrics('Batch Size')
+    assert.deepEqual(batchFrame(focused),batchFrame(blurred),`Batch Size ${value} focus preserves its fixed frame`)
+    assert.ok(Math.abs(focused.tokenRight-fixedAxis.decimal)<0.6,`Batch Size ${value} keeps the shared axis on focus`)
+    await blurNumeric()
+    const reblurred=await inputMetrics('Batch Size')
+    assert.deepEqual(batchFrame(reblurred),batchFrame(blurred),`Batch Size ${value} blur preserves its fixed frame`)
+  }
+  await typeInto('Batch Size','37');await blurNumeric()
+  await clickInput('Batch Size')
+  await clickInput('Selected value')
+  await waitFor(async()=>await evaluate(`getComputedStyle(document.querySelector('header [data-numeric-stepper]')).visibility==='visible'`),'Header Batch Size spinner')
+  await clickButton(`document.querySelector('header button[aria-label="Increase Selected value"]')`)
+  assert.equal(await inputValue('Batch Size'),'38','Header spinner increments the integer Batch Size')
+  await clickButton(`document.querySelector('header button[aria-label="Decrease Selected value"]')`)
+  assert.equal(await inputValue('Batch Size'),'37','Header spinner decrements and restores the integer Batch Size')
+  await clickInput('Batch Size')
+  await evaluate(`(()=>{const e=${visibleInputExpression('Batch Size')};e.setSelectionRange(e.value.length,e.value.length)})()`)
+  await pressBrowserKey('ArrowUp')
+  assert.equal(await inputValue('Batch Size'),'38','Batch Size keyboard stepping increments by one without decimals')
+  await pressBrowserKey('ArrowDown')
+  assert.equal(await inputValue('Batch Size'),'37','Batch Size keyboard stepping restores the original integer')
+  const batchSlider='figure[aria-labelledby="break-even-graph-title"] g[role="slider"][aria-label="Batch Size"]'
+  await clickButton(`document.querySelector(${JSON.stringify(batchSlider)})`)
+  await pressBrowserKey('ArrowRight')
+  const graphBatch=await evaluate(`document.querySelector(${JSON.stringify(batchSlider)})?.getAttribute('aria-valuenow')??null`)
+  assert.ok(graphBatch!==null&&Number.isInteger(Number(graphBatch))&&Number(graphBatch)!==37,'Break-even graph changes Batch Size by an integer step')
+  assert.equal(Number(await inputValue('Batch Size')),Number(graphBatch),'graph-driven Batch Size change synchronizes its Economic editor')
+  const graphBatchMetric=await inputMetrics('Batch Size')
+  assert.equal(graphBatchMetric.text,String(Number(graphBatch)),'graph-driven Batch Size remains integer-formatted')
+  assert.ok(Math.abs(graphBatchMetric.tokenRight-fixedAxis.decimal)<0.6,'graph-driven Batch Size remains on the Economic decimal axis')
+  const batchUnit=await evaluate(`(()=>{const input=${visibleInputExpression('Batch Size')},label=input?.closest('label'),unit=label?.querySelector('span span');if(!input||!unit)return null;const a=input.getBoundingClientRect(),b=unit.getBoundingClientRect();return {input:{top:a.top,bottom:a.bottom,left:a.left,right:a.right},unit:{top:b.top,bottom:b.bottom,left:b.left,right:b.right}}})()`)
+  assert.ok(batchUnit&&batchUnit.unit.bottom<=batchUnit.input.top&&batchUnit.unit.right>batchUnit.input.left,'Batch Size UOM stays outside the numeric input region')
+  const restoreInput=async(aria,value)=>{
+    await clickInput(aria)
+    await evaluate('document.activeElement.select()')
+    if(value===''){
+      await send('Input.dispatchKeyEvent',{type:'keyDown',key:'Backspace',code:'Backspace',windowsVirtualKeyCode:8,nativeVirtualKeyCode:8})
+      await send('Input.dispatchKeyEvent',{type:'keyUp',key:'Backspace',code:'Backspace',windowsVirtualKeyCode:8,nativeVirtualKeyCode:8})
+    } else await send('Input.insertText',{text:value})
+    await blurNumeric()
+  }
+  await restoreInput('Batch Size',batchOriginal)
+  await restoreInput('Fixed Action Cost',fixedActionCostOriginal)
   await typeInto('Batch Size','123456789');await blurNumeric()
   assert.equal(await inputValue('Batch Size'),'1.23E+8','semantic integer quantity uses scientific fallback without adding .00')
   await clickInput('Batch Size')
   assert.equal(await inputValue('Batch Size'),'123456789','integer edit hydrates full authoritative quantity')
   await evaluate('document.activeElement.select()');await send('Input.insertText',{text:'3.5'})
   assert.equal(await inputValue('Batch Size'),'123456789','real Batch Size still rejects fractional drafts')
-  await typeInto('Batch Size',batchOriginal);await blurNumeric()
+  await restoreInput('Batch Size',batchOriginal)
   const sellingPriceBeforeLongDraft = await (async () => {
     await clickInput('Selling Price')
     return inputValue('Selling Price')

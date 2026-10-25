@@ -10,7 +10,6 @@ export function HeaderValue({ inDialog = false }: { inDialog?: boolean }) {
   const headerValue = formatHeaderNumericValue(selection?.value, selection?.domain?.integer)
   const rootWidth = inDialog ? 'w-[min(14rem,calc(100vw-6.25rem))]' : 'w-[clamp(6rem,28vw,12rem)]'
   const labelColor = inDialog ? 'text-slate-600' : 'text-slate-300'
-  const pendingColor = selection?.directEditPending ? inDialog ? '!text-blue-700' : '!text-blue-300' : ''
   const outputColor = inDialog ? 'text-slate-900' : 'text-slate-100'
   const inputColors = inDialog
     ? 'border-transparent bg-white text-slate-900 group-hover/header-input:border-slate-400 focus:!border-blue-500 focus:!ring-1 focus:!ring-blue-500'
@@ -46,10 +45,10 @@ export function HeaderValue({ inDialog = false }: { inDialog?: boolean }) {
                 && sources.previewId !== selection.id
               if (!replacedByPreview && sourceId !== selection.id) clearFocus(selection.id)
             }}
-            className={`select-text border px-1 text-right transition-colors ${inputColors} ${pendingColor}`}
+            className={`select-text border px-1 text-right transition-colors ${inputColors}`}
           />
         ) : (
-          <span data-selected-value-output="true" tabIndex={selection ? 0 : undefined} title={headerValue || undefined} className={`block h-8 w-full select-text overflow-x-auto overflow-y-hidden whitespace-nowrap border border-transparent px-1 pr-9 text-right font-mono leading-8 tabular-nums ${outputColor} ${pendingColor}`}>
+          <span data-selected-value-output="true" tabIndex={selection ? 0 : undefined} title={headerValue || undefined} className={`block h-8 w-full select-text overflow-x-auto overflow-y-hidden whitespace-nowrap border border-transparent px-1 pr-9 text-right font-mono leading-8 tabular-nums ${outputColor}`}>
             {headerValue || '—'}
           </span>
         )}

@@ -32,6 +32,7 @@ export interface NumericInputProps extends Omit<InputHTMLAttributes<HTMLInputEle
   percentSuffix?: boolean
   reserveMarker?: boolean
   numericColumn?: boolean
+  alignIntegerToDecimalAxis?: boolean
 }
 
 const defaultInputClassName = 'h-8 w-full min-w-0 font-mono text-xs tabular-nums focus:outline-none'
@@ -56,6 +57,7 @@ export function NumericInput({
   percentSuffix = false,
   reserveMarker = false,
   numericColumn = false,
+  alignIntegerToDecimalAxis = false,
   onFocus,
   onBlur,
   onKeyDown,
@@ -312,6 +314,7 @@ export function NumericInput({
 
   const presentation = numericColumn ? columnPresentation(value) : businessNumberPresentation(value, { integer, integerDigits })
   const ordinaryDecimal = displayMode === 'compact' && !integer && !/[eE]/.test(draft) && draft !== ''
+  const ordinaryIntegerAxis = displayMode === 'compact' && integer && alignIntegerToDecimalAxis && !/[eE]/.test(draft) && draft !== ''
   const wholeGlyphs = draft.split('.')[0].length
   const columnOrdinary = numericColumn && draft !== '' && !/[eE]/.test(draft)
   const columnWholeWidth = numericDecimalPrefixWidth(draft, measure)
@@ -395,11 +398,11 @@ export function NumericInput({
         className={`${defaultInputClassName} ${className ?? ''} ${directEditPending ? '!text-blue-700' : ''}`.trim()}
         style={{
           ...style,
-          textAlign: ordinaryDecimal ? 'left' : style?.textAlign,
+          textAlign: ordinaryDecimal ? 'left' : ordinaryIntegerAxis ? 'right' : style?.textAlign,
           paddingLeft: ordinaryDecimal
             ? `max(0.375rem, calc(100% - 2px - ${typeof rightPadding === 'number' ? `${rightPadding}px` : rightPadding} - ${wholeGlyphs + 5}ch))`
             : style?.paddingLeft,
-          paddingRight: ordinaryDecimal ? 0 : displayMode === 'compact'
+          paddingRight: ordinaryDecimal ? 0 : ordinaryIntegerAxis ? `calc(${typeof rightPadding === 'number' ? `${rightPadding}px` : rightPadding} + 5ch)` : displayMode === 'compact'
               ? `calc(${typeof rightPadding === 'number' ? `${rightPadding}px` : rightPadding} + ${presentationPadding})`
               : displayMode === 'header' || reserveMarker || showStepper ? rightPadding : style?.paddingRight,
           ...(numericColumn && displayMode === 'compact' ? {
