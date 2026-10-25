@@ -156,7 +156,18 @@ try {
     await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: point.x, y: point.y, button: 'left', clickCount: 1 })
     await delay(180)
   }
+  const clickPoint = async point => {
+    if (!point) throw new Error('Blank row whitespace point was not found')
+    await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: point.x, y: point.y, button: 'left', clickCount: 1 })
+    await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: point.x, y: point.y, button: 'left', clickCount: 1 })
+    await delay(120)
+  }
   const inputValue = selector => evaluate(`(${visibleExpression(selector)})?.value ?? null`)
+  const isPinned = selector => evaluate(`(${visibleExpression(selector)})?.getAttribute('aria-pressed') === 'true'`)
+  const rowExpanded = selector => evaluate(`(${visibleExpression(selector)})?.getAttribute('aria-expanded') ?? null`)
+  const blankNameCellPoint = selector => evaluate(`(()=>{const row=${visibleExpression(selector)};const cell=row?.querySelector('th[scope="row"]');if(!row||!cell)return null;const rect=cell.getBoundingClientRect();const range=document.createRange();range.selectNodeContents(cell);const textRects=[...range.getClientRects()];const x=rect.right-6,y=rect.top+rect.height/2,hit=document.elementFromPoint(x,y),insideText=textRects.some(text=>x>=text.left&&x<=text.right&&y>=text.top&&y<=text.bottom);return{x,y,blank:!insideText&&hit===cell&&!hit.closest('button,input,select,textarea,a,[role="button"]'),hitTag:hit?.tagName??null,cellWidth:rect.width,textRects:textRects.map(text=>({left:text.left,right:text.right,top:text.top,bottom:text.bottom})),rowRight:rect.right}})()`)
+  const nameCellTextPoint = selector => evaluate(`(()=>{const row=${visibleExpression(selector)};const cell=row?.querySelector('th[scope="row"]');if(!row||!cell)return null;const range=document.createRange();range.selectNodeContents(cell);const rect=[...range.getClientRects()].find(item=>item.width>0&&item.height>0);if(!rect)return null;const x=rect.left+rect.width/2,y=rect.top+rect.height/2,hit=document.elementFromPoint(x,y);return{x,y,text:hit===cell&&x>=rect.left&&x<=rect.right&&y>=rect.top&&y<=rect.bottom,hitTag:hit?.tagName??null}})()`)
+  const blankMobileRowPoint = selector => evaluate(`(()=>{const row=${visibleExpression(selector)};if(!row)return null;const rect=row.getBoundingClientRect(),x=rect.right-3,y=rect.top+5,hit=document.elementFromPoint(x,y);return{x,y,blank:hit===row&&!hit.closest('button,input,select,textarea,a,[role="button"]'),hitTag:hit?.tagName??null,rowRight:rect.right,topPaddingPoint:y-rect.top}})()`)
   const replaceInput = async (selector, text, modifiers = 4) => {
     await clickSelector(selector)
     await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'a', code: 'KeyA', modifiers, windowsVirtualKeyCode: 65, nativeVirtualKeyCode: 65 })
@@ -304,9 +315,111 @@ try {
   await waitFor(() => existsVisible(simUsage), 'Simulation Usage')
   const result = 'button[data-selected-number][aria-label="Material After"]'
   await expectNormal(simPrice, 'Simulation committed source initially normal')
+
+  const simBomRow = 'section[data-simulation-table="bom"] tbody tr[data-simulation-row-index="0"]'
+  const simRoutingRow = 'section[data-simulation-table="routing"] tbody tr[data-simulation-row-index="0"]'
+  const bomCostNumber = `${simBomRow} td:nth-last-child(2) button[data-selected-number]`
+  await waitFor(() => existsVisible(bomCostNumber), 'read-only SelectedNumber inside the BOM main row')
+  await clickSelector(bomCostNumber)
+  check(await isPinned(bomCostNumber), 'clicking a BOM-row SelectedNumber pins that source')
+  check(await rowExpanded(simBomRow) === 'false', 'clicking a BOM-row SelectedNumber does not expand the row')
+  await clickSelector(result)
+  check(await isPinned(result) && !await isPinned(bomCostNumber), 'clicking another SelectedNumber moves the Pin')
+  const bomText = await nameCellTextPoint(simBomRow)
+  check(Boolean(bomText?.text), 'BOM row text test target is rendered text rather than whitespace', bomText)
+  await clickPoint(bomText)
+  check(await isPinned(result) && await rowExpanded(simBomRow) === 'true', 'clicking BOM row text expands without dismissing Pin')
+  await clickPoint(await nameCellTextPoint(simBomRow))
+  check(await isPinned(result) && await rowExpanded(simBomRow) === 'false', 'clicking BOM row text collapses without dismissing Pin')
+  await clickSelector(result)
+  check(!await isPinned(result), 'clicking the same SelectedNumber toggles its Pin off')
+  await clickSelector(result)
+  const bomRowNumber = `${simBomRow} td:first-child button`
+  await waitFor(() => existsVisible(bomRowNumber), 'BOM row # selection control')
+  await clickSelector(bomRowNumber)
+  check(await isPinned(result), 'BOM row # selection control preserves the existing Pin')
+  check(await rowExpanded(simBomRow) === 'false' && await evaluate(`(${visibleExpression(bomRowNumber)})?.getAttribute('aria-pressed') === 'true'`), 'BOM row # control selects without expanding its main row')
+  const bomBlank = await blankNameCellPoint(simBomRow)
+  check(Boolean(bomBlank?.blank), 'BOM test target is genuinely unused whitespace in the row name cell', bomBlank)
+  await clickPoint(bomBlank)
+  check(await rowExpanded(simBomRow) === 'true', 'blank BOM row whitespace still expands the row')
+  check(!await isPinned(result), 'clicking blank BOM row whitespace clears the existing Pin')
+  await clickSelector(bomCostNumber)
+  check(await isPinned(bomCostNumber), 'a BOM SelectedNumber can be pinned again before row collapse')
+  await clickPoint(await blankNameCellPoint(simBomRow))
+  check(!await isPinned(bomCostNumber), 'clicking blank BOM row whitespace also clears Pin while collapsing')
+  check(await rowExpanded(simBomRow) === 'false', 'blank BOM row whitespace still collapses the row')
+
+  await clickSelector(result)
+  const routingCostNumber = `${simRoutingRow} td:nth-last-child(2) button[data-selected-number]`
+  await waitFor(() => existsVisible(routingCostNumber), 'read-only SelectedNumber inside the Routing main row')
+  await clickSelector(routingCostNumber)
+  check(await isPinned(routingCostNumber), 'clicking a Routing-row SelectedNumber pins that source')
+  check(await rowExpanded(simRoutingRow) === 'false', 'clicking a Routing-row SelectedNumber does not expand the row')
+  const routingBlank = await blankNameCellPoint(simRoutingRow)
+  check(Boolean(routingBlank?.blank), 'Routing test target is genuinely unused whitespace in the row name cell', routingBlank)
+  await clickPoint(routingBlank)
+  check(await rowExpanded(simRoutingRow) === 'true', 'blank Routing row whitespace still expands the row')
+  check(!await isPinned(routingCostNumber), 'clicking blank Routing row whitespace clears the existing Pin')
+  await clickSelector(routingCostNumber)
+  check(await isPinned(routingCostNumber), 'a Routing SelectedNumber can be pinned again before row collapse')
+  await clickPoint(await blankNameCellPoint(simRoutingRow))
+  check(!await isPinned(routingCostNumber), 'clicking blank Routing row whitespace also clears Pin while collapsing')
+  check(await rowExpanded(simRoutingRow) === 'false', 'blank Routing row whitespace still collapses the row')
+
+  const focusedRow = await evaluate(`(()=>{const row=${visibleExpression(simBomRow)};row?.focus();return Boolean(row&&document.activeElement===row&&row.tabIndex===0)})()`)
+  check(focusedRow, 'expandable BOM row remains keyboard focusable')
+  const pressRowKey = async (key, code, keyCode) => {
+    const event = { key, code, windowsVirtualKeyCode: keyCode, nativeVirtualKeyCode: keyCode }
+    await send('Input.dispatchKeyEvent', { type: 'keyDown', ...event })
+    await send('Input.dispatchKeyEvent', { type: 'keyUp', ...event })
+    await delay(120)
+  }
+  await pressRowKey('Enter', 'Enter', 13)
+  check(await rowExpanded(simBomRow) === 'true', 'Enter still expands a focused BOM main row')
+  await pressRowKey(' ', 'Space', 32)
+  check(await rowExpanded(simBomRow) === 'false', 'Space still collapses a focused BOM main row')
+
+  await setViewport(390)
+  const mobileBomRow = 'section[data-simulation-table="bom"] article[data-simulation-row-index="0"]'
+  const mobileRoutingRow = 'section[data-simulation-table="routing"] article[data-simulation-row-index="0"]'
+  const mobileBomNumber = `${mobileBomRow} [data-selected-number]`
+  const mobileRoutingNumber = `${mobileRoutingRow} [data-selected-number]`
+  const mobileBomInput = `${mobileBomRow} input`
+  const mobileBomRowNumber = `${mobileBomRow} button[aria-label*="BOM row 1:"]`
+  await waitFor(() => existsVisible(mobileBomNumber) && existsVisible(mobileRoutingNumber), 'mobile BOM and Routing values')
+  await clickSelector(mobileBomNumber)
+  check(await isPinned(mobileBomNumber) && await rowExpanded(mobileBomRow) === 'false', 'mobile BOM SelectedNumber pins without expanding its row')
+  await clickSelector(mobileBomRowNumber)
+  check(await isPinned(mobileBomNumber) && await rowExpanded(mobileBomRow) === 'false', 'mobile BOM row # selection preserves Pin without expanding')
+  await clickSelector(mobileBomInput)
+  check(await isPinned(mobileBomNumber) && await rowExpanded(mobileBomRow) === 'false', 'mobile editable numeric input preserves Pin without expanding')
+  const mobileBomBlank = await blankMobileRowPoint(mobileBomRow)
+  check(Boolean(mobileBomBlank?.blank), 'mobile BOM test target is genuinely blank row padding', mobileBomBlank)
+  await clickPoint(mobileBomBlank)
+  check(await rowExpanded(mobileBomRow) === 'true' && !await isPinned(mobileBomNumber), 'mobile BOM blank whitespace clears Pin and expands in one click')
+  await clickSelector(mobileBomNumber)
+  await clickPoint(await blankMobileRowPoint(mobileBomRow))
+  check(await rowExpanded(mobileBomRow) === 'false' && !await isPinned(mobileBomNumber), 'mobile BOM blank whitespace clears Pin and collapses in one click')
+
+  await evaluate(`(${visibleExpression(mobileRoutingRow)})?.scrollIntoView({block:'center',inline:'nearest'})`)
+  await delay(120)
+  await clickSelector(mobileRoutingNumber)
+  check(await isPinned(mobileRoutingNumber), 'mobile Routing SelectedNumber pins its source', {pinned: await isPinned(mobileRoutingNumber), expanded: await rowExpanded(mobileRoutingRow)})
+  check(await rowExpanded(mobileRoutingRow) === 'false', 'mobile Routing SelectedNumber does not expand its row')
+  const mobileRoutingBlank = await blankMobileRowPoint(mobileRoutingRow)
+  check(Boolean(mobileRoutingBlank?.blank), 'mobile Routing test target is genuinely blank row padding', mobileRoutingBlank)
+  await clickPoint(mobileRoutingBlank)
+  check(await rowExpanded(mobileRoutingRow) === 'true' && !await isPinned(mobileRoutingNumber), 'mobile Routing blank whitespace clears Pin and expands in one click')
+  await clickSelector(mobileRoutingNumber)
+  await clickPoint(await blankMobileRowPoint(mobileRoutingRow))
+  check(await rowExpanded(mobileRoutingRow) === 'false' && !await isPinned(mobileRoutingNumber), 'mobile Routing blank whitespace clears Pin and collapses in one click')
+  await setViewport(1440)
+
   const simPriceBefore = await inputValue(simPrice)
   const simUsageBefore = await inputValue(simUsage)
   await replaceInput(simPrice, exact)
+  check(await rowExpanded(simBomRow) === 'false', 'editing a BOM numeric input does not expand its main row')
   await expectBlue(simPrice, 'Simulation Price direct edit is blue during the pending gesture')
   await clickSelector(header)
   check(await inputValue(header) === exact, 'Simulation Header uses the same exact source writer', await state(header))

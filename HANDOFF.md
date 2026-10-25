@@ -1,4 +1,16 @@
-## Current checkpoint — Simulation Routing persistence and Send All provenance verification — 2026-10-25
+## Current checkpoint — Simulation BOM/Routing blank-row Pin dismissal — 2026-10-25
+
+- **Status:** Corrective implementation and focused verification complete; **AWAITING EXTERNAL AUDIT / ACCEPTANCE**. Round 4 / Round 4B remain accepted and closed. Round 5 is **NOT STARTED**; no merge occurred.
+- **Branch / checkout:** `feat/selected-value-ux` / `E:\COSTBREAKDOWN\.worktrees\SIMULATION-FINALIZED`.
+- **Starting local and freshly fetched remote HEAD:** both `ac2e471fb17eb42333301069977e08b63508f573`.
+- **Root cause:** the shared capture-phase Pin dismissal correctly preserves targets marked as safe or expandable, including Simulation rows with `data-safe-workspace-interaction`, `aria-expanded` and `tabIndex`. The later row click expanded/collapsed without dismissing Pin.
+- **Correction:** Added scope-aware `clearPinnedSelection` to the shared Selected Value context. Desktop BOM/Routing rows and their mobile cards call it only after the existing nested-control/drag guard, and only when the pointer is on unused space rather than rendered text or graphics. The same click still toggles the row. Global Pin classification, row ARIA and keyboard handling remain intact.
+- **Browser verification:** `node scripts/verify_direct_edit_blue_browser.mjs` — **145 assertions PASS**, zero browser errors/warnings. Real Chrome coverage at desktop and mobile widths confirms BOM and Routing blank space clears Pin while expanding and collapsing in one click; text clicks expand/collapse while preserving Pin; SelectedNumber pin/move/toggle behavior, row `#` selection, editable inputs, and Enter/Space remain intact. Existing direct-edit, Simulation Routing, and Send All browser coverage also passes.
+- **Regression / build:** `node scripts/verify_cbd_selected_value_browser.mjs` — **306/306 PASS**, including Cost Breakdown background Pin dismissal and real row controls. `node scripts/verify_simulation_regression.mjs` — **PASS**; its Vite WebSocket port 24678-in-use messages are non-failing. `npx tsc --noEmit --pretty false` — **PASS**. `npm run build` — **PASS** with existing ExcelJS / fast-csv externalization and >500 kB chunk notices. `git diff --check` — **PASS**.
+- **Scope and limits:** No calculations, data, numeric precision, Send / Send All, reset, visual design, or canonical Pin rule changed. Browser evidence is from headless Chrome at 1440px and 390px; other browser engines, physical touch hardware, and screen readers were not exercised. External audit remains pending.
+- **Delivery:** This checkpoint is included in the same-branch corrective delivery commit; no merge and no Round 5 work.
+
+## Previous checkpoint — Simulation Routing persistence and Send All provenance verification — 2026-10-25
 
 - **Status:** Verification-gap-only corrective pass complete; **AWAITING EXTERNAL AUDIT / ACCEPTANCE**. Round 4 / Round 4B remain accepted and closed. Round 5 is **NOT STARTED**; no merge occurred.
 - **Branch / checkout:** `feat/selected-value-ux` / `E:\COSTBREAKDOWN\.worktrees\SIMULATION-FINALIZED`.

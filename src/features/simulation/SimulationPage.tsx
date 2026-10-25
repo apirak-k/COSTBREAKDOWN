@@ -21,7 +21,7 @@ import type {
 } from '../../core/types'
 import { Tooltip } from '../../shared/ui/Tooltip'
 import { COMPARISON_ROLE_LABELS, ComparisonRoleSelector } from '../../shared/ui/ComparisonRoleSelector'
-import { SelectedNumber, useSelectedValueSource } from '../../shared/ui/selected-value'
+import { SelectedNumber, useSelectedValue, useSelectedValueSource } from '../../shared/ui/selected-value'
 import { formatBusinessNumber } from '../../shared/ui/numeric-display'
 import { NumericInput } from '../../shared/ui/NumericInput'
 import type { NumericInputProps } from '../../shared/ui/NumericInput'
@@ -108,6 +108,14 @@ function isInteractiveTarget(target: EventTarget | null, row: Element): boolean 
   if (!(target instanceof Element)) return false
   const control = target.closest('input, button, select, textarea, label, summary, a[href], [role="button"], [role="menuitem"], [contenteditable="true"], [data-safe-workspace-interaction="true"]')
   return control !== null && control !== row && row.contains(control)
+}
+
+function isRenderedContentAtPoint(target: EventTarget | null, clientX: number, clientY: number): boolean {
+  if (!(target instanceof Element)) return false
+  if (target.closest('svg, img, canvas, video, audio, iframe')) return true
+  const range = document.createRange()
+  range.selectNodeContents(target)
+  return [...range.getClientRects()].some(rect => clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom)
 }
 
 function singleRecord<T extends { id: string }>(records: T[], id: string | undefined): T | undefined {
@@ -588,6 +596,7 @@ function SimulationParameterTable({
   onBeginEdit: () => void
   onCommitEdit: () => void
 }) {
+  const { clearPinnedSelection } = useSelectedValue()
   const isBOM = kind === 'bom'
   const shortTitle = isBOM ? 'BOM' : 'RTG'
   const navigationLabel = isBOM ? 'BOM' : 'Routing'
@@ -885,6 +894,7 @@ function SimulationParameterTable({
                     tabIndex={canExpand ? 0 : undefined}
                     onClick={event => {
                       if (!canExpand || suppressSelectionClickRef.current || isInteractiveTarget(event.target, event.currentTarget)) return
+                      if (!isRenderedContentAtPoint(event.target, event.clientX, event.clientY)) clearPinnedSelection()
                       toggleExpanded()
                     }}
                     onKeyDown={event => {
@@ -1055,6 +1065,7 @@ function SimulationParameterTable({
               tabIndex={canExpand ? 0 : undefined}
               onClick={event => {
                 if (!canExpand || suppressSelectionClickRef.current || isInteractiveTarget(event.target, event.currentTarget)) return
+                if (!isRenderedContentAtPoint(event.target, event.clientX, event.clientY)) clearPinnedSelection()
                 toggleExpanded()
               }}
               onKeyDown={event => {

@@ -51,6 +51,7 @@ interface SelectedValueContextValue {
   previewValue: (value: SelectedValue) => void
   clearPreview: (id?: string) => void
   pinValue: (value: SelectedValue) => void
+  clearPinnedSelection: () => void
   clearSelection: (id?: string) => void
   syncSelection: (value: SelectedValue) => void
   scopeKey?: string
@@ -182,6 +183,12 @@ export function SelectedValueProvider({ children, scopeKey }: { children: ReactN
       }
     })
   }, [cancelPendingPreview, scopeKey])
+  const clearPinnedSelection = useCallback(() => {
+    setState(current => ({
+      ...current,
+      pinned: current.pinned?.scopeKey === scopeKey ? null : current.pinned
+    }))
+  }, [scopeKey])
   const clearSelection = useCallback((id?: string) => {
     cancelPendingPreview(id, scopeKey)
     const clearCurrentSource = (slot: ScopedValue): ScopedValue =>
@@ -233,10 +240,11 @@ export function SelectedValueProvider({ children, scopeKey }: { children: ReactN
     previewValue,
     clearPreview,
     pinValue,
+    clearPinnedSelection,
     clearSelection,
     syncSelection,
     scopeKey
-  }), [selection, focusedSelection, previewSelection, pinnedSelection, activateFocus, clearFocus, previewValue, clearPreview, pinValue, clearSelection, syncSelection, scopeKey])
+  }), [selection, focusedSelection, previewSelection, pinnedSelection, activateFocus, clearFocus, previewValue, clearPreview, pinValue, clearPinnedSelection, clearSelection, syncSelection, scopeKey])
   return <SelectedValueContext.Provider value={context}>{children}</SelectedValueContext.Provider>
 }
 
