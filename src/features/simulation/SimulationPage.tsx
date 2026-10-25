@@ -27,7 +27,7 @@ import { NumericInput } from '../../shared/ui/NumericInput'
 import type { NumericInputProps } from '../../shared/ui/NumericInput'
 import { NumericColumnHeader } from '../../shared/ui/NumericColumnHeader'
 import { applyRowDragSelection, applyRowSelectionScope, getRowSelectionState } from '../../shared/selection/row-drag-selection'
-import { useTransientInteraction } from '../../shared/ui/transient-interactions'
+import { dismissTopmostTransientInteraction, isSafeWorkspaceDismissTarget, useTransientInteraction } from '../../shared/ui/transient-interactions'
 import { RowSelectionButton } from '../../shared/ui/RowSelectionButton'
 import { normalizeProductIdentityValue } from '../../core/utils/master-data-effective'
 import { parameterEffectPresentation } from './parameter-effect-presentation'
@@ -616,6 +616,45 @@ function SimulationParameterTable({
   const [scrollbarWidth, setScrollbarWidth] = useState(0)
   const [viewportState, setViewportState] = useState({ start: 0, end: 0, total: 0, atTop: true, atBottom: true })
   const [expandedRows, setExpandedRows] = useState<Set<string>>(() => new Set())
+  useEffect(() => {
+    if (!expandedRows.size) return
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!sectionRef.current?.getClientRects().length || !isSafeWorkspaceDismissTarget(event.target)) return
+      if (event.target instanceof HTMLElement) {
+        const target = event.target
+        const bounds = target.getBoundingClientRect()
+        const verticalGutter = target.scrollHeight > target.clientHeight
+          && event.clientX >= bounds.left + target.clientLeft + target.clientWidth
+        const horizontalGutter = target.scrollWidth > target.clientWidth
+          && event.clientY >= bounds.top + target.clientTop + target.clientHeight
+        if (verticalGutter || horizontalGutter) return
+      }
+      if (event.target instanceof Element) {
+        const label = event.target.closest('label')
+        if (label?.control) return
+        const row = event.target.closest('[data-simulation-row-index][aria-expanded]')
+        if (row && !event.target.closest('[data-simulation-row-detail="true"]')) return
+      }
+      setExpandedRows(new Set())
+    }
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || !sectionRef.current?.getClientRects().length) return
+      if (dismissTopmostTransientInteraction('escape')) {
+        event.preventDefault()
+        event.stopImmediatePropagation()
+        return
+      }
+      if (document.querySelector('[role="dialog"][aria-modal="true"]')) return
+      setExpandedRows(new Set())
+    }
+    document.addEventListener('pointerdown', handlePointerDown)
+    // Run before the shell's field-blur Escape handler without taking its focus action.
+    window.addEventListener('keydown', handleKeyDown, true)
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown)
+      window.removeEventListener('keydown', handleKeyDown, true)
+    }
+  }, [expandedRows.size])
   const [dragRowOrder, setDragRowOrder] = useState<string[] | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const previousSearchQueryRef = useRef(searchQuery)
