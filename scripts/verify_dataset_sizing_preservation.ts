@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict'
 import {
+  getPopulatedRowsRemovedBySizing,
+  hasEnteredMasterData,
   importSnapshotForRole,
   markSizingPlaceholderEdited,
   resizeMasterDataSnapshotForSizing,
@@ -34,7 +36,7 @@ function rate(id: string, changes: Partial<SnapshotWorkCenterRate & SizingRow> =
 
 function bom(id: string, changes: Partial<SnapshotBOMItem & SizingRow> = {}): SnapshotBOMItem & SizingRow {
   return {
-    id, itemCode: '', description: '', consumption: null, unit: 'PC',
+    id, itemCode: '', description: '', consumption: null, unit: '',
     price: null, loss: null, confidence: {
       consumption: { status: 'missing' }, price: { status: 'missing' }, loss: { status: 'missing' }
     }, ...changes
@@ -200,6 +202,7 @@ assert.deepEqual(
 )
 assert.strictEqual(grownImported.bom[0], importedCurrent.snapshotPair.current.bom[0], 'growth preserves existing rows')
 assert.equal(grownImported.bom[6].loss, null, 'new BOM loss input stays blank')
+assert.equal(grownImported.bom[6].unit, '', 'new Sizing BOM rows start with blank Unit')
 assert.equal(grownImported.bom[6].confidence.loss.status, 'missing')
 
 // Shrinking keeps the leading rows in order and drops every row after the new exact count.
@@ -412,7 +415,7 @@ assert.equal(projectedAfterShrink.routing.length, 1, 'legacy session projection 
 // Growth adds only the missing rows, with one-based indexes and removable markers.
 const beforeGrowth = snapshot({
   rates: [rate('retained-rate', { workCenterCode: 'WC-2' })],
-  bom: [bom('retained-bom', { itemCode: 'MAT-2' })],
+  bom: [bom('retained-bom', { itemCode: 'MAT-2', unit: 'KG' })],
   routing: [routing('retained-routing', { processName: 'Assembly' })]
 })
 const afterGrowth = resizeMasterDataSnapshotForSizing(
@@ -427,5 +430,35 @@ for (const row of [...afterGrowth.rates.slice(1), ...afterGrowth.bom.slice(1), .
 assert.equal(beforeGrowth.rates.length, 1)
 assert.equal(beforeGrowth.bom.length, 1)
 assert.equal(beforeGrowth.routing.length, 1)
+assert.equal(afterGrowth.bom[0].unit, 'KG', 'Sizing preserves existing BOM Unit values')
+assert.equal(afterGrowth.bom[1].unit, '', 'Sizing growth never fills a Unit')
+assert.deepEqual(getPopulatedRowsRemovedBySizing(afterGrowth, { bomCount: 1 }), [],
+  'removing untouched blank Sizing rows needs no populated-row confirmation')
+const afterRegrowthShrink = resizeMasterDataSnapshotForSizing(afterGrowth, { bomCount: 1 }, factories)
+assert.equal(afterRegrowthShrink.bom.length, 1, 'Sizing reduction removes only the new trailing blank rows')
+assert.equal(afterRegrowthShrink.bom[0].unit, 'KG', 'Sizing reduction preserves the retained Unit')
+const existingPCSnapshot = snapshot({
+  rates: [],
+  bom: [bom('existing-pc-unit', { itemCode: 'MAT-PC', unit: 'PC', consumption: 1, price: 2, loss: 0 })],
+  routing: []
+})
+const unchangedPCSizing = resizeMasterDataSnapshotForSizing(existingPCSnapshot, { bomCount: 1 }, factories)
+assert.strictEqual(unchangedPCSizing.bom[0], existingPCSnapshot.bom[0], 'unchanged Sizing retains the existing BOM row')
+assert.equal(unchangedPCSizing.bom[0].unit, 'PC', 'unchanged Sizing preserves an existing PC Unit')
+
+const blankSizedSnapshot: CostSnapshot = {
+  ...snapshot({ rates: [], bom: [], routing: [] }, ''),
+  product: { productCode: '', productDescription: '', uom: '', customer: '', effectiveDate: '' },
+  bom: [bom('new-blank-unit', { isGeneratedSizingPlaceholder: true })]
+}
+assert.equal(hasEnteredMasterData(blankSizedSnapshot), false, 'blank Unit Sizing rows remain untouched placeholders')
+assert.equal(hasEnteredMasterData({
+  ...blankSizedSnapshot,
+  bom: [bom('old-default-unit', { unit: 'PC', isGeneratedSizingPlaceholder: true })]
+}), false, 'historical PC Sizing placeholders remain compatible')
+assert.equal(hasEnteredMasterData({
+  ...blankSizedSnapshot,
+  bom: [bom('entered-unit', { unit: 'custom lot / batch', isGeneratedSizingPlaceholder: false })]
+}), true, 'manually entered free-text Unit remains user data')
 
 console.log('Master Data sizing preservation self-check: PASS')

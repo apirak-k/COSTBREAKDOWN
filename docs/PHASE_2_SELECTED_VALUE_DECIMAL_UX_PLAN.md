@@ -1,6 +1,6 @@
 # Phase 2 — Selected Value / Decimal UX Execution Plan
 
-**Status:** Rounds 1–3 are CLOSED. Round 4 (including 4A / 4B and its corrective passes) is EXTERNALLY AUDITED / ACCEPTED / CLOSED. Global authoritative-full-value-on-edit is IMPLEMENTED / EXTERNALLY ACCEPTED. Global direct-edit blue-value indicator is IMPLEMENTED / INTERNALLY VERIFIED / AWAITING EXTERNAL AUDIT AND ACCEPTANCE. **Round 5 final cross-page regression is PASS / READY FOR EXTERNAL AUDIT. Phase 2 final external acceptance remains PENDING.**
+**Status:** Rounds 1–4 (including 4B) remain closed. The user confirms the preceding three-fix corrective round PASSED for its own scope. The separate BOM Unit / Header scrollbar / Vite security / stale-verifier follow-up PASSED. Vite 6.4.4 audit reports 0 High / 0 Critical / 5 Moderate. Phase 2 final external acceptance remains PENDING; Phase 2 is NOT CLOSED / NOT MERGE-READY.
 **Execution branch:** `feat/selected-value-ux`
 **Repository:** `https://github.com/apirak-k/COSTBREAKDOWN`
 
@@ -30,11 +30,11 @@ Do not overlap implementation rounds or add numbered sub-phases. A failing accep
 | Round 2 — Master Data | Integrate the shared model into Master Data without changing its data, formulas, validation domains, dataset lifecycle, history, or spreadsheet semantics. Preserve the accepted native View-mode focus recovery and apply the later finalized hover/Header precision contract and final geometry polish. | **CLOSED** | Native grid focus owns View numeric values; source Preview uses a cancellable 350ms dwell; Focus/Pin remains anchored; only focused editable sources own Header writers; Header displays at most 8 decimals and keeps stable numeric / `%` / spinner regions and direct-interaction affordance; actual Chrome, regression, source audit, build, and diff checks pass. |
 | Round 3 — Cost Breakdown | Integrate eligible Cost Breakdown values and interactions with the shared Header/source model, retaining the finalized Candidate, detail, tooltip, row, ordering, and comparison behavior. | **CLOSED** | Shared no-focus `SelectedNumber` is transparent at rest, `#E9EEF4` on direct hover, and `blue-100` when pinned; Candidate row hover is independent. CHANGED-row cell whitespace expands/collapses while actual numeric, `#`, and reorder controls keep their own action. Targeted Chrome, Round 2 / Round 3 browser gates, build, source audit, and diff checks pass; no calculation or comparison semantics change. Implementation: `9536da7edec07d29e808bec8af8c45a16e8be621`. |
 | Round 4 — Simulation | 4A and the pre-Round-4B corrective gate are closed. Round 4B includes Result/Economic sources plus the corrective integration of BOM/Routing values, Footer totals, and visible Story Graph numeric labels/ticks. | **EXTERNALLY AUDITED / ACCEPTED / CLOSED.** | User confirmed external source audit acceptance for checkpoint `262bd3c54425a15d16065f45d80037c353afa656`. |
-| Round 5 — Final Cross-page Regression | Run the final shared + Master Data + Cost Breakdown + Simulation regression and verify that state does not leak across pages/scopes. | **PASS / READY FOR EXTERNAL AUDIT** | Six-direction browser navigation, page-local state/history, Selected Value ownership, CBD-only Selected Comparison, actual refresh contracts, direct-edit provenance, exact decimals, responsive interactions, calculations, TypeScript, build, and diff gates pass. External review remains required before claiming Phase 2 acceptance or closure. |
+| Round 5 — Final Cross-page Regression | Verify shared + Master Data + Cost Breakdown + Simulation behavior across pages/scopes. | **PRIOR CORRECTIVE PASS; FOLLOW-UP PASS** | The preceding Header-neutral, Batch Size, and exact zero-boundary corrections passed for their scope per user confirmation. This follow-up handles later findings separately. Phase 2 final external acceptance remains pending. |
 
 ## Agreed next-work order
 
-These are workflow steps inside the existing five-round Phase 2 plan, not new numbered rounds. Round 4 / Round 4B are externally audited and closed, including the Simulation disclosure corrective per user confirmation. Round 5 has passed internal verification and is ready for external audit. The direct-edit blue indicator remains internally verified and its external audit label remains pending.
+These are workflow steps inside the existing five-round Phase 2 plan. Round 4 / Round 4B remain accepted and closed. The preceding three-fix corrective round passed for its own scope. The later follow-up is separate and does not reopen those fixes; Phase 2 final external acceptance remains pending.
 
 1. GLOBAL authoritative-full-value-on-edit correction — implemented in the separate prior correction.
 2. Audit and accept that global numeric correction — externally accepted.
@@ -42,11 +42,11 @@ These are workflow steps inside the existing five-round Phase 2 plan, not new nu
 4. Round 4B — externally audited / accepted / closed.
 5. Round 4 — externally audited / accepted / closed.
 6. GLOBAL direct-edit blue-value indicator — implemented and internally verified; its cross-page behavior is part of Round 5 and external audit status remains pending.
-7. Round 5 — Final Cross-page Regression — PASS / READY FOR EXTERNAL AUDIT.
-8. Audit / accept the Round 5 delivery; close Phase 2 only after the required external review.
+7. Preceding three-fix corrective round — PASS for its own scope per user confirmation; later follow-up findings are handled separately.
+8. Verify this separate follow-up and submit the resulting delivery for the required Phase 2 external review; the Vite High/Critical audit gate is now satisfied.
 9. After Phase 2: Excel validation → real-world usage test → portable distribution.
 
-Current statuses: Round 4 / Round 4B **EXTERNALLY AUDITED / ACCEPTED / CLOSED**; Global authoritative-full-value-on-edit **IMPLEMENTED / EXTERNALLY ACCEPTED**; Global direct-edit blue-value indicator **IMPLEMENTED / INTERNALLY VERIFIED / AWAITING EXTERNAL AUDIT AND ACCEPTANCE**; Round 5 **PASS / READY FOR EXTERNAL AUDIT**; Phase 2 final external acceptance **PENDING**.
+Current statuses: Round 4 / Round 4B CLOSED; preceding three-fix corrective round PASS for its own scope; later follow-up PASS; current audit 0 High / 0 Critical / 5 Moderate; Phase 2 final external acceptance PENDING.
 
 ## Round 5 — Final Cross-page Regression — 2026-10-25
 
@@ -56,6 +56,18 @@ Current statuses: Round 4 / Round 4B **EXTERNALLY AUDITED / ACCEPTED / CLOSED**;
 - **Regression evidence:** direct-edit blue / Import 207; CBD Selected Value 306/306; Simulation disclosure 202/202 plus 4/4 native-scroll checks; numeric browser 2367/2367; exact-decimal lifecycle 40; Master Data Selected Value 179/179; Simulation Round 4B Selected Value 70/70; Master Data UI state 9 scenarios; spreadsheet/sizing/clone/custom-data/toolbar suites and aggregate Simulation/CBD regression pass.
 - **Quality gates:** `npx tsc --noEmit --pretty false`, `npm run build`, and `git diff --check` pass. Build warnings about existing ExcelJS externalization and chunk size are non-failing; Vite's existing port 24678 WebSocket notices do not fail the regression suite.
 - **Verifier/environment findings:** stale source expectations and selector/expression issues were updated to reflect finalized behavior without weakening assertions. The Import verifier's first-run Vite dependency optimization was fixed in its runner; no Import production logic changed. Firefox/Safari, physical touch devices, and screen-reader behavior remain unverified.
+
+## Round 5 Corrective Pass — 2026-10-25
+
+- **Status:** PASS for this three-fix scope, as explicitly confirmed by the user. The dependency and verifier findings discovered afterward belong to the separate follow-up below; they do not reopen this completed round.
+- **Corrections:** Header Value is neutral while its directly edited owning source remains blue; Economic Batch Size remains an integer on the shared decimal axis; Simulation restores exact-aware symmetric zero-boundary attribution without expanding Cost Breakdown's positive-only domain.
+- **Evidence:** Current command results, including the actual audit result and any unrelated verifier gap, are recorded in [HANDOFF](../HANDOFF.md). No push or merge occurred.
+
+## Phase 2 Verification / Fix Follow-up — 2026-10-25
+
+- **Status:** FOLLOW-UP PASS. This is a separate round for findings discovered after the preceding corrective pass.
+- **Scope:** New blank BOM rows use free-text blank Unit; unused AddBOMModal is removed. Header display has no scroll container, while its fixed-size editor retains native caret navigation and full exact text. Vite 6.4.4 resolves the High dependency finding without a major migration. Both snapshot verifiers now exercise current product contracts.
+- **Evidence:** Current checks, audit counts, preserved dirty work, and additional findings are recorded in [HANDOFF](../HANDOFF.md). The user subsequently authorized commit/push on the feature branch. Merge and Phase 2 closure remain unauthorized.
 
 ## Round 4B Corrective Pass — numeric residue, keyboard ownership, CBD percentage rhythm — 2026-10-24
 
@@ -70,7 +82,7 @@ Current statuses: Round 4 / Round 4B **EXTERNALLY AUDITED / ACCEPTED / CLOSED**;
 
 - **Acceptance update:** The user confirmed the preceding Round 4B corrective implementation passed external source audit at remote `262bd3c54425a15d16065f45d80037c353afa656`. Round 4 / Round 4B are closed; the dated checkpoints below remain historical records.
 - **Implementation:** Only explicit manual source edits receive blue text. Master Data keeps role/field provenance alongside its existing session and history; successful dataset Save retires it. System replacements do not create manual provenance. Simulation keeps per-source direct-edit provenance in product, role, and Working-basis scope after blur and history commit; existing Undo/Redo restores provenance with values, while Reset and basis reconciliation clear stale marks. Derived values remain normal.
-- **Gate:** Blue indicator implemented / internally verified / awaiting external audit and acceptance. Round 5 remains NOT STARTED. Exact checks and delivery SHA are recorded in the current Handoff.
+- **Gate:** Source provenance and neutral Header presentation from the preceding corrective round passed for their scope per user confirmation. The separate follow-up and Phase 2 final external gate are recorded in the current Handoff.
 
 ## Round 4B Corrective / Reconciliation Pass — 2026-10-24
 
@@ -227,4 +239,4 @@ The closure below records the state before a later user-requested targeted corre
 
 ## Next action
 
-**Next:** complete the external audit and acceptance of the current Round 4B corrective/reconciliation implementation, then close Round 4 only after that gate passes. Round 5 remains NOT STARTED. The original five Round 4A UI polish items and Rounds 1–3 are CLOSED.
+**Next:** submit the locally verified follow-up delivery for Phase 2 external review. Phase 2 remains open and not merge-ready until its final acceptance gate passes.

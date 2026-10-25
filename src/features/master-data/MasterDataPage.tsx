@@ -224,7 +224,7 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({
             itemCode: '',
             description: '',
             consumption: null,
-            unit: 'PC',
+            unit: '',
             price: null,
             loss: null,
             sourceRef: 'Direct Input'

@@ -33,7 +33,10 @@ const fixtureSnapshot = role => ({
 const componentStubs = new Map([
   ['\0master-data-ui-verifier-bom', `
     import React from 'react'
-    export const BOMTable = () => React.createElement('div', { role: 'table', 'aria-label': 'BOM data' }, React.createElement('h3', null, 'Bill of Materials'), 'BOM data')
+    export const BOMTable = props => {
+      globalThis.__MASTER_DATA_UI_TEST_BOM_PROPS__ = props
+      return React.createElement('div', { role: 'table', 'aria-label': 'BOM data' }, React.createElement('h3', null, 'Bill of Materials'), 'BOM data')
+    }
   `],
   ['\0master-data-ui-verifier-work-centers', `
     import React from 'react'
@@ -212,6 +215,21 @@ const footerCostSummaryText = markup => {
 }
 
 try {
+  const existingBOM = { id: 'existing-unit', itemCode: 'MAT-1', description: 'Existing material', consumption: 1, unit: 'KG', price: 1, loss: 0, confidence: {} }
+  const addedBOMDrafts = []
+  await renderMasterDataPage({ role: 'current', mode: 'edit', tableView: 'bom' }, {
+    masterDataSnapshot: { ...fixtureSnapshot('current'), bom: [existingBOM] },
+    addMasterDataBOMItem: draft => addedBOMDrafts.push(draft)
+  })
+  globalThis.__MASTER_DATA_UI_TEST_BOM_PROPS__.onAddBOMItem()
+  assert.equal(addedBOMDrafts.length, 1, 'the live Add BOM callback creates one row draft')
+  assert.equal(addedBOMDrafts[0].unit, '', 'a newly added BOM Unit starts blank')
+  assert.equal(addedBOMDrafts[0].consumption, null)
+  assert.equal(addedBOMDrafts[0].price, null)
+  assert.equal(addedBOMDrafts[0].loss, null)
+  assert.equal(existingBOM.unit, 'KG', 'adding a BOM row preserves existing Unit values')
+  console.log('✓ New BOM rows start with blank Unit and leave existing Unit values unchanged')
+
   const { formatCurrency, formatNumber, formatPercent, formatVariance } = await vite.ssrLoadModule('/src/core/utils/formatters.ts')
   assert.equal(formatNumber(98.125, 4), '98.13', 'visible numbers cap at two decimals and round at the display boundary')
   assert.equal(formatNumber(12), '12.00', 'decimal business values use exactly two displayed decimals')

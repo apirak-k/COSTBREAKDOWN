@@ -701,8 +701,35 @@ try {
     'Master Data percentage editor participates in Tab and same-field Enter row traversal',
     { lossTabNext, lossTabBack, lossEnterNext, lossEnterBack })
 
+  const readUnitRows = () => evaluate(`(()=>[...document.querySelectorAll('section[aria-label="Bill of Materials rows"] input[data-grid-field="unit"]')].map(e=>({id:e.dataset.gridRowId,value:e.value,list:e.getAttribute('list'),tag:e.tagName})))()`)
+  const unitsBeforeAdd = await readUnitRows()
+  await clickSelector('button[aria-label="Add row to Bill of Materials"]')
+  await waitFor(async () => (await readUnitRows()).length === unitsBeforeAdd.length + 1, 'new BOM row appears')
+  const unitsAfterAdd = await readUnitRows()
+  const newUnitRow = unitsAfterAdd.find(row => !unitsBeforeAdd.some(before => before.id === row.id))
+  assert.ok(newUnitRow, 'Add BOM creates a new stable row')
+  verify(newUnitRow.value === '' && newUnitRow.tag === 'INPUT' && newUnitRow.list === null,
+    'live Add BOM starts Unit blank in a free-text input with no datalist', newUnitRow)
+  const newUnitSelector = `section[aria-label="Bill of Materials rows"] input[data-grid-field="unit"][data-grid-row-id=${JSON.stringify(newUnitRow.id)}]`
+  await replaceInput(newUnitSelector, 'custom lot / batch')
+  verify(await inputValue(newUnitSelector) === 'custom lot / batch', 'new BOM Unit accepts arbitrary free text')
+  const unitsAfterEdit = await readUnitRows()
+  verify(unitsBeforeAdd.every(before => unitsAfterEdit.some(after => after.id === before.id && after.value === before.value)),
+    'adding and editing a new BOM Unit preserves every existing Unit', {unitsBeforeAdd, unitsAfterEdit})
+  const existingUnitSelector = `section[aria-label="Bill of Materials rows"] input[data-grid-field="unit"][data-grid-row-id=${JSON.stringify(unitsBeforeAdd[0].id)}]`
+  await replaceInput(existingUnitSelector, 'KG existing / lot')
+  verify(await inputValue(existingUnitSelector) === 'KG existing / lot', 'existing BOM Unit remains freely editable')
+  if (unitsBeforeAdd[0].value === '') {
+    await evaluate('document.activeElement.select()')
+    await send('Input.dispatchKeyEvent', {type:'keyDown',key:'Backspace',code:'Backspace',windowsVirtualKeyCode:8})
+    await send('Input.dispatchKeyEvent', {type:'keyUp',key:'Backspace',code:'Backspace',windowsVirtualKeyCode:8})
+  } else await replaceInput(existingUnitSelector, unitsBeforeAdd[0].value)
+  verify(await inputValue(existingUnitSelector) === unitsBeforeAdd[0].value, 'Unit verification restores the existing blank or populated value')
+  await clickSelector(`section[aria-label="Bill of Materials rows"] tr:has(input[data-grid-row-id=${JSON.stringify(newUnitRow.id)}]) button[aria-label^="Delete BOM row"]`)
+  await waitFor(async () => (await readUnitRows()).length === unitsBeforeAdd.length, 'remove the verification-only BOM row')
   const textInput = mainInput('unit')
-  await clickSelector(textInput)
+  await evaluate(`(${visibleExpression(textInput)}).scrollIntoView({block:'center'})`)
+  await replaceInput(textInput, 'PC')
   await evaluate(`(()=>{const input=${visibleExpression(textInput)};input.setSelectionRange(1,1)})()`)
   await pressKey('ArrowLeft')
   const textLeft = await evaluate(`(()=>({active:document.activeElement===${visibleExpression(textInput)},caret:document.activeElement?.selectionStart}))()`)
@@ -936,9 +963,9 @@ try {
       && readOnlyHeaderStyle.color === 'rgb(241, 245, 249)'
       && readOnlyHeaderStyle.borderWidth === '1px'
       && readOnlyHeaderStyle.borderColor === 'rgba(0, 0, 0, 0)'
-      && readOnlyHeaderStyle.overflowX === 'auto'
+      && readOnlyHeaderStyle.overflowX === 'clip'
       && readOnlyHeaderStyle.whiteSpace === 'nowrap'),
-    'read-only pending-source Header remains neutral while the owning source stays blue and internal overflow remains safe', readOnlyHeaderStyle)
+    'read-only pending-source Header stays neutral with clipping instead of a horizontal scroll container', readOnlyHeaderStyle)
   await saveScreenshot('header-readonly-selected')
   await clickSelector(masterDataNavigation)
   verify(await textContent('header [data-header-value] [data-selected-value-output]') === '—',
@@ -973,7 +1000,7 @@ try {
         && layout.redo.right <= layout.info.left
         && layout.info.right <= width + 0.5
         && layout.documentWidth <= width
-        && layout.overflowX === 'auto'
+        && layout.overflowX === 'clip'
         && layout.whiteSpace === 'nowrap'),
       `Header value and utility controls remain bounded and ordered at ${width}px`, layout)
     const tableGeometry = await geometry(`(()=>{

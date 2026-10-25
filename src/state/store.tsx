@@ -1146,7 +1146,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           itemCode: '',
           description: '',
           consumption: null,
-          unit: 'PC',
+          unit: '',
           price: null,
           loss: null,
           sourceRef: 'Direct Input',

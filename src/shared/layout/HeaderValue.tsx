@@ -48,7 +48,7 @@ export function HeaderValue({ inDialog = false }: { inDialog?: boolean }) {
             className={`select-text border px-1 text-right transition-colors ${inputColors}`}
           />
         ) : (
-          <span data-selected-value-output="true" tabIndex={selection ? 0 : undefined} title={headerValue || undefined} className={`block h-8 w-full select-text overflow-x-auto overflow-y-hidden whitespace-nowrap border border-transparent px-1 pr-9 text-right font-mono leading-8 tabular-nums ${outputColor}`}>
+          <span data-selected-value-output="true" tabIndex={selection ? 0 : undefined} title={headerValue || undefined} className={`block h-8 w-full select-text overflow-clip whitespace-nowrap border border-transparent px-1 pr-9 text-right font-mono leading-8 tabular-nums ${outputColor}`}>
             {headerValue || '—'}
           </span>
         )}

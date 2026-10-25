@@ -143,7 +143,7 @@ function isBlankBom(row: SnapshotBOMItem): boolean {
   const defaultLoss = row.loss === null || (generatedPlaceholder && row.loss === 0)
   return isGeneratedRow(row, 'bom') && isEmpty(row.itemCode) && isBlankOrGeneratedIdentity(row, row.description) &&
     isEmpty(row.note) &&
-    defaultQuantities && row.unit === 'PC' && defaultLoss &&
+    defaultQuantities && (isEmpty(row.unit) || row.unit === 'PC') && defaultLoss &&
     (row.sourceRef === undefined || row.sourceRef === 'Direct Input') &&
     hasNoExtraFields(row.additionalFields) &&
     (generatedPlaceholder || hasDefaultEvidence(row.confidence, { consumption: null, price: null, loss: 0 }))

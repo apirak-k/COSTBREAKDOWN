@@ -1,4 +1,89 @@
-## Current checkpoint — Phase 2 Round 5 final cross-page regression — 2026-10-25
+## Current checkpoint — Phase 2 verification / fix follow-up — 2026-10-25
+
+- **Status:** **PASS for THIS follow-up round.** This is a new round for four later findings. The user explicitly confirms the preceding Header-neutral / Batch Size alignment / Simulation zero-boundary corrective round PASSED for its own scope. Its historical checkpoint below is preserved; its later dependency/verifier findings do not reopen that completed scope. Phase 2 remains open / not merge-ready.
+- **Repository:** feat/selected-value-ux in /Users/bubu/COSTBREAKDOWN-ref-current-custom-flow-redesign. Starting local HEAD and freshly fetched remote HEAD both b673b3e08fbd054d03217b7a84d5b56c45917c76. The user subsequently authorized commit and push to this feature branch; merge and Phase 2 closure remain unauthorized.
+- **Preservation:** All pre-existing dirty work was captured before edits in /tmp/costbreakdown-followup-start.patch. Reconstruction of that initial state confirms parameter-cost-effect.ts, EconomicSimulationPanel.tsx, SimulationPage.tsx, NumericInput.tsx, the earlier direct-edit/attribution verifiers, and user-owned verify_simulation_round4a_layout.mjs are byte-identical to their starting contents. The protected verifier remains 3 additions / 62 deletions versus HEAD.
+- **Scope 1:** Live Add BOM and live Sizing create unit: ''. Unit remains free text. Existing units remain intact; blank-placeholder recognition accepts new empty units and historical PC placeholders. Deleted AddBOMModal after a repository-wide reference check found no live imports/exports/callers. Other UOM helpers still used by ProductSetupModal were preserved.
+- **Scope 2:** Header display uses overflow-clip, removing its scroll container rather than hiding a scrollbar. Formatting functions, precision rules, source coloring, and NumericInput were unchanged. The native fixed-size Header editor retains full authoritative text, Home/End, arrows, selection, and clipboard behavior.
+- **Scope 3:** Vite 6.4.3 upgraded and pinned to 6.4.4, the smallest compatible patched 6.x release. Package metadata and lockfile changed only for Vite. Installed plugin-react 4.7.0 accepts Vite 6. Current audit: 0 High / 0 Critical / 5 Moderate; no unrelated dependency modernization.
+- **Scope 4:** Full-flow verifier asserts recognition failure by result shape and diagnostics instead of obsolete wording, then retains canonical import/comparison/export checks. Static comparison-view verifier uses SelectedValueProvider from the same Vite graph and checks current header/numeric wrappers and all selected-slot values.
+
+- **Delivery authorization update:** The user requested pushing the completed work. The preceding corrective source/tests are recorded in commit 73aa5ea; the follow-up implementation and this checkpoint are committed next for the same branch. The protected user-owned layout verifier remains excluded. Remote delivery is verified after pushing.
+
+### Executed verification
+
+- node scripts/verify_master_data_ui_state.mjs — PASS, 10 scenario groups; live Add callback and old Unit preservation. Baseline failed PC != blank before the fix.
+- node_modules/.bin/jiti scripts/verify_dataset_sizing_preservation.ts — PASS; blank Unit, growth/shrink/no-op preservation, historical placeholders, arbitrary Unit data.
+- node_modules/.bin/jiti scripts/verify_sizing_placeholders_ignored.ts — PASS.
+- node_modules/.bin/jiti scripts/verify_dataset_sizing_and_clone.ts — PASS, including template/import/export.
+- node scripts/verify_exact_decimal_lifecycle_browser.mjs — PASS, 48 assertions; added long Header native keyboard/selection/copy/paste and fixed-frame coverage.
+- COSTBREAKDOWN_BROWSER_BASE_URL=http://127.0.0.1:5173/ node scripts/verify_master_data_selected_value.mjs — PASS, 184/184, no runtime errors/warnings; blank Add Unit, arbitrary free text, preserved existing Unit, five responsive layouts, Header and history.
+- node scripts/verify_numeric_input.mjs — PASS, 354/354.
+- node scripts/verify_simulation_regression.mjs — PASS, including 22 loaded state/calculation/history/Selected Value suites; existing non-failing Vite WebSocket port notices remain.
+- node_modules/.bin/jiti scripts/verify_snapshot_full_flow.ts — PASS; 5 BOM / 7 Routing / 4 WC each side; 6/10/5 findings; four-sheet export 13,856 bytes.
+- node --experimental-strip-types scripts/verify_snapshot_comparison_view.ts — PASS.
+- npx tsc -p tsconfig.json --noEmit --pretty false — PASS after final production edits.
+- npm run build — PASS after final production edits; existing browser externalization and chunk-size warnings remain.
+- node --check for the four changed MJS verifiers — PASS. git diff --check — PASS after the final checkpoint update.
+- npm audit --audit-level=high — PASS, exit 0; 5 Moderate, 0 High/Critical. Remaining advisories concern postcss-selector-parser and uuid via existing dependencies.
+- COSTBREAKDOWN_BROWSER_BASE_URL=http://127.0.0.1:5173/ node scripts/verify_numeric_input_browser.mjs — PASS, 2,403/2,403; five viewport checks confirm Header display cannot scroll even programmatically.
+- COSTBREAKDOWN_BROWSER_BASE_URL=http://127.0.0.1:5173/ node scripts/verify_direct_edit_blue_browser.mjs — PASS, 211 assertions; no browser errors/warnings.
+- Final npm audit --audit-level=high — PASS, exit 0; 0 High / 0 Critical / 5 Moderate. Final diff/status review confirms this round's scope and preserved prior dirty work.
+
+### Verification environment and additional findings
+
+- Master Data checks initially exposed stale Header overflow expectations and text-caret fixtures relying on the old PC default; assertions were updated for the new contract. A later shared-cache run encountered transient React startup errors. One isolated launch timed out before Chrome DevTools was ready. The final run used an isolated temporary Vite cache and passed every assertion without suppressing browser errors. The original developer server was left untouched.
+- The first added Header caret check used text that still fit the input. The final check uses a definitely overflowing authoritative exact value and verifies actual native scroll offset plus unchanged frame geometry.
+- **Additional pre-existing finding, left unchanged:** reducing Sizing can omit populated-row confirmation for a trailing BOM row containing only a user-entered Unit. A read-only TypeScript probe returned removedWithUnitOnly: [] on both current and HEAD, while adding a Note returned the row ID on both. The relevant helper suffix is byte-identical to HEAD; dataset-sizing.ts:isPopulatedRow omits Unit from its BOM condition. This does not change the previous round's PASS status.
+- [Unverified] Firefox/Safari, physical touch hardware, and screen readers. An existing developer server started before the dependency upgrade should be restarted to load Vite 6.4.4.
+- **Next:** external review of the local follow-up delivery. All requested checks for this round passed; Phase 2 remains open / not merge-ready. The temporary verification server was stopped; the pre-existing developer server was preserved. The user subsequently authorized committing and pushing the completed delivery on the existing feature branch; no merge or Phase 2 closure is authorized.
+
+## Previous checkpoint — Phase 2 Round 5 corrective pass — 2026-10-25
+
+- **Status:** **CORRECTIVE PASS BLOCKED.** The three requested product corrections are implemented and their focused browser/calculation regressions pass. The current HAWS completion gate is unsatisfied because npm audit reports one High dependency vulnerability. Snapshot full-flow and static comparison-view verifiers also retain unrelated assertion/setup failures recorded below. The Round 5 external audit remains pending; Phase 2 is **NOT CLOSED / NOT MERGE-READY**. No commit, push, or merge occurred.
+- **Branch / checkout:** feat/selected-value-ux / /Users/bubu/COSTBREAKDOWN-ref-current-custom-flow-redesign.
+- **Starting local and freshly fetched remote HEAD:** both b673b3e08fbd054d03217b7a84d5b56c45917c76. **Ending local HEAD:** the same SHA; the branch was not advanced.
+- **Preserved user-owned dirty file:** scripts/verify_simulation_round4a_layout.mjs was dirty before this pass (3 additions / 62 deletions). It was never edited, staged, or included; its selected-value-only browser mode was run and passed.
+- **Finding 1 — neutral Header Value:** removed pending-provenance text color from Header input and output. Direct and Header-mediated edits keep blue provenance on the owning source; Header remains neutral. Focus, writer, preview, pin, history and save behavior were preserved. Updated direct-edit and Master Data Selected Value verifier expectations.
+- **Finding 2 — Economic Batch Size:** added an opt-in NumericInput integer-axis capability and enabled it only for Batch Size. It stays an integer in a fixed frame, aligns with decimal siblings, leaves UOM outside the numeric region, and retains spinner, keyboard and graph stepping.
+- **Finding 3 — zero-boundary attribution:** added an opt-in exact-decimal changed-factor permutation average inside the shared BOM/Routing calculators, enabled only by Simulation wrappers. Positive-to-positive exact-aware LMDI remains in place; zero-to-zero returns exact zeros; unchanged factors remain zero; Capacity and Yield remain strictly positive. Cost Breakdown defaults and its positive-only attribution contract remain unchanged.
+- **Documentation:** current canonical Header provenance, Batch Size axis, zero-boundary behavior, and Phase 2 status are reconciled in the current specs, requirements index, Phase 2 plan, and this Handoff. Earlier checkpoints remain historical.
+
+### Verification
+
+- node scripts/verify_direct_edit_blue_browser.mjs — **PASS, 211 assertions**.
+- node scripts/verify_numeric_input.mjs — **PASS, 354/354**.
+- node scripts/verify_numeric_input_browser.mjs — **PASS, 2,398/2,398**; Batch Size integer formatting, axis, focus/blur, spinner, keyboard, graph sync, fixed frame, and UOM checked.
+- node scripts/verify_simulation_parameter_attribution.mjs — **PASS, all 27 required zero-boundary cases plus exact-decimal and Simulation/CBD-domain integration checks**.
+- node scripts/verify_cbd_parameter_cost_effect.mjs — **PASS**.
+- node scripts/verify_round5_cross_page_browser.mjs — **PASS, 60/60**.
+- node scripts/verify_exact_decimal_lifecycle_browser.mjs — **PASS, 40/40**.
+- node scripts/verify_cbd_selected_value_browser.mjs — **PASS, 306/306** on the completed run. Two earlier attempts ended in Chrome DevTools transport closure; the final isolated run completed without browser errors or warnings.
+- node scripts/verify_master_data_selected_value.mjs — **PASS, 179/179** after correcting two stale assertions that expected Header blue. The initial run passed 177 and failed those two expectations.
+- node scripts/verify_simulation_round4a_layout.mjs --selected-value-only — **PASS, 70/70**; the pre-existing user-owned verifier file remained untouched.
+- node scripts/verify_simulation_disclosure_browser.mjs — **PASS, 202/202 plus 4/4 fresh-browser native scrollbar checks**.
+- node scripts/verify_master_data_ui_state.mjs — **PASS, 9 scenario groups**.
+- node scripts/verify_simulation_regression.mjs — **PASS**, including the 22 loaded Simulation/CBD state, calculation, economic, history, send, and comparison suites. Existing Vite port 24678 WebSocket notices were non-failing.
+- Snapshot / comparison: snapshot bridge, quality, projection, import, and Selected Comparison boundary scripts — **PASS**. Vite SSR also passed snapshot dynamic fields, Selected Comparison lifecycle, and comparison reconciliation.
+- npx tsc -p tsconfig.json --noEmit --pretty false — **PASS** after fixing two typed zero-boundary return mappings.
+- npm run build — **PASS**. Existing ExcelJS / fast-csv browser externalization and large-chunk warnings remain.
+- node --check for the four modified .mjs verifiers — **PASS**.
+- git diff --check — **PASS** after the corrective and final Handoff updates.
+- npm audit --audit-level=high — **FAIL, exit 1**: **6 vulnerabilities total (1 High, 5 Moderate, 0 Critical)**. The High finding is Vite <=6.4.3; Moderate findings affect postcss-selector-parser and uuid through existing dependencies. No dependency changes were made because remediation is outside this corrective authorization.
+
+### Unresolved verification findings
+
+- node_modules/.bin/jiti scripts/verify_snapshot_full_flow.ts — **FAIL** at its incomplete-workbook assertion: it expects the parser message to match /Import rejected/, while the parser returns Dataset workbook not recognized. Required sheets: META, BOM, WORK_CENTER, ROUTING, with Product Name and UOM in META. No import behavior or fixture was changed.
+- verify_snapshot_comparison_view.ts — **FAIL / UNVERIFIED as a product regression**: its existing render invokes SelectedNumber outside SelectedValueProvider. A temporary provider wrapper (reverted afterward) advanced to another existing assertion that expects stale header markup. No product source or final verifier change was made for this unrelated fixture.
+- [Unverified] Firefox/Safari, physical touch hardware, and screen-reader behavior.
+
+### Diff boundary
+
+- **Production files:** parameter-cost-effect.ts; EconomicSimulationPanel.tsx; SimulationPage.tsx; HeaderValue.tsx; NumericInput.tsx.
+- **Verification files:** verify_direct_edit_blue_browser.mjs; verify_master_data_selected_value.mjs; verify_numeric_input_browser.mjs; verify_simulation_parameter_attribution.mjs.
+- **Documentation:** current Phase 2 plan, requirements index, CROSS_CUTTING, MASTER_DATA, SIMULATION, and this Handoff.
+- **Unrelated product files changed:** **NO**. User-owned scripts/verify_simulation_round4a_layout.mjs remains separate and unchanged. No formula, validation domain, dataset/history lifecycle, comparison ownership, graph semantics, or behavior outside the requested Simulation zero boundary changed.
+## Previous checkpoint — Phase 2 Round 5 final cross-page regression — 2026-10-25
 
 - **Status:** **ROUND 5 PASS / READY FOR EXTERNAL AUDIT.** Round 4 / 4B are **CLOSED**. User confirms the Simulation BOM/Routing disclosure corrective at `e5f8c426485151a15be9580d54288b6f8af1e003` passed external review / acceptance. Phase 2 is not yet externally accepted or closed; the Round 5 external review remains pending.
 - **Branch / checkout:** `feat/selected-value-ux` / `/Users/bubu/COSTBREAKDOWN-ref-current-custom-flow-redesign`.

@@ -31,9 +31,12 @@ async function main(): Promise<void> {
     'CostModel_SYNTHETIC_MOCK_v2.xlsx'
   )
   const incompleteReference = await parseSnapshotExcelInputFile(incompleteReferenceFile, 'reference')
-  assert.equal(incompleteReference.success, false, 'the incomplete public review fixture must be rejected by Import validation')
-  assert.match(incompleteReference.message, /Import rejected/)
-  assert.ok((incompleteReference.warnings ?? []).length > 0, 'rejection should explain the invalid or unavailable source data')
+  assert.equal(incompleteReference.success, false, 'the legacy public review fixture is not a canonical dataset workbook')
+  assert.equal(incompleteReference.format, undefined, 'unrecognized workbooks must not be classified as canonical')
+  assert.equal(incompleteReference.snapshot, undefined, 'rejected workbooks must not produce an importable snapshot')
+  assert.equal(incompleteReference.role, 'reference', 'recognition failure retains the requested destination role')
+  assert.ok(incompleteReference.message.trim().length > 0, 'recognition failure explains the rejected workbook')
+  assert.ok((incompleteReference.warnings ?? []).some(warning => warning.trim().length > 0), 'recognition failure includes a diagnostic')
 
   const pair = createSyntheticReviewSnapshotPair()
   const reference = await parseSnapshot(pair.reference, 'reference')

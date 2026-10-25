@@ -160,7 +160,7 @@ try {
     await delay(100)
   }
   const press = async key => {
-    const code = ({ ArrowLeft: 37, ArrowUp: 38, ArrowRight: 39, ArrowDown: 40, F6: 117 })[key]
+    const code = ({ Home: 36, End: 35, ArrowLeft: 37, ArrowUp: 38, ArrowRight: 39, ArrowDown: 40, F6: 117 })[key]
     if (!code) throw new Error(`Unsupported physical key: ${key}`)
     await send('Input.dispatchKeyEvent', { type: 'keyDown', key, code: key, windowsVirtualKeyCode: code })
     await send('Input.dispatchKeyEvent', { type: 'keyUp', key, code: key, windowsVirtualKeyCode: code })
@@ -320,6 +320,33 @@ try {
   await focusInput(headerSelector, critical)
   check(await evaluate(`document.querySelector(${JSON.stringify(headerSelector)}).value`) === critical,
     'Header Value editor reads the same exact decimal as the grid')
+  const headerLong = `${critical}123456789012345678901234567890`
+  await pasteInput(headerSelector, headerLong)
+  const headerFrame = () => evaluate(`(()=>{const input=document.querySelector(${JSON.stringify(headerSelector)}),header=input.closest('[data-header-value]');const box=e=>{const r=e.getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,height:r.height}};return {input:box(input),header:box(header)}})()`)
+  const headerBeforeNavigation = await headerFrame()
+  await press('End')
+  let headerCaret = await evaluate(`(()=>{const e=document.querySelector(${JSON.stringify(headerSelector)});return {start:e.selectionStart,end:e.selectionEnd,scroll:e.scrollLeft,clientWidth:e.clientWidth,scrollWidth:e.scrollWidth,overflow:getComputedStyle(e).overflowX}})()`)
+  check(headerCaret.start === headerLong.length && headerCaret.end === headerLong.length && headerCaret.scroll > 0
+    && !['auto','scroll'].includes(headerCaret.overflow), 'Header End reaches hidden digits through the native input viewport without scrollbar UI', headerCaret)
+  await press('ArrowLeft')
+  check(await evaluate(`document.querySelector(${JSON.stringify(headerSelector)}).selectionStart`) === headerLong.length - 1, 'Header ArrowLeft moves the native caret one digit')
+  await press('ArrowRight')
+  check(await evaluate(`document.querySelector(${JSON.stringify(headerSelector)}).selectionStart`) === headerLong.length, 'Header ArrowRight moves back to the final digit')
+  await press('Home')
+  headerCaret = await evaluate(`(()=>{const e=document.querySelector(${JSON.stringify(headerSelector)});return {start:e.selectionStart,scroll:e.scrollLeft}})()`)
+  check(headerCaret.start === 0 && headerCaret.scroll === 0, 'Header Home reaches the first digit and restores the native viewport', headerCaret)
+  await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'ArrowRight', code: 'ArrowRight', modifiers: 8, windowsVirtualKeyCode: 39 })
+  await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'ArrowRight', code: 'ArrowRight', modifiers: 8, windowsVirtualKeyCode: 39 })
+  check(await evaluate(`(()=>{const e=document.querySelector(${JSON.stringify(headerSelector)});return e.selectionStart===0&&e.selectionEnd===1})()`), 'Header supports native keyboard text selection')
+  await evaluate(`document.querySelector(${JSON.stringify(headerSelector)}).select()`)
+  const clipboardModifier = process.platform === 'darwin' ? 4 : 2
+  await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'c', code: 'KeyC', modifiers: clipboardModifier, commands: ['copy'] })
+  await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'c', code: 'KeyC', modifiers: clipboardModifier })
+  check(await evaluate('navigator.clipboard.readText()') === headerLong, 'Header native copy retains every authoritative digit')
+  await pasteInput(headerSelector, `${headerLong}8`)
+  check((await readState()).exact === `${headerLong}8`, 'Header native paste writes all digits to the owning source')
+  await pasteInput(headerSelector, critical)
+  check(JSON.stringify(await headerFrame()) === JSON.stringify(headerBeforeNavigation), 'Long Header keyboard, selection, copy, and paste preserve its fixed frame')
   await setCaret(headerSelector, unitsIndex)
   await clickAt('header button[aria-label="Increase Selected value"]')
   await waitUntil(`JSON.parse(document.querySelector('[data-testid="exact-decimal-state"]').textContent).exact===${JSON.stringify(unitStepped)}`, 'Header stepper exact increment')
