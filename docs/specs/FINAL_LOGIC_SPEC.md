@@ -289,7 +289,7 @@ Custom is the recommended workspace when the user wants to experiment with struc
 - Sizing configures starting row counts for BOM, Work Centers, and Routing (minimum 1 each).
 - Applying a count sets that table to exactly that many rows:
   - Increasing adds blank rows.
-  - Decreasing truncates from the end (removed data is lost).
+  - Decreasing truncates from the end of Working immediately on valid Apply, without a destructive confirmation. Existing Master Data Undo restores the previous sizing and complete removed Working rows; Redo reapplies the resize. Last Saved remains unchanged.
 - Download Template generates the canonical Excel workbook matching configured Sizing counts.
 
 ## 3.5 Workbook Format

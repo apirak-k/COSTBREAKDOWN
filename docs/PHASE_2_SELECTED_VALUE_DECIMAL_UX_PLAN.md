@@ -1,6 +1,6 @@
 # Phase 2 — Selected Value / Decimal UX Execution Plan
 
-**Status:** Rounds 1–4 (including 4B) remain closed. The user confirms the preceding three-fix corrective round PASSED for its own scope. The separate BOM Unit / Header scrollbar / Vite security / stale-verifier follow-up PASSED. Vite 6.4.4 audit reports 0 High / 0 Critical / 5 Moderate. Phase 2 final external acceptance remains PENDING; Phase 2 is NOT CLOSED / NOT MERGE-READY.
+**Status:** Prior accepted rounds and the passed follow-up remain unchanged. MASTER DATA CONFIRMATION / UNDO-REDO RECONCILIATION: PASS. The local cleanup is technically ready for PHASE 2 FINAL EXTERNAL ACCEPTANCE. Phase 2 final external acceptance remains PENDING; the user subsequently authorized commit and push of this cleanup, with no merge or Phase 2 closure.
 **Execution branch:** `feat/selected-value-ux`
 **Repository:** `https://github.com/apirak-k/COSTBREAKDOWN`
 
@@ -46,7 +46,15 @@ These are workflow steps inside the existing five-round Phase 2 plan. Round 4 / 
 8. Verify this separate follow-up and submit the resulting delivery for the required Phase 2 external review; the Vite High/Critical audit gate is now satisfied.
 9. After Phase 2: Excel validation → real-world usage test → portable distribution.
 
-Current statuses: Round 4 / Round 4B CLOSED; preceding three-fix corrective round PASS for its own scope; later follow-up PASS; current audit 0 High / 0 Critical / 5 Moderate; Phase 2 final external acceptance PENDING.
+Current statuses: prior rounds/follow-up retain their recorded PASS/CLOSED states; final Master Data confirmation cleanup PASS / technically ready for external acceptance; Phase 2 final external acceptance PENDING. The former Unit-only confirmation observation is superseded by the latest immediate-apply / Undo-Redo decision.
+
+## Final Master Data Confirmation / Undo-Redo Cleanup — 2026-10-26
+
+- **Status:** MASTER DATA CONFIRMATION / UNDO-REDO RECONCILIATION: PASS. Technically ready for PHASE 2 FINAL EXTERNAL ACCEPTANCE; previous completed scopes remain passed.
+- **Finalized rule:** Valid Sizing applies immediately for BOM, Work Centers, and Routing; all trailing rows follow the same rule. Existing Working Undo/Redo restores/reapplies counts and full row data without changing Last Saved.
+- **Cleanup:** Remove only confirmation-specific helper/classification and obsolete confirmation assertions. Preserve resizing, validation, no-op, placeholders, historical PC compatibility, Unit defaults, import/Clone, shared ConfirmModal, and Import staging.
+- **Reconciliation:** The prior Unit-only confirmation observation remains historical and is no longer classified as a bug/blocker. Header production behavior remains unchanged; stale Master Data wording is aligned with read-only clipping and native editable viewport behavior.
+- **Delivery:** Current evidence is in [HANDOFF](../HANDOFF.md). No commit, push, merge, or Phase 2 closure is authorized.
 
 ## Round 5 — Final Cross-page Regression — 2026-10-25
 
@@ -239,4 +247,4 @@ The closure below records the state before a later user-requested targeted corre
 
 ## Next action
 
-**Next:** submit the locally verified follow-up delivery for Phase 2 external review. Phase 2 remains open and not merge-ready until its final acceptance gate passes.
+**Next:** external review of the technically ready Master Data confirmation / Undo-Redo cleanup for PHASE 2 FINAL EXTERNAL ACCEPTANCE. The user subsequently authorized committing and pushing the verified cleanup to the existing feature branch; no merge or Phase 2 closure is authorized.

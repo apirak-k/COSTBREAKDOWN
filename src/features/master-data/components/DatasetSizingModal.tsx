@@ -6,7 +6,6 @@ import { MasterDataRole, CostSnapshot, DatasetSizing, ProductMaster } from '../.
 import { DATASET_SIZING_LIMITS } from '../../../core/utils/sizing'
 import { getMasterDataNumericInputDomain, isMasterDataNumericInputValid } from '../../../core/utils/master-data-validation'
 import { hasDatasetMetadataChanged, hasDatasetSizingChanged, parseDatasetSizingCounts } from '../dataset-sizing-form'
-import { getPopulatedRowsRemovedBySizing } from '../../../state/dataset-sizing'
 import { downloadBlob } from '../../../services/excel/export'
 import { HeaderValue } from '../../../shared/layout/HeaderValue'
 import { useDialogFocus } from '../use-dialog-focus'
@@ -116,12 +115,6 @@ export const DatasetSizingModal: React.FC<DatasetSizingModalProps> = ({
   const handleApply = () => {
     try {
       const { nextSizing, nextProduct, previousProductFields } = buildSizingDraft()
-      const removedData = getPopulatedRowsRemovedBySizing(snapshot, nextSizing)
-      if (removedData.length > 0) {
-        const removedPreview = removedData.slice(0, 3).join(', ')
-        const remainingCount = removedData.length > 3 ? ` and ${removedData.length - 3} more` : ''
-        if (!window.confirm(`Reduce ${roleLabel} dataset size? Populated data will be removed: ${removedPreview}${remainingCount}.`)) return
-      }
       const nextProductFields = {
         productName: nextProduct.productName || '',
         uom: nextProduct.uom || '',

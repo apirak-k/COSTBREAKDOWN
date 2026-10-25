@@ -21,7 +21,6 @@ import {
   groupMasterDataWarnings,
   MASTER_DATA_WARNING_CATEGORY_DEFINITIONS
 } from '../src/features/master-data/prepare-dataset'
-import { getPopulatedRowsRemovedBySizing } from '../src/state/dataset-sizing'
 import { assertDatasetSizingCounts, DATASET_SIZING_LIMITS } from '../src/core/utils/sizing'
 import { parseNumericDraft } from '../src/shared/ui/numeric-input-rules'
 import { hasInvalidNumber } from '../src/features/master-data/table-validation'
@@ -374,15 +373,5 @@ assert.ok(buildMasterDataBlockerItems({ reference: snapshot('reference'), curren
 const legacyUnknownReference = structuredClone(unknownWorkCenterChange)
 assert.equal(isMasterDataSnapshotChangeValid(legacyUnknownReference, { ...structuredClone(legacyUnknownReference), remark: 'review' }), true,
   'unrelated edits do not freeze a legacy snapshot with a pre-existing unavailable Work Center')
-
-const truncation = snapshot('truncation')
-truncation.bom = [
-  { id: 'blank-tail', itemCode: '', description: '', consumption: null, unit: 'PC', price: null, loss: null, confidence: {}, isGeneratedSizingPlaceholder: true },
-  { id: 'used-tail', itemCode: '', description: 'Used material', consumption: 1, unit: 'PC', price: 3, loss: 0, confidence: {} }
-]
-assert.deepEqual(getPopulatedRowsRemovedBySizing(truncation, { bomCount: 1 }), ['Used material'],
-  'only populated rows removed by truncation require confirmation')
-assert.deepEqual(getPopulatedRowsRemovedBySizing(truncation, { bomCount: 2 }), [],
-  'sizing that does not remove rows does not require confirmation')
 
 console.log('Master Data toolbar and Prepare Dataset behavior verification passed')

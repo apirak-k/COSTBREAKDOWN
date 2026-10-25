@@ -1,6 +1,5 @@
 import assert from 'node:assert/strict'
 import {
-  getPopulatedRowsRemovedBySizing,
   hasEnteredMasterData,
   importSnapshotForRole,
   markSizingPlaceholderEdited,
@@ -432,8 +431,6 @@ assert.equal(beforeGrowth.bom.length, 1)
 assert.equal(beforeGrowth.routing.length, 1)
 assert.equal(afterGrowth.bom[0].unit, 'KG', 'Sizing preserves existing BOM Unit values')
 assert.equal(afterGrowth.bom[1].unit, '', 'Sizing growth never fills a Unit')
-assert.deepEqual(getPopulatedRowsRemovedBySizing(afterGrowth, { bomCount: 1 }), [],
-  'removing untouched blank Sizing rows needs no populated-row confirmation')
 const afterRegrowthShrink = resizeMasterDataSnapshotForSizing(afterGrowth, { bomCount: 1 }, factories)
 assert.equal(afterRegrowthShrink.bom.length, 1, 'Sizing reduction removes only the new trailing blank rows')
 assert.equal(afterRegrowthShrink.bom[0].unit, 'KG', 'Sizing reduction preserves the retained Unit')

@@ -11,6 +11,7 @@ import {
 } from '../src/state/master-data-edit-history'
 import { clearAllMasterDataWorkingState } from '../src/state/clear-master-data-dataset'
 import { normalizeMasterDataSnapshot } from '../src/core/utils/master-data-effective'
+import { resizeMasterDataSnapshotForSizing } from '../src/state/dataset-sizing'
 
 function snapshot(id: string): CostSnapshot {
   return {
@@ -125,6 +126,82 @@ function populatedSnapshot(id: string, name: string): CostSnapshot {
     }]
   }
 }
+
+// Sizing shares the same Working history entry/apply path as other Master Data edits.
+for (const role of ['reference', 'current', 'custom'] as const) {
+  const seed = populatedSnapshot(`sizing-${role}`, `${role} retained material`)
+  const before: CostSnapshot = normalizeMasterDataSnapshot({
+    ...seed,
+    sizing: { bomCount: 3, wcCount: 3, routingCount: 3 },
+    bom: [1, 2, 3].map(index => ({ ...seed.bom[0], id: `${role}-bom-${index}`, itemCode: `MAT-${index}`,
+      description: `${role} material ${index}`, unit: index === 3 ? 'custom lot / batch' : 'KG',
+      consumption: index, price: 12.345678901234567, note: `BOM note ${index}`,
+      exactDecimalInputs: { consumption: `${index}.00000000000000001`, price: '12.34567890123456789', loss: '5.00000000000000001' } })),
+    rates: [1, 2, 3].map(index => ({ ...seed.rates[0], id: `${role}-rate-${index}`, workCenterCode: `WC-${index}`,
+      description: `${role} Work Center ${index}`, laborRate: 100 + index, note: `WC note ${index}`,
+      exactDecimalInputs: { laborRate: `${100 + index}.00000000000000001`, burdenRate: '50.00000000000000001' } })),
+    routing: [1, 2, 3].map(index => ({ ...seed.routing[0], id: `${role}-route-${index}`, operationCode: `OP-${index}`,
+      processName: `${role} process ${index}`, sequence: index * 10, manning: index, note: `Routing note ${index}`,
+      exactDecimalInputs: { manning: `${index}.00000000000000001`, capacity: '100.00000000000000001', yield: '90.00000000000000001' } }))
+  })
+  const afterSizing = { bomCount: 2, wcCount: 2, routingCount: 2 }
+  const after = normalizeMasterDataSnapshot(resizeMasterDataSnapshotForSizing(before, afterSizing, {
+    bom: () => { throw new Error('A Sizing reduction must not generate BOM rows') },
+    rate: () => { throw new Error('A Sizing reduction must not generate Work Centers') },
+    routing: () => { throw new Error('A Sizing reduction must not generate Routing rows') }
+  }), before)
+  for (const table of ['bom', 'rates', 'routing'] as const) {
+    assert.equal(after[table].length, 2, `${role} Sizing decreases ${table} from 3 to 2`)
+    assert.deepEqual(after[table], before[table].slice(0, 2), `${role} Sizing preserves retained ${table} rows`)
+  }
+  assert.deepEqual(after.sizing, afterSizing, `${role} snapshot Sizing follows row counts`)
+  const beforeSession: ProductSession = {
+    ...session,
+    snapshotPair: { reference: role === 'reference' ? before : beforeReference, current: role === 'current' ? before : beforeCurrent },
+    customMasterData: role === 'custom' ? before : populatedSnapshot('unaffected-custom', 'Unchanged Custom'),
+    datasetSizing: { reference: role === 'reference' ? before.sizing! : {}, current: role === 'current' ? before.sizing! : {} },
+    customDatasetSizing: role === 'custom' ? before.sizing : {},
+    customLastSavedMasterData: { snapshot: populatedSnapshot('saved-custom-sizing', 'Saved Custom'), prepared: true, sizing: { bomCount: 1 } }
+  }
+  const afterSession: ProductSession = role === 'custom'
+    ? { ...beforeSession, customMasterData: after, customDatasetSizing: afterSizing }
+    : { ...beforeSession, snapshotPair: { ...beforeSession.snapshotPair!, [role]: after },
+      datasetSizing: { ...beforeSession.datasetSizing!, [role]: afterSizing } }
+  const sizingEntry = {
+    ...edit(beforeSession.id, role === 'custom' ? 'current' : role, before.id, after.id),
+    role,
+    before,
+    after,
+    beforePrepared: { ...beforeSession.preparedSnapshotRoles! },
+    afterPrepared: { ...afterSession.preparedSnapshotRoles! },
+    beforeSizing: beforeSession.datasetSizing,
+    afterSizing: afterSession.datasetSizing,
+    beforeCustomSizing: beforeSession.customDatasetSizing,
+    afterCustomSizing: afterSession.customDatasetSizing
+  }
+  const sizingHistory = recordMasterDataEdit(createMasterDataEditHistory(), sizingEntry)
+  const undoSizing = undoMasterDataEdit(sizingHistory)
+  assert.ok(undoSizing.entry, `${role} Sizing records one real Master Data history entry`)
+  const restored = applyMasterDataEditHistoryEntry(afterSession, undoSizing.entry, 'undo')
+  assert.ok(restored, `${role} Sizing Undo applies through ordinary history restoration`)
+  const restoredSnapshot = role === 'custom' ? restored.customMasterData : restored.snapshotPair?.[role]
+  assert.deepEqual(restoredSnapshot, before, `${role} Sizing Undo restores all rows, IDs/order, text/Unit/numbers and exact sidecars`)
+  assert.deepEqual(role === 'custom' ? restored.customDatasetSizing : restored.datasetSizing?.[role], before.sizing,
+    `${role} Sizing Undo restores all three configured counts to 3`)
+  const redoSizing = redoMasterDataEdit(undoSizing.history)
+  assert.ok(redoSizing.entry)
+  const reapplied = applyMasterDataEditHistoryEntry(restored, redoSizing.entry, 'redo')
+  assert.ok(reapplied, `${role} Sizing Redo applies through ordinary history restoration`)
+  assert.deepEqual(role === 'custom' ? reapplied.customMasterData : reapplied.snapshotPair?.[role], after,
+    `${role} Sizing Redo restores the complete two-row state`)
+  assert.deepEqual(role === 'custom' ? reapplied.customDatasetSizing : reapplied.datasetSizing?.[role], afterSizing,
+    `${role} Sizing Redo restores all three configured counts to 2`)
+  for (const state of [afterSession, restored, reapplied]) {
+    assert.deepEqual(state.lastSavedMasterData, beforeSession.lastSavedMasterData, `${role} resize/Undo/Redo never changes Last Saved`)
+    assert.deepEqual(state.customLastSavedMasterData, beforeSession.customLastSavedMasterData, `${role} resize/Undo/Redo preserves Custom Last Saved`)
+  }
+}
+console.log('Sizing 3 → 2 → Undo → Redo restores BOM/Work Center/Routing data and exact sidecars for all roles: PASS')
 
 const beforeClearAll: ProductSession = {
   ...session,

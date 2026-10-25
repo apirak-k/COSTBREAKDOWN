@@ -1,18 +1,17 @@
 # Requirements Index
 
-**Updated:** 2026-10-25
+**Updated:** 2026-10-26
 
 ## Final Logic Authority
 
 [`specs/FINAL_LOGIC_SPEC.md`](specs/FINAL_LOGIC_SPEC.md) is the latest authority for product logic and behavior, consolidating the user-finalized business logic decisions. It finalizes logic/behavior only; it does not replace the rest of the product contract. If an older specification, agreement, design document, implementation decision, or current code conflicts with Final Logic on product logic, follow Final Logic only for that conflicting behavior. Existing finalized or accepted UX/UI, layout, visual style, wording, interaction behavior, and other requirements remain valid when compatible. Absence from Final Logic does not automatically remove an older non-conflicting finalized requirement. Existing code is implementation evidence, not requirements authority.
 
-## Current Phase 2 Execution Status — 2026-10-25
+## Current Phase 2 Execution Status — 2026-10-26
 
-- Round 4 / 4B: **EXTERNALLY AUDITED / ACCEPTED / CLOSED**.
-- The user confirms the preceding Header-neutral / Batch Size alignment / Simulation zero-boundary corrective round **PASSED for its own scope**. Those completed fixes remain accepted and unchanged by this follow-up.
-- This separate follow-up covers blank new BOM Unit values, Header scrollbar removal with native editing, the compatible Vite security patch, and two repaired snapshot verifiers. **FOLLOW-UP PASS**; command evidence and current result are recorded in [HANDOFF](../HANDOFF.md).
-- Vite is pinned to 6.4.4. The current audit reports **0 High / 0 Critical / 5 Moderate** vulnerabilities.
-- Phase 2 final external acceptance remains **PENDING**. Phase 2 is **NOT CLOSED / NOT MERGE-READY**; the user has authorized commit/push on the feature branch; merge and Phase 2 closure remain unauthorized.
+- Prior accepted rounds and the separate BOM Unit / Header scrollbar / Vite security / snapshot-verifier follow-up remain passed for their recorded scopes.
+- **Current final cleanup:** **MASTER DATA CONFIRMATION / UNDO-REDO RECONCILIATION: PASS**. Local technical verification is complete and ready for **PHASE 2 FINAL EXTERNAL ACCEPTANCE**. Undo/Redo-covered Working mutations execute immediately; Sizing reduction no longer branches on blank/populated trailing rows or asks for confirmation. The existing history path remains the recovery mechanism.
+- The earlier Unit-only Sizing-confirmation observation is superseded by this finalized decision, not a current bug/blocker. No Sizing row requires confirmation, and no Unit-specific populated detection is required.
+- Phase 2 final external acceptance remains **PENDING**. The user subsequently authorized committing and pushing this verified cleanup to the existing feature branch; merge and Phase 2 closure remain unauthorized. Current audit/results are recorded in [HANDOFF](../HANDOFF.md).
 
 ## Canonical Specifications Map
 

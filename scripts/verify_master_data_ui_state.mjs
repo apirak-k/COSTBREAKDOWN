@@ -799,7 +799,7 @@ try {
   assert.match(headerSource, /<Tooltip label=\{isEditMode \? 'Switch to View' : 'Switch to Edit'\}[\s\S]*role="switch"[\s\S]*aria-checked=\{isEditMode\}/, 'a single tooltip names the action performed by either icon area')
   assert.match(headerSource, /className="inline-flex shrink-0 items-center gap-1" role="group" aria-label="Master Data actions"/, 'action icons remain grouped without changing their 32px targets')
   assert.match(headerSource, /role="search" className="relative ml-auto h-8 w-48 min-w-48 max-w-48 shrink-0"/, 'Search remains exactly 192px wide and 32px high')
-  assert.match(sizingModalSource, /if \(removedData\.length > 0\)[\s\S]*window\.confirm\(/, 'Sizing confirms only when populated data will be removed')
+  assert.doesNotMatch(sizingModalSource, /window\.confirm|getPopulatedRowsRemovedBySizing/, 'valid Sizing applies immediately without row-content classification or destructive confirmation')
   assert.match(navbarSource, /id="header-prepare-dataset-trigger"[\s\S]*onClick=\{toggleMasterDataPrepareDataset\}[\s\S]*aria-expanded=\{masterDataPrepareDatasetOpen\}[\s\S]*aria-controls="prepare-dataset-panel"/, 'Header Info is the accessible Prepare Dataset toggle and controls the shared panel')
   assert.match(navbarSource, /id="header-prepare-dataset-portal-root"/, 'the shared popover portal is hosted beside the Header Info control')
   assert.match(readyFooterMarkup, /id="header-prepare-dataset-trigger"[\s\S]*id="header-prepare-dataset-portal-root"/, 'the rendered Header places the portal host directly after its Info trigger')
@@ -1208,8 +1208,8 @@ try {
   assert.doesNotMatch(sizingModalSource, />\s*(Dataset|Row counts)\s*</, 'Sizing has no redundant visible Dataset or Row counts heading')
   assert.match(sizingModalSource, /value=\{productName\}[\s\S]*value=\{uom\}[\s\S]*<MasterDataNumericInput[\s\S]*value=\{sellingPrice === '' \? null : Number\(sellingPrice\)\}[\s\S]*<MasterDataNumericInput[\s\S]*value=\{sgaPercent === '' \? null : Number\(sgaPercent\)\}[\s\S]*value=\{remark\}/,
     'Sizing retains local metadata drafts and uses the shared Selected Value numeric editor for Selling Price and SG&A')
-  assert.match(sizingModalSource, /buildSizingDraft\(\)[\s\S]*getPopulatedRowsRemovedBySizing\(snapshot, nextSizing\)[\s\S]*onSaveSizing\(nextSizing\)[\s\S]*onClose\(\)/,
-    'Sizing still validates its draft, protects populated truncation, and applies only on Apply')
+  assert.match(sizingModalSource, /buildSizingDraft\(\)[\s\S]*onSaveSizing\(nextSizing\)[\s\S]*onClose\(\)/,
+    'Sizing validates its draft and applies only on Apply without an extra confirmation step')
   assert.match(sizingModalSource, /const templateSnapshot = \{ \.\.\.snapshot, product: nextProduct, remark, sizing: nextSizing \}/,
     'Download Template uses the uncommitted dialog draft')
   assert.match(sizingModalSource, /error instanceof RangeError \? error\.message : 'Template could not be generated\. Please try again\.'/,

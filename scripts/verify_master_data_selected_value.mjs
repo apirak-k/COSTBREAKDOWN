@@ -1503,6 +1503,83 @@ try {
   verify(Object.keys(afterResetAll).every(role => firstSnapshotDifference(afterResetAll[role], resetAllKeyboardRedo[role]) === null),
     'keyboard Redo after Reset All reapplies the same role-by-role reset result')
 
+  await setViewport(1440, 1800)
+  await chooseRole('Current')
+  const storedSizingState = () => evaluate(`(()=>{
+    const id=JSON.parse(sessionStorage.getItem('costbreakdown_active_id'))
+    const session=JSON.parse(sessionStorage.getItem('costbreakdown_sessions')).find(item=>item.id===id)
+    return {snapshot:session.snapshotPair.current,sizing:session.datasetSizing?.current,
+      lastSaved:{pair:session.lastSavedMasterData,custom:session.customLastSavedMasterData}}
+  })()`)
+  const sameSizingState = (left, right) => JSON.stringify(left) === JSON.stringify(right)
+  const savedBeforeSizing = (await storedSizingState()).lastSaved
+  await evaluate(`window.__originalSizingConfirm=window.confirm;window.__sizingConfirmationCalls=[];window.confirm=message=>{window.__sizingConfirmationCalls.push(message);return false}`)
+  const applyAllSizingCounts = async count => {
+    await openSizing()
+    for (const label of ['Bill of Materials', 'Work Centers', 'Routing']) await replaceInput(dialogInput(label), String(count))
+    await clickTextButton('Apply Sizing')
+    await waitFor(() => evaluate(`!document.querySelector('[aria-labelledby="sizing-modal-title"]')`), `Sizing ${count} applies and closes immediately`)
+    await waitFor(async () => {
+      const state = await storedSizingState()
+      return ['bom','rates','routing'].every(table => state.snapshot[table].length === count)
+        && ['bomCount','wcCount','routingCount'].every(field => state.sizing[field] === count)
+    }, `Sizing ${count} row and configured counts are persisted`)
+  }
+  const editSizingTail = async (section, id, field, value) => {
+    const selector = `section[aria-label=${JSON.stringify(section)}] input[data-grid-row-id=${JSON.stringify(id)}][data-grid-field=${JSON.stringify(field)}]`
+    await evaluate(`(${visibleExpression(selector)}).scrollIntoView({block:'center'})`)
+    assert.equal(await replaceInput(selector, value), value, `Sizing tail ${field} accepts its authoritative value`)
+  }
+  for (const kind of ['blank', 'populated', 'Unit-only']) {
+    await applyAllSizingCounts(3)
+    let before = await storedSizingState()
+    if (kind === 'populated') {
+      const bomTail = before.snapshot.bom[2].id
+      for (const [field,value] of [['description','Sizing tail material'],['unit','custom lot / batch'],['price','12.34567890123456789']]) {
+        await editSizingTail('Bill of Materials rows', bomTail, field, value)
+      }
+      const rateTail = before.snapshot.rates[2].id
+      for (const [field,value] of [['workCenterCode','SIZING-WC-TAIL'],['laborRate','103.00000000000000001']]) {
+        await editSizingTail('Work Centers rows', rateTail, field, value)
+      }
+      const routingTail = before.snapshot.routing[2].id
+      for (const [field,value] of [['processName','Sizing tail process'],['manning','3.00000000000000001'],['capacity','123.00000000000000001']]) {
+        await editSizingTail('Routing rows', routingTail, field, value)
+      }
+    } else if (kind === 'Unit-only') {
+      await editSizingTail('Bill of Materials rows', before.snapshot.bom[2].id, 'unit', 'Unit-only tail / lot')
+    }
+    await evaluate('document.activeElement?.blur()')
+    await delay(180)
+    before = await storedSizingState()
+    if (kind === 'populated') {
+      verify(before.snapshot.bom[2].exactDecimalInputs?.price === '12.34567890123456789'
+          && before.snapshot.rates[2].exactDecimalInputs?.laborRate === '103.00000000000000001'
+          && before.snapshot.routing[2].exactDecimalInputs?.manning === '3.00000000000000001',
+        'populated Sizing tail fixtures retain authoritative exact decimal sidecars')
+    }
+    await applyAllSizingCounts(2)
+    const reduced = await storedSizingState()
+    verify(['bom','rates','routing'].every(table => sameSizingState(reduced.snapshot[table], before.snapshot[table].slice(0, 2)))
+        && sameSizingState(reduced.lastSaved, savedBeforeSizing),
+      `${kind} trailing BOM / Work Center / Routing rows reduce immediately with retained rows and Last Saved unchanged`)
+    await clickSelector('header button[aria-label="Undo"]')
+    await waitFor(async () => (await storedSizingState()).snapshot.bom.length === 3, `${kind} Sizing Header Undo restores rows`)
+    const restored = await storedSizingState()
+    verify(sameSizingState(restored.snapshot, before.snapshot) && sameSizingState(restored.sizing, before.sizing)
+        && sameSizingState(restored.lastSaved, savedBeforeSizing),
+      `${kind} Sizing Undo restores complete rows, IDs/order, Unit, numeric sidecars and all three counts without changing Last Saved`)
+    await clickSelector('header button[aria-label="Redo"]')
+    await waitFor(async () => (await storedSizingState()).snapshot.bom.length === 2, `${kind} Sizing Header Redo removes rows again`)
+    const reapplied = await storedSizingState()
+    verify(sameSizingState(reapplied.snapshot, reduced.snapshot) && sameSizingState(reapplied.sizing, reduced.sizing)
+        && sameSizingState(reapplied.lastSaved, savedBeforeSizing),
+      `${kind} Sizing Redo reapplies the full reduced Working and sizing state with Last Saved unchanged`)
+  }
+  const sizingConfirmations = await evaluate('window.__sizingConfirmationCalls')
+  verify(sizingConfirmations.length === 0, 'all Sizing reductions use existing Undo/Redo without any destructive confirmation', sizingConfirmations)
+  await evaluate('window.confirm=window.__originalSizingConfirm;delete window.__originalSizingConfirm;delete window.__sizingConfirmationCalls')
+
   const consoleMessages = [...browserErrors]
   verify(consoleMessages.length === 0, 'browser has no uncaught errors or console warnings', consoleMessages)
 

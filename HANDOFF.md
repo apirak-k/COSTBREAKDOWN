@@ -1,4 +1,40 @@
-## Current checkpoint — Phase 2 verification / fix follow-up — 2026-10-25
+## Current checkpoint — Master Data confirmation / Undo-Redo reconciliation — 2026-10-26
+
+- **Status:** **MASTER DATA CONFIRMATION / UNDO-REDO RECONCILIATION: PASS.** This cleanup is technically ready for **PHASE 2 FINAL EXTERNAL ACCEPTANCE**, subject to the human external review. Prior accepted corrective/follow-up scopes remain passed. Phase 2 final external acceptance is pending. The user subsequently authorized committing and pushing this cleanup to the existing feature branch; merge and Phase 2 closure remain unauthorized.
+- **Audited branch / starting local and freshly fetched remote HEAD:** feat/selected-value-ux; both ccd086f0ed7c8b2ac8742c9c551a743352cbc579. Existing dirty file: scripts/verify_simulation_round4a_layout.mjs only, preserved exactly (SHA-256 2ec01095364638e865a86be49f1401c5bf359dc6e98c60ca293f7dc2e19c68af; 3 additions / 62 deletions versus HEAD).
+- **Latest finalized decision:** Master Data Working mutations correctly covered by existing Undo/Redo execute immediately without extra destructive confirmation solely because data is removed/changed. Import staging/validation and genuine forms remain; Save is an explicit Last Saved checkpoint, and Export does not mutate Working.
+- **Production cleanup:** DatasetSizingModal no longer imports/calls populated-row detection or window.confirm. Its existing draft validation, bounds, metadata updates, no-op sizing guard and one Apply remain intact. Removed the confirmation-only getPopulatedRowsRemovedBySizing export and private isPopulatedRow / hasAdditionalData chain from dataset-sizing.ts after repository-wide reference checking. Placeholder/blank detection used by other live behavior remains.
+- **Active-page audit:** Add/delete/reorder, metadata edits, Clone, Clear/Reset and Import Apply already use immediate Working history boundaries. Sizing was the only active destructive confirmation. Save/Save All write Last Saved directly rather than creating Working undo entries; their existing semantics were preserved. Import modal remains staging/validation; Export/native save-file handling and shared ConfirmModal remain unchanged. No additional active conflicting confirmation was found.
+- **Superseded Unit-only observation:** The earlier note about Unit-only trailing rows missing confirmation remains in historical checkpoints but is no longer a bug/blocker under the finalized rule. No Sizing row requires confirmation, and no Unit-specific populated detection was added.
+- **History regression:** Existing history verifier now covers every role with three populated rows per table, 3→2 reduction, retained-row equality, full Undo restoration of IDs/order/text/Unit/numbers/exact sidecars and counts, full Redo reapplication, and unchanged ordinary/Custom Last Saved. It uses the existing record/undo/redo/apply history functions. Browser coverage invokes actual Sizing Apply and Header Undo/Redo through the store for blank, populated and Unit-only tails.
+- **Documentation:** MASTER_DATA now records the scoped Working-mutation principle, immediate Sizing/history recovery, and native-editable-only Header viewport wording. FINAL_LOGIC_SPEC's obsolete removed-data-is-lost sentence is reconciled with Undo/Redo. Requirements index and Phase 2 plan make this cleanup and superseded observation current without rewriting old checkpoints.
+
+### Verification executed
+
+- Baseline new no-confirm source contract: node scripts/verify_master_data_ui_state.mjs — expected FAIL before production removal, proving the old confirmation path.
+- node_modules/.bin/jiti scripts/verify_dataset_sizing_preservation.ts — PASS.
+- node_modules/.bin/jiti scripts/verify_dataset_sizing_noop.ts — PASS.
+- node_modules/.bin/jiti scripts/verify_dataset_sizing_and_clone.ts — PASS, including import/template/export and Clone.
+- node_modules/.bin/jiti scripts/verify_sizing_placeholders_ignored.ts — PASS.
+- node_modules/.bin/jiti scripts/verify_master_data_toolbar_prepare_ux.ts — PASS after removing only confirmation-exclusive assertions.
+- node scripts/verify_master_data_ui_state.mjs — PASS, 10 printed scenario groups; source confirmation contract updated without changing other checks.
+- node_modules/.bin/jiti scripts/verify_master_data_edit_history.ts — PASS, all-role Sizing restoration and existing page history regressions.
+- node --check scripts/verify_master_data_ui_state.mjs; node --check scripts/verify_master_data_selected_value.mjs — PASS.
+- npx tsc -p tsconfig.json --noEmit --pretty false — PASS.
+- npm run build — PASS; existing ExcelJS/fast-csv browser externalization and large-chunk notices remain.
+- npm audit --audit-level=high — PASS, exit 0. Audit JSON: Critical 0 / High 0 / Moderate 5; no dependency or package-version changes.
+- git diff --check — PASS after the final cleanup and documentation update.
+- COSTBREAKDOWN_BROWSER_BASE_URL=http://127.0.0.1:5173/ node scripts/verify_master_data_selected_value.mjs — PASS, 195/195. Blank/populated/Unit-only reductions immediately resize BOM/Work Centers/Routing; Header Undo restores full Working/sizing state and exact sidecars; Redo reapplies; Last Saved stays unchanged; confirmation calls: []; browser runtime errors/warnings: [].
+- The first browser attempt stopped with a Chrome DevTools Runtime.evaluate transport timeout during existing hover checks, before the new Sizing checks. Its log was retained; an unchanged-source rerun in a fresh browser profile completed every assertion. No runtime/assertion error was suppressed.
+- Final unchanged-file review preserves the passed Header, Unit defaults, Batch Size, attribution, package versions and shared ConfirmModal; the protected pre-existing dirty verifier remains byte-identical.
+
+### Boundaries / next action
+
+- HeaderValue.tsx, NumericInput.tsx, BOM Unit defaults/entry, placeholder compatibility, Economic Batch Size, Simulation attribution/UX, CBD, Vite/package metadata, calculations, workbook semantics, Last Saved implementation, Import staging, and shared ConfirmModal production code are unchanged.
+- [Unverified] Firefox/Safari, physical touch hardware, screen-reader behavior. Existing automated tests and source audit do not constitute final human external acceptance.
+- Next: external review of this technically ready local cleanup for PHASE 2 FINAL EXTERNAL ACCEPTANCE. Phase 2 is not closed by this implementation pass. The temporary verification server was stopped. The user subsequently authorized committing and pushing this verified cleanup; no merge or Phase 2 closure is authorized.
+
+## Previous checkpoint — Phase 2 verification / fix follow-up — 2026-10-25
 
 - **Status:** **PASS for THIS follow-up round.** This is a new round for four later findings. The user explicitly confirms the preceding Header-neutral / Batch Size alignment / Simulation zero-boundary corrective round PASSED for its own scope. Its historical checkpoint below is preserved; its later dependency/verifier findings do not reopen that completed scope. Phase 2 remains open / not merge-ready.
 - **Repository:** feat/selected-value-ux in /Users/bubu/COSTBREAKDOWN-ref-current-custom-flow-redesign. Starting local HEAD and freshly fetched remote HEAD both b673b3e08fbd054d03217b7a84d5b56c45917c76. The user subsequently authorized commit and push to this feature branch; merge and Phase 2 closure remain unauthorized.
