@@ -230,14 +230,23 @@ export function exactDecimalInputValue(
   exactInput?: string,
   percentageInput = false
 ): ExactDecimal | null {
-  if (numericValue == null) return null
-  const value = exactInput?.trim()
-    ? parseExactDecimal(exactInput)
-    : parseExactDecimal(exactDecimalNumberText(numericValue) ?? numericValue)
-  if (!value) return null
-  // Numeric model fields already contain fractions; only editor sidecars contain
-  // the percentage-point text that must be converted to a fraction.
-  return percentageInput && exactInput?.trim()
-    ? divideExactDecimals(value, { coefficient: 100n, scale: 0 })
-    : value
+  if (numericValue == null || !Number.isFinite(numericValue)) return null
+
+  const exactText = exactInput?.trim()
+  if (exactText) {
+    const entered = parseExactDecimal(exactText)
+    if (entered) {
+      // The sidecar is authoritative only while it still represents the same
+      // stored business value. This preserves intentional precision that maps
+      // to the same Number projection, while preventing an old sidecar from
+      // overriding a later numeric-only mutation.
+      const storedExact = percentageInput
+        ? divideExactDecimals(entered, { coefficient: 100n, scale: 0 })
+        : entered
+      const projected = storedExact ? exactDecimalToNumber(storedExact) : null
+      if (storedExact && projected !== null && Object.is(projected, numericValue)) return storedExact
+    }
+  }
+
+  return parseExactDecimal(exactDecimalNumberText(numericValue) ?? numericValue)
 }
