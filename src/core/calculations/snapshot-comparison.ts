@@ -51,9 +51,11 @@ function combinedConfidence(reference: SnapshotRow | undefined, current: Snapsho
   return 'verified'
 }
 
-export const COMPARABLE_BOM_FIELDS = ['description', 'consumption', 'unit', 'price', 'loss'] as const
-export const COMPARABLE_ROUTING_FIELDS = ['processName', 'workCenterId', 'manning', 'capacity', 'yield'] as const
-export const COMPARABLE_WORK_CENTER_FIELDS = ['workCenterCode', 'description', 'laborRate', 'burdenRate'] as const
+// Business identity fields are consumed by the matcher itself and are not
+// compared a second time as raw display strings after a row has matched.
+export const COMPARABLE_BOM_FIELDS = ['consumption', 'unit', 'price', 'loss'] as const
+export const COMPARABLE_ROUTING_FIELDS = ['workCenterId', 'manning', 'capacity', 'yield'] as const
+export const COMPARABLE_WORK_CENTER_FIELDS = ['laborRate', 'burdenRate'] as const
 export const COMPARABLE_PRODUCT_FIELDS = ['productName', 'uom', 'sellingPrice', 'sgaPercent'] as const
 
 function valuesEqual(left: unknown, right: unknown): boolean {
@@ -95,6 +97,10 @@ function equalSupportedField(field: string, reference: SnapshotRow, current: Sna
       (reference as unknown as Record<string, number | null>)[field],
       (current as unknown as Record<string, number | null>)[field]
     )
+  }
+  if (field === 'workCenterId') {
+    return normalizeKey((reference as unknown as Record<string, string | undefined>)[field])
+      === normalizeKey((current as unknown as Record<string, string | undefined>)[field])
   }
   return valuesEqual(
     (reference as unknown as Record<string, unknown>)[field],
@@ -173,7 +179,11 @@ function diffProductFields(reference: CostSnapshot['product'], current: CostSnap
         reference: left ? exactDecimalToString(left) : referenceValue,
         current: right ? exactDecimalToString(right) : currentValue
       }
-    } else if (!valuesEqual(referenceValue, currentValue)) diffs[field] = { reference: referenceValue, current: currentValue }
+    } else if ((field === 'productName' || field === 'uom')
+      ? normalizeKey(referenceValue as string | undefined) !== normalizeKey(currentValue as string | undefined)
+      : !valuesEqual(referenceValue, currentValue)) {
+      diffs[field] = { reference: referenceValue, current: currentValue }
+    }
   })
   addAdditionalFieldDiffs(diffs, reference.additionalFields, current.additionalFields)
   return diffs
@@ -312,7 +322,7 @@ function routingFlags(
   referenceRates: SnapshotWorkCenterRate[],
   currentRates: SnapshotWorkCenterRate[]
 ): ChangeFlags {
-  const movedWorkCenter = reference.workCenterId !== current.workCenterId
+  const movedWorkCenter = normalizeKey(reference.workCenterId) !== normalizeKey(current.workCenterId)
   const changedInputs = !numericInputEqual(reference, current, 'manning')
     || !numericInputEqual(reference, current, 'capacity')
     || !numericInputEqual(reference, current, 'yield')
