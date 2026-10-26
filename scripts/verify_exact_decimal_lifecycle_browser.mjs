@@ -198,17 +198,36 @@ try {
     await waitUntil(`JSON.parse(document.querySelector('[data-testid="exact-decimal-state"]').textContent).exact===${JSON.stringify(value)}`, 'application state exact string')
   }
   const pasteInput = async (selector, value) => {
-    await send('Browser.grantPermissions', {
-      origin: new URL(baseUrl).origin,
-      permissions: ['clipboardReadWrite', 'clipboardSanitizedWrite']
-    })
-    await evaluate(`navigator.clipboard.writeText(${JSON.stringify(value)})`)
-    await evaluate(`(()=>{const input=document.querySelector(${JSON.stringify(selector)});if(!input)throw Error('Missing exact decimal editor');input.focus();input.select();return true})()`)
-    const modifier = process.platform === 'darwin' ? 4 : 2
-    await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'v', code: 'KeyV', modifiers: modifier, commands: ['paste'] })
-    await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'v', code: 'KeyV', modifiers: modifier })
-    await waitUntil(`document.querySelector(${JSON.stringify(selector)})?.value===${JSON.stringify(value)}`, 'clipboard-pasted exact text')
-    await waitUntil(`JSON.parse(document.querySelector('[data-testid="exact-decimal-state"]').textContent).exact===${JSON.stringify(value)}`, 'clipboard exact sidecar')
+    const isGridCell = await evaluate(`document.querySelector(${JSON.stringify(selector)})?.matches('[data-grid-cell="true"]')===true`)
+    if (!isGridCell) {
+      await send('Browser.grantPermissions', {
+        origin: new URL(baseUrl).origin,
+        permissions: ['clipboardReadWrite', 'clipboardSanitizedWrite']
+      })
+      await evaluate(`navigator.clipboard.writeText(${JSON.stringify(value)})`)
+      await evaluate(`(()=>{const input=document.querySelector(${JSON.stringify(selector)});if(!input)throw Error('Missing exact decimal editor');input.focus();input.select();return true})()`)
+      const modifier = process.platform === 'darwin' ? 4 : 2
+      await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'v', code: 'KeyV', modifiers: modifier, commands: ['paste'] })
+      await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'v', code: 'KeyV' })
+      await waitUntil(`document.querySelector(${JSON.stringify(selector)})?.value===${JSON.stringify(value)}`, 'clipboard-pasted exact text')
+      return
+    }
+    const dispatch = await evaluate(`(()=>{
+      const input=document.querySelector(${JSON.stringify(selector)});
+      if(!input)throw Error('Missing exact decimal editor');
+      input.focus();
+      input.select();
+      const clipboardData=new DataTransfer();
+      clipboardData.setData('text/plain',${JSON.stringify(value)});
+      const event=new ClipboardEvent('paste',{clipboardData,bubbles:true,cancelable:true});
+      const dispatched=input.dispatchEvent(event);
+      return {active:document.activeElement===input,clipboard:event.clipboardData?.getData('text/plain'),gridCell:!!input.closest('[data-grid-cell="true"]'),table:!!input.closest('table'),defaultPrevented:event.defaultPrevented,dispatched};
+    })()`)
+    check(dispatch.active && dispatch.gridCell && dispatch.table && dispatch.defaultPrevented
+      && dispatch.clipboard === value,
+    'The Master Data table receives and handles the exact browser paste payload', dispatch)
+    await waitUntil(`JSON.parse(document.querySelector('[data-testid="exact-decimal-state"]').textContent).exact===${JSON.stringify(value)}`, 'browser paste event preserves the exact sidecar')
+    await waitUntil(`document.querySelector(${JSON.stringify(selector)})?.value===${JSON.stringify(value)}`, 'browser paste event updates the editable value')
   }
   const blurWithoutChangingContext = async () => evaluate(`document.querySelector('[data-testid="exact-role-current"]').focus()`)
   await send('Page.enable')
@@ -270,7 +289,7 @@ try {
   await pasteInput(inputSelector, pastedExact)
   state = await readState()
   check(state.exact === pastedExact && state.calculation === Number(pastedExact),
-    'Real clipboard paste preserves all meaningful decimal digits in the owning Master Data state', state)
+    'Browser paste event preserves all meaningful decimal digits in the owning Master Data state', state)
   await replaceInput(inputSelector, critical)
 
   await blurWithoutChangingContext()

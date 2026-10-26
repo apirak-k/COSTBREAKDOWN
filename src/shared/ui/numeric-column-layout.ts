@@ -68,8 +68,8 @@ export function numericColumnPresentation(
   const whole = prefix + ordinary.text.split('.')[0]
   const fraction = ordinary.text.includes('.') ? ordinary.text.slice(ordinary.text.indexOf('.')) : ''
   const fractionWidth = measure(fraction)
-  const fits = measure(whole) <= width / 2 - 2
-    && (options.integer || fractionWidth <= width / 2 - 2 - reserveEnd)
+  const fits = measure(whole) <= width / 2 - 4
+    && (options.integer || fractionWidth <= width / 2 - 4 - reserveEnd)
   if (fits) return ordinary
   return {
     text: `${options.signPositive && value! > 0 ? '+' : ''}${value!.toExponential(2).toUpperCase()}`,

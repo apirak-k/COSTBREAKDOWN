@@ -14,7 +14,7 @@ import {
 } from '../types'
 import { calculateSnapshotCost } from './snapshot-cost'
 import { calculateSnapshotBOMDetail } from './snapshot-bom-detail'
-import { calculateSnapshotRoutingDetail } from './snapshot-routing-detail'
+import { calculateSnapshotRoutingDetail, resolveSnapshotRoutingRate } from './snapshot-routing-detail'
 import { areNumericValuesEquivalent, safeAdd } from '../utils/guards'
 import {
   addExactDecimals,
@@ -331,17 +331,20 @@ function bomFlags(): ChangeFlags {
 function routingFlags(
   reference: SnapshotRoutingStep,
   current: SnapshotRoutingStep,
-  costEffect?: ComparisonRecordCostEffect
+  referenceRates: SnapshotWorkCenterRate[],
+  currentRates: SnapshotWorkCenterRate[]
 ): ChangeFlags {
   const movedWorkCenter = reference.workCenterId !== current.workCenterId
   const changedInputs = !numericInputEqual(reference, current, 'manning')
     || !numericInputEqual(reference, current, 'capacity')
     || !numericInputEqual(reference, current, 'yield')
-  const changedRate = !movedWorkCenter && !changedInputs && [
-    costEffect?.gap.labor,
-    costEffect?.gap.burden,
-    costEffect?.gap.total
-  ].some(value => typeof value === 'number' && Number.isFinite(value) && value !== 0)
+  const referenceRate = resolveSnapshotRoutingRate(reference, referenceRates)
+  const currentRate = resolveSnapshotRoutingRate(current, currentRates)
+  const changedRate = referenceRate === undefined || currentRate === undefined
+    ? referenceRate !== currentRate
+    : normalizeKey(referenceRate.workCenterCode) !== normalizeKey(currentRate.workCenterCode)
+      || !numericInputEqual(referenceRate, currentRate, 'laborRate')
+      || !numericInputEqual(referenceRate, currentRate, 'burdenRate')
 
   return { movedWorkCenter, changedInputs, changedRate }
 }
@@ -595,7 +598,7 @@ export function compareSnapshots(reference: CostSnapshot, current: CostSnapshot)
     referenceRouting,
     currentRouting,
     routingKey,
-    routingFlags,
+    (referenceStep, currentStep) => routingFlags(referenceStep, currentStep, referenceRates, currentRates),
     (ref, cur) => routingCostEffect(ref, cur, referenceRates, currentRates),
     warnings
   )

@@ -11,20 +11,28 @@ interface BusinessNumberProps extends NumericDisplayOptions {
   numericColumnSigned?: boolean
   numericColumnReserveEnd?: number
   prefix?: string
+  /** Optional caller-owned display text; value remains the semantic numeric source. */
+  formattedText?: string
   leadingAnnotation?: ReactNode
   sameLineAnnotation?: ReactNode
   renderToken?: (content: ReactNode) => ReactNode
 }
 
 /** Fixed column centerline is opt-in; graph and toolbar tokens retain their existing layout. */
-export function BusinessNumber({ value, className, numericColumn = false, compactPercentSuffix = false, numericColumnSigned = true, numericColumnReserveEnd = 0, prefix = '', leadingAnnotation, sameLineAnnotation, renderToken, ...options }: BusinessNumberProps) {
+export function BusinessNumber({ value, className, numericColumn = false, compactPercentSuffix = false, numericColumnSigned = true, numericColumnReserveEnd = 0, prefix = '', formattedText, leadingAnnotation, sameLineAnnotation, renderToken, ...options }: BusinessNumberProps) {
   const regionRef = useRef<HTMLSpanElement>(null)
   const metrics = useNumericColumnMetrics(regionRef, numericColumn)
   const measure = (text: string) => measureNumericText(text, metrics.font, metrics.letterSpacing)
-  const presentation = numericColumn
+  const basePresentation = numericColumn
     ? numericColumnPresentation(value, options, metrics.width, measure, numericColumnReserveEnd, prefix)
     : businessNumberPresentation(value, { ...options, percent: false })
-  const text = `${prefix}${presentation.text}`
+  const presentation = formattedText === undefined ? basePresentation : {
+    ...basePresentation,
+    text: formattedText,
+    notation: /[eE][+-]?\d+/.test(formattedText) ? 'scientific' as const : 'ordinary' as const,
+    fractionDigits: formattedText.match(/\.([0-9]+)/)?.[1].length ?? 0
+  }
+  const text = formattedText === undefined ? `${prefix}${presentation.text}` : formattedText
   const padding = presentation.notation === 'ordinary' && presentation.fractionDigits === 2 ? '2ch' : undefined
   const token = <span data-numeric-token="true" style={numericColumn ? undefined : { paddingInlineEnd: padding }}>{text}</span>
 

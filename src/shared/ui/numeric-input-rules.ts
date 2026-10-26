@@ -221,6 +221,13 @@ export function stepNumericValue(
   return current
 }
 
+/** Removes only one trailing spreadsheet cell delimiter; multi-cell payloads stay intact for rejection or table handling. */
+export function normalizeSingleCellNumericPaste(clipboardText: string): string | null {
+  if (!/[\t\r\n]/.test(clipboardText)) return clipboardText
+  const singleCell = /^([^\t\r\n]*)(?:\r\n|\r|\n)$/.exec(clipboardText)
+  return singleCell ? singleCell[1] : null
+}
+
 export function formatNumericInputValue(
   value: number | null | undefined,
   domain: NumericInputDomain & Pick<NumericDisplayOptions, 'integerDigits'> = {}

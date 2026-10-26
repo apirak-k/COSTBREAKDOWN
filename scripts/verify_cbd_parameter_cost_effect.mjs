@@ -26,7 +26,7 @@ const vite = await createServer({
   }]
 })
 
-const { SelectedValueProvider } = await vite.ssrLoadModule('/src/shared/ui/selected-value.tsx')
+const { SelectedNumber, SelectedValueProvider } = await vite.ssrLoadModule('/src/shared/ui/selected-value.tsx')
 const visibleText = markup => {
   const voidTags = new Set(['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'param', 'source', 'track', 'wbr'])
   const hiddenTags = []
@@ -207,11 +207,12 @@ function extractElement(markup, start, tag) {
 }
 
 try {
-  const [effects, comparisonCore, comparisonStatus, formatters, bomView, routingView, snapshotView, wcView, itemizedView, candidateView] = await Promise.all([
+  const [effects, comparisonCore, comparisonStatus, formatters, routingDetail, bomView, routingView, snapshotView, wcView, itemizedView, candidateView] = await Promise.all([
     vite.ssrLoadModule('/src/core/calculations/parameter-cost-effect.ts'),
     vite.ssrLoadModule('/src/core/calculations/snapshot-comparison.ts'),
     vite.ssrLoadModule('/src/core/calculations/comparison-status.ts'),
     vite.ssrLoadModule('/src/core/utils/formatters.ts'),
+    vite.ssrLoadModule('/src/core/calculations/snapshot-routing-detail.ts'),
     vite.ssrLoadModule('/src/features/cost-breakdown/components/BOMDetailedTable.tsx'),
     vite.ssrLoadModule('/src/features/cost-breakdown/components/RoutingDetailedTable.tsx'),
     vite.ssrLoadModule('/src/features/cost-breakdown/components/SnapshotComparisonCard.tsx'),
@@ -220,6 +221,31 @@ try {
     vite.ssrLoadModule('/src/features/cost-breakdown/components/CandidateFindingsTable.tsx')
   ])
   const { COST_ELEMENT_COLORS } = await vite.ssrLoadModule('/src/features/cost-breakdown/components/cost-element-colors.ts')
+
+  const tinyNegativeEffect = -5.67e-18
+  assert.equal(formatters.formatVariance(0), '0.00', 'exact zero keeps the neutral zero presentation')
+  assert.equal(formatters.formatVariance(tinyNegativeEffect), '-0.00',
+    'a real negative effect keeps its direction even when it rounds below display precision')
+  assert.equal(formatters.getVarianceClass(tinyNegativeEffect), 'text-emerald-600 font-bold',
+    'cost-effect color follows the semantic sign rather than a display threshold')
+  const tinyEffectMarkup = renderToStaticMarkup(React.createElement(SelectedNumber, {
+    numericColumn: true,
+    signPositive: true,
+    value: tinyNegativeEffect,
+    'aria-label': 'Tiny negative effect'
+  }, formatters.formatVariance(tinyNegativeEffect, 2)))
+  assert.equal(visibleText(tinyEffectMarkup), '-0.00',
+    'numeric-column SelectedNumber honors the caller-owned formatted display value')
+  assert.doesNotMatch(tinyEffectMarkup, /5\.67E-18/i,
+    'numeric-column SelectedNumber does not reformat a supplied zero presentation as scientific notation')
+  const formattedPercentageMarkup = renderToStaticMarkup(React.createElement(SelectedNumber, {
+    numericColumn: true,
+    percentage: true,
+    value: 0.5,
+    'aria-label': 'Formatted percentage'
+  }, '50.00%'))
+  assert.equal(visibleText(formattedPercentageMarkup), '50.00%',
+    'numeric-column SelectedNumber preserves caller formatting and renders its percent suffix once')
 
   const bomReference = { usage: 1, price: 10, loss: 0.1 }
   const bomPositiveCurrent = { usage: 2, price: 6, loss: 0.1 }
@@ -447,6 +473,153 @@ try {
   assert.deepEqual(gridCellText(candidateMainRow(missingAddedBOMMarkup, 'Bill of Material', 'Material', 'ADDED')).slice(3, 6), [
     '—', formatters.formatNumber(7, 4), formatters.formatPercent(0.02, 2)
   ], 'a genuinely missing After-side BOM parameter remains unavailable')
+
+  const annealing = (id, { capacity = 2520, burdenRate = 138.48, burdenRateExact = '138.48' } = {}) => costSnapshot(id, {
+    routing: [route(`${id}-annealing`, 'WC-ANNEAL', {
+      processName: 'Annealing', manning: 1, capacity, yield: 0.7,
+      exactDecimalInputs: { manning: '1', capacity: String(capacity), yield: '70' }
+    })],
+    rates: [{
+      ...rate(`${id}-anneal-rate`, 'WC-ANNEAL', 105.29, burdenRate),
+      exactDecimalInputs: { laborRate: '105.29', burdenRate: burdenRateExact }
+    }]
+  })
+  const exactAnnealingInput = (burdenRate = 138.48, burdenRateExact = '138.48') => ({
+    manning: 1, capacity: 2520, yield: 0.7, laborRate: 105.29, burdenRate,
+    exactInputs: { manning: '1', capacity: '2520', yield: '70', laborRate: '105.29', burdenRate: burdenRateExact }
+  })
+  const identicalAnnealingReference = annealing('reference')
+  const identicalAnnealingCurrent = annealing('current')
+  const referenceAnnealing = identicalAnnealingReference.routing[0]
+  const currentAnnealing = identicalAnnealingCurrent.routing[0]
+  const referenceResolvedRate = routingDetail.resolveSnapshotRoutingRate(referenceAnnealing, identicalAnnealingReference.rates)
+  const currentResolvedRate = routingDetail.resolveSnapshotRoutingRate(currentAnnealing, identicalAnnealingCurrent.rates)
+  const identicalAnnealingDetail = routingDetail.calculateSnapshotRoutingDetail(
+    { reference: referenceAnnealing, current: currentAnnealing },
+    identicalAnnealingReference.rates,
+    identicalAnnealingCurrent.rates
+  )
+  assert.deepEqual({
+    reference: {
+      workCenterId: referenceAnnealing.workCenterId,
+      manning: referenceAnnealing.manning,
+      capacity: referenceAnnealing.capacity,
+      yield: referenceAnnealing.yield,
+      exactDecimalInputs: referenceAnnealing.exactDecimalInputs
+    },
+    current: {
+      workCenterId: currentAnnealing.workCenterId,
+      manning: currentAnnealing.manning,
+      capacity: currentAnnealing.capacity,
+      yield: currentAnnealing.yield,
+      exactDecimalInputs: currentAnnealing.exactDecimalInputs
+    }
+  }, {
+    reference: {
+      workCenterId: 'WC-ANNEAL', manning: 1, capacity: 2520, yield: 0.7,
+      exactDecimalInputs: { manning: '1', capacity: '2520', yield: '70' }
+    },
+    current: {
+      workCenterId: 'WC-ANNEAL', manning: 1, capacity: 2520, yield: 0.7,
+      exactDecimalInputs: { manning: '1', capacity: '2520', yield: '70' }
+    }
+  }, 'first-divergence trace: Routing identities, Number projections, and exact sidecars match before rate resolution')
+  assert.deepEqual({
+    reference: referenceResolvedRate && {
+      code: referenceResolvedRate.workCenterCode,
+      laborRate: referenceResolvedRate.laborRate,
+      burdenRate: referenceResolvedRate.burdenRate,
+      exactDecimalInputs: referenceResolvedRate.exactDecimalInputs
+    },
+    current: currentResolvedRate && {
+      code: currentResolvedRate.workCenterCode,
+      laborRate: currentResolvedRate.laborRate,
+      burdenRate: currentResolvedRate.burdenRate,
+      exactDecimalInputs: currentResolvedRate.exactDecimalInputs
+    }
+  }, {
+    reference: { code: 'WC-ANNEAL', laborRate: 105.29, burdenRate: 138.48, exactDecimalInputs: { laborRate: '105.29', burdenRate: '138.48' } },
+    current: { code: 'WC-ANNEAL', laborRate: 105.29, burdenRate: 138.48, exactDecimalInputs: { laborRate: '105.29', burdenRate: '138.48' } }
+  }, 'first-divergence trace: each side resolves the same authoritative Work Center rate identity and exact values')
+  for (const [referenceKey, currentKey] of [
+    ['referenceRuntime', 'currentRuntime'],
+    ['referenceLaborCost', 'currentLaborCost'],
+    ['referenceBurdenCost', 'currentBurdenCost'],
+    ['referenceTotal', 'currentTotal']
+  ]) {
+    const referenceValue = identicalAnnealingDetail.exactValues?.[referenceKey]
+    const currentValue = identicalAnnealingDetail.exactValues?.[currentKey]
+    assert.ok(referenceValue && currentValue, `first-divergence trace exposes exact ${referenceKey}/${currentKey}`)
+    assert.equal(referenceValue, currentValue, `first-divergence trace keeps exact ${referenceKey}/${currentKey} identical`)
+  }
+  assert.equal(identicalAnnealingDetail.exactValues?.totalGap, '0',
+    'first-divergence trace: exact runtime, labor, burden, total, and Reference/Current gap remain identical')
+  const identicalAnnealingComparison = comparisonCore.compareSnapshots(identicalAnnealingReference, identicalAnnealingCurrent)
+  const identicalAnnealingFinding = identicalAnnealingComparison.routingFindings[0]
+  assert.equal(comparisonStatus.getCanonicalComparisonStatus(identicalAnnealingFinding), 'UNCHANGED',
+    'identical Annealing inputs and effective Work Center rates stay UNCHANGED')
+  assert.deepEqual(identicalAnnealingFinding.changeFlags, { movedWorkCenter: false, changedInputs: false, changedRate: false },
+    'classification first diverges only when business change flags are derived; the exact source comparison is false for every flag')
+  assert.deepEqual(identicalAnnealingFinding.fieldDiffs, {}, 'identical exact Routing fields produce no field differences')
+  assert.deepEqual(identicalAnnealingFinding.costEffect.gap, { material: 0, labor: 0, burden: 0, total: 0 },
+    'identical exact Routing inputs produce exact-zero labor, burden, and total Gaps')
+  const identicalExactReference = exactAnnealingInput()
+  const identicalExactCurrent = exactAnnealingInput()
+  const identicalAnnealingEffects = effects.calculateRoutingParameterCostEffects(
+    identicalExactReference, identicalExactCurrent
+  )
+  assert.equal(identicalAnnealingEffects.status, 'available')
+  assert.deepEqual(identicalAnnealingEffects.effects.conversion, {
+    manning: 0, capacity: 0, yield: 0, laborRate: 0, burdenRate: 0
+  }, 'identical exact Routing inputs assign exact zero to every Parameter Cost Effect factor')
+  const identicalChangedKeys = Object.keys(identicalExactReference.exactInputs).filter(key =>
+    identicalExactReference.exactInputs[key] !== identicalExactCurrent.exactInputs[key])
+  assert.deepEqual(identicalChangedKeys, [], 'exact attribution considers no Routing factor changed')
+  assert.equal(Object.values(identicalAnnealingEffects.effects.conversion).reduce((total, value) => total + value, 0), 0,
+    'identical exact factor effects have zero reconciliation residual')
+
+  const capacityAnnealingCurrent = annealing('current', { capacity: 2600 })
+  const capacityAnnealingComparison = comparisonCore.compareSnapshots(identicalAnnealingReference, capacityAnnealingCurrent)
+  assert.equal(comparisonStatus.getCanonicalComparisonStatus(capacityAnnealingComparison.routingFindings[0]), 'CHANGED',
+    'an actual Capacity change remains CHANGED')
+  assert.ok(capacityAnnealingComparison.routingFindings[0].costEffect.gap.total < 0,
+    'the 2520 to 2600 Capacity change reduces Conversion Cost')
+
+  const rateAnnealingCurrent = annealing('current', { burdenRate: 140, burdenRateExact: '140.00' })
+  const rateAnnealingComparison = comparisonCore.compareSnapshots(identicalAnnealingReference, rateAnnealingCurrent)
+  assert.equal(comparisonStatus.getCanonicalComparisonStatus(rateAnnealingComparison.routingFindings[0]), 'CHANGED',
+    'an actual resolved Burden Rate change makes the affected Process CHANGED')
+  assert.equal(rateAnnealingComparison.routingFindings[0].changeFlags.changedRate, true,
+    'Routing rate change is attributed from the resolved Work Center rate values')
+  assert.ok(rateAnnealingComparison.routingFindings[0].costEffect.gap.burden > 0,
+    'a higher Burden Rate produces a positive burden cost effect')
+
+  const tinyRateAnnealingCurrent = annealing('current', { burdenRate: 138.48, burdenRateExact: '138.480000000000001' })
+  const tinyRateAnnealingComparison = comparisonCore.compareSnapshots(identicalAnnealingReference, tinyRateAnnealingCurrent)
+  const tinyRateFinding = tinyRateAnnealingComparison.routingFindings[0]
+  assert.equal(comparisonStatus.getCanonicalComparisonStatus(tinyRateFinding), 'CHANGED',
+    'an exact rate change remains real when its JavaScript Number projection is unchanged')
+  assert.ok(tinyRateFinding.costEffect.gap.burden > 0,
+    'the exact rate change retains its positive nonzero burden Gap')
+  const tinyRateReference = exactAnnealingInput()
+  const tinyRateCurrent = exactAnnealingInput(138.48, '138.480000000000001')
+  const tinyRateEffects = effects.calculateRoutingParameterCostEffects(tinyRateReference, tinyRateCurrent)
+  const tinyRateChangedKeys = Object.keys(tinyRateReference.exactInputs).filter(key =>
+    tinyRateReference.exactInputs[key] !== tinyRateCurrent.exactInputs[key])
+  assert.deepEqual(tinyRateChangedKeys, ['burdenRate'],
+    'the critical sub-Number precision scenario has only Burden Rate in its exact changed-factor set')
+  assert.equal(tinyRateEffects.status, 'available', 'the intentionally tiny exact rate change remains available for attribution')
+  assert.ok(tinyRateEffects.effects.conversion.burdenRate > 0,
+    'the exact positive Burden Rate change receives its own positive Parameter Cost Effect')
+  for (const unchangedFactor of ['manning', 'capacity', 'yield', 'laborRate']) {
+    assert.equal(tinyRateEffects.effects.conversion[unchangedFactor], 0,
+      `the unchanged ${unchangedFactor} factor receives no floating decomposition residue`)
+  }
+  const tinyRateMarkup = renderItemized(itemizedView, tinyRateAnnealingComparison,
+    identicalAnnealingReference, tinyRateAnnealingCurrent, 'rtg')
+  assert.deepEqual(gridCellText(candidateMainRow(tinyRateMarkup, 'Routing', 'Annealing', 'CHANGED')).slice(6, 8), [
+    '0.00', '+0.00'
+  ], 'Candidate rate deltas retain exact sign while formatted precision stays at two decimals')
 
   const routingRefSnapshot = costSnapshot('reference', {
     routing: [route('route-ref', 'WC-REF')],

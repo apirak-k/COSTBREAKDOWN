@@ -340,6 +340,13 @@ export interface SelectedNumberProps extends Omit<ButtonHTMLAttributes<HTMLButto
 export function SelectedNumber({ value, integer, percentage, selectionId, directEditPending, children, className, style, numericColumn = false, numericColumnSigned = true, compactPercentSuffix = false, darkSurface = false, signPositive, leadingAnnotation, sameLineAnnotation, stopKeyboardPropagation = true, onKeyDown, onKeyUp, ...props }: SelectedNumberProps) {
   const { isPinned, preview, clearPreview, pin } = useSelectedValueSource({ value, directEditPending, editable: false, domain: { integer }, percentage }, selectionId)
   const content = children ?? <BusinessNumber value={value} integer={integer} percent={percentage} leadingAnnotation={leadingAnnotation} />
+  const suppliedDisplay = typeof children === 'string' || typeof children === 'number' ? String(children) : undefined
+  const signedDisplay = suppliedDisplay !== undefined && signPositive && value !== null && value !== undefined && value > 0 && !/^[+-]/.test(suppliedDisplay)
+    ? `+${suppliedDisplay}`
+    : suppliedDisplay
+  const formattedText = signedDisplay === undefined
+    ? undefined
+    : percentage && signedDisplay.endsWith('%') ? signedDisplay.slice(0, -1) : signedDisplay
   if (value == null || !Number.isFinite(value)) return numericColumn
     ? <BusinessNumber numericColumn value={value} integer={integer} percent={percentage} leadingAnnotation={leadingAnnotation} className={className} />
     : <span className={className} style={style}>{leadingAnnotation ? <span className="mr-1.5 whitespace-nowrap pointer-events-none">{leadingAnnotation}</span> : null}{content}</span>
@@ -378,6 +385,6 @@ export function SelectedNumber({ value, integer, percentage, selectionId, direct
     </button>
   )
   return numericColumn
-    ? <BusinessNumber numericColumn numericColumnSigned={numericColumnSigned} className={className} value={value} integer={integer} percent={percentage} compactPercentSuffix={compactPercentSuffix} signPositive={signPositive} leadingAnnotation={leadingAnnotation} sameLineAnnotation={sameLineAnnotation} renderToken={renderButton} />
+    ? <BusinessNumber numericColumn numericColumnSigned={numericColumnSigned} className={className} value={value} integer={integer} percent={percentage} compactPercentSuffix={compactPercentSuffix} signPositive={signPositive} leadingAnnotation={leadingAnnotation} sameLineAnnotation={sameLineAnnotation} formattedText={formattedText} renderToken={renderButton} />
     : renderButton(content)
 }

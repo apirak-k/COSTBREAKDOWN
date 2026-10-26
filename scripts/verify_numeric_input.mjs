@@ -50,6 +50,7 @@ try {
   const { formatCurrency, formatNumber, formatParam, formatPercent, formatVariance } = await vite.ssrLoadModule('/src/core/utils/formatters.ts')
   const {
     formatNumericInputValue,
+    normalizeSingleCellNumericPaste,
     isNumericDraftSyntax,
     numericCaretForPlace,
     parseNumericDraft,
@@ -58,6 +59,19 @@ try {
     stepNumericValue,
     stepNumericDraftValue
   } = await vite.ssrLoadModule('/src/shared/ui/numeric-input-rules.ts')
+
+  for (const [input, expected] of [
+    ['44.621', '44.621'],
+    ['44.621\r\n', '44.621'],
+    ['0\r\n', '0'],
+    ['123.4567890123456789\r\n', '123.4567890123456789'],
+    ['-44.621\r\n', '-44.621']
+  ]) assert.equal(normalizeSingleCellNumericPaste(input), expected,
+    `single-cell clipboard normalization preserves ${JSON.stringify(input)}`)
+  for (const input of ['44.621\t55.000', '44.621\r\n55.000', '44.621\r\n\r\n']) {
+    assert.equal(normalizeSingleCellNumericPaste(input), null,
+      `multi-cell clipboard content is not collapsed into a numeric scalar: ${JSON.stringify(input)}`)
+  }
   const {
     filterInvalidMasterDataNumericChanges,
     getMasterDataSnapshotValidationErrors,

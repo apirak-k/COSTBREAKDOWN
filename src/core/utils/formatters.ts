@@ -22,7 +22,7 @@ export function formatNumber(v: number, dp = 2): string {
 
 export function formatVariance(v: number, dp = 2): string {
   if (!Number.isFinite(v)) return '—'
-  if (Math.abs(v) < 0.00005) return formatNumber(0, dp)
+  if (v === 0) return formatNumber(0, dp)
   const sign = v >= 0 ? '+' : '-'
   return `${sign}${formatNumber(Math.abs(v), dp)}`
 }
@@ -39,6 +39,6 @@ export function formatParam(param: number | null, isYield: boolean): string {
 }
 
 export function getVarianceClass(v: number): string {
-  if (isNaN(v) || Math.abs(v) < 0.00005) return 'text-slate-400'
+  if (isNaN(v) || v === 0) return 'text-slate-400'
   return v > 0 ? 'text-rose-600 font-bold' : 'text-emerald-600 font-bold'
 }

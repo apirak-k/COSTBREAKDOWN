@@ -773,7 +773,7 @@ try {
 
   const workCenterSelect = 'section[aria-label="Routing rows"] select[data-grid-field="workCenterId"]'
   const workCenterOptions = await evaluate(`(()=>{const select=${visibleExpression(workCenterSelect)};return select?{count:select.options.length,index:select.selectedIndex,value:select.value}:null})()`)
-  await clickSelector(workCenterSelect)
+  await evaluate(`(${visibleExpression(workCenterSelect)})?.focus()`)
   const selectKeyResults = []
   for (const key of ['ArrowDown', 'ArrowUp']) {
     await evaluate(`(()=>{const select=${visibleExpression(workCenterSelect)};select.addEventListener('keydown',event=>{if(event.key===${JSON.stringify(key)})window.__nativeSelectArrow={key:event.key,defaultPrevented:event.defaultPrevented}}, {once:true})})()`)

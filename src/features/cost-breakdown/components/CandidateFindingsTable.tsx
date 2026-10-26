@@ -8,7 +8,10 @@ import {
   getComparisonFindingKey,
   getVarianceClass,
   isMasterDataNumericValueValid,
-  resolveSnapshotRoutingRate
+  resolveSnapshotRoutingRate,
+  exactDecimalInputValue,
+  exactDecimalToNumber,
+  subtractExactDecimals
 } from '../../../core'
 import type { MasterDataNumericField } from '../../../core'
 import type { ComparisonFinding, ComparisonStatus, CostBreakdownComparisonPair } from '../../../core'
@@ -116,6 +119,7 @@ function validParameter(field: MasterDataNumericField, value: number | null | un
 
 function candidatePercentRatio(gap: number | null, totalGap: number | null): number | null {
   if (gap === null || totalGap === null || !Number.isFinite(gap) || !Number.isFinite(totalGap) || totalGap === 0) return null
+  if (gap === 0) return 0
   const ratio = gap / totalGap
   return Number.isFinite(ratio) ? ratio : null
 }
@@ -134,7 +138,13 @@ interface DisplayParameter {
 }
 
 function parameterValues(row: CandidateTableRow, status: ComparisonStatus | null, pair: CostBreakdownComparisonPair): DisplayParameter[] {
-  const display = (field: MasterDataNumericField, before: number | null | undefined, after: number | null | undefined): DisplayParameter => {
+  const display = (
+    field: MasterDataNumericField,
+    before: number | null | undefined,
+    after: number | null | undefined,
+    beforeExact?: string,
+    afterExact?: string
+  ): DisplayParameter => {
     const beforeValue = validParameter(field, before)
     const afterValue = validParameter(field, after)
     const percentage = field === 'loss' || field === 'yield'
@@ -148,7 +158,12 @@ function parameterValues(row: CandidateTableRow, status: ComparisonStatus | null
       rawValue = beforeValue
       if (rawValue !== null) visible = formatParameterValue(field, rawValue)
     } else if ((status === 'CHANGED' || status === 'UNCHANGED') && beforeValue !== null && afterValue !== null) {
-      const difference = afterValue - beforeValue
+      const beforeDecimal = exactDecimalInputValue(beforeValue, beforeExact, percentage)
+      const afterDecimal = exactDecimalInputValue(afterValue, afterExact, percentage)
+      const exactDifference = beforeDecimal && afterDecimal
+        ? exactDecimalToNumber(subtractExactDecimals(afterDecimal, beforeDecimal))
+        : null
+      const difference = exactDifference ?? afterValue - beforeValue
       if (Number.isFinite(difference)) {
         rawValue = difference
         visible = percentage ? formatPercent(difference, 2) : formatVariance(difference, 2)
@@ -161,20 +176,28 @@ function parameterValues(row: CandidateTableRow, status: ComparisonStatus | null
   if (row.type === 'BOM') {
     const detail = row.detail as BOMItemizedRow
     return [
-      display('consumption', detail.reference?.consumption, detail.current?.consumption),
-      display('price', detail.reference?.price, detail.current?.price),
-      display('loss', detail.reference?.loss, detail.current?.loss)
+      display('consumption', detail.reference?.consumption, detail.current?.consumption,
+        detail.reference?.exactDecimalInputs?.consumption, detail.current?.exactDecimalInputs?.consumption),
+      display('price', detail.reference?.price, detail.current?.price,
+        detail.reference?.exactDecimalInputs?.price, detail.current?.exactDecimalInputs?.price),
+      display('loss', detail.reference?.loss, detail.current?.loss,
+        detail.reference?.exactDecimalInputs?.loss, detail.current?.exactDecimalInputs?.loss)
     ]
   }
   const detail = row.detail as RoutingItemizedRow
   const referenceRate = resolveSnapshotRoutingRate(detail.reference, pair.before.rates)
   const currentRate = resolveSnapshotRoutingRate(detail.current, pair.after.rates)
   return [
-    display('manning', detail.reference?.manning, detail.current?.manning),
-    display('capacity', detail.reference?.capacity, detail.current?.capacity),
-    display('yield', detail.reference?.yield, detail.current?.yield),
-    display('laborRate', referenceRate?.laborRate, currentRate?.laborRate),
-    display('burdenRate', referenceRate?.burdenRate, currentRate?.burdenRate)
+    display('manning', detail.reference?.manning, detail.current?.manning,
+      detail.reference?.exactDecimalInputs?.manning, detail.current?.exactDecimalInputs?.manning),
+    display('capacity', detail.reference?.capacity, detail.current?.capacity,
+      detail.reference?.exactDecimalInputs?.capacity, detail.current?.exactDecimalInputs?.capacity),
+    display('yield', detail.reference?.yield, detail.current?.yield,
+      detail.reference?.exactDecimalInputs?.yield, detail.current?.exactDecimalInputs?.yield),
+    display('laborRate', referenceRate?.laborRate, currentRate?.laborRate,
+      referenceRate?.exactDecimalInputs?.laborRate, currentRate?.exactDecimalInputs?.laborRate),
+    display('burdenRate', referenceRate?.burdenRate, currentRate?.burdenRate,
+      referenceRate?.exactDecimalInputs?.burdenRate, currentRate?.exactDecimalInputs?.burdenRate)
   ]
 }
 

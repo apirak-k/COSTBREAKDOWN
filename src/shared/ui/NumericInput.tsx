@@ -7,6 +7,7 @@ import { measureNumericText, numericDecimalPrefixWidth, numericColumnPresentatio
 import {
   formatNumericInputValue,
   isNumericDraftSyntax,
+  normalizeSingleCellNumericPaste,
   numericCaretForPlace,
   parseNumericDraft,
   resolveNumericWheelStepDirection,
@@ -380,19 +381,33 @@ export function NumericInput({
         onBlur={handleBlur}
         onKeyDown={handleKeyDown}
         onPaste={event => {
+          if (event.defaultPrevented) {
+            onPaste?.(event)
+            return
+          }
           const clipboardText = event.clipboardData.getData('text')
+          const normalizedPaste = normalizeSingleCellNumericPaste(clipboardText)
           const input = event.currentTarget
           const start = input.selectionStart ?? draft.length
           const end = input.selectionEnd ?? draft.length
-          const pastedDraft = `${draft.slice(0, start)}${clipboardText}${draft.slice(end)}`
+          const pastedText = normalizedPaste ?? clipboardText
+          const pastedDraft = `${draft.slice(0, start)}${pastedText}${draft.slice(end)}`
           const parsedPaste = parseNumericDraft(pastedDraft, domain, allowSubMinimumDraft)
-          if (
-            !isNumericDraftSyntax(pastedDraft, domain)
+          const rejected = normalizedPaste === null
+            || !isNumericDraftSyntax(pastedDraft, domain)
             || parsedPaste.kind === 'invalid'
             || parsedPaste.kind === 'transient'
             || parsedPaste.kind === 'out-of-domain'
-          ) event.preventDefault()
+          const normalizedSingleCell = !rejected && normalizedPaste !== clipboardText
+          if (rejected || normalizedSingleCell) event.preventDefault()
           onPaste?.(event)
+          if (normalizedSingleCell) {
+            handleChange(pastedDraft)
+            const caret = start + pastedText.length
+            window.requestAnimationFrame(() => {
+              if (document.activeElement === input) input.setSelectionRange(caret, caret)
+            })
+          }
         }}
         onChange={event => handleChange(event.currentTarget.value)}
         className={`${defaultInputClassName} ${className ?? ''} ${directEditPending ? '!text-blue-700' : ''}`.trim()}

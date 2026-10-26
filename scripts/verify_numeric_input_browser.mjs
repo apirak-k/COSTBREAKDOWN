@@ -63,6 +63,7 @@ const chromeArgs = [
 ]
 if (process.platform === 'linux') chromeArgs.unshift('--no-sandbox')
 const chrome = spawn(findChrome(), chromeArgs, { stdio: ['ignore', 'ignore', 'pipe'] })
+const browserErrors = []
 let client
 
 function stopChild(child) {
@@ -103,7 +104,6 @@ try {
     client.addEventListener('error', rejectOpen, { once: true })
   })
 
-  const browserErrors = []
   let commandId = 0
   const pending = new Map()
   client.addEventListener('message', event => {
@@ -177,6 +177,16 @@ try {
     await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: point.x, y: point.y, button: 'left', clickCount: 1 })
     await delay(180)
   }
+  const pasteClipboard = async (aria, text) => {
+    await clickInput(aria)
+    await evaluate('document.activeElement?.select()')
+    await send('Browser.grantPermissions', { origin: new URL(baseUrl).origin, permissions: ['clipboardReadWrite', 'clipboardSanitizedWrite'] })
+    await evaluate(`navigator.clipboard.writeText(${JSON.stringify(text)})`)
+    await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'v', code: 'KeyV', modifiers: process.platform === 'darwin' ? 4 : 2, commands: ['paste'] })
+    await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'v', code: 'KeyV' })
+    await delay(120)
+    return inputValue(aria)
+  }
   const clickRole = async name => clickButton(`([...document.querySelectorAll('button')].find(button => button.getClientRects().length && button.getAttribute('aria-label')?.startsWith(${JSON.stringify(name)})))`)
   const blurInto = async (source, next) => {
     const typed = await inputValue(source)
@@ -213,10 +223,57 @@ try {
     await writeFile(join(artifacts, `${name}.png`), Buffer.from(captured.result.data, 'base64'))
   }
   const results = {}
+  const pasteOnly = process.argv.includes('--paste-only')
   await clickButton(`([...document.querySelectorAll('button')].find(button => button.innerText.trim() === 'Master Data'))`)
   const masterDataIsReadOnly = await evaluate(`document.querySelector('button[role="switch"]')?.getAttribute('aria-checked') === 'false'`)
   if (masterDataIsReadOnly) await clickButton(`document.querySelector('button[role="switch"]')`)
   await waitFor(async () => Boolean(await evaluate(`!!${visibleInputExpression('Selling Price (THB)')}`)), 'Master Data numeric input')
+  const sellingPriceBeforePaste = await inputValue('Selling Price (THB)')
+  assert.equal(await pasteClipboard('Selling Price (THB)', '44.621\r\n'), '44.621',
+    'Excel single-cell CRLF paste replaces the selected Selling Price value')
+  await clickInput('Product Name')
+  assert.notEqual(await inputValue('Selling Price (THB)'), '44.621',
+    'Selling Price may use compact blur presentation without changing its authoritative value')
+  await clickInput('Selling Price (THB)')
+  assert.equal(await inputValue('Selling Price (THB)'), '44.621',
+    'refocus restores the exact decimal accepted from a single-cell CRLF paste')
+
+  const highPrecisionPaste = '123456789012345.123456789'
+  assert.equal(await pasteClipboard('Selling Price (THB)', `${highPrecisionPaste}\r\n`), highPrecisionPaste,
+    'Excel single-cell paste preserves every digit of a high-magnitude decimal while focused')
+  await clickInput('Product Name')
+  assert.notEqual(await inputValue('Selling Price (THB)'), highPrecisionPaste,
+    'high-magnitude Selling Price may use compact blur presentation')
+  await clickInput('Selling Price (THB)')
+  assert.equal(await inputValue('Selling Price (THB)'), highPrecisionPaste,
+    'refocus restores every exact digit after high-magnitude compact presentation')
+
+  await clickButton(`document.querySelector('button[aria-label="Undo"]')`)
+  await clickInput('Selling Price (THB)')
+  assert.equal(await inputValue('Selling Price (THB)'), '44.621',
+    'Master Data Undo restores the exact pre-paste decimal')
+  await clickButton(`document.querySelector('button[aria-label="Redo"]')`)
+  await clickInput('Selling Price (THB)')
+  assert.equal(await inputValue('Selling Price (THB)'), highPrecisionPaste,
+    'Master Data Redo restores the exact pasted high-precision decimal')
+
+  for (const invalidPaste of ['abc', '44.621\t55.000', '44.621\r\n55.000', '-1\r\n']) {
+    assert.equal(await pasteClipboard('Selling Price (THB)', invalidPaste), highPrecisionPaste,
+      `Selling Price rejects invalid, multi-cell, or out-of-domain clipboard content: ${JSON.stringify(invalidPaste)}`)
+  }
+  assert.equal(await pasteClipboard('Selling Price (THB)', '0\r\n'), '0',
+    'Excel single-cell zero paste remains valid in the nonnegative Selling Price domain')
+  await clickButton(`document.querySelector('button[aria-label="Undo"]')`)
+  await clickInput('Selling Price (THB)')
+  assert.equal(await inputValue('Selling Price (THB)'), highPrecisionPaste,
+    'Undo restores the exact value after a valid zero paste')
+  results.masterDataPaste = { before: sellingPriceBeforePaste, normal: '44.621', highPrecision: highPrecisionPaste, invalidRejected: true, undoRedo: 'PASS' }
+
+  if (pasteOnly) {
+    assert.deepEqual(browserErrors, [], 'focused paste flow produces no browser errors or warnings')
+    console.log(JSON.stringify({ result: 'PASS', browser: 'isolated Chrome', checks: 'Selling Price CRLF paste, exact precision, blur/refocus, Undo/Redo, invalid/multi-cell/domain rejection, zero', results: { masterDataPaste: results.masterDataPaste } }, null, 2))
+  } else {
+  await clickInput('Product Name')
   const masterDraft = await typeInto('Selling Price (THB)', '12.3456789')
   assert.equal(masterDraft, '12.3456789', 'Master Data accepts the complete decimal draft')
   results.masterData = await blurInto('Selling Price (THB)', 'Product Name')
@@ -383,7 +440,7 @@ try {
         const e=${visibleInputExpression(aria)},s=getComputedStyle(e),c=document.createElement('canvas').getContext('2d')
         c.font=[s.fontStyle,s.fontWeight,s.fontSize,s.fontFamily].join(' ')
         const value=Number(${JSON.stringify(value)}),ordinary=value!==0&&Number(value.toFixed(2))===0?value.toFixed(4):value.toFixed(2)
-        const whole=ordinary.split('.')[0],fraction=ordinary.includes('.')?ordinary.slice(ordinary.indexOf('.')):'',reserve=Number(e.dataset.numericReserveEnd||0),half=e.getBoundingClientRect().width/2-Number(e.dataset.numericFitInset||0)
+        const whole=ordinary.split('.')[0],fraction=ordinary.includes('.')?ordinary.slice(ordinary.indexOf('.')):'',reserve=Number(e.dataset.numericReserveEnd||0),half=e.getBoundingClientRect().width/2-Number(e.dataset.numericFitInset||0)-2
         const fits=c.measureText(whole).width<=half&&c.measureText(fraction).width<=half-reserve
         return {fits,text:fits?ordinary:value.toExponential(2).toUpperCase()}
       })()`)
@@ -414,7 +471,7 @@ try {
     const expectedEditDisplay = display === 'fit-based' ? await evaluate(`(()=>{const e=${visibleInputExpression(masterAria)},s=getComputedStyle(e),canvas=document.createElement('canvas').getContext('2d');canvas.font=[s.fontStyle,s.fontWeight,s.fontSize,s.fontFamily].join(' ');const numeric=Number(${JSON.stringify(value)}),ordinary=numeric.toFixed(2),whole=ordinary.split('.')[0],fraction=ordinary.slice(ordinary.indexOf('.')),half=e.getBoundingClientRect().width/2-Number(e.dataset.numericFitInset||0),reserve=Number(e.dataset.numericReserveEnd||0),fits=canvas.measureText(whole).width<=half-2&&canvas.measureText(fraction).width<=half-2-reserve;return fits?ordinary:numeric.toExponential(2).toUpperCase()})()`)
       // This wide value is ordinary only if its real fixed input region can hold it.
       : display
-    assert.equal(edit.text, expectedEditDisplay)
+    assert.equal(edit.text, expectedEditDisplay, `Master Data blur fit presentation matches the measured fixed input region: ${JSON.stringify({ value, edit, expectedEditDisplay })}`)
     const source = await evaluate(`(${visibleInputExpression(masterAria)}).getAttribute('data-selected-value-source')`)
     await clickButton(`document.querySelector('button[role="switch"]')`)
     const view = await evaluate(`(()=>{const source=[...document.querySelectorAll('[data-selected-value-source]')].find(e=>e.getAttribute('data-selected-value-source')===${JSON.stringify(source)}&&e.getClientRects().length),token=source?.querySelector('[data-numeric-token]'),region=source?.querySelector('[data-numeric-region]'),r=source?.getBoundingClientRect(),range=document.createRange();if(token?.firstChild)range.selectNodeContents(token.firstChild);const b=range.getBoundingClientRect(),style=region?getComputedStyle(region):null,canvas=document.createElement('canvas').getContext('2d');if(style)canvas.font=[style.fontStyle,style.fontWeight,style.fontSize,style.fontFamily].join(' ');const numeric=Number(${JSON.stringify(value)});let ordinary=numeric.toFixed(2);if(numeric!==0&&Number(ordinary)===0)ordinary=numeric.toFixed(4);const scientific=/[eE]/.test(ordinary)||ordinary.replace(/^-/,'').split('.')[0].length>8||(numeric!==0&&Number(ordinary)===0),whole=ordinary.split('.')[0],fraction=ordinary.includes('.')?ordinary.slice(ordinary.indexOf('.')):'',half=(region?.getBoundingClientRect().width??0)/2-Number(region?.dataset.numericFitInset??0),reserve=Number(region?.dataset.numericReserveEnd??0),fits=!scientific&&canvas.measureText(whole).width<=half&&canvas.measureText(fraction).width<=half-reserve,expected=scientific||!fits?numeric.toExponential(2).toUpperCase():ordinary,metric=(${numericColumnGeometry.toString()})(source??document)[0];return{text:token?.textContent,width:r?.width,tokenRight:b.right,source:!!source,expected,metric}})()`)
@@ -1512,6 +1569,7 @@ try {
   }
   console.log(JSON.stringify({ result: 'PASS', browser: 'isolated Chrome', viewport: '1440x1800', value: '12.3456789', results }, null, 2))
   console.log(`Numeric browser assertions: ${assertionCount}/${assertionCount} PASS`)
+  }
 } finally {
   client?.close()
   await stopChild(chrome)
