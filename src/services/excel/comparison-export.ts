@@ -10,6 +10,11 @@ import {
   getCanonicalComparisonStatus,
   getComparisonStatusLabels,
 } from '../../core'
+import {
+  exactDecimalInputValue,
+  exactDecimalToNumber,
+  subtractExactDecimals
+} from '../../core/utils/exact-decimal'
 
 export interface ComparisonExportInput {
   product: ProductMaster
@@ -131,9 +136,18 @@ type ComparisonExportRow = {
   currentSource: string
 }
 
-function gap(current: number | null | undefined, reference: number | null | undefined): number | null {
+function exactGap(
+  current: number | null | undefined,
+  reference: number | null | undefined,
+  currentExact?: string,
+  referenceExact?: string,
+  percentageInput = false
+): number | null {
   if (current === null || current === undefined || reference === null || reference === undefined) return null
-  return current - reference
+  const currentValue = exactDecimalInputValue(current, currentExact, percentageInput)
+  const referenceValue = exactDecimalInputValue(reference, referenceExact, percentageInput)
+  if (!currentValue || !referenceValue) return null
+  return exactDecimalToNumber(subtractExactDecimals(currentValue, referenceValue))
 }
 
 function sourceOf(row: { sourceRef?: string } | undefined, fallback: CostSnapshot): string {
@@ -210,14 +224,30 @@ function buildBOMRows(
       description: current.description,
       referenceConsumption: reference?.consumption ?? null,
       currentConsumption: current.consumption,
-      consumptionGap: gap(current.consumption, reference?.consumption),
+      consumptionGap: exactGap(
+        current.consumption,
+        reference?.consumption,
+        current.exactDecimalInputs?.consumption,
+        reference?.exactDecimalInputs?.consumption
+      ),
       unit: current.unit || reference?.unit || '—',
       referencePrice: reference?.price ?? null,
       currentPrice: current.price,
-      priceGap: gap(current.price, reference?.price),
+      priceGap: exactGap(
+        current.price,
+        reference?.price,
+        current.exactDecimalInputs?.price,
+        reference?.exactDecimalInputs?.price
+      ),
       referenceLoss: reference?.loss ?? null,
       currentLoss: current.loss,
-      lossGap: gap(current.loss, reference?.loss),
+      lossGap: exactGap(
+        current.loss,
+        reference?.loss,
+        current.exactDecimalInputs?.loss,
+        reference?.exactDecimalInputs?.loss,
+        true
+      ),
       referenceCost: finding?.costEffect?.reference.material ?? null,
       currentCost: finding?.costEffect?.current.material ?? null,
       costGap: finding?.costEffect?.gap.material ?? null
@@ -280,10 +310,21 @@ function buildRoutingRows(
       manning: current.manning,
       referenceCapacity: reference?.capacity ?? null,
       currentCapacity: current.capacity,
-      capacityGap: gap(current.capacity, reference?.capacity),
+      capacityGap: exactGap(
+        current.capacity,
+        reference?.capacity,
+        current.exactDecimalInputs?.capacity,
+        reference?.exactDecimalInputs?.capacity
+      ),
       referenceYield: reference?.yield ?? null,
       currentYield: current.yield,
-      yieldGap: gap(current.yield, reference?.yield),
+      yieldGap: exactGap(
+        current.yield,
+        reference?.yield,
+        current.exactDecimalInputs?.yield,
+        reference?.exactDecimalInputs?.yield,
+        true
+      ),
       referenceLaborCost: finding?.costEffect?.reference.labor ?? null,
       currentLaborCost: finding?.costEffect?.current.labor ?? null,
       laborCostGap: finding?.costEffect?.gap.labor ?? null,
@@ -354,10 +395,20 @@ function buildWorkCenterRows(
       description: current.description || reference?.description || '—',
       referenceLaborRate: reference?.laborRate ?? null,
       currentLaborRate: current.laborRate,
-      laborGap: gap(current.laborRate, reference?.laborRate),
+      laborGap: exactGap(
+        current.laborRate,
+        reference?.laborRate,
+        current.exactDecimalInputs?.laborRate,
+        reference?.exactDecimalInputs?.laborRate
+      ),
       referenceBurdenRate: reference?.burdenRate ?? null,
       currentBurdenRate: current.burdenRate,
-      burdenGap: gap(current.burdenRate, reference?.burdenRate),
+      burdenGap: exactGap(
+        current.burdenRate,
+        reference?.burdenRate,
+        current.exactDecimalInputs?.burdenRate,
+        reference?.exactDecimalInputs?.burdenRate
+      ),
       referenceEffectiveDate: reference?.effectiveDate || '—',
       currentEffectiveDate: current.effectiveDate || '—'
     }
