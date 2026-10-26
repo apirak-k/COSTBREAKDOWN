@@ -238,16 +238,22 @@ export function exactDecimalSidecarValue(
     : entered
   if (!storedExact) return null
 
-  // Percentage editors/paste/import accept percentage-point text and historically
-  // store its Number projection with ordinary JS division (`Number(text) / 100`).
-  // Validate against that same input-boundary projection; validating by converting
-  // the exact fraction back to Number can choose the adjacent IEEE-754 value for
-  // inputs such as 10.1, incorrectly discarding the user's authoritative text.
-  const projected = percentageInput
-    ? exactDecimalToNumber(entered)
-    : exactDecimalToNumber(storedExact)
-  const storedProjection = percentageInput && projected !== null ? projected / 100 : projected
-  return storedProjection !== null && Object.is(storedProjection, numericValue) ? storedExact : null
+  const exactProjection = exactDecimalToNumber(storedExact)
+  if (exactProjection === null) return null
+  if (Object.is(exactProjection, numericValue)) return storedExact
+
+  // Percentage input has two legitimate compatibility projections in existing
+  // persisted data: canonical exact division (used by XLSX import) and ordinary
+  // JS percentage-point division (used historically by direct edit/paste).
+  // Both represent the same authoritative base-10 percentage text; accept only
+  // exact equality with one of those two projections, never an epsilon/tolerance.
+  if (percentageInput) {
+    const enteredProjection = exactDecimalToNumber(entered)
+    const legacyInputProjection = enteredProjection === null ? null : enteredProjection / 100
+    if (legacyInputProjection !== null && Object.is(legacyInputProjection, numericValue)) return storedExact
+  }
+
+  return null
 }
 
 /**
