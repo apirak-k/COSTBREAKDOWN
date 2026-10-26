@@ -198,6 +198,59 @@ assert.equal(additionalOnlyModel.bomRows[0].comparison, 'UNCHANGED')
 assert.deepEqual(additionalOnlyModel.statusCounts, { unchanged: 3, changed: 0, added: 0, removed: 0, review: 0 },
   'additionalFields-only differences do not fork export status from canonical business status')
 
+// Exact business decimals remain observable even when both values project to
+// the same JavaScript Number. Exported parameter deltas must not collapse them.
+const exactReference = {
+  ...reference,
+  id: 'snapshot-exact-reference',
+  rates: reference.rates.map(row => ({
+    ...row,
+    exactDecimalInputs: { laborRate: '100', burdenRate: '50' }
+  })),
+  bom: reference.bom.map(row => ({
+    ...row,
+    exactDecimalInputs: { consumption: '2', price: '10', loss: '10' }
+  })),
+  routing: reference.routing.map(row => ({
+    ...row,
+    exactDecimalInputs: { manning: '1', capacity: '100', yield: '90' }
+  }))
+}
+const exactCurrent = {
+  ...exactReference,
+  id: 'snapshot-exact-current',
+  sourceRef: 'exact-current.xlsx',
+  rates: exactReference.rates.map(row => ({
+    ...row,
+    exactDecimalInputs: { ...row.exactDecimalInputs, laborRate: '100.000000000000001' },
+    sourceRef: 'exact-current.xlsx'
+  })),
+  bom: exactReference.bom.map(row => ({
+    ...row,
+    exactDecimalInputs: { ...row.exactDecimalInputs, price: '10.000000000000001' },
+    sourceRef: 'exact-current.xlsx'
+  })),
+  routing: exactReference.routing.map(row => ({ ...row, sourceRef: 'exact-current.xlsx' }))
+}
+assert.equal(exactCurrent.rates[0].laborRate, exactReference.rates[0].laborRate,
+  'exact-only rate fixture keeps identical Number projections')
+assert.equal(exactCurrent.bom[0].price, exactReference.bom[0].price,
+  'exact-only BOM fixture keeps identical Number projections')
+const exactComparison = compareSnapshots(exactReference, exactCurrent)
+const exactModel = buildComparisonExportModel({
+  product,
+  snapshotPair: { reference: exactReference, current: exactCurrent },
+  comparison: exactComparison
+})
+assert.equal(exactModel.bomRows[0].comparison, 'CHANGED')
+assert.notEqual(exactModel.bomRows[0].priceGap, 0,
+  'exact-only BOM Price change exports a genuine non-zero delta')
+assert.equal(exactModel.workCenterRows[0].comparison, 'CHANGED')
+assert.notEqual(exactModel.workCenterRows[0].laborGap, 0,
+  'exact-only Work Center rate change exports a genuine non-zero delta')
+assert.equal(exactModel.routingRows[0].comparison, 'CHANGED',
+  'exact-only Work Center rate dependency keeps Process CHANGED in export')
+
 async function verifyWorkbook(): Promise<void> {
   const blob = await generateSnapshotComparisonExcel(input)
   assert.ok(blob.size > 0)
