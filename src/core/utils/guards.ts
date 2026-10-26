@@ -28,17 +28,15 @@ export function safeAdd(...values: number[]): number | null {
   return result
 }
 
-/** Compare authoritative numbers semantically without rounding or modifying either value. */
+/**
+ * Compare stored Number projections without rounding or tolerance.
+ * Business-decimal equality belongs to the exact-decimal layer; this helper
+ * must never collapse two distinct stored Numbers into one business value.
+ */
 export function areNumericValuesEquivalent(a: number | null | undefined, b: number | null | undefined): boolean {
-  if (Object.is(a, b)) return true
-  if (typeof a !== 'number' || typeof b !== 'number') return false
+  if (typeof a !== 'number' || typeof b !== 'number') return a === b
   if (!Number.isFinite(a) || !Number.isFinite(b)) return a === b
-  if (a === 0 && b === 0) return true
-  // A zero remains distinct from every nonzero authoritative value.
-  // For nonzero values, tolerate only a few floating-point representation ULPs.
-  if (a === 0 || b === 0) return false
-  const tolerance = Number.EPSILON * Math.max(Math.abs(a), Math.abs(b)) * 4
-  return Math.abs(a - b) <= tolerance
+  return a === b
 }
 
 export function parsePercentage(value: string | number): number | null {
