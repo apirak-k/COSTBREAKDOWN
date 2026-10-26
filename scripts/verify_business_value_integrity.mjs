@@ -12,9 +12,23 @@ try {
   const core = await vite.ssrLoadModule('/src/core/index.ts')
   const statusModule = await vite.ssrLoadModule('/src/core/calculations/comparison-status.ts')
   const decimal = await vite.ssrLoadModule('/src/core/utils/exact-decimal.ts')
+  const guards = await vite.ssrLoadModule('/src/core/utils/guards.ts')
+  const masterData = await vite.ssrLoadModule('/src/core/utils/master-data-effective.ts')
+  const seedData = await vite.ssrLoadModule('/src/state/seed-data.ts')
+  const simulationState = await vite.ssrLoadModule('/src/features/simulation/simulation-state.ts')
+  const simulationEngine = await vite.ssrLoadModule('/src/features/simulation/simulation-engine.ts')
+  const snapshotExport = await vite.ssrLoadModule('/src/services/excel/snapshot-export.ts')
+  const snapshotParser = await vite.ssrLoadModule('/src/services/excel/snapshot-parser.ts')
   const { compareSnapshots } = core
   const { getCanonicalComparisonStatus } = statusModule
   const { exactDecimalInputValue, exactDecimalToString } = decimal
+  const { areNumericValuesEquivalent } = guards
+  const { normalizeMasterDataSnapshot } = masterData
+  const { seedSnapshotPair, seedBOM } = seedData
+  const { createEmptySimulationState, getEffectiveSimulationDataset } = simulationState
+  const { updateSimulationParameter } = simulationEngine
+  const { exportSnapshotToExcel } = snapshotExport
+  const { parseSnapshotWorkbookData } = snapshotParser
 
   const product = {
     productName: 'Integrity Fixture',
@@ -65,7 +79,7 @@ try {
 
   const snapshot = (id, role, bomRows, routingRows, rates) => ({
     id,
-    comparisonRole: role,
+    ...(role ? { comparisonRole: role } : {}),
     product,
     effectiveDate: '',
     sourceRef: id,
@@ -75,6 +89,11 @@ try {
     rates,
     warnings: []
   })
+
+  // Stored Number equality is exact. Business-decimal equivalence is resolved
+  // by the exact-decimal layer rather than a ULP tolerance.
+  assert.equal(areNumericValuesEquivalent(1, 1 + Number.EPSILON), false,
+    'distinct stored Numbers are never collapsed by tolerance')
 
   // Exact text may contain more precision than the Number projection; keep it
   // authoritative when both still describe the same stored business value.
@@ -106,8 +125,6 @@ try {
     'current-same',
     'current',
     [bom('bom-cur', {
-      // Same approved BOM identity after normalization. Hidden/internal
-      // metadata and a stale exact sidecar must not create a business change.
       description: '  ptf-300 diluent  ',
       exactDecimalInputs: {
         consumption: '0.055500',
@@ -164,6 +181,114 @@ try {
   const movedComparison = compareSnapshots(reference, trueMove)
   assert.equal(movedComparison.routingFindings[0].changeFlags.movedWorkCenter, true, 'real Work Center move keeps its move flag')
   assert.equal(getCanonicalComparisonStatus(movedComparison.routingFindings[0]), 'CHANGED', 'real Work Center move remains CHANGED')
+
+  // Master Data is the central state boundary. A numeric-only update must not
+  // inherit the old exact sidecar through object spread.
+  const previousMaster = snapshot(
+    'master-before',
+    'current',
+    [bom('master-bom', { price: 1, exactDecimalInputs: { consumption: '0.0555', price: '1', loss: '30' } })],
+    [route('master-route')],
+    [rate('master-rate')]
+  )
+  const numericOnlyMutation = {
+    ...previousMaster,
+    bom: [{ ...previousMaster.bom[0], price: 2 }]
+  }
+  const normalizedNumericOnly = normalizeMasterDataSnapshot(numericOnlyMutation, previousMaster)
+  assert.equal(normalizedNumericOnly.bom[0].price, 2)
+  assert.equal(normalizedNumericOnly.bom[0].exactDecimalInputs?.price, undefined,
+    'numeric-only Master Data mutation clears an inherited stale exact sidecar')
+
+  const stalePercentMutation = {
+    ...previousMaster,
+    bom: [{ ...previousMaster.bom[0], loss: 0.4 }]
+  }
+  const normalizedPercent = normalizeMasterDataSnapshot(stalePercentMutation, previousMaster)
+  assert.equal(normalizedPercent.bom[0].loss, 0.4)
+  assert.equal(normalizedPercent.bom[0].exactDecimalInputs?.loss, undefined,
+    'percentage numeric-only mutation clears the old percentage-point sidecar')
+
+  const preciseSameNumber = {
+    ...previousMaster,
+    bom: [{
+      ...previousMaster.bom[0],
+      price: 1,
+      exactDecimalInputs: { ...previousMaster.bom[0].exactDecimalInputs, price: '1.00000000000000001' }
+    }]
+  }
+  const normalizedPrecise = normalizeMasterDataSnapshot(preciseSameNumber, previousMaster)
+  assert.equal(normalizedPrecise.bom[0].exactDecimalInputs?.price, '1.00000000000000001',
+    'intentional exact-only precision that projects to the same Number is preserved')
+
+  // Regression against the real RGOM seed used by the application. Every BOM
+  // row whose legacy base/active business values are identical must compare as
+  // UNCHANGED with an exact zero row Gap.
+  const seedComparison = compareSnapshots(seedSnapshotPair.reference, seedSnapshotPair.current)
+  for (const item of seedBOM.filter(item => item.basePrice === item.activePrice && item.baseLoss === item.activeLoss)) {
+    const finding = seedComparison.bomFindings.find(candidate => candidate.referenceId === item.id && candidate.currentId === item.id)
+    assert.ok(finding, `RGOM seed finding exists for ${item.description}`)
+    assert.equal(getCanonicalComparisonStatus(finding), 'UNCHANGED', `${item.description} stays UNCHANGED when base/active values match`)
+    assert.equal(finding.costEffect?.gap.material, 0, `${item.description} has exact zero material Gap`)
+  }
+
+  // Simulation must keep the Number projection and exact text as one logical
+  // override. Same input clears both; a real exact-only difference survives.
+  const simulationBase = snapshot(
+    'simulation-custom',
+    undefined,
+    [bom('sim-bom', { price: 1, exactDecimalInputs: { consumption: '0.0555', price: '1', loss: '30' } })],
+    [route('sim-route')],
+    [rate('sim-rate')]
+  )
+  const simulationSources = {
+    reference: { ...simulationBase, id: 'simulation-reference', comparisonRole: 'reference' },
+    current: { ...simulationBase, id: 'simulation-current', comparisonRole: 'current' },
+    custom: { ...simulationBase, id: 'simulation-custom' }
+  }
+  let simulation = createEmptySimulationState(simulationSources)
+  simulation = updateSimulationParameter(simulation, simulationSources, 'sim-bom', 'bom.price', 1, 'custom', '1')
+  assert.deepEqual(simulation.datasets.custom.parameterOverrides, {}, 'same Simulation business value creates no numeric override')
+  assert.deepEqual(simulation.datasets.custom.exactDecimalInputs, {}, 'same Simulation business value creates no exact override')
+
+  simulation = updateSimulationParameter(
+    simulation,
+    simulationSources,
+    'sim-bom',
+    'bom.price',
+    1,
+    'custom',
+    '1.00000000000000001'
+  )
+  assert.equal(simulation.datasets.custom.parameterOverrides['bom.price']?.['sim-bom'], undefined,
+    'exact-only difference does not invent a different Number projection')
+  assert.equal(simulation.datasets.custom.exactDecimalInputs?.['bom.price']?.['sim-bom'], '1.00000000000000001',
+    'real exact-only difference is retained')
+  const preciseSimulation = getEffectiveSimulationDataset(simulationSources, simulation, 'custom')
+  const preciseSimulationComparison = compareSnapshots(simulationSources.custom, preciseSimulation.snapshot)
+  const preciseSimulationFinding = preciseSimulationComparison.bomFindings.find(candidate => candidate.currentId === 'sim-bom')
+  assert.ok(preciseSimulationFinding)
+  assert.equal(getCanonicalComparisonStatus(preciseSimulationFinding), 'CHANGED', 'exact-only Simulation difference is a real business change')
+  assert.notEqual(preciseSimulationFinding.costEffect?.gap.material, 0, 'exact-only Simulation difference retains a real non-zero Gap')
+
+  simulation = updateSimulationParameter(simulation, simulationSources, 'sim-bom', 'bom.price', 1, 'custom', '1')
+  assert.deepEqual(simulation.datasets.custom.parameterOverrides, {}, 'returning Simulation to baseline clears numeric override')
+  assert.deepEqual(simulation.datasets.custom.exactDecimalInputs, {}, 'returning Simulation to baseline clears exact override atomically')
+
+  // Export must not turn a stale sidecar into a new workbook business value.
+  const staleExportSnapshot = {
+    ...previousMaster,
+    bom: [{
+      ...previousMaster.bom[0],
+      price: 2,
+      exactDecimalInputs: { ...previousMaster.bom[0].exactDecimalInputs, price: '9.999999' }
+    }]
+  }
+  const exported = await exportSnapshotToExcel(staleExportSnapshot)
+  const imported = parseSnapshotWorkbookData(await exported.arrayBuffer(), 'current')
+  assert.equal(imported.success, true, `stale-sidecar export round trip succeeds: ${imported.message}`)
+  assert.equal(imported.snapshot?.bom[0].price, 2, 'export writes the current numeric business value, never a stale exact sidecar')
+  assert.notEqual(imported.snapshot?.bom[0].exactDecimalInputs?.price, '9.999999', 'stale exact text does not survive export/import as business data')
 
   console.log('Business value integrity verification passed.')
 } finally {
