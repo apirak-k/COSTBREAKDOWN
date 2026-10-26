@@ -64,24 +64,24 @@ const tinyCost = calculateSnapshotBOMDetail({ current: tinyItem })
 assert.equal(tinyCost.currentCost, 1e-100, 'A legitimate tiny nonzero input must stay nonzero through cost calculation')
 assert.equal(Number(tinyCost.exactValues?.currentCost), 1e-100)
 
-const artifactOnlyItem: SnapshotBOMItem = {
+const numberOnlyItem: SnapshotBOMItem = {
   ...exactBOMItem,
-  id: 'artifact-only-bom',
+  id: 'number-only-bom',
   consumption: 1,
   price: Number('9.000000000000004'),
   loss: Number('0.29000000000000004'),
   exactDecimalInputs: undefined
 }
-const artifactOnlyCost = calculateSnapshotBOMDetail({ current: artifactOnlyItem })
-assert.equal(artifactOnlyCost.exactValues?.currentCost, '11.61',
-  'No-sidecar Number residue must not become authoritative Price or percentage precision in CBD calculations')
-const intentionalArtifactItem = {
-  ...artifactOnlyItem,
+const numberOnlyCost = calculateSnapshotBOMDetail({ current: numberOnlyItem })
+assert.equal(numberOnlyCost.exactValues?.currentCost, '11.61000000000000552000000000000016',
+  'Without an exact sidecar, the stored Number itself is authoritative and must not be cleaned in business calculations')
+const intentionalExactItem = {
+  ...numberOnlyItem,
   exactDecimalInputs: { consumption: '1', price: '9.000000000000004', loss: '29' }
 }
-const intentionalArtifactCost = calculateSnapshotBOMDetail({ current: intentionalArtifactItem })
-assert.equal(intentionalArtifactCost.exactValues?.currentCost, '11.61000000000000516',
-  'Authoritative imported/editor text preserves the same digits when they are intentionally supplied')
+const intentionalExactCost = calculateSnapshotBOMDetail({ current: intentionalExactItem })
+assert.equal(intentionalExactCost.exactValues?.currentCost, '11.61000000000000516',
+  'Authoritative imported/editor text preserves the supplied exact digits and percentage value')
 
 const fullSnapshot: CostSnapshot = {
   ...snapshot,
@@ -93,7 +93,7 @@ const fullSnapshot: CostSnapshot = {
     id: 'route-1', processName: 'Process', workCenterId: 'WC-1', manning: 1, capacity: 1, yield: 1,
     exactDecimalInputs: { manning: '1', capacity: '1', yield: '100' }, confidence: {}
   }],
-  bom: [exactBOMItem, artifactOnlyItem, intentionalArtifactItem]
+  bom: [exactBOMItem, numberOnlyItem, intentionalExactItem]
 }
 const referenceSnapshot: CostSnapshot = {
   ...fullSnapshot,
@@ -155,8 +155,10 @@ async function verifyExcelRoundTrip() {
     'Excel export and import must retain exact product input text')
   assert.equal(imported.snapshot?.bom[0].exactDecimalInputs?.price, '12.34567890123456789',
     'Excel export and import must retain exact BOM input text')
-  assert.equal(imported.snapshot?.bom[1].price, 9,
-    'Excel export cleans machine residue when no authoritative source text exists')
+  assert.equal(imported.snapshot?.bom[1].price, Number('9.000000000000004'),
+    'Excel export/import preserves the stored Number when no separate exact source text exists')
+  assert.equal(imported.snapshot?.bom[1].exactDecimalInputs?.price, '9.000000000000004',
+    'Excel round-trip records the authoritative stored Number lexeme without cleaning it')
   assert.equal(imported.snapshot?.bom[2].exactDecimalInputs?.price, '9.000000000000004',
     'Excel export and import retain the complete digits when exact source text authorizes them')
   const importedLossExact = exactDecimalInputValue(
