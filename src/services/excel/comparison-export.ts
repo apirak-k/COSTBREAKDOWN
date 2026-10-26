@@ -7,6 +7,7 @@ import {
   CostSnapshot,
   ProductMaster,
   SnapshotPair,
+  getCanonicalComparisonStatus,
   getComparisonStatusLabels,
 } from '../../core'
 
@@ -143,19 +144,20 @@ function confidenceOf(finding: ComparisonFinding | undefined): ConfidenceStatus 
   return finding?.confidence ?? 'missing'
 }
 
-function statusGroup(finding: ComparisonFinding | undefined, changed: boolean): keyof ComparisonExportStatusCounts {
-  if (!finding || finding.matchStatus === 'ambiguous' || finding.matchStatus === 'unmatched') return 'review'
-  if (finding.matchStatus === 'added') return 'added'
-  if (finding.matchStatus === 'removed') return 'removed'
-  return changed ? 'changed' : 'unchanged'
+function statusGroup(finding: ComparisonFinding | undefined): keyof ComparisonExportStatusCounts {
+  const status = getCanonicalComparisonStatus(finding)
+  if (status === 'UNCHANGED') return 'unchanged'
+  if (status === 'CHANGED') return 'changed'
+  if (status === 'ADDED') return 'added'
+  if (status === 'REMOVED') return 'removed'
+  return 'review'
 }
 
 function addStatusCount(
   counts: ComparisonExportStatusCounts,
-  finding: ComparisonFinding,
-  changed: boolean
+  finding: ComparisonFinding
 ): void {
-  counts[statusGroup(finding, changed)] += 1
+  counts[statusGroup(finding)] += 1
 }
 
 function bomLabel(finding: ComparisonFinding | undefined): string {
@@ -168,22 +170,6 @@ function routingLabels(finding: ComparisonFinding | undefined): string {
 
 function workCenterLabel(finding: ComparisonFinding | undefined): string {
   return getComparisonStatusLabels(finding).join(', ')
-}
-
-function isBomChanged(finding: ComparisonFinding): boolean {
-  return finding.matchStatus === 'matched' && Object.keys(finding.fieldDiffs).length > 0
-}
-
-function isRoutingChanged(finding: ComparisonFinding): boolean {
-  return finding.matchStatus === 'matched' && (
-    finding.changeFlags.reordered === true ||
-    finding.changeFlags.movedWorkCenter === true ||
-    finding.changeFlags.changedInputs === true
-  )
-}
-
-function isWorkCenterChanged(finding: ComparisonFinding): boolean {
-  return finding.matchStatus === 'matched' && finding.changeFlags.changedRate === true
 }
 
 function baseRow(
@@ -216,7 +202,7 @@ function buildBOMRows(
     const finding = findingByCurrentId.get(current.id)
     const reference = finding?.referenceId ? referenceById.get(finding.referenceId) : undefined
     const comparison = bomLabel(finding)
-    if (finding) addStatusCount(statusCounts, finding, isBomChanged(finding))
+    if (finding) addStatusCount(statusCounts, finding)
 
     return {
       ...baseRow(finding, reference, current, referenceSnapshot, currentSnapshot, comparison),
@@ -243,7 +229,7 @@ function buildBOMRows(
     .forEach(finding => {
       const reference = referenceById.get(finding.referenceId as string)
       if (!reference) return
-      addStatusCount(statusCounts, finding, isBomChanged(finding))
+      addStatusCount(statusCounts, finding)
       rows.push({
         ...baseRow(finding, reference, undefined, referenceSnapshot, currentSnapshot, bomLabel(finding)),
         itemCode: reference.itemCode,
@@ -281,7 +267,7 @@ function buildRoutingRows(
     const finding = findingByCurrentId.get(current.id)
     const reference = finding?.referenceId ? referenceById.get(finding.referenceId) : undefined
     const comparison = routingLabels(finding)
-    if (finding) addStatusCount(statusCounts, finding, isRoutingChanged(finding))
+    if (finding) addStatusCount(statusCounts, finding)
 
     return {
       ...baseRow(finding, reference, current, referenceSnapshot, currentSnapshot, comparison),
@@ -315,7 +301,7 @@ function buildRoutingRows(
     .forEach(finding => {
       const reference = referenceById.get(finding.referenceId as string)
       if (!reference) return
-      addStatusCount(statusCounts, finding, isRoutingChanged(finding))
+      addStatusCount(statusCounts, finding)
       rows.push({
         ...baseRow(finding, reference, undefined, referenceSnapshot, currentSnapshot, routingLabels(finding)),
         operationCode: reference.operationCode || reference.id,
@@ -360,7 +346,7 @@ function buildWorkCenterRows(
     const finding = findingByCurrentId.get(current.id)
     const reference = finding?.referenceId ? referenceById.get(finding.referenceId) : undefined
     const comparison = workCenterLabel(finding)
-    if (finding) addStatusCount(statusCounts, finding, isWorkCenterChanged(finding))
+    if (finding) addStatusCount(statusCounts, finding)
 
     return {
       ...baseRow(finding, reference, current, referenceSnapshot, currentSnapshot, comparison),
@@ -382,7 +368,7 @@ function buildWorkCenterRows(
     .forEach(finding => {
       const reference = referenceById.get(finding.referenceId as string)
       if (!reference) return
-      addStatusCount(statusCounts, finding, isWorkCenterChanged(finding))
+      addStatusCount(statusCounts, finding)
       rows.push({
         ...baseRow(finding, reference, undefined, referenceSnapshot, currentSnapshot, workCenterLabel(finding)),
         workCenterCode: reference.workCenterCode,
@@ -403,10 +389,9 @@ function buildWorkCenterRows(
 
 function countFindingStatuses(
   counts: ComparisonExportStatusCounts,
-  findings: ComparisonFinding[],
-  changed: (finding: ComparisonFinding) => boolean
+  findings: ComparisonFinding[]
 ): void {
-  findings.forEach(finding => addStatusCount(counts, finding, changed(finding)))
+  findings.forEach(finding => addStatusCount(counts, finding))
 }
 
 export function buildComparisonExportModel(input: ComparisonExportInput): ComparisonExportModel {
@@ -424,9 +409,9 @@ export function buildComparisonExportModel(input: ComparisonExportInput): Compar
   const workCenterRows = buildWorkCenterRows(snapshotPair.reference, snapshotPair.current, comparison.workCenterFindings, statusCounts)
 
   // The row builders count visible rows. Keep findings without a usable row visible in the summary as review items.
-  countFindingStatuses(statusCounts, comparison.bomFindings.filter(finding => !finding.currentId && !finding.referenceId), isBomChanged)
-  countFindingStatuses(statusCounts, comparison.routingFindings.filter(finding => !finding.currentId && !finding.referenceId), isRoutingChanged)
-  countFindingStatuses(statusCounts, comparison.workCenterFindings.filter(finding => !finding.currentId && !finding.referenceId), isWorkCenterChanged)
+  countFindingStatuses(statusCounts, comparison.bomFindings.filter(finding => !finding.currentId && !finding.referenceId))
+  countFindingStatuses(statusCounts, comparison.routingFindings.filter(finding => !finding.currentId && !finding.referenceId))
+  countFindingStatuses(statusCounts, comparison.workCenterFindings.filter(finding => !finding.currentId && !finding.referenceId))
 
   return {
     metadata: {
