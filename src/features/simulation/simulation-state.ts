@@ -1,4 +1,5 @@
 import type { CostSnapshot, MasterDataRole } from '../../core/types'
+import { compareExactDecimals, exactDecimalInputValue, exactDecimalSidecarValue } from '../../core/utils/exact-decimal'
 import { areNumericValuesEquivalent } from '../../shared/ui/numeric-display'
 import { calculateParameterSimulation, isSimulationParameterInputValid } from './simulation-engine'
 import {
@@ -60,6 +61,30 @@ const PARAMETER_FIELDS: Record<SimulationParameter, { kind: 'bom' | 'routing'; f
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function isPercentageParameter(parameter: SimulationParameter): boolean {
+  return parameter === 'bom.loss' || parameter === 'routing.yield'
+}
+
+function isPercentageField(field: string): boolean {
+  return field === 'loss' || field === 'yield'
+}
+
+function numericFieldEqual(
+  left: Record<string, unknown> & { exactDecimalInputs?: Record<string, string> },
+  right: Record<string, unknown> & { exactDecimalInputs?: Record<string, string> },
+  field: string
+): boolean {
+  const leftValue = left[field] as number | null | undefined
+  const rightValue = right[field] as number | null | undefined
+  if (leftValue == null || rightValue == null) return leftValue === rightValue
+  const percentage = isPercentageField(field)
+  const leftExact = exactDecimalInputValue(leftValue, left.exactDecimalInputs?.[field], percentage)
+  const rightExact = exactDecimalInputValue(rightValue, right.exactDecimalInputs?.[field], percentage)
+  return leftExact && rightExact
+    ? compareExactDecimals(leftExact, rightExact) === 0
+    : leftValue === rightValue
 }
 
 export function omitSimulationViewState(value: unknown): unknown {
@@ -124,13 +149,17 @@ export function getEffectiveSimulationDataset(
   role: MasterDataRole
 ): SimulationDatasetView {
   const stored = state.datasets[role]
-  const dataset = stored?.basisFingerprint === simulationBasisFingerprint(role, sources)
-    ? {
-        ...stored,
-        parameterOverrides: normalizeParameterOverrides(stored.parameterOverrides, sources[role]),
-        exactDecimalInputs: normalizeExactDecimalInputs(stored.exactDecimalInputs, sources[role])
-      }
-    : createEmptyDataset(role, sources)
+  let dataset: SimulationDatasetState
+  if (stored?.basisFingerprint === simulationBasisFingerprint(role, sources)) {
+    const parameterOverrides = normalizeParameterOverrides(stored.parameterOverrides, sources[role])
+    dataset = {
+      ...stored,
+      parameterOverrides,
+      exactDecimalInputs: normalizeExactDecimalInputs(stored.exactDecimalInputs, sources[role], parameterOverrides)
+    }
+  } else {
+    dataset = createEmptyDataset(role, sources)
+  }
   return {
     ...dataset,
     role,
@@ -200,12 +229,9 @@ export function simulationParameterStatus(
   const baselineMatches = baselineRecords?.filter(record => record.id === recordId) ?? []
   if (matches.length !== 1 || baselineMatches.length !== 1) return null
   const fields = kind === 'bom' ? ['price', 'consumption', 'loss'] as const : ['manning', 'capacity', 'yield'] as const
-  return fields.every(field =>
-    areNumericValuesEquivalent(
-      matches[0][field as keyof typeof matches[0]] as number | null | undefined,
-      baselineMatches[0][field as keyof typeof baselineMatches[0]] as number | null | undefined
-    )
-  )
+  const current = matches[0] as unknown as Record<string, unknown> & { exactDecimalInputs?: Record<string, string> }
+  const reference = baselineMatches[0] as unknown as Record<string, unknown> & { exactDecimalInputs?: Record<string, string> }
+  return fields.every(field => numericFieldEqual(reference, current, field))
     ? 'UNCHANGED' : 'CHANGED'
 }
 
@@ -360,7 +386,7 @@ function reconcileDataset(value: unknown, role: MasterDataRole, sources: Simulat
   if (!isRecord(value) || value.basisFingerprint !== fresh.basisFingerprint) return fresh
 
   const parameterOverrides = normalizeParameterOverrides(value.parameterOverrides, sources[role])
-  const exactDecimalInputs = normalizeExactDecimalInputs(value.exactDecimalInputs, sources[role])
+  const exactDecimalInputs = normalizeExactDecimalInputs(value.exactDecimalInputs, sources[role], parameterOverrides)
   const snapshot = applyParameterOverrides(sources[role], parameterOverrides, exactDecimalInputs)
   const selection = Array.isArray(value.workingSelection)
     ? [...new Set(value.workingSelection.filter((item): item is string => typeof item === 'string'))]
@@ -422,17 +448,40 @@ function normalizeParameterOverrides(value: unknown, baseline: CostSnapshot): Si
   return result
 }
 
-function normalizeExactDecimalInputs(value: unknown, baseline: CostSnapshot): SimulationParameterExactInputs {
+function normalizeExactDecimalInputs(
+  value: unknown,
+  baseline: CostSnapshot,
+  overrides: SimulationParameterOverrides = {}
+): SimulationParameterExactInputs {
   if (!isRecord(value)) return {}
   const result: SimulationParameterExactInputs = {}
   for (const parameter of SIMULATION_PARAMETERS) {
     const entries = value[parameter]
     if (!isRecord(entries)) continue
-    const { kind } = PARAMETER_FIELDS[parameter]
+    const { kind, field } = PARAMETER_FIELDS[parameter]
     const rows = kind === 'bom' ? baseline.bom : baseline.routing
     const valid: Record<string, string> = {}
     for (const [recordId, candidate] of Object.entries(entries)) {
-      if (typeof candidate !== 'string' || rows.filter(row => row.id === recordId).length !== 1) continue
+      if (typeof candidate !== 'string') continue
+      const matches = rows.filter(row => row.id === recordId)
+      if (matches.length !== 1) continue
+      const row = matches[0] as unknown as Record<string, unknown> & { exactDecimalInputs?: Record<string, string> }
+      const parameterOverrides = overrides[parameter]
+      const hasOverride = Boolean(parameterOverrides && Object.prototype.hasOwnProperty.call(parameterOverrides, recordId))
+      const numericValue = hasOverride
+        ? parameterOverrides?.[recordId]
+        : row[field] as number | null | undefined
+      if (typeof numericValue !== 'number') continue
+      const exact = exactDecimalSidecarValue(numericValue, candidate, isPercentageParameter(parameter))
+      if (!exact) continue
+      if (!hasOverride) {
+        const baselineExact = exactDecimalInputValue(
+          row[field] as number | null | undefined,
+          row.exactDecimalInputs?.[field],
+          isPercentageParameter(parameter)
+        )
+        if (baselineExact && compareExactDecimals(exact, baselineExact) === 0) continue
+      }
       valid[recordId] = candidate
     }
     if (Object.keys(valid).length) result[parameter] = valid
