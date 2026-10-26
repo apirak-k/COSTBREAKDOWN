@@ -227,7 +227,7 @@ const exactCurrent = {
   })),
   bom: exactReference.bom.map(row => ({
     ...row,
-    exactDecimalInputs: { ...row.exactDecimalInputs, price: '10.000000000000001' },
+    exactDecimalInputs: { ...row.exactDecimalInputs, price: '10.0000000000000001' },
     sourceRef: 'exact-current.xlsx'
   })),
   routing: exactReference.routing.map(row => ({ ...row, sourceRef: 'exact-current.xlsx' }))
