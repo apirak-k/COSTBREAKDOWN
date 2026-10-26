@@ -153,6 +153,51 @@ assert.equal(model.routingRows.reduce((sum, row) => sum + (row.burdenCostGap ?? 
 assert.ok(model.warnings.length >= 0)
 assert.equal(getComparisonExportFilename('RGOM/024'), 'CostBreakdown_Comparison_RGOM_024.xlsx')
 
+// A Process may be CHANGED solely because its Work Center rate dependency changed.
+// Export summary counts must use the same canonical status as the row label/CBD.
+const rateOnlyCurrent = {
+  ...reference,
+  id: 'snapshot-rate-only',
+  sourceRef: 'rate-only.xlsx',
+  rates: [{ ...reference.rates[0], laborRate: 101, sourceRef: 'rate-only.xlsx' }],
+  bom: reference.bom.map(row => ({ ...row, sourceRef: 'rate-only.xlsx' })),
+  routing: reference.routing.map(row => ({ ...row, sourceRef: 'rate-only.xlsx' }))
+}
+const rateOnlyComparison = compareSnapshots(reference, rateOnlyCurrent)
+const rateOnlyModel = buildComparisonExportModel({
+  product,
+  snapshotPair: { reference, current: rateOnlyCurrent },
+  comparison: rateOnlyComparison
+})
+assert.equal(rateOnlyModel.routingRows[0].comparison, 'CHANGED', 'rate-only Process change exports CHANGED')
+assert.equal(rateOnlyComparison.routingFindings[0].changeFlags.changedRate, true)
+assert.deepEqual(rateOnlyModel.statusCounts, { unchanged: 1, changed: 2, added: 0, removed: 0, review: 0 },
+  'rate-only Routing CHANGED is counted by the same canonical status engine')
+
+// Non-canonical imported additional fields remain review evidence and must not
+// independently turn an otherwise identical business record into CHANGED.
+const additionalOnlyCurrent = {
+  ...reference,
+  id: 'snapshot-additional-only',
+  sourceRef: 'additional-only.xlsx',
+  rates: reference.rates.map(row => ({ ...row, sourceRef: 'additional-only.xlsx' })),
+  bom: reference.bom.map(row => ({
+    ...row,
+    additionalFields: { LegacyColumn: 'different hidden value' },
+    sourceRef: 'additional-only.xlsx'
+  })),
+  routing: reference.routing.map(row => ({ ...row, sourceRef: 'additional-only.xlsx' }))
+}
+const additionalOnlyComparison = compareSnapshots(reference, additionalOnlyCurrent)
+const additionalOnlyModel = buildComparisonExportModel({
+  product,
+  snapshotPair: { reference, current: additionalOnlyCurrent },
+  comparison: additionalOnlyComparison
+})
+assert.equal(additionalOnlyModel.bomRows[0].comparison, 'UNCHANGED')
+assert.deepEqual(additionalOnlyModel.statusCounts, { unchanged: 3, changed: 0, added: 0, removed: 0, review: 0 },
+  'additionalFields-only differences do not fork export status from canonical business status')
+
 async function verifyWorkbook(): Promise<void> {
   const blob = await generateSnapshotComparisonExcel(input)
   assert.ok(blob.size > 0)
