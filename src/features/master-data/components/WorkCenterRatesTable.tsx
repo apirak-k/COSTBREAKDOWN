@@ -443,6 +443,7 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
                       </div>
                     ) : <MasterDataFocusedNumber
                       value={rate.laborRate}
+                      exactValue={rate.exactDecimalInputs?.laborRate}
                       selectionId={valueSourceId(rate.id, 'laborRate')}
                       data-grid-cell="true"
                       data-grid-row-id={rate.id}
@@ -476,6 +477,7 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
                       </div>
                     ) : <MasterDataFocusedNumber
                       value={rate.burdenRate}
+                      exactValue={rate.exactDecimalInputs?.burdenRate}
                       selectionId={valueSourceId(rate.id, 'burdenRate')}
                       data-grid-cell="true"
                       data-grid-row-id={rate.id}

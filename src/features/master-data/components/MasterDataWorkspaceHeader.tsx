@@ -615,6 +615,7 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
               ) : (
                 <MasterDataSelectedNumber
                   value={product.sellingPrice}
+                  exactValue={product.exactDecimalInputs?.sellingPrice}
                   selectionId={metadataValueSourceId('sellingPrice')}
                   aria-label="Selling Price (THB)"
                   aria-invalid={sellingPriceInvalid}
@@ -648,6 +649,7 @@ export const MasterDataWorkspaceHeader: React.FC<MasterDataWorkspaceHeaderProps>
               ) : (
                 <MasterDataSelectedNumber
                   value={product.sgaPercent}
+                  exactValue={product.exactDecimalInputs?.sgaPercent}
                   selectionId={metadataValueSourceId('sgaPercent')}
                   percentage
                   aria-label="SG&A"

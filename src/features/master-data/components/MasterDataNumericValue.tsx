@@ -78,6 +78,7 @@ export function MasterDataNumericInput({ selectionId, percentage = false, ...pro
 
 interface MasterDataSelectedNumberProps {
   value: number | null | undefined
+  exactValue?: string | null
   selectionId: string
   percentage?: boolean
   integer?: boolean
@@ -97,6 +98,7 @@ interface MasterDataSelectedNumberProps {
 
 export function MasterDataSelectedNumber({
   value,
+  exactValue,
   selectionId,
   percentage = false,
   integer = false,
@@ -141,6 +143,7 @@ export function MasterDataSelectedNumber({
     <span className={`${directEditPending ? '!text-blue-700' : ''} ${className ?? ''} ${contentClassName ?? ''} ${reserveMarker ? 'pr-6' : ''}`.trim()}>
       <SelectedNumber
         value={value}
+        exactValue={exactValue}
         directEditPending={directEditPending}
         integer={integer}
         percentage={percentage}
@@ -158,6 +161,7 @@ export function MasterDataSelectedNumber({
 
 interface MasterDataFocusedNumberProps {
   value: number | null | undefined
+  exactValue?: string | null
   selectionId: string
   percentage?: boolean
   integer?: boolean
@@ -175,6 +179,7 @@ interface MasterDataFocusedNumberProps {
 /** Keep the existing grid cell as the sole focus target while publishing its read-only value. */
 export function MasterDataFocusedNumber({
   value,
+  exactValue,
   selectionId,
   percentage = false,
   integer = false,
@@ -190,7 +195,7 @@ export function MasterDataFocusedNumber({
 }: MasterDataFocusedNumberProps) {
   const { clearFocus } = useSelectedValue()
   const directEditPending = useMasterDataSelectionPending(selectionId)
-  const { focus, preview, clearPreview } = useSelectedValueSource({ value, directEditPending, editable: false, domain: { integer }, percentage }, selectionId)
+  const { focus, preview, clearPreview } = useSelectedValueSource({ value, exactValue, directEditPending, editable: false, domain: { integer }, percentage }, selectionId)
 
   return (
     <span

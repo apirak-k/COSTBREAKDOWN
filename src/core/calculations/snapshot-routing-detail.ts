@@ -129,7 +129,7 @@ export function calculateSnapshotRoutingDetail(
     currentBurdenCost: current.burdenCost,
     referenceTotal: reference.total,
     currentTotal: current.total,
-    totalGap: exactGap ? exactDecimalToNumber(exactGap) : null,
+    totalGap: exactGap ? (exactGap.coefficient === 0n ? 0 : exactDecimalToNumber(exactGap)) : null,
     exactValues: {
       referenceRuntime: reference.exactRuntime ? exactDecimalToString(reference.exactRuntime) : null,
       currentRuntime: current.exactRuntime ? exactDecimalToString(current.exactRuntime) : null,

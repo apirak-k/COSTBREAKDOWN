@@ -414,6 +414,7 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                       </div>
                     ) : <MasterDataFocusedNumber
                       value={item.consumption}
+                      exactValue={item.exactDecimalInputs?.consumption}
                       selectionId={valueSourceId(item.id, 'consumption')}
                       data-grid-cell="true"
                       data-grid-row-id={item.id}
@@ -468,6 +469,7 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                       </div>
                     ) : <MasterDataFocusedNumber
                       value={item.price}
+                      exactValue={item.exactDecimalInputs?.price}
                       selectionId={valueSourceId(item.id, 'price')}
                       data-grid-cell="true"
                       data-grid-row-id={item.id}
@@ -507,6 +509,7 @@ export const BOMTable: React.FC<BOMTableProps> = ({
                       <div className={masterDataPercentageShellClass}>
                         <MasterDataFocusedNumber
                           value={item.loss === null ? null : item.loss * 100}
+                          exactValue={item.exactDecimalInputs?.loss}
                           selectionId={valueSourceId(item.id, 'loss')}
                           percentage
                           data-grid-cell="true"

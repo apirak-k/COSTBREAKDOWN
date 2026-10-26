@@ -51,22 +51,10 @@ function combinedConfidence(reference: SnapshotRow | undefined, current: Snapsho
   return 'verified'
 }
 
-const COMPARISON_METADATA_FIELDS = new Set([
-  'id',
-  'confidence',
-  'exactDecimalInputs',
-  'sourceRef',
-  'additionalFields',
-  'note',
-  'isGeneratedSizingPlaceholder',
-  // Legacy columns excluded from the neutral dataset schema.
-  'effectiveDate',
-  'processCode',
-  // Removed from the approved Master Data schemas; kept only by legacy adapters.
-  'itemCode',
-  'operationCode',
-  'sequence'
-])
+export const COMPARABLE_BOM_FIELDS = ['description', 'consumption', 'unit', 'price', 'loss'] as const
+export const COMPARABLE_ROUTING_FIELDS = ['processName', 'workCenterId', 'manning', 'capacity', 'yield'] as const
+export const COMPARABLE_WORK_CENTER_FIELDS = ['workCenterCode', 'description', 'laborRate', 'burdenRate'] as const
+export const COMPARABLE_PRODUCT_FIELDS = ['productName', 'uom', 'sellingPrice', 'sgaPercent'] as const
 
 function valuesEqual(left: unknown, right: unknown): boolean {
   if (Object.is(left, right)) return true
@@ -152,12 +140,12 @@ function hasAdditionalFields(row: SnapshotRow | undefined): boolean {
 function diffSupportedFields<T extends SnapshotRow>(
   reference: T,
   current: T,
+  comparableFields: ReadonlyArray<string>,
   ignoredFields: ReadonlySet<string> = new Set()
 ): Record<string, { reference: unknown; current: unknown }> {
   const diffs: Record<string, { reference: unknown; current: unknown }> = {}
-  const fields = new Set([...Object.keys(reference), ...Object.keys(current)])
-  fields.forEach(field => {
-    if (COMPARISON_METADATA_FIELDS.has(field) || ignoredFields.has(field)) return
+  comparableFields.forEach(field => {
+    if (ignoredFields.has(field)) return
     const referenceValue = (reference as unknown as Record<string, unknown>)[field]
     const currentValue = (current as unknown as Record<string, unknown>)[field]
     if (!equalSupportedField(field, reference, current)) {
@@ -172,18 +160,7 @@ function diffSupportedFields<T extends SnapshotRow>(
 
 function diffProductFields(reference: CostSnapshot['product'], current: CostSnapshot['product']): Record<string, { reference: unknown; current: unknown }> {
   const diffs: Record<string, { reference: unknown; current: unknown }> = {}
-  const metadata = new Set([
-    'additionalFields',
-    'note',
-    'effectiveDate',
-    // These fields are retained only by legacy Product-session adapters.
-    'productCode',
-    'productDescription',
-    'customer'
-  ])
-  const fields = new Set([...Object.keys(reference), ...Object.keys(current)])
-  fields.forEach(field => {
-    if (metadata.has(field) || field === 'exactDecimalInputs') return
+  COMPARABLE_PRODUCT_FIELDS.forEach(field => {
     const referenceValue = (reference as unknown as Record<string, unknown>)[field]
     const currentValue = (current as unknown as Record<string, unknown>)[field]
     if (EXACT_NUMERIC_FIELDS.has(field)) {
@@ -208,8 +185,9 @@ function compareRows<T extends SnapshotRow>(
   currentRows: T[],
   keyOf: (row: T) => string,
   flagsOf: (reference: T, current: T, costEffect?: ComparisonRecordCostEffect) => ChangeFlags,
-  calculateRecordCostEffect?: (reference: T | undefined, current: T | undefined) => ComparisonRecordCostEffect,
-  warnings: ComparisonWarning[] = [],
+  calculateRecordCostEffect: ((reference: T | undefined, current: T | undefined) => ComparisonRecordCostEffect) | undefined,
+  warnings: ComparisonWarning[],
+  comparableFields: ReadonlyArray<string>,
   ignoredFields: ReadonlySet<string> = new Set()
 ): ComparisonFinding[] {
   const referenceMap = new Map<string, T[]>()
@@ -301,7 +279,7 @@ function compareRows<T extends SnapshotRow>(
       currentId: current.id,
       matchStatus: 'matched',
       changeFlags: flagsOf(reference, current, costEffect),
-      fieldDiffs: diffSupportedFields(reference, current, ignoredFields),
+      fieldDiffs: diffSupportedFields(reference, current, comparableFields, ignoredFields),
       costGap: costEffect?.gap.total ?? null,
       costEffect,
       confidence: combinedConfidence(reference, current),
@@ -416,10 +394,18 @@ function difference(left: number | null, right: number | null): number | null {
 function gap(current: number | null, reference: number | null, currentExact?: string | null, referenceExact?: string | null): number | null {
   if (current === null || reference === null) return null
   if (currentExact && referenceExact) {
-    const exactGap = subtractExactDecimals(parseExactDecimal(currentExact)!, parseExactDecimal(referenceExact)!)
-    return exactDecimalToNumber(exactGap)
+    const parsedCurrent = parseExactDecimal(currentExact)
+    const parsedReference = parseExactDecimal(referenceExact)
+    if (parsedCurrent && parsedReference) {
+      const exactGap = subtractExactDecimals(parsedCurrent, parsedReference)
+      if (exactGap.coefficient === 0n) return 0
+      const num = exactDecimalToNumber(exactGap)
+      return num === 0 ? 0 : num
+    }
   }
-  return areNumericValuesEquivalent(current, reference) ? 0 : safeAdd(current, -reference)
+  if (areNumericValuesEquivalent(current, reference)) return 0
+  const diff = safeAdd(current, -reference)
+  return diff === 0 ? 0 : diff
 }
 
 function routingEquivalent(reference: SnapshotRoutingStep[], current: SnapshotRoutingStep[]): boolean {
@@ -590,7 +576,8 @@ export function compareSnapshots(reference: CostSnapshot, current: CostSnapshot)
     bomKey,
     bomFlags,
     materialCostEffect,
-    warnings
+    warnings,
+    COMPARABLE_BOM_FIELDS
   )
 
   const routingFindings = compareRows(
@@ -600,7 +587,8 @@ export function compareSnapshots(reference: CostSnapshot, current: CostSnapshot)
     routingKey,
     (referenceStep, currentStep) => routingFlags(referenceStep, currentStep, referenceRates, currentRates),
     (ref, cur) => routingCostEffect(ref, cur, referenceRates, currentRates),
-    warnings
+    warnings,
+    COMPARABLE_ROUTING_FIELDS
   )
 
   const workCenterFindings = compareRows(
@@ -611,6 +599,7 @@ export function compareSnapshots(reference: CostSnapshot, current: CostSnapshot)
     rateFlags,
     undefined,
     warnings,
+    COMPARABLE_WORK_CENTER_FIELDS,
     new Set(['description'])
   )
 
