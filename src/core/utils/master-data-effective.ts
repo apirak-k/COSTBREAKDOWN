@@ -1,10 +1,39 @@
 import type { CostSnapshot } from '../types'
+import { divideExactDecimals, exactDecimalToNumber, parseExactDecimal } from './exact-decimal'
 
 type IdentityRow = {
   id: string
   isGeneratedBusinessIdentity?: boolean
   autoRenamedFrom?: string
 }
+
+type NumericCarrier = {
+  exactDecimalInputs?: Record<string, string>
+}
+
+type NumericFieldSpec = {
+  field: string
+  percentageInput?: boolean
+}
+
+const PRODUCT_NUMERIC_FIELDS: readonly NumericFieldSpec[] = [
+  { field: 'sellingPrice' },
+  { field: 'sgaPercent' }
+]
+const RATE_NUMERIC_FIELDS: readonly NumericFieldSpec[] = [
+  { field: 'laborRate' },
+  { field: 'burdenRate' }
+]
+const BOM_NUMERIC_FIELDS: readonly NumericFieldSpec[] = [
+  { field: 'consumption' },
+  { field: 'price' },
+  { field: 'loss', percentageInput: true }
+]
+const ROUTING_NUMERIC_FIELDS: readonly NumericFieldSpec[] = [
+  { field: 'manning' },
+  { field: 'capacity' },
+  { field: 'yield', percentageInput: true }
+]
 
 function normalized(value: string): string {
   return normalizeProductIdentityValue(value)
@@ -20,6 +49,67 @@ function fieldValue(row: IdentityRow, field: string): unknown {
 
 function setFieldValue(row: IdentityRow, field: string, value: string): void {
   ;(row as unknown as Record<string, unknown>)[field] = value
+}
+
+function exactInputMatchesNumericValue(
+  numericValue: unknown,
+  exactInput: string | undefined,
+  percentageInput = false
+): boolean {
+  if (typeof numericValue !== 'number' || !Number.isFinite(numericValue) || !exactInput?.trim()) return false
+  const entered = parseExactDecimal(exactInput)
+  if (!entered) return false
+  const stored = percentageInput
+    ? divideExactDecimals(entered, { coefficient: 100n, scale: 0 })
+    : entered
+  const projected = stored ? exactDecimalToNumber(stored) : null
+  return projected !== null && Object.is(projected, numericValue)
+}
+
+function reconcileExactDecimalInputs<T extends object>(
+  source: T,
+  previous: T | undefined,
+  fields: readonly NumericFieldSpec[]
+): T {
+  const sourceRecord = source as T & NumericCarrier & Record<string, unknown>
+  const previousRecord = previous as (T & NumericCarrier & Record<string, unknown>) | undefined
+  const exactDecimalInputs = { ...(sourceRecord.exactDecimalInputs ?? {}) }
+  let changed = false
+
+  fields.forEach(({ field, percentageInput = false }) => {
+    const exactInput = exactDecimalInputs[field]
+    if (exactInput === undefined) return
+
+    const numericValue = sourceRecord[field]
+    const previousNumericValue = previousRecord?.[field]
+    const previousExactInput = previousRecord?.exactDecimalInputs?.[field]
+    const numericChanged = previousRecord !== undefined && !Object.is(numericValue, previousNumericValue)
+    const exactChanged = previousRecord !== undefined && exactInput !== previousExactInput
+
+    // A spread-based numeric-only mutation can otherwise leave the old exact
+    // sidecar attached to a new Number. Treat that carried sidecar as stale.
+    const inheritedAcrossNumericChange = numericChanged && !exactChanged
+    if (inheritedAcrossNumericChange
+      || !exactInputMatchesNumericValue(numericValue, exactInput, percentageInput)) {
+      delete exactDecimalInputs[field]
+      changed = true
+    }
+  })
+
+  if (!changed) return source
+  return {
+    ...source,
+    exactDecimalInputs: Object.keys(exactDecimalInputs).length ? exactDecimalInputs : undefined
+  } as T
+}
+
+function reconcileNumericRows<T extends IdentityRow & NumericCarrier>(
+  rows: readonly T[],
+  previousRows: readonly T[] | undefined,
+  fields: readonly NumericFieldSpec[]
+): T[] {
+  const previousById = new Map((previousRows ?? []).map(row => [row.id, row]))
+  return rows.map(row => reconcileExactDecimalInputs(row, previousById.get(row.id), fields))
 }
 
 function nextAvailableIdentity(base: string, used: Set<string>): string {
@@ -110,16 +200,21 @@ export function getDatasetSaveState(working: CostSnapshot, lastSaved?: CostSnaps
 }
 
 export function normalizeMasterDataSnapshot(snapshot: CostSnapshot, previous?: CostSnapshot): CostSnapshot {
+  const product = reconcileExactDecimalInputs(snapshot.product, previous?.product, PRODUCT_NUMERIC_FIELDS)
+  const rates = reconcileNumericRows(snapshot.rates, previous?.rates, RATE_NUMERIC_FIELDS)
+  const bom = reconcileNumericRows(snapshot.bom, previous?.bom, BOM_NUMERIC_FIELDS)
+  const routing = reconcileNumericRows(snapshot.routing, previous?.routing, ROUTING_NUMERIC_FIELDS)
+
   return {
     ...snapshot,
     product: {
-      ...snapshot.product,
-      productName: snapshot.product.productName?.trim() ?? '',
-      uom: snapshot.product.uom?.trim() ?? ''
+      ...product,
+      productName: product.productName?.trim() ?? '',
+      uom: product.uom?.trim() ?? ''
     },
-    rates: normalizeIdentityRows(snapshot.rates, previous?.rates, 'workCenterCode', 'Work Center'),
-    bom: normalizeIdentityRows(snapshot.bom, previous?.bom, 'description', 'Material'),
-    routing: normalizeIdentityRows(snapshot.routing, previous?.routing, 'processName', 'Process')
+    rates: normalizeIdentityRows(rates, previous?.rates, 'workCenterCode', 'Work Center'),
+    bom: normalizeIdentityRows(bom, previous?.bom, 'description', 'Material'),
+    routing: normalizeIdentityRows(routing, previous?.routing, 'processName', 'Process')
   }
 }
 
