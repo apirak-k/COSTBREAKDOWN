@@ -322,7 +322,6 @@ export function useSelectedValueSource(source: SelectedValueSource, sourceId?: s
 
 export interface SelectedNumberProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'value' | 'onClick' | 'type' | 'children'> {
   value: number | null | undefined
-  exactValue?: string | null
   integer?: boolean
   percentage?: boolean
   selectionId?: string
@@ -338,8 +337,8 @@ export interface SelectedNumberProps extends Omit<ButtonHTMLAttributes<HTMLButto
   children?: ReactNode
 }
 
-export function SelectedNumber({ value, exactValue, integer, percentage, selectionId, directEditPending, children, className, style, numericColumn = false, numericColumnSigned = true, compactPercentSuffix = false, darkSurface = false, signPositive, leadingAnnotation, sameLineAnnotation, stopKeyboardPropagation = true, onKeyDown, onKeyUp, ...props }: SelectedNumberProps) {
-  const { isPinned, preview, clearPreview, pin } = useSelectedValueSource({ value, exactValue, directEditPending, editable: false, domain: { integer }, percentage }, selectionId)
+export function SelectedNumber({ value, integer, percentage, selectionId, directEditPending, children, className, style, numericColumn = false, numericColumnSigned = true, compactPercentSuffix = false, darkSurface = false, signPositive, leadingAnnotation, sameLineAnnotation, stopKeyboardPropagation = true, onKeyDown, onKeyUp, ...props }: SelectedNumberProps) {
+  const { isPinned, preview, clearPreview, pin } = useSelectedValueSource({ value, directEditPending, editable: false, domain: { integer }, percentage }, selectionId)
   const content = children ?? <BusinessNumber value={value} integer={integer} percent={percentage} leadingAnnotation={leadingAnnotation} />
   const suppliedDisplay = typeof children === 'string' || typeof children === 'number' ? String(children) : undefined
   const signedDisplay = suppliedDisplay !== undefined && signPositive && value !== null && value !== undefined && value > 0 && !/^[+-]/.test(suppliedDisplay)

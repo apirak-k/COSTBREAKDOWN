@@ -450,7 +450,6 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
                       </div>
                     ) : <MasterDataFocusedNumber
                       value={step.manning}
-                      exactValue={step.exactDecimalInputs?.manning}
                       selectionId={valueSourceId(step.id, 'manning')}
                       data-grid-cell="true"
                       data-grid-row-id={step.id}
@@ -485,7 +484,6 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
                       </div>
                     ) : <MasterDataFocusedNumber
                       value={step.capacity}
-                      exactValue={step.exactDecimalInputs?.capacity}
                       selectionId={valueSourceId(step.id, 'capacity')}
                       data-grid-cell="true"
                       data-grid-row-id={step.id}
@@ -526,7 +524,6 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
                       <div className={masterDataPercentageShellClass}>
                         <MasterDataFocusedNumber
                           value={step.yield === null ? null : step.yield * 100}
-                          exactValue={step.exactDecimalInputs?.yield}
                           selectionId={valueSourceId(step.id, 'yield')}
                           percentage
                           data-grid-cell="true"

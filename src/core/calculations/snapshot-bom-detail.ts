@@ -56,7 +56,7 @@ export function calculateSnapshotBOMDetail(pair: SnapshotBOMPair): SnapshotBOMDe
   const costGap = reference === null || current === null
     ? null
     : subtractExactDecimals(parseExactDecimal(current.exact)!, parseExactDecimal(reference.exact)!)
-  const numericGap = costGap ? (costGap.coefficient === 0n ? 0 : exactDecimalToNumber(costGap)) : null
+  const numericGap = costGap ? exactDecimalToNumber(costGap) : null
 
   return {
     pair,
