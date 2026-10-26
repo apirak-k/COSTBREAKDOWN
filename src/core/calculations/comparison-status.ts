@@ -4,17 +4,22 @@ import { CanonicalComparisonStatus, ComparisonFinding } from '../types'
 export type { CanonicalComparisonStatus } from '../types'
 export type ComparisonStatus = CanonicalComparisonStatus
 
+function hasBusinessFieldChanges(finding: ComparisonFinding): boolean {
+  return Object.keys(finding.fieldDiffs).some(field => !field.startsWith('additionalFields.'))
+}
+
 /**
  * Returns the exact canonical comparison status (UNCHANGED, CHANGED, ADDED, REMOVED).
  * Structural comparison status does not depend on whether its cost Gap is available.
  * Unmatched and ambiguous identities remain unclassified and are reported as warnings.
+ * Non-canonical additionalFields are retained for review but do not define business status.
  */
 export function getCanonicalComparisonStatus(finding: ComparisonFinding | undefined): CanonicalComparisonStatus | null {
   if (!finding) return null
   if (finding.matchStatus === 'added') return 'ADDED'
   if (finding.matchStatus === 'removed') return 'REMOVED'
   if (finding.matchStatus === 'matched') {
-    const hasFieldChanges = Object.keys(finding.fieldDiffs).length > 0
+    const hasFieldChanges = hasBusinessFieldChanges(finding)
     const hasFlagChanges = Boolean(
       finding.changeFlags.reordered ||
       finding.changeFlags.movedWorkCenter ||
