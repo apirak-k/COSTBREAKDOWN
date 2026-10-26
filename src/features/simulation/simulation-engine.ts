@@ -1,4 +1,4 @@
-import { compareSnapshots } from '../../core'
+import { compareSnapshots, getCanonicalComparisonStatus } from '../../core'
 import {
   compareExactDecimals,
   exactDecimalInputValue,
@@ -50,11 +50,7 @@ export interface ParameterSimulationResult {
 }
 
 function simulationStatus(finding: ComparisonFinding): SimulationRecordStatus | null {
-  if (finding.matchStatus === 'added') return 'ADDED'
-  if (finding.matchStatus === 'removed') return 'REMOVED'
-  if (finding.matchStatus !== 'matched') return null
-  const changed = Object.keys(finding.fieldDiffs).length > 0 || Object.values(finding.changeFlags).some(Boolean)
-  return changed ? 'CHANGED' : 'UNCHANGED'
+  return getCanonicalComparisonStatus(finding)
 }
 
 function recordName(kind: SimulationRecordKind, simulationRow: SnapshotBOMItem | SnapshotRoutingStep | undefined, currentRow: SnapshotBOMItem | SnapshotRoutingStep | undefined): string {
