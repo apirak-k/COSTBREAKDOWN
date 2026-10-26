@@ -224,29 +224,29 @@ export function exactDecimalToNumber(value: ExactDecimal): number | null {
   return Number.isFinite(number) ? number : null
 }
 
-/** Resolves editor text when available and converts percentage-entry fields to stored fractions. */
+/** Returns the exact sidecar only when it still projects to the stored Number. */
+export function exactDecimalSidecarValue(
+  numericValue: number | null | undefined,
+  exactInput?: string,
+  percentageInput = false
+): ExactDecimal | null {
+  if (numericValue == null || !Number.isFinite(numericValue) || !exactInput?.trim()) return null
+  const entered = parseExactDecimal(exactInput)
+  if (!entered) return null
+  const storedExact = percentageInput
+    ? divideExactDecimals(entered, { coefficient: 100n, scale: 0 })
+    : entered
+  const projected = storedExact ? exactDecimalToNumber(storedExact) : null
+  return storedExact && projected !== null && Object.is(projected, numericValue) ? storedExact : null
+}
+
+/** Resolves authoritative editor text when valid, otherwise falls back to the stored Number projection. */
 export function exactDecimalInputValue(
   numericValue: number | null | undefined,
   exactInput?: string,
   percentageInput = false
 ): ExactDecimal | null {
   if (numericValue == null || !Number.isFinite(numericValue)) return null
-
-  const exactText = exactInput?.trim()
-  if (exactText) {
-    const entered = parseExactDecimal(exactText)
-    if (entered) {
-      // The sidecar is authoritative only while it still represents the same
-      // stored business value. This preserves intentional precision that maps
-      // to the same Number projection, while preventing an old sidecar from
-      // overriding a later numeric-only mutation.
-      const storedExact = percentageInput
-        ? divideExactDecimals(entered, { coefficient: 100n, scale: 0 })
-        : entered
-      const projected = storedExact ? exactDecimalToNumber(storedExact) : null
-      if (storedExact && projected !== null && Object.is(projected, numericValue)) return storedExact
-    }
-  }
-
-  return parseExactDecimal(exactDecimalNumberText(numericValue) ?? numericValue)
+  return exactDecimalSidecarValue(numericValue, exactInput, percentageInput)
+    ?? parseExactDecimal(exactDecimalNumberText(numericValue) ?? numericValue)
 }
