@@ -1,6 +1,6 @@
 import type { CostSnapshot, MasterDataRole } from '../../core/types'
 import { compareExactDecimals, exactDecimalInputValue, exactDecimalSidecarValue } from '../../core/utils/exact-decimal'
-import { areNumericValuesEquivalent } from '../../shared/ui/numeric-display'
+import { areNumericValuesEquivalent } from '../../core/utils/guards'
 import { calculateParameterSimulation, isSimulationParameterInputValid } from './simulation-engine'
 import {
   createEconomicSimulationDraft,
@@ -502,24 +502,30 @@ function applyParameterOverrides(
     if (!values && !exactValues) continue
     if (kind === 'bom') {
       snapshot.bom = snapshot.bom.map(row => {
-        const hasValue = values && Object.prototype.hasOwnProperty.call(values, row.id)
+        const hasValue = Boolean(values && Object.prototype.hasOwnProperty.call(values, row.id))
         const exactValue = exactValues?.[row.id]
         if (!hasValue && exactValue === undefined) return row
+        const nextExactInputs = { ...(row.exactDecimalInputs ?? {}) }
+        if (exactValue === undefined) delete nextExactInputs[field]
+        else nextExactInputs[field] = exactValue
         return {
           ...row,
-          ...(hasValue ? { [field]: values[row.id] } : {}),
-          ...(exactValue === undefined ? {} : { exactDecimalInputs: { ...row.exactDecimalInputs, [field]: exactValue } })
+          ...(hasValue ? { [field]: values?.[row.id] } : {}),
+          exactDecimalInputs: Object.keys(nextExactInputs).length ? nextExactInputs : undefined
         }
       })
     } else {
       snapshot.routing = snapshot.routing.map(row => {
-        const hasValue = values && Object.prototype.hasOwnProperty.call(values, row.id)
+        const hasValue = Boolean(values && Object.prototype.hasOwnProperty.call(values, row.id))
         const exactValue = exactValues?.[row.id]
         if (!hasValue && exactValue === undefined) return row
+        const nextExactInputs = { ...(row.exactDecimalInputs ?? {}) }
+        if (exactValue === undefined) delete nextExactInputs[field]
+        else nextExactInputs[field] = exactValue
         return {
           ...row,
-          ...(hasValue ? { [field]: values[row.id] } : {}),
-          ...(exactValue === undefined ? {} : { exactDecimalInputs: { ...row.exactDecimalInputs, [field]: exactValue } })
+          ...(hasValue ? { [field]: values?.[row.id] } : {}),
+          exactDecimalInputs: Object.keys(nextExactInputs).length ? nextExactInputs : undefined
         }
       })
     }
