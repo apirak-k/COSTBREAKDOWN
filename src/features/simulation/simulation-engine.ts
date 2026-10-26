@@ -1,9 +1,8 @@
 import { compareSnapshots } from '../../core'
 import {
   compareExactDecimals,
-  divideExactDecimals,
   exactDecimalInputValue,
-  exactDecimalNumberText,
+  exactDecimalSidecarValue,
   exactDecimalToNumber,
   exactDecimalToString,
   multiplyExactDecimals,
@@ -132,21 +131,15 @@ function percentageParameter(parameter: SimulationParameter): boolean {
 
 function exactInputForStoredValue(parameter: SimulationParameter, value: number | null): string {
   if (value === null) return ''
-  const exactValue = parseExactDecimal(exactDecimalNumberText(value) ?? value) ?? parseExactDecimal(value)!
+  const exactValue = parseExactDecimal(value)!
   return percentageParameter(parameter)
     ? exactDecimalToString(multiplyExactDecimals(exactValue, parseExactDecimal(100)!))
     : exactDecimalToString(exactValue)
 }
 
 function exactInputMatchesStoredValue(parameter: SimulationParameter, value: number | null, exactValue: string | undefined): boolean {
-  if (value === null || !exactValue?.trim()) return false
-  const entered = parseExactDecimal(exactValue)
-  if (!entered) return false
-  const stored = percentageParameter(parameter)
-    ? divideExactDecimals(entered, parseExactDecimal(100)!)
-    : entered
-  const projected = stored ? exactDecimalToNumber(stored) : null
-  return projected !== null && Object.is(projected, value)
+  return value !== null
+    && exactDecimalSidecarValue(value, exactValue, percentageParameter(parameter)) !== null
 }
 
 function canonicalParameterValue(parameter: SimulationParameter, value: number | null | undefined, exactValue?: string) {
@@ -234,8 +227,6 @@ export function updateSimulationParameter(
     delete parameterValues[simulationRecordId]
     delete parameterExactInputs[simulationRecordId]
   } else {
-    // Exact-only precision is legitimate: keep the sidecar even when the
-    // JavaScript Number projection equals the baseline Number.
     if (baselineValue === value) delete parameterValues[simulationRecordId]
     else parameterValues[simulationRecordId] = value
     if (candidateExactValue === undefined) delete parameterExactInputs[simulationRecordId]
