@@ -2,16 +2,12 @@ import { CostSnapshot } from '../../core'
 import { loadExcelJS, writeExcelJSBuffer } from './exceljs-runtime'
 import { addMasterDataWorkbook } from './master-data-workbook'
 import { normalizeMasterDataSnapshot } from '../../core/utils/master-data-effective'
-import { divideExactDecimals, exactDecimalNumberText, exactDecimalToString, parseExactDecimal } from '../../core/utils/exact-decimal'
+import { exactDecimalInputValue, exactDecimalToString } from '../../core/utils/exact-decimal'
 import { writeExactNumericCells, type ExactNumericCellChanges } from './exact-numeric-cells'
 
 function exactCellValue(value: number | null | undefined, exactInput?: string, percentEntry = false): string | undefined {
-  if (value == null) return undefined
-  if (!exactInput?.trim()) return exactDecimalNumberText(value) ?? undefined
-  const exact = parseExactDecimal(exactInput)
-  if (!exact) return undefined
-  const stored = percentEntry ? divideExactDecimals(exact, parseExactDecimal(100)!) : exact
-  return stored ? exactDecimalToString(stored) : undefined
+  const exact = exactDecimalInputValue(value, exactInput, percentEntry)
+  return exact ? exactDecimalToString(exact) : undefined
 }
 
 function setExactCell(
