@@ -224,7 +224,7 @@ export function exactDecimalToNumber(value: ExactDecimal): number | null {
   return Number.isFinite(number) ? number : null
 }
 
-/** Returns the exact sidecar only when it still projects to the stored Number. */
+/** Returns the exact sidecar only when it still represents the stored Number. */
 export function exactDecimalSidecarValue(
   numericValue: number | null | undefined,
   exactInput?: string,
@@ -236,8 +236,18 @@ export function exactDecimalSidecarValue(
   const storedExact = percentageInput
     ? divideExactDecimals(entered, { coefficient: 100n, scale: 0 })
     : entered
-  const projected = storedExact ? exactDecimalToNumber(storedExact) : null
-  return storedExact && projected !== null && Object.is(projected, numericValue) ? storedExact : null
+  if (!storedExact) return null
+
+  // Percentage editors/paste/import accept percentage-point text and historically
+  // store its Number projection with ordinary JS division (`Number(text) / 100`).
+  // Validate against that same input-boundary projection; validating by converting
+  // the exact fraction back to Number can choose the adjacent IEEE-754 value for
+  // inputs such as 10.1, incorrectly discarding the user's authoritative text.
+  const projected = percentageInput
+    ? exactDecimalToNumber(entered)
+    : exactDecimalToNumber(storedExact)
+  const storedProjection = percentageInput && projected !== null ? projected / 100 : projected
+  return storedProjection !== null && Object.is(storedProjection, numericValue) ? storedExact : null
 }
 
 /**
