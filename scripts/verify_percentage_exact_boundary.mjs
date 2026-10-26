@@ -91,6 +91,14 @@ try {
   const directYield = 29.1 / 100
   assert.notEqual(directLoss, importedLoss)
   assert.notEqual(directYield, importedYield)
+  assert.ok(exactDecimalSidecarValue(importedLoss, '10.1', true),
+    'imported exact percentage sidecar is accepted against canonical exact projection')
+  assert.ok(exactDecimalSidecarValue(directLoss, '10.1', true),
+    'direct exact percentage sidecar is accepted against historical JS division projection')
+  assert.ok(exactDecimalSidecarValue(importedYield, '29.1', true),
+    'imported exact Yield sidecar is accepted against canonical exact projection')
+  assert.ok(exactDecimalSidecarValue(directYield, '29.1', true),
+    'direct exact Yield sidecar is accepted against historical JS division projection')
 
   const reference = makeSnapshot('imported-reference', 'reference', importedLoss, importedYield)
   const current = makeSnapshot('direct-current', 'current', directLoss, directYield)
