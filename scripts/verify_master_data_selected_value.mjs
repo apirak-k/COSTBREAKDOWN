@@ -128,11 +128,11 @@ try {
     return element.getClientRects().length > 0 && rect.width > 0 && rect.height > 0
   }))()`
   const existsVisible = selector => evaluate(`Boolean(${visibleExpression(selector)})`)
-  const clickSelector = async selector => {
+  const clickSelector = async (selector, modifiers = 0) => {
     const point = await evaluate(`(()=>{const element=${visibleExpression(selector)};if(!element)return null;const rect=element.getBoundingClientRect();return {x:rect.x+rect.width/2,y:rect.y+rect.height/2,w:rect.width,h:rect.height}})()`)
     if (!point || point.w <= 0 || point.h <= 0) throw new Error(`Visible browser target not found: ${selector}`)
-    await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: point.x, y: point.y, button: 'left', clickCount: 1 })
-    await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: point.x, y: point.y, button: 'left', clickCount: 1 })
+    await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: point.x, y: point.y, button: 'left', clickCount: 1, modifiers })
+    await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: point.x, y: point.y, button: 'left', clickCount: 1, modifiers })
     await delay(120)
   }
   const hoverSelector = async selector => {
@@ -157,6 +157,17 @@ try {
     await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'a', code: 'KeyA', modifiers, windowsVirtualKeyCode: 65, nativeVirtualKeyCode: 65 })
     await send('Input.insertText', { text })
     await delay(150)
+    return inputValue(selector)
+  }
+  const typeCharacters = async (selector, text, modifiers = 4) => {
+    await clickSelector(selector)
+    await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'a', code: 'KeyA', modifiers, windowsVirtualKeyCode: 65, nativeVirtualKeyCode: 65 })
+    await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'a', code: 'KeyA', modifiers, windowsVirtualKeyCode: 65, nativeVirtualKeyCode: 65 })
+    for (const character of [...text]) {
+      await send('Input.insertText', { text: character })
+      await delay(25)
+    }
+    await delay(120)
     return inputValue(selector)
   }
   const typeHeaderValue = async text => {
@@ -1509,6 +1520,7 @@ try {
     const id=JSON.parse(sessionStorage.getItem('costbreakdown_active_id'))
     const session=JSON.parse(sessionStorage.getItem('costbreakdown_sessions')).find(item=>item.id===id)
     return {snapshot:session.snapshotPair.current,sizing:session.datasetSizing?.current,
+      directEdits:session.masterDataDirectEdits?.current,
       lastSaved:{pair:session.lastSavedMasterData,custom:session.customLastSavedMasterData}}
   })()`)
   const sameSizingState = (left, right) => JSON.stringify(left) === JSON.stringify(right)
@@ -1579,6 +1591,271 @@ try {
   const sizingConfirmations = await evaluate('window.__sizingConfirmationCalls')
   verify(sizingConfirmations.length === 0, 'all Sizing reductions use existing Undo/Redo without any destructive confirmation', sizingConfirmations)
   await evaluate('window.confirm=window.__originalSizingConfirm;delete window.__originalSizingConfirm;delete window.__sizingConfirmationCalls')
+
+  const workingHistoryPayload = state => ({
+    snapshot: state.snapshot,
+    sizing: state.sizing,
+    directEdits: state.directEdits,
+    lastSaved: state.lastSaved
+  })
+  const applyMasterDataCounts = async counts => {
+    const current = await storedSizingState()
+    const next = {
+      bomCount: counts.bomCount ?? current.sizing?.bomCount ?? current.snapshot.bom.length,
+      wcCount: counts.wcCount ?? current.sizing?.wcCount ?? current.snapshot.rates.length,
+      routingCount: counts.routingCount ?? current.sizing?.routingCount ?? current.snapshot.routing.length
+    }
+    await openSizing()
+    for (const [label, value] of Object.entries({
+      'Bill of Materials': next.bomCount,
+      'Work Centers': next.wcCount,
+      Routing: next.routingCount
+    })) await replaceInput(dialogInput(label), String(value))
+    await clickTextButton('Apply Sizing')
+    await waitFor(async () => {
+      const state = await storedSizingState()
+      return state.snapshot.bom.length === next.bomCount
+        && state.snapshot.rates.length === next.wcCount
+        && state.snapshot.routing.length === next.routingCount
+    }, 'targeted Master Data Sizing counts apply')
+  }
+
+  await applyMasterDataCounts({ bomCount: 3, wcCount: 2, routingCount: 2 })
+  let realUseState = await storedSizingState()
+  for (const [index, code] of ['WC-A', 'WC-B'].entries()) {
+    const rateId = realUseState.snapshot.rates[index].id
+    const selector = `section[aria-label="Work Centers rows"] input[data-grid-row-id=${JSON.stringify(rateId)}][data-grid-field="workCenterCode"]`
+    assert.equal(await typeCharacters(selector, code), code, `Work Center ${code} is typed through separate browser character input events`)
+    await evaluate('document.activeElement?.blur()')
+    await waitFor(async () => (await storedSizingState()).snapshot.rates[index].workCenterCode === code, `Work Center ${code} persists`)
+    realUseState = await storedSizingState()
+  }
+
+  await applyMasterDataCounts({ bomCount: 3, wcCount: 2, routingCount: 3 })
+  realUseState = await storedSizingState()
+  const sizingCreatedRouting = realUseState.snapshot.routing[2]
+  const sizingCreatedWorkCenterSelect = `section[aria-label="Routing rows"] select[data-grid-row-id=${JSON.stringify(sizingCreatedRouting.id)}][data-grid-field="workCenterId"]`
+  const sizingCreatedUi = await evaluate(`(()=>{const select=${visibleExpression(sizingCreatedWorkCenterSelect)};return select?{value:select.value,label:select.selectedOptions[0]?.textContent.trim()??null}:null})()`)
+  verify((sizingCreatedRouting.workCenterId ?? null) === null
+      && sizingCreatedUi?.value === '' && sizingCreatedUi?.label === 'Select Work Center',
+    'Sizing-created Routing row keeps Work Center blank and displays Select Work Center while WC-A / WC-B exist', {
+      id: sizingCreatedRouting.id,
+      storedWorkCenterId: sizingCreatedRouting.workCenterId ?? null,
+      ui: sizingCreatedUi
+    })
+
+  await evaluate(`(()=>{const select=${visibleExpression(sizingCreatedWorkCenterSelect)};const setter=Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set;setter.call(select,'WC-B');select.dispatchEvent(new Event('change',{bubbles:true}))})()`)
+  await waitFor(async () => (await storedSizingState()).snapshot.routing[2].workCenterId === 'WC-B', 'explicit Routing Work Center selection applies')
+  await pressKey('z', { ctrl: true })
+  await waitFor(async () => (await storedSizingState()).snapshot.routing[2].workCenterId == null, 'one Ctrl+Z clears the explicit Work Center selection')
+  const workCenterAfterUndo = await evaluate(`(()=>{const select=${visibleExpression(sizingCreatedWorkCenterSelect)};return {value:select?.value??null,label:select?.selectedOptions[0]?.textContent.trim()??null}})()`)
+  await pressKey('z', { ctrl: true, shift: true })
+  await waitFor(async () => (await storedSizingState()).snapshot.routing[2].workCenterId === 'WC-B', 'Ctrl+Shift+Z reapplies the explicit Work Center selection')
+  verify(workCenterAfterUndo.value === '' && workCenterAfterUndo.label === 'Select Work Center',
+    'Undo of the explicit Work Center choice returns the UI to Select Work Center', workCenterAfterUndo)
+
+  await clickSelector('button[aria-label="Add row to Routing"]')
+  await waitFor(async () => (await storedSizingState()).snapshot.routing.length === 4, 'ordinary Add creates one Routing row')
+  realUseState = await storedSizingState()
+  const ordinaryRouting = realUseState.snapshot.routing[3]
+  const ordinaryRoutingSelect = `section[aria-label="Routing rows"] select[data-grid-row-id=${JSON.stringify(ordinaryRouting.id)}][data-grid-field="workCenterId"]`
+  const ordinaryAddUi = await evaluate(`(()=>{const select=${visibleExpression(ordinaryRoutingSelect)};return select?{value:select.value,label:select.selectedOptions[0]?.textContent.trim()??null}:null})()`)
+  verify((ordinaryRouting.workCenterId ?? null) === null && ordinaryAddUi?.value === '' && ordinaryAddUi?.label === 'Select Work Center',
+    'ordinary Add Routing Row also starts with no selected Work Center', { storedWorkCenterId: ordinaryRouting.workCenterId ?? null, ui: ordinaryAddUi })
+
+  const processSelector = `section[aria-label="Routing rows"] input[data-grid-row-id=${JSON.stringify(sizingCreatedRouting.id)}][data-grid-field="processName"]`
+  const processBefore = await storedSizingState()
+  assert.equal(await typeCharacters(processSelector, 'Cutting'), 'Cutting', 'Process receives one browser input event per typed character')
+  await evaluate('document.activeElement?.blur()')
+  await waitFor(async () => (await storedSizingState()).snapshot.routing[2].processName === 'Cutting', 'typed Process value persists')
+  const processAfter = await storedSizingState()
+  await clickSelector('header button[aria-label="Undo"]')
+  await waitFor(async () => (await storedSizingState()).snapshot.routing[2].processName === (processBefore.snapshot.routing[2].processName ?? ''),
+    'one toolbar Undo restores the full prior Process value')
+  const processUndo = await storedSizingState()
+  await clickSelector('header button[aria-label="Redo"]')
+  await waitFor(async () => (await storedSizingState()).snapshot.routing[2].processName === 'Cutting', 'one toolbar Redo restores all typed Process text')
+  verify((processUndo.snapshot.routing[2].processName ?? '') === (processBefore.snapshot.routing[2].processName ?? '')
+      && processAfter.snapshot.routing[2].processName === 'Cutting',
+    'a multi-character Process edit is one Undo/Redo action after the field loses focus', {
+      before: processBefore.snapshot.routing[2].processName ?? '',
+      after: processAfter.snapshot.routing[2].processName
+    })
+
+  const priceId = processBefore.snapshot.bom[0].id
+  const priceSelector = `section[aria-label="Bill of Materials rows"] input[data-grid-row-id=${JSON.stringify(priceId)}][data-grid-field="price"]`
+  assert.equal(await replaceInput(priceSelector, '10'), '10', 'numeric regression starts from Price 10')
+  await evaluate('document.activeElement?.blur()')
+  await waitFor(async () => (await storedSizingState()).snapshot.bom[0].price === 10, 'Price 10 baseline persists')
+  const numericBefore = await storedSizingState()
+  assert.equal(await typeCharacters(priceSelector, '123.456789'), '123.456789', 'Price receives separate browser input events for every digit')
+  const numericAfter = await storedSizingState()
+  verify(numericAfter.snapshot.bom[0].price === 123.456789
+      && numericAfter.snapshot.bom[0].exactDecimalInputs?.price === '123.456789',
+    'typed Price updates both the calculation value and exact decimal sidecar', {
+      price: numericAfter.snapshot.bom[0].price,
+      exact: numericAfter.snapshot.bom[0].exactDecimalInputs?.price
+    })
+  await pressKey('z', { ctrl: true })
+  await waitFor(async () => (await storedSizingState()).snapshot.bom[0].price === 10, 'one Ctrl+Z restores numeric Price 10')
+  const numericUndo = await storedSizingState()
+  await pressKey('y', { ctrl: true })
+  await waitFor(async () => (await storedSizingState()).snapshot.bom[0].exactDecimalInputs?.price === '123.456789', 'Ctrl+Y restores the complete exact Price')
+  verify(numericUndo.snapshot.bom[0].price === numericBefore.snapshot.bom[0].price
+      && numericUndo.snapshot.bom[0].exactDecimalInputs?.price === numericBefore.snapshot.bom[0].exactDecimalInputs?.price,
+    'one numeric Undo restores the prior calculation value and exact decimal sidecar', {
+      before: { price: numericBefore.snapshot.bom[0].price, exact: numericBefore.snapshot.bom[0].exactDecimalInputs?.price },
+      afterUndo: { price: numericUndo.snapshot.bom[0].price, exact: numericUndo.snapshot.bom[0].exactDecimalInputs?.price }
+    })
+
+  const noteId = (await storedSizingState()).snapshot.routing[2].id
+  const noteSelector = `section[aria-label="Routing rows"] input[data-grid-row-id=${JSON.stringify(noteId)}][data-grid-field="note"]`
+  await typeCharacters(noteSelector, 'A')
+  await pressKey('z', { ctrl: true })
+  await waitFor(async () => (await storedSizingState()).snapshot.routing[2].note === '' || (await storedSizingState()).snapshot.routing[2].note == null,
+    'Undo removes edit A before the Redo invalidation check')
+  await typeCharacters(noteSelector, 'B')
+  await waitFor(async () => (await storedSizingState()).snapshot.routing[2].note === 'B', 'edit B applies after Undo')
+  const redoAfterNewEdit = await historyButtonState('Redo')
+  await pressKey('y', { ctrl: true })
+  const afterRejectedStaleRedo = await storedSizingState()
+  verify((redoAfterNewEdit?.disabled ?? true) && afterRejectedStaleRedo.snapshot.routing[2].note === 'B',
+    'a new field edit after Undo clears the old Redo branch and Ctrl+Y does not restore stale data', {
+      redo: redoAfterNewEdit,
+      note: afterRejectedStaleRedo.snapshot.routing[2].note
+    })
+
+  const selectFirstTwoRows = async section => {
+    const selectedSelector = `${section} tr[aria-selected="true"] button[aria-label^="Deselect row "]`
+    const selectedNumbers = await evaluate(`(()=>[...document.querySelectorAll(${JSON.stringify(selectedSelector)})].map(button=>button.getAttribute('aria-label').split(' ').at(-1)))()`)
+    for (const number of selectedNumbers) await clickSelector(`${section} button[aria-label="Deselect row ${number}"]`)
+    await clickSelector(`${section} button[aria-label="Select row 1"]`)
+    await clickSelector(`${section} button[aria-label="Select row 2"]`, 6)
+    return evaluate(`document.querySelectorAll(${JSON.stringify(`${section} tr[aria-selected="true"]`)}).length`)
+  }
+  const reorderBefore = await storedSizingState()
+  const reorderIdsBefore = reorderBefore.snapshot.bom.map(row => row.id)
+  verify(await selectFirstTwoRows('section[aria-label="Bill of Materials rows"]') === 2,
+    'two BOM rows can be selected together for a group reorder')
+  const firstReorderId = reorderIdsBefore[0]
+  const thirdReorderId = reorderIdsBefore[2]
+  const reorderDispatch = await evaluate(`(()=>{
+    const start=document.querySelector('section[aria-label="Bill of Materials rows"] tr[data-master-data-row-id=${JSON.stringify(firstReorderId)}] button[aria-label*="Drag selected"]')
+    const target=document.querySelector('section[aria-label="Bill of Materials rows"] tr[data-master-data-row-id=${JSON.stringify(thirdReorderId)}]')
+    if(!start||!target)return false
+    const transfer=new DataTransfer(),rect=target.getBoundingClientRect(),clientY=rect.top+rect.height*0.75
+    start.dispatchEvent(new DragEvent('dragstart',{bubbles:true,cancelable:true,dataTransfer:transfer}))
+    target.dispatchEvent(new DragEvent('dragover',{bubbles:true,cancelable:true,dataTransfer:transfer,clientY}))
+    target.dispatchEvent(new DragEvent('drop',{bubbles:true,cancelable:true,dataTransfer:transfer,clientY}))
+    return true
+  })()`)
+  await waitFor(async () => {
+    const state = await storedSizingState()
+    return state.snapshot.bom.map(row => row.id).join('|') !== reorderIdsBefore.join('|')
+  }, 'selected BOM rows reorder as one group')
+  const reorderAfter = await storedSizingState()
+  verify(reorderDispatch && reorderAfter.snapshot.bom.map(row => row.id).length === 3,
+    'multi-row drag reorders the BOM list')
+  await clickSelector('header button[aria-label="Undo"]')
+  await waitFor(async () => JSON.stringify((await storedSizingState()).snapshot.bom.map(row => row.id)) === JSON.stringify(reorderIdsBefore),
+    'one Undo restores original multi-row order')
+  const reorderUndo = await storedSizingState()
+  await clickSelector('header button[aria-label="Redo"]')
+  await waitFor(async () => JSON.stringify((await storedSizingState()).snapshot.bom.map(row => row.id)) === JSON.stringify(reorderAfter.snapshot.bom.map(row => row.id)),
+    'one Redo reapplies multi-row order')
+  verify(JSON.stringify(reorderUndo.snapshot.bom) === JSON.stringify(reorderBefore.snapshot.bom)
+      && JSON.stringify(reorderUndo.lastSaved) === JSON.stringify(reorderBefore.lastSaved),
+    'multi-row reorder Undo restores every row value and leaves Last Saved unchanged')
+
+  const noteCellsSelector = 'section[aria-label="Bill of Materials rows"] input[data-grid-field="note"]'
+  const pasteBefore = await storedSizingState()
+  await clickSelector(`section[aria-label="Bill of Materials rows"] tbody tr:first-child input[data-grid-field="note"]`)
+  const pasteWasHandled = await evaluate(`(()=>{
+    const target=document.activeElement,data=new DataTransfer();data.setData('text/plain','Paste one\\nPaste two')
+    const event=new ClipboardEvent('paste',{bubbles:true,cancelable:true,clipboardData:data});target.dispatchEvent(event);return event.defaultPrevented
+  })()`)
+  await waitFor(async () => {
+    const state = await storedSizingState()
+    return state.snapshot.bom[0].note === 'Paste one' && state.snapshot.bom[1].note === 'Paste two'
+  }, 'two-cell clipboard paste applies as a single spreadsheet action')
+  const pasteAfter = await storedSizingState()
+  await pressKey('z', { ctrl: true })
+  await waitFor(async () => JSON.stringify(workingHistoryPayload(await storedSizingState())) === JSON.stringify(workingHistoryPayload(pasteBefore)),
+    'one Ctrl+Z restores all cells changed by multi-cell Paste')
+  await pressKey('y', { ctrl: true })
+  await waitFor(async () => JSON.stringify(workingHistoryPayload(await storedSizingState())) === JSON.stringify(workingHistoryPayload(pasteAfter)),
+    'one Ctrl+Y reapplies every cell changed by multi-cell Paste')
+  verify(pasteWasHandled && JSON.stringify(pasteAfter.snapshot.bom.slice(0, 2).map(row => row.note)) === JSON.stringify(['Paste one', 'Paste two']),
+    'one multi-cell Paste is one Undo/Redo action', { notes: pasteAfter.snapshot.bom.slice(0, 2).map(row => row.note), cells: noteCellsSelector })
+
+  await clickSelector(`section[aria-label="Bill of Materials rows"] tbody tr:first-child input[data-grid-field="note"]`)
+  await pressKey('ArrowDown', { shift: true })
+  const cutSetup = await evaluate(`(()=>{
+    const active=document.activeElement
+    if(active instanceof HTMLInputElement)active.setSelectionRange(active.value.length,active.value.length)
+    return {activeRow:active?.getAttribute('data-grid-row-id')??null,selected:[...document.querySelectorAll('section[aria-label="Bill of Materials rows"] input[data-grid-field="note"].outline-blue-500')].map(input=>input.dataset.gridRowId),selection:active instanceof HTMLInputElement?[active.selectionStart,active.selectionEnd]:null}
+  })()`)
+  verify(cutSetup.selected.length === 2 && cutSetup.selection?.[0] === cutSetup.selection?.[1],
+    'multi-cell Cut starts with two selected cells and no native text range', cutSetup)
+  const cutBefore = await storedSizingState()
+  const cutWasHandled = await evaluate(`(()=>{
+    const target=document.activeElement,data=new DataTransfer()
+    const event=new ClipboardEvent('cut',{bubbles:true,cancelable:true,clipboardData:data});target.dispatchEvent(event);return event.defaultPrevented
+  })()`)
+  await delay(300)
+  const cutAfter = await storedSizingState()
+  verify(cutSetup.selected.length === 2 && cutWasHandled
+      && cutAfter.snapshot.bom[0].note === '' && cutAfter.snapshot.bom[1].note === '',
+    'two-cell clipboard Cut clears both selected values', { cutSetup, cutWasHandled, notes: cutAfter.snapshot.bom.slice(0, 2).map(row => row.note) })
+  await pressKey('z', { ctrl: true })
+  await delay(300)
+  const cutUndo = await storedSizingState()
+  verify(JSON.stringify(workingHistoryPayload(cutUndo)) === JSON.stringify(workingHistoryPayload(cutBefore)),
+    'one Ctrl+Z restores every cell cleared by multi-cell Cut')
+  await pressKey('y', { ctrl: true })
+  await delay(300)
+  const cutRedo = await storedSizingState()
+  verify(JSON.stringify(workingHistoryPayload(cutRedo)) === JSON.stringify(workingHistoryPayload(cutAfter)),
+    'one Ctrl+Y reapplies every cell cleared by multi-cell Cut')
+  verify(cutWasHandled && cutAfter.snapshot.bom[0].note === '' && cutAfter.snapshot.bom[1].note === '',
+    'one multi-cell Cut is one Undo/Redo action')
+
+  const bulkDeleteCases = [
+    { label: 'Bill of Materials', section: 'section[aria-label="Bill of Materials rows"]', table: 'bom', deleteLabel: 'Delete selected BOM rows' },
+    { label: 'Work Centers', section: 'section[aria-label="Work Centers rows"]', table: 'rates', deleteLabel: 'Delete selected Work Centers rows' },
+    { label: 'Routing', section: 'section[aria-label="Routing rows"]', table: 'routing', deleteLabel: 'Delete selected Routing rows' }
+  ]
+  for (const item of bulkDeleteCases) {
+    if (item.table === 'rates') {
+      const beforeWorkCenterDelete = await storedSizingState()
+      for (const step of beforeWorkCenterDelete.snapshot.routing.filter(row => row.workCenterId)) {
+        const selector = `section[aria-label="Routing rows"] select[data-grid-row-id=${JSON.stringify(step.id)}][data-grid-field="workCenterId"]`
+        await evaluate(`(()=>{const select=${visibleExpression(selector)};const setter=Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set;setter.call(select,'');select.dispatchEvent(new Event('change',{bubbles:true}))})()`)
+        await waitFor(async () => (await storedSizingState()).snapshot.routing.find(row => row.id === step.id)?.workCenterId == null,
+          `clear ${step.workCenterId} reference before deleting its Work Center row`)
+      }
+    }
+    const before = await storedSizingState()
+    const rowsBefore = before.snapshot[item.table]
+    verify(rowsBefore.length >= 2 && await selectFirstTwoRows(item.section) === 2,
+      `${item.label} supports selecting multiple rows before Delete`, { rows: rowsBefore.length })
+    await clickSelector(`${item.section} button[aria-label=${JSON.stringify(item.deleteLabel)}]`)
+    await waitFor(async () => (await storedSizingState()).snapshot[item.table].length === rowsBefore.length - 2,
+      `${item.label} selected-row Delete removes both rows in one action`)
+    const after = await storedSizingState()
+    await clickSelector('header button[aria-label="Undo"]')
+    await waitFor(async () => JSON.stringify(workingHistoryPayload(await storedSizingState())) === JSON.stringify(workingHistoryPayload(before)),
+      `${item.label} one Undo restores complete rows, order, sidecars, sizing, provenance, and Last Saved`)
+    const undo = await storedSizingState()
+    await clickSelector('header button[aria-label="Redo"]')
+    await waitFor(async () => JSON.stringify(workingHistoryPayload(await storedSizingState())) === JSON.stringify(workingHistoryPayload(after)),
+      `${item.label} one Redo repeats the complete multi-row Delete`)
+    verify(JSON.stringify(undo.snapshot[item.table]) === JSON.stringify(rowsBefore)
+        && JSON.stringify(undo.sizing) === JSON.stringify(before.sizing)
+        && JSON.stringify(undo.directEdits) === JSON.stringify(before.directEdits)
+        && JSON.stringify(undo.lastSaved) === JSON.stringify(before.lastSaved),
+      `${item.label} bulk Delete is exactly one fully restorable history action`)
+  }
 
   const consoleMessages = [...browserErrors]
   verify(consoleMessages.length === 0, 'browser has no uncaught errors or console warnings', consoleMessages)

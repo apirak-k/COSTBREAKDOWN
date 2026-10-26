@@ -27,6 +27,8 @@ export interface MasterDataEditHistoryEntry {
   /** Development fixture replacement also clears Custom Working data in the same history action. */
   beforeCustom?: CostSnapshot
   afterCustom?: CostSnapshot
+  /** Direct edits with the same focus-session key collapse into one user-level history action. */
+  coalescingKey?: string
 }
 
 export interface MasterDataEditHistory {
@@ -95,6 +97,26 @@ export function recordMasterDataEdit(
   history: MasterDataEditHistory,
   entry: MasterDataEditHistoryEntry
 ): MasterDataEditHistory {
+  const previous = history.undo[history.undo.length - 1]
+  if (entry.coalescingKey
+    && previous?.coalescingKey === entry.coalescingKey
+    && previous.sessionId === entry.sessionId
+    && previous.role === entry.role
+    && !previous.beforePair
+    && !entry.beforePair) {
+    return {
+      undo: [...history.undo.slice(0, -1), {
+        ...previous,
+        after: entry.after,
+        afterPrepared: entry.afterPrepared,
+        afterSizing: entry.afterSizing,
+        afterCustomSizing: entry.afterCustomSizing,
+        afterInitialMasterDataBaseline: entry.afterInitialMasterDataBaseline,
+        afterDirectEdits: entry.afterDirectEdits
+      }].slice(-MAX_HISTORY_ENTRIES),
+      redo: []
+    }
+  }
   return {
     undo: [...history.undo, entry].slice(-MAX_HISTORY_ENTRIES),
     redo: []

@@ -56,6 +56,50 @@ const branched = recordMasterDataEdit(undone.history, edit('session-a', 'referen
 assert.equal(branched.undo.length, 2)
 assert.equal(branched.redo.length, 0, 'A new edit after Undo clears the Redo branch')
 
+const typingBefore: CostSnapshot = {
+  ...snapshot('typing-before'),
+  bom: [{ id: 'typing-row', itemCode: 'MAT-1', description: 'Material', consumption: 1, unit: 'PC', price: 10, loss: 0,
+    exactDecimalInputs: { price: '10' }, confidence: {} }]
+}
+const typedOnce: CostSnapshot = {
+  ...typingBefore,
+  id: 'typing-once',
+  bom: [{ ...typingBefore.bom[0], description: 'Cut', price: 123.4, exactDecimalInputs: { price: '123.4' } }]
+}
+const typedFinally: CostSnapshot = {
+  ...typingBefore,
+  id: 'typing-final',
+  bom: [{ ...typingBefore.bom[0], description: 'Cutting', price: 123.456789, exactDecimalInputs: { price: '123.456789' } }]
+}
+const transactionEdit = (before: CostSnapshot, after: CostSnapshot, key: string, role: ComparisonRole = 'current') => ({
+  ...edit('session-a', role, before.id, after.id),
+  before,
+  after,
+  coalescingKey: key
+} as Parameters<typeof recordMasterDataEdit>[1])
+let typingHistory = createMasterDataEditHistory()
+typingHistory = recordMasterDataEdit(typingHistory, transactionEdit(typingBefore, typedOnce, 'focus-session-1'))
+typingHistory = recordMasterDataEdit(typingHistory, transactionEdit(typedOnce, typedFinally, 'focus-session-1'))
+assert.equal(typingHistory.undo.length, 1, 'Per-character changes in one focused field session form one Undo action')
+assert.equal(typingHistory.undo[0].before.bom[0].description, 'Material', 'Coalescing retains the first before-value')
+assert.equal(typingHistory.undo[0].after.bom[0].description, 'Cutting', 'Coalescing retains the final after-value')
+assert.equal(typingHistory.undo[0].after.bom[0].exactDecimalInputs?.price, '123.456789',
+  'Coalescing preserves the final exact-decimal sidecar')
+typingHistory = recordMasterDataEdit(typingHistory, transactionEdit(typedFinally, { ...typedFinally, id: 'typed-note', bom: [
+  { ...typedFinally.bom[0], note: 'Main process' }
+] }, 'focus-session-2'))
+assert.equal(typingHistory.undo.length, 2, 'A separate focus session remains a separate history action')
+typingHistory = recordMasterDataEdit(typingHistory, edit('session-a', 'current', 'typed-note', 'after-bulk'))
+assert.equal(typingHistory.undo.length, 3, 'A bulk/structural action remains separate from a focused typing session')
+const typingUndo = undoMasterDataEdit(typingHistory)
+assert.equal(typingUndo.entry?.after.id, 'after-bulk', 'Undo applies a later structural action first')
+const fieldUndo = undoMasterDataEdit(typingUndo.history)
+assert.equal(fieldUndo.entry?.after.bom[0].note, 'Main process', 'Undo then restores the prior independent field edit')
+const valueUndo = undoMasterDataEdit(fieldUndo.history)
+assert.equal(valueUndo.entry?.after.bom[0].description, 'Cutting', 'Undo finally restores the coalesced field edit')
+assert.equal(valueUndo.entry?.after.bom[0].exactDecimalInputs?.price, '123.456789',
+  'The coalesced Undo entry retains its exact decimal after-state')
+
 let capped = createMasterDataEditHistory()
 for (let index = 0; index < 105; index += 1) {
   capped = recordMasterDataEdit(capped, edit('session-a', 'current', `before-${index}`, `after-${index}`))

@@ -321,6 +321,8 @@ interface AppContextType {
   // Master Data dataset controls
   updateMasterDataUiState: (action: MasterDataUiAction) => void
   setMasterDataRole: (role: MasterDataRole) => void
+  beginMasterDataEditTransaction: (role: MasterDataRole, source: DirectEditField) => void
+  endMasterDataEditTransaction: () => void
   undoMasterDataEdit: () => void
   redoMasterDataEdit: () => void
   saveMasterDataWorkingDataset: (role: MasterDataRole) => void
@@ -407,6 +409,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const updateMasterDataUiState = (action: MasterDataUiAction) => dispatchMasterDataUiState(action)
   const masterDataHistoryRef = useRef(createMasterDataEditHistory())
   const [, setMasterDataHistoryRevision] = useState(0)
+  const nextMasterDataEditTransactionIdRef = useRef(0)
+  const activeMasterDataEditTransactionRef = useRef<{ id: string; role: MasterDataRole; source: DirectEditField } | null>(null)
+  const beginMasterDataEditTransaction = (role: MasterDataRole, source: DirectEditField) => {
+    nextMasterDataEditTransactionIdRef.current += 1
+    activeMasterDataEditTransactionRef.current = {
+      id: `master-data-edit-${nextMasterDataEditTransactionIdRef.current}`,
+      role,
+      source
+    }
+  }
+  const endMasterDataEditTransaction = () => { activeMasterDataEditTransactionRef.current = null }
   const clearMasterDataEditHistory = () => {
     masterDataHistoryRef.current = createMasterDataEditHistory()
     setMasterDataHistoryRevision(revision => revision + 1)
@@ -422,7 +435,21 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       sizing: { ...(baseline.sizing ?? {}) }
     } : baseline])) as ProductSession['initialMasterDataBaseline']
     : undefined
-  const recordMasterDataWorkingEdit = (before: ProductSession, after: ProductSession, role: MasterDataRole) => {
+  const recordMasterDataWorkingEdit = (
+    before: ProductSession,
+    after: ProductSession,
+    role: MasterDataRole,
+    directFields: DirectEditField[] = []
+  ) => {
+    const transaction = activeMasterDataEditTransactionRef.current
+    const source = directFields.length === 1 ? directFields[0] : undefined
+    const coalescingKey = transaction && source
+      && transaction.role === role
+      && transaction.source.section === source.section
+      && transaction.source.recordId === source.recordId
+      && transaction.source.field === source.field
+      ? transaction.id
+      : undefined
     const beforePair = before.snapshotPair ?? sessionToSnapshotPair(before)
     const afterPair = after.snapshotPair ?? sessionToSnapshotPair(after)
     const entry: MasterDataEditHistoryEntry = {
@@ -439,7 +466,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       beforeInitialMasterDataBaseline: copyMasterDataBaselines(before.initialMasterDataBaseline),
       afterInitialMasterDataBaseline: copyMasterDataBaselines(after.initialMasterDataBaseline),
       beforeCustomSizing: role === 'custom' ? { ...(before.customDatasetSizing ?? {}) } : undefined,
-      afterCustomSizing: role === 'custom' ? { ...(after.customDatasetSizing ?? {}) } : undefined
+      afterCustomSizing: role === 'custom' ? { ...(after.customDatasetSizing ?? {}) } : undefined,
+      coalescingKey
     }
     masterDataHistoryRef.current = recordMasterDataEdit(masterDataHistoryRef.current, entry)
     setMasterDataHistoryRevision(revision => revision + 1)
@@ -914,7 +942,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       : candidate))
   }
 
-  const commitMasterDataWorkingSession = (before: ProductSession, after: ProductSession, role: MasterDataRole) => {
+  const commitMasterDataWorkingSession = (
+    before: ProductSession,
+    after: ProductSession,
+    role: MasterDataRole,
+    directFields: DirectEditField[] = []
+  ) => {
     after = pruneMasterDataDirectEdits(after, role, getMasterDataSnapshot(after, after.snapshotPair ?? sessionToSnapshotPair(after), role))
     const beforePair = before.snapshotPair ?? sessionToSnapshotPair(before)
     const afterPair = after.snapshotPair ?? sessionToSnapshotPair(after)
@@ -931,7 +964,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (JSON.stringify(beforeState) === JSON.stringify(afterState)) return
 
     setProductSessions(previous => previous.map(session => session.id === before.id ? after : session))
-    recordMasterDataWorkingEdit(before, after, role)
+    recordMasterDataWorkingEdit(before, after, role, directFields)
   }
 
   const resetMasterDataWorkingDataset = (role: MasterDataRole) => {
@@ -1028,7 +1061,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         ...(sizingField ? { customDatasetSizing: nextCustomSizing } : {}),
         updatedAt: new Date().toISOString()
       }
-      commitMasterDataWorkingSession(session, recordMasterDataDirectEdits(updated, role, currentDataset, nextDataset, directFields), role)
+      commitMasterDataWorkingSession(session, recordMasterDataDirectEdits(updated, role, currentDataset, nextDataset, directFields), role, directFields)
       return
     }
     let nextPair: SnapshotPair = {
@@ -1047,7 +1080,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       updatedAt: new Date().toISOString(),
       preparedSnapshotRoles: { ...readiness, [role]: true }
     }, nextPair)
-    commitMasterDataWorkingSession(session, recordMasterDataDirectEdits(updated, role, currentDataset, nextDataset, directFields), role)
+    commitMasterDataWorkingSession(session, recordMasterDataDirectEdits(updated, role, currentDataset, nextDataset, directFields), role, directFields)
   }
 
   const updateMasterDataProduct = (nextProduct: ProductMaster) => {
@@ -1156,13 +1189,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             loss: workingEvidence(null, 'Direct Input')
           }
         }),
-        routing: (idx, rates): SnapshotRoutingStep => ({
+        routing: (idx, _rates): SnapshotRoutingStep => ({
           id: `routing-size-${Date.now()}-${idx}`,
           isGeneratedSizingPlaceholder: true,
           operationCode: '',
           processName: '',
           sequence: idx * 10,
-          workCenterId: rates[0]?.workCenterCode || undefined,
+          workCenterId: undefined,
           manning: null,
           capacity: null,
           yield: null,
@@ -1612,6 +1645,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       activateDraft,
       updateMasterDataUiState,
       setMasterDataRole,
+      beginMasterDataEditTransaction,
+      endMasterDataEditTransaction,
       undoMasterDataEdit,
       redoMasterDataEdit,
       saveMasterDataWorkingDataset,

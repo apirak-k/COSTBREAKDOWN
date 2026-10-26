@@ -51,6 +51,8 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({
     importSnapshotFromExcel,
     undoMasterDataEdit,
     redoMasterDataEdit,
+    beginMasterDataEditTransaction,
+    endMasterDataEditTransaction,
     setMasterDataRole,
     updateMasterDataUiState,
     saveMasterDataWorkingDataset,
@@ -270,11 +272,11 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({
   }
 
   const handleWorkspaceHistoryShortcut = (event: React.KeyboardEvent<HTMLDivElement>) => {
-    if (event.defaultPrevented || !isEditMode || !(event.ctrlKey || event.metaKey)) return
+    if (event.defaultPrevented || !isEditMode || event.altKey || !(event.ctrlKey || event.metaKey)) return
     const target = event.target
     if (!(target instanceof HTMLElement)
-      || !target.closest('[aria-label="Working dataset controls"]')
-      || !target.closest('button')) return
+      || target.closest('[role="dialog"]')
+      || (!target.closest('[aria-label="Working dataset controls"]') && !target.closest('#master-data-table-panel'))) return
 
     const key = event.key.toLowerCase()
     if (key === 'z') {
@@ -284,6 +286,26 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({
     } else if (key === 'y' && !event.shiftKey) {
       event.preventDefault()
       redoMasterDataEdit()
+    }
+  }
+
+  const beginGridEditTransaction = (event: React.FocusEvent<HTMLDivElement>) => {
+    const target = event.target
+    if (!(target instanceof HTMLInputElement)) return
+    const cell = target.closest<HTMLElement>('[data-grid-cell="true"][data-grid-row-id][data-grid-field]')
+    const section = target.closest<HTMLElement>('section[id^="master-data-table-"]')
+    const table = section?.id.slice('master-data-table-'.length)
+    const sourceSection = table === 'wc' ? 'rates' : table
+    const recordId = cell?.dataset.gridRowId
+    const field = cell?.dataset.gridField
+    if (!sourceSection || !recordId || !field) return
+    beginMasterDataEditTransaction(masterDataRole, { section: sourceSection, recordId, field })
+  }
+
+  const endGridEditTransaction = (event: React.FocusEvent<HTMLDivElement>) => {
+    if (event.target instanceof HTMLInputElement
+      && event.target.matches('[data-grid-cell="true"][data-grid-row-id][data-grid-field]')) {
+      endMasterDataEditTransaction()
     }
   }
 
@@ -328,7 +350,13 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({
 
   return (
     <MasterDataDirectEditsContext.Provider value={activeSession?.masterDataDirectEdits?.[masterDataRole] ?? {}}>
-    <div ref={pageRef} onKeyDown={handleWorkspaceHistoryShortcut} className="w-full space-y-2">
+    <div
+      ref={pageRef}
+      onKeyDown={handleWorkspaceHistoryShortcut}
+      onFocusCapture={beginGridEditTransaction}
+      onBlurCapture={endGridEditTransaction}
+      className="w-full space-y-2"
+    >
       <MasterDataWorkspaceHeader
         workspaceHeaderRef={workspaceHeaderRef}
         product={product}
