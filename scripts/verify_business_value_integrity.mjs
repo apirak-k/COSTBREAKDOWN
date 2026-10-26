@@ -130,10 +130,13 @@ try {
   const sameRouting = sameComparison.routingFindings[0]
 
   assert.equal(getCanonicalComparisonStatus(sameBOM), 'UNCHANGED', 'same BOM business values stay UNCHANGED')
+  assert.equal(Object.hasOwn(sameBOM.fieldDiffs, 'description'), false, 'matched BOM identity is not raw-compared a second time')
   assert.equal(sameBOM.costEffect?.gap.material, 0, 'same BOM business values produce exact zero material Gap')
   assert.equal(Object.is(sameBOM.costEffect?.gap.material, -0), false, 'same BOM Gap is not negative zero')
   assert.equal(getCanonicalComparisonStatus(sameRouting), 'UNCHANGED', 'normalized same Routing identity and WC stay UNCHANGED')
-  assert.equal(sameRouting.changeFlags.movedWorkCenter, true, 'fixture proves raw WC spelling differs before canonical status normalization')
+  assert.equal(sameRouting.changeFlags.movedWorkCenter, false, 'normalized same Work Center does not create a false move flag')
+  assert.equal(Object.hasOwn(sameRouting.fieldDiffs, 'processName'), false, 'matched Routing identity is not raw-compared a second time')
+  assert.equal(Object.hasOwn(sameRouting.fieldDiffs, 'workCenterId'), false, 'normalized same Work Center creates no field diff')
   assert.equal(sameRouting.costEffect?.gap.total, 0, 'same Routing business values produce exact zero total Gap')
   assert.equal(sameComparison.totalGap, 0, 'same full business values produce exact zero Standard Cost Gap')
   assert.equal(Object.is(sameComparison.totalGap, -0), false, 'same full comparison does not create negative zero')
@@ -159,6 +162,7 @@ try {
     [rate('rate-cur-a', 'WC-A'), rate('rate-cur-b', 'WC-B')]
   )
   const movedComparison = compareSnapshots(reference, trueMove)
+  assert.equal(movedComparison.routingFindings[0].changeFlags.movedWorkCenter, true, 'real Work Center move keeps its move flag')
   assert.equal(getCanonicalComparisonStatus(movedComparison.routingFindings[0]), 'CHANGED', 'real Work Center move remains CHANGED')
 
   console.log('Business value integrity verification passed.')
