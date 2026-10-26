@@ -1,6 +1,15 @@
 import { compareSnapshots } from '../../core'
-import { exactDecimalNumberText, exactDecimalToNumber, exactDecimalToString, multiplyExactDecimals, parseExactDecimal, subtractExactDecimals } from '../../core/utils/exact-decimal'
-import { areNumericValuesEquivalent } from '../../shared/ui/numeric-display'
+import {
+  compareExactDecimals,
+  divideExactDecimals,
+  exactDecimalInputValue,
+  exactDecimalNumberText,
+  exactDecimalToNumber,
+  exactDecimalToString,
+  multiplyExactDecimals,
+  parseExactDecimal,
+  subtractExactDecimals
+} from '../../core/utils/exact-decimal'
 import { isMasterDataNumericValueValid, type MasterDataNumericField } from '../../core/utils/master-data-validation'
 import type {
   ComparisonFinding,
@@ -117,12 +126,48 @@ const PARAMETER_FIELDS: Record<SimulationParameter, { kind: SimulationRecordKind
   'routing.yield': { kind: 'routing', field: 'yield' }
 }
 
+function percentageParameter(parameter: SimulationParameter): boolean {
+  return parameter === 'bom.loss' || parameter === 'routing.yield'
+}
+
 function exactInputForStoredValue(parameter: SimulationParameter, value: number | null): string {
   if (value === null) return ''
   const exactValue = parseExactDecimal(exactDecimalNumberText(value) ?? value) ?? parseExactDecimal(value)!
-  return parameter === 'bom.loss' || parameter === 'routing.yield'
+  return percentageParameter(parameter)
     ? exactDecimalToString(multiplyExactDecimals(exactValue, parseExactDecimal(100)!))
     : exactDecimalToString(exactValue)
+}
+
+function exactInputMatchesStoredValue(parameter: SimulationParameter, value: number | null, exactValue: string | undefined): boolean {
+  if (value === null || !exactValue?.trim()) return false
+  const entered = parseExactDecimal(exactValue)
+  if (!entered) return false
+  const stored = percentageParameter(parameter)
+    ? divideExactDecimals(entered, parseExactDecimal(100)!)
+    : entered
+  const projected = stored ? exactDecimalToNumber(stored) : null
+  return projected !== null && Object.is(projected, value)
+}
+
+function canonicalParameterValue(parameter: SimulationParameter, value: number | null | undefined, exactValue?: string) {
+  return typeof value === 'number'
+    ? exactDecimalInputValue(value, exactValue, percentageParameter(parameter))
+    : null
+}
+
+function parameterBusinessValuesEqual(
+  parameter: SimulationParameter,
+  leftValue: number | null | undefined,
+  leftExact: string | undefined,
+  rightValue: number | null | undefined,
+  rightExact: string | undefined
+): boolean {
+  if (leftValue == null || rightValue == null) return leftValue === rightValue
+  const left = canonicalParameterValue(parameter, leftValue, leftExact)
+  const right = canonicalParameterValue(parameter, rightValue, rightExact)
+  return left !== null && right !== null
+    ? compareExactDecimals(left, right) === 0
+    : leftValue === rightValue
 }
 
 export function isSimulationParameterInputValid(parameter: SimulationParameter, value: number | null): boolean {
@@ -153,32 +198,61 @@ export function updateSimulationParameter(
     .find(record => record.kind === configuration.kind && record.afterRecordId === simulationRecordId)
   if (!row || !row.status || row.status === 'REMOVED' || row.identityIssue) return state
 
-  const currentValue = (matches[0] as unknown as Record<string, unknown>)[configuration.field] as number | null | undefined
-  const baselineValue = (baselineMatches[0] as unknown as Record<string, unknown>)[configuration.field] as number | null | undefined
+  const currentRecord = matches[0] as unknown as Record<string, unknown> & { exactDecimalInputs?: Record<string, string> }
+  const baselineRecord = baselineMatches[0] as unknown as Record<string, unknown> & { exactDecimalInputs?: Record<string, string> }
+  const currentValue = currentRecord[configuration.field] as number | null | undefined
+  const baselineValue = baselineRecord[configuration.field] as number | null | undefined
+  const currentExactValue = currentRecord.exactDecimalInputs?.[configuration.field]
+  const baselineExactValue = baselineRecord.exactDecimalInputs?.[configuration.field]
+
+  const candidateExactValue = exactValue === null
+    ? undefined
+    : exactValue !== undefined && exactInputMatchesStoredValue(parameter, value, exactValue)
+      ? exactValue
+      : exactInputForStoredValue(parameter, value)
+
+  const sameAsCurrent = parameterBusinessValuesEqual(
+    parameter,
+    currentValue,
+    currentExactValue,
+    value,
+    candidateExactValue
+  )
+  const sameAsBaseline = parameterBusinessValuesEqual(
+    parameter,
+    baselineValue,
+    baselineExactValue,
+    value,
+    candidateExactValue
+  )
+
   const exactDecimalInputs: SimulationParameterExactInputs = { ...(dataset.exactDecimalInputs ?? {}) }
   const parameterExactInputs = { ...(exactDecimalInputs[parameter] ?? {}) }
-  const previousExactValue = parameterExactInputs[simulationRecordId]
-  const numericChanged = !areNumericValuesEquivalent(currentValue, value)
-  if (exactValue !== undefined) {
-    if (exactValue === null) delete parameterExactInputs[simulationRecordId]
-    else parameterExactInputs[simulationRecordId] = exactValue
-  } else if (numericChanged) {
-    parameterExactInputs[simulationRecordId] = exactInputForStoredValue(parameter, value)
-  }
-  const nextExactValue = exactValue === null ? undefined : exactValue
-  const exactValueChanged = exactValue !== undefined
-    ? previousExactValue !== nextExactValue
-    : numericChanged && previousExactValue !== exactInputForStoredValue(parameter, value)
-  if (Object.keys(parameterExactInputs).length) exactDecimalInputs[parameter] = parameterExactInputs
-  else delete exactDecimalInputs[parameter]
-  if (!numericChanged && !exactValueChanged) return state
-
   const parameterValues = { ...(dataset.parameterOverrides[parameter] ?? {}) }
-  if (areNumericValuesEquivalent(baselineValue, value)) delete parameterValues[simulationRecordId]
-  else parameterValues[simulationRecordId] = value
+
+  if (sameAsBaseline) {
+    delete parameterValues[simulationRecordId]
+    delete parameterExactInputs[simulationRecordId]
+  } else {
+    // Exact-only precision is legitimate: keep the sidecar even when the
+    // JavaScript Number projection equals the baseline Number.
+    if (baselineValue === value) delete parameterValues[simulationRecordId]
+    else parameterValues[simulationRecordId] = value
+    if (candidateExactValue === undefined) delete parameterExactInputs[simulationRecordId]
+    else parameterExactInputs[simulationRecordId] = candidateExactValue
+  }
+
   const parameterOverrides = { ...dataset.parameterOverrides }
   if (Object.keys(parameterValues).length) parameterOverrides[parameter] = parameterValues
   else delete parameterOverrides[parameter]
+  if (Object.keys(parameterExactInputs).length) exactDecimalInputs[parameter] = parameterExactInputs
+  else delete exactDecimalInputs[parameter]
+
+  const previousParameterValues = dataset.parameterOverrides[parameter] ?? {}
+  const previousExactValues = dataset.exactDecimalInputs?.[parameter] ?? {}
+  const storageChanged = JSON.stringify(previousParameterValues) !== JSON.stringify(parameterValues)
+    || JSON.stringify(previousExactValues) !== JSON.stringify(parameterExactInputs)
+  if (!storageChanged && sameAsCurrent) return state
 
   return {
     ...state,
