@@ -1,5 +1,5 @@
 import type { CostSnapshot } from '../types'
-import { divideExactDecimals, exactDecimalToNumber, parseExactDecimal } from './exact-decimal'
+import { exactDecimalSidecarValue } from './exact-decimal'
 
 type IdentityRow = {
   id: string
@@ -51,21 +51,6 @@ function setFieldValue(row: IdentityRow, field: string, value: string): void {
   ;(row as unknown as Record<string, unknown>)[field] = value
 }
 
-function exactInputMatchesNumericValue(
-  numericValue: unknown,
-  exactInput: string | undefined,
-  percentageInput = false
-): boolean {
-  if (typeof numericValue !== 'number' || !Number.isFinite(numericValue) || !exactInput?.trim()) return false
-  const entered = parseExactDecimal(exactInput)
-  if (!entered) return false
-  const stored = percentageInput
-    ? divideExactDecimals(entered, { coefficient: 100n, scale: 0 })
-    : entered
-  const projected = stored ? exactDecimalToNumber(stored) : null
-  return projected !== null && Object.is(projected, numericValue)
-}
-
 function reconcileExactDecimalInputs<T extends object>(
   source: T,
   previous: T | undefined,
@@ -89,8 +74,10 @@ function reconcileExactDecimalInputs<T extends object>(
     // A spread-based numeric-only mutation can otherwise leave the old exact
     // sidecar attached to a new Number. Treat that carried sidecar as stale.
     const inheritedAcrossNumericChange = numericChanged && !exactChanged
-    if (inheritedAcrossNumericChange
-      || !exactInputMatchesNumericValue(numericValue, exactInput, percentageInput)) {
+    const validSidecar = typeof numericValue === 'number'
+      ? exactDecimalSidecarValue(numericValue, exactInput, percentageInput)
+      : null
+    if (inheritedAcrossNumericChange || !validSidecar) {
       delete exactDecimalInputs[field]
       changed = true
     }
