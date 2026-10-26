@@ -9,8 +9,12 @@ const vite = await createServer({
 })
 
 try {
+  const core = await vite.ssrLoadModule('/src/core/index.ts')
+  const statusModule = await vite.ssrLoadModule('/src/core/calculations/comparison-status.ts')
   const decimal = await vite.ssrLoadModule('/src/core/utils/exact-decimal.ts')
   const masterData = await vite.ssrLoadModule('/src/core/utils/master-data-effective.ts')
+  const { compareSnapshots } = core
+  const { getCanonicalComparisonStatus } = statusModule
   const { exactDecimalInputValue, exactDecimalSidecarValue, exactDecimalToString } = decimal
   const { normalizeMasterDataSnapshot } = masterData
 
@@ -54,6 +58,56 @@ try {
   const normalized = normalizeMasterDataSnapshot(snapshot)
   assert.equal(normalized.bom[0].exactDecimalInputs?.loss, '10.1',
     'Master Data normalization must not discard a valid decimal percentage sidecar')
+
+  const product = { productName: 'P', uom: 'PC', customer: '', effectiveDate: '' }
+  const rate = id => ({
+    id, workCenterCode: 'WC-A', description: 'WC-A', laborRate: 105.29, burdenRate: 138.48,
+    exactDecimalInputs: { laborRate: '105.29', burdenRate: '138.48' }, effectiveDate: '', confidence: {}
+  })
+  const makeSnapshot = (id, role, loss, yieldValue) => ({
+    id,
+    comparisonRole: role,
+    product,
+    effectiveDate: '',
+    sourceRef: id,
+    status: 'draft',
+    rates: [rate(`rate-${role}`)],
+    bom: [{
+      id: `bom-${role}`, description: 'Same Material', consumption: 1, unit: 'PC', price: 1,
+      loss, exactDecimalInputs: { consumption: '1', price: '1', loss: '10.1' }, confidence: {}
+    }],
+    routing: [{
+      id: `routing-${role}`, processName: 'Same Process', workCenterId: 'WC-A', manning: 1, capacity: 100,
+      yield: yieldValue, exactDecimalInputs: { manning: '1', capacity: '100', yield: '29.1' }, confidence: {}
+    }]
+  })
+
+  // This reproduces the real cross-path divergence that existed before the fix:
+  // XLSX percent parsing derives Number from exact decimal division, while direct
+  // entry/paste historically used ordinary JS Number division by 100.
+  const importedLoss = Number('0.101')
+  const directLoss = 10.1 / 100
+  const importedYield = Number('0.291')
+  const directYield = 29.1 / 100
+  assert.notEqual(directLoss, importedLoss)
+  assert.notEqual(directYield, importedYield)
+
+  const reference = makeSnapshot('imported-reference', 'reference', importedLoss, importedYield)
+  const current = makeSnapshot('direct-current', 'current', directLoss, directYield)
+  const comparison = compareSnapshots(reference, current)
+  const bomFinding = comparison.bomFindings[0]
+  const routingFinding = comparison.routingFindings[0]
+
+  assert.equal(getCanonicalComparisonStatus(bomFinding), 'UNCHANGED',
+    'same visible/imported/direct Loss remains the same authoritative business value')
+  assert.equal(bomFinding.costEffect?.gap.material, 0,
+    'same exact Loss across import/direct paths produces exact zero material Gap')
+  assert.equal(getCanonicalComparisonStatus(routingFinding), 'UNCHANGED',
+    'same visible/imported/direct Yield remains the same authoritative business value')
+  assert.equal(routingFinding.changeFlags.changedInputs, false,
+    'same exact Yield across import/direct paths does not create a false changed-input flag')
+  assert.equal(routingFinding.costEffect?.gap.total, 0,
+    'same exact Yield across import/direct paths produces exact zero routing Gap')
 
   console.log('Percentage exact boundary verification passed.')
 } finally {
