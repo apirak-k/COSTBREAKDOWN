@@ -44,7 +44,7 @@ function numberSpacing(value: number): number {
   return 2 ** (Math.floor(Math.log2(absolute)) - 52)
 }
 
-/** Removes only a narrow floating representation tail that is within two ULP of a shorter decimal. */
+/** Removes only a narrow floating representation tail for presentation/editor fallback. */
 export function cleanMachineFloatingPointResidue(value: number, text = fullNumberText(value)): string {
   if (!Number.isFinite(value)) return text
   const decimalIndex = text.indexOf('.')
@@ -65,7 +65,7 @@ export function cleanMachineFloatingPointResidue(value: number, text = fullNumbe
   return text
 }
 
-/** Uses the shared narrow noise rule when only a legacy/model Number is available. */
+/** Presentation/editor helper only. Never use this to define business-value equality. */
 export function exactDecimalNumberText(value: number): string | null {
   return Number.isFinite(value) ? cleanMachineFloatingPointResidue(value) : null
 }
@@ -240,7 +240,10 @@ export function exactDecimalSidecarValue(
   return storedExact && projected !== null && Object.is(projected, numericValue) ? storedExact : null
 }
 
-/** Resolves authoritative editor text when valid, otherwise falls back to the stored Number projection. */
+/**
+ * Resolves authoritative editor/import text when valid; otherwise the stored
+ * Number itself is authoritative. No display cleanup/tolerance is permitted here.
+ */
 export function exactDecimalInputValue(
   numericValue: number | null | undefined,
   exactInput?: string,
@@ -248,5 +251,5 @@ export function exactDecimalInputValue(
 ): ExactDecimal | null {
   if (numericValue == null || !Number.isFinite(numericValue)) return null
   return exactDecimalSidecarValue(numericValue, exactInput, percentageInput)
-    ?? parseExactDecimal(exactDecimalNumberText(numericValue) ?? numericValue)
+    ?? parseExactDecimal(numericValue)
 }
