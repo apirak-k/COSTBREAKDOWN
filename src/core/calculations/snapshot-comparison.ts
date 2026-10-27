@@ -18,11 +18,12 @@ import { calculateSnapshotRoutingDetail, resolveSnapshotRoutingRate } from './sn
 import { areNumericValuesEquivalent, safeAdd } from '../utils/guards'
 import {
   addExactDecimals,
-  compareExactDecimals,
   exactDecimalInputValue,
   exactDecimalToNumber,
   exactDecimalToString,
+  multiplyExactDecimals,
   parseExactDecimal,
+  resolveExactDecimalInputPair,
   subtractExactDecimals
 } from '../utils/exact-decimal'
 
@@ -81,22 +82,33 @@ const EXACT_NUMERIC_FIELDS = new Set([
   'consumption', 'price', 'loss', 'manning', 'capacity', 'yield', 'laborRate', 'burdenRate', 'sellingPrice', 'sgaPercent'
 ])
 
-function exactRowField(row: SnapshotRow, field: string) {
+function exactRowValue(row: SnapshotRow, field: string) {
   const numeric = (row as unknown as Record<string, number | null | undefined>)[field]
-  if (typeof numeric !== 'number') return null
   const exactInputs = (row as SnapshotRow & { exactDecimalInputs?: Record<string, string> }).exactDecimalInputs
-  return exactDecimalInputValue(numeric, exactInputs?.[field], field === 'loss' || field === 'yield')
+  const percentageInput = field === 'loss' || field === 'yield'
+  return {
+    numeric,
+    exact: exactDecimalInputValue(numeric, exactInputs?.[field], percentageInput)
+  }
+}
+
+function exactRowsEqual(left: SnapshotRow, right: SnapshotRow, field: string): boolean {
+  const leftValue = exactRowValue(left, field)
+  const rightValue = exactRowValue(right, field)
+  const leftExactInputs = (left as SnapshotRow & { exactDecimalInputs?: Record<string, string> }).exactDecimalInputs
+  const rightExactInputs = (right as SnapshotRow & { exactDecimalInputs?: Record<string, string> }).exactDecimalInputs
+  return resolveExactDecimalInputPair(
+    leftValue.numeric,
+    leftExactInputs?.[field],
+    rightValue.numeric,
+    rightExactInputs?.[field],
+    field === 'loss' || field === 'yield'
+  ).equivalent
 }
 
 function equalSupportedField(field: string, reference: SnapshotRow, current: SnapshotRow): boolean {
   if (EXACT_NUMERIC_FIELDS.has(field)) {
-    const referenceExact = exactRowField(reference, field)
-    const currentExact = exactRowField(current, field)
-    if (referenceExact && currentExact) return compareExactDecimals(referenceExact, currentExact) === 0
-    return areNumericValuesEquivalent(
-      (reference as unknown as Record<string, number | null>)[field],
-      (current as unknown as Record<string, number | null>)[field]
-    )
+    return exactRowsEqual(reference, current, field)
   }
   if (field === 'workCenterId') {
     return normalizeKey((reference as unknown as Record<string, string | undefined>)[field])
@@ -109,18 +121,12 @@ function equalSupportedField(field: string, reference: SnapshotRow, current: Sna
 }
 
 function exactFieldDisplay(row: SnapshotRow, field: string): unknown {
-  const exact = exactRowField(row, field)
+  const exact = exactRowValue(row, field).exact
   return exact ? exactDecimalToString(exact) : (row as unknown as Record<string, unknown>)[field]
 }
 
 function numericInputEqual(left: SnapshotRow, right: SnapshotRow, field: string): boolean {
-  const exactLeft = exactRowField(left, field)
-  const exactRight = exactRowField(right, field)
-  if (exactLeft && exactRight) return compareExactDecimals(exactLeft, exactRight) === 0
-  return areNumericValuesEquivalent(
-    (left as unknown as Record<string, number | null>)[field],
-    (right as unknown as Record<string, number | null>)[field]
-  )
+  return exactRowsEqual(left, right, field)
 }
 
 function addAdditionalFieldDiffs(
@@ -170,11 +176,11 @@ function diffProductFields(reference: CostSnapshot['product'], current: CostSnap
     const referenceValue = (reference as unknown as Record<string, unknown>)[field]
     const currentValue = (current as unknown as Record<string, unknown>)[field]
     if (EXACT_NUMERIC_FIELDS.has(field)) {
-      const referenceExact = (reference as unknown as { exactDecimalInputs?: Record<string, string> }).exactDecimalInputs?.[field]
-      const currentExact = (current as unknown as { exactDecimalInputs?: Record<string, string> }).exactDecimalInputs?.[field]
-      const left = exactDecimalInputValue(referenceValue as number | null, referenceExact)
-      const right = exactDecimalInputValue(currentValue as number | null, currentExact)
-      const equal = left && right ? compareExactDecimals(left, right) === 0 : valuesEqual(referenceValue, currentValue)
+      const referenceRow = reference as unknown as SnapshotRow
+      const currentRow = current as unknown as SnapshotRow
+      const left = exactRowValue(referenceRow, field).exact
+      const right = exactRowValue(currentRow, field).exact
+      const equal = exactRowsEqual(referenceRow, currentRow, field)
       if (!equal) diffs[field] = {
         reference: left ? exactDecimalToString(left) : referenceValue,
         current: right ? exactDecimalToString(right) : currentValue
@@ -312,6 +318,85 @@ function rateKey(row: SnapshotWorkCenterRate): string {
   return normalizeKey(row.workCenterCode)
 }
 
+function toExactInputText(value: NonNullable<ReturnType<typeof exactDecimalInputValue>>, percentageInput: boolean): string {
+  const inputValue = percentageInput
+    ? multiplyExactDecimals(value, parseExactDecimal(100)!)
+    : value
+  return exactDecimalToString(inputValue)
+}
+
+function withExactInput<T extends SnapshotRow>(row: T, field: string, exactInput: string): T {
+  const exactDecimalInputs = (row as T & { exactDecimalInputs?: Record<string, string> }).exactDecimalInputs
+  return {
+    ...row,
+    exactDecimalInputs: { ...exactDecimalInputs, [field]: exactInput }
+  } as T
+}
+
+function alignEquivalentRowInputs<T extends SnapshotRow>(
+  referenceRows: T[],
+  currentRows: T[],
+  keyOf: (row: T) => string,
+  fields: readonly string[]
+): [T[], T[]] {
+  const reference = referenceRows.map(row => row)
+  const current = currentRows.map(row => row)
+  const referenceIndexes = new Map<string, number[]>()
+  const currentIndexes = new Map<string, number[]>()
+  reference.forEach((row, index) => {
+    const key = keyOf(row)
+    if (key) referenceIndexes.set(key, [...(referenceIndexes.get(key) ?? []), index])
+  })
+  current.forEach((row, index) => {
+    const key = keyOf(row)
+    if (key) currentIndexes.set(key, [...(currentIndexes.get(key) ?? []), index])
+  })
+
+  for (const [key, referenceMatches] of referenceIndexes) {
+    const currentMatches = currentIndexes.get(key)
+    if (referenceMatches.length !== 1 || currentMatches?.length !== 1) continue
+    const referenceIndex = referenceMatches[0]
+    const currentIndex = currentMatches[0]
+    for (const field of fields) {
+      const left = reference[referenceIndex]
+      const right = current[currentIndex]
+      const leftNumber = (left as unknown as Record<string, number | null | undefined>)[field]
+      const rightNumber = (right as unknown as Record<string, number | null | undefined>)[field]
+      const leftInputs = (left as T & { exactDecimalInputs?: Record<string, string> }).exactDecimalInputs
+      const rightInputs = (right as T & { exactDecimalInputs?: Record<string, string> }).exactDecimalInputs
+      const percentageInput = field === 'loss' || field === 'yield'
+      const pair = resolveExactDecimalInputPair(
+        leftNumber,
+        leftInputs?.[field],
+        rightNumber,
+        rightInputs?.[field],
+        percentageInput
+      )
+      if (!pair.equivalent || !pair.reference || !pair.current) continue
+      const sharedInput = toExactInputText(pair.reference, percentageInput)
+      reference[referenceIndex] = withExactInput(left, field, sharedInput)
+      current[currentIndex] = withExactInput(right, field, sharedInput)
+    }
+  }
+  return [reference, current]
+}
+
+function alignEquivalentSnapshotInputs(reference: CostSnapshot, current: CostSnapshot): [CostSnapshot, CostSnapshot] {
+  const [referenceBom, currentBom] = alignEquivalentRowInputs(
+    reference.bom, current.bom, bomKey, COMPARABLE_BOM_FIELDS
+  )
+  const [referenceRouting, currentRouting] = alignEquivalentRowInputs(
+    reference.routing, current.routing, routingKey, ['manning', 'capacity', 'yield']
+  )
+  const [referenceRates, currentRates] = alignEquivalentRowInputs(
+    reference.rates, current.rates, rateKey, COMPARABLE_WORK_CENTER_FIELDS
+  )
+  return [
+    { ...reference, bom: referenceBom, routing: referenceRouting, rates: referenceRates },
+    { ...current, bom: currentBom, routing: currentRouting, rates: currentRates }
+  ]
+}
+
 function bomFlags(): ChangeFlags {
   return {}
 }
@@ -403,17 +488,13 @@ function difference(left: number | null, right: number | null): number | null {
 
 function gap(current: number | null, reference: number | null, currentExact?: string | null, referenceExact?: string | null): number | null {
   if (current === null || reference === null) return null
-  if (currentExact && referenceExact) {
-    const parsedCurrent = parseExactDecimal(currentExact)
-    const parsedReference = parseExactDecimal(referenceExact)
-    if (parsedCurrent && parsedReference) {
-      const exactGap = subtractExactDecimals(parsedCurrent, parsedReference)
-      if (exactGap.coefficient === 0n) return 0
-      const num = exactDecimalToNumber(exactGap)
-      return num === 0 ? 0 : num
-    }
+  const pair = resolveExactDecimalInputPair(reference, referenceExact ?? undefined, current, currentExact ?? undefined)
+  if (pair.equivalent) return 0
+  if (pair.reference && pair.current) {
+    const exactGap = subtractExactDecimals(pair.current, pair.reference)
+    const num = exactDecimalToNumber(exactGap)
+    return num === null || num === 0 ? 0 : num
   }
-  if (areNumericValuesEquivalent(current, reference)) return 0
   const diff = safeAdd(current, -reference)
   return diff === 0 ? 0 : diff
 }
@@ -566,8 +647,9 @@ function buildProcessingFindings(
 
 /** Calculates both snapshots independently and then returns explicit comparison findings. */
 export function compareSnapshots(reference: CostSnapshot, current: CostSnapshot): CostComparison {
-  const referenceCost = calculateSnapshotCost(reference)
-  const currentCost = calculateSnapshotCost(current)
+  const [calculationReference, calculationCurrent] = alignEquivalentSnapshotInputs(reference, current)
+  const referenceCost = calculateSnapshotCost(calculationReference)
+  const currentCost = calculateSnapshotCost(calculationCurrent)
   const referenceBom = reference.bom
   const currentBom = current.bom
   const referenceRouting = reference.routing
@@ -614,10 +696,10 @@ export function compareSnapshots(reference: CostSnapshot, current: CostSnapshot)
   )
 
   const processingFindings = buildProcessingFindings(
-    referenceRouting,
-    currentRouting,
-    referenceRates,
-    currentRates,
+    calculationReference.routing,
+    calculationCurrent.routing,
+    calculationReference.rates,
+    calculationCurrent.rates,
     workCenterFindings
   )
 

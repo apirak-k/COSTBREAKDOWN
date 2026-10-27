@@ -8,6 +8,7 @@ import {
   multiplyExactDecimals,
   parseExactDecimal,
   subtractExactDecimals,
+  resolveExactDecimalInputPair,
   type ExactDecimal
 } from '../utils/exact-decimal'
 import { isMasterDataNumericValueValid } from '../utils/master-data-validation'
@@ -52,6 +53,14 @@ interface SideCalculation {
   exactTotal: ExactDecimal | null
 }
 
+interface RoutingExactInputs {
+  manning: ExactDecimal | null
+  capacity: ExactDecimal | null
+  yield: ExactDecimal | null
+  laborRate: ExactDecimal | null
+  burdenRate: ExactDecimal | null
+}
+
 function asNumber(value: ExactDecimal | null): number | null {
   return value ? exactDecimalToNumber(value) : null
 }
@@ -70,7 +79,11 @@ export function resolveSnapshotRoutingRate(
   return matchingRates.length === 1 ? matchingRates[0] : undefined
 }
 
-function calculateSide(step: SnapshotRoutingStep | undefined, rates: SnapshotWorkCenterRate[]): SideCalculation {
+function calculateSide(
+  step: SnapshotRoutingStep | undefined,
+  rates: SnapshotWorkCenterRate[],
+  exactInputs?: RoutingExactInputs
+): SideCalculation {
   if (!step
     || step.manning == null || !isMasterDataNumericValueValid('manning', step.manning)
     || step.capacity == null || !isMasterDataNumericValueValid('capacity', step.capacity)
@@ -78,9 +91,15 @@ function calculateSide(step: SnapshotRoutingStep | undefined, rates: SnapshotWor
     return { runtime: null, laborCost: null, burdenCost: null, total: null, exactRuntime: null, exactLaborCost: null, exactBurdenCost: null, exactTotal: null }
   }
 
-  const manning = exactDecimalInputValue(step.manning, step.exactDecimalInputs?.manning)
-  const capacity = exactDecimalInputValue(step.capacity, step.exactDecimalInputs?.capacity)
-  const yieldValue = exactDecimalInputValue(step.yield, step.exactDecimalInputs?.yield, true)
+  const manning = exactInputs
+    ? exactInputs.manning
+    : exactDecimalInputValue(step.manning, step.exactDecimalInputs?.manning)
+  const capacity = exactInputs
+    ? exactInputs.capacity
+    : exactDecimalInputValue(step.capacity, step.exactDecimalInputs?.capacity)
+  const yieldValue = exactInputs
+    ? exactInputs.yield
+    : exactDecimalInputValue(step.yield, step.exactDecimalInputs?.yield, true)
   const denominator = capacity && yieldValue ? multiplyExactDecimals(capacity, yieldValue) : null
   const exactRuntime = manning && denominator ? divideExactDecimals(manning, denominator) : null
   const runtime = asNumber(exactRuntime)
@@ -89,12 +108,16 @@ function calculateSide(step: SnapshotRoutingStep | undefined, rates: SnapshotWor
   }
 
   const rate = resolveSnapshotRoutingRate(step, rates)
-  const exactLaborRate = rate?.laborRate == null || !isMasterDataNumericValueValid('laborRate', rate.laborRate)
-    ? null
-    : exactDecimalInputValue(rate.laborRate, rate.exactDecimalInputs?.laborRate)
-  const exactBurdenRate = rate?.burdenRate == null || !isMasterDataNumericValueValid('burdenRate', rate.burdenRate)
-    ? null
-    : exactDecimalInputValue(rate.burdenRate, rate.exactDecimalInputs?.burdenRate)
+  const exactLaborRate = exactInputs
+    ? exactInputs.laborRate
+    : rate?.laborRate == null || !isMasterDataNumericValueValid('laborRate', rate.laborRate)
+      ? null
+      : exactDecimalInputValue(rate.laborRate, rate.exactDecimalInputs?.laborRate)
+  const exactBurdenRate = exactInputs
+    ? exactInputs.burdenRate
+    : rate?.burdenRate == null || !isMasterDataNumericValueValid('burdenRate', rate.burdenRate)
+      ? null
+      : exactDecimalInputValue(rate.burdenRate, rate.exactDecimalInputs?.burdenRate)
   const exactLaborCost = exactLaborRate ? multiplyExactDecimals(exactRuntime!, exactLaborRate) : null
   const exactBurdenCost = exactBurdenRate ? multiplyExactDecimals(exactRuntime!, exactBurdenRate) : null
   const laborCost = asNumber(exactLaborCost)
@@ -113,8 +136,74 @@ export function calculateSnapshotRoutingDetail(
 ): SnapshotRoutingDetail {
   const zero = parseExactDecimal(0)!
   const emptySide = { runtime: 0, laborCost: 0, burdenCost: 0, total: 0, exactRuntime: zero, exactLaborCost: zero, exactBurdenCost: zero, exactTotal: zero }
-  const reference = pair.reference ? calculateSide(pair.reference, referenceRates) : emptySide
-  const current = pair.current ? calculateSide(pair.current, currentRates) : emptySide
+  let referenceExactInputs: RoutingExactInputs | undefined
+  let currentExactInputs: RoutingExactInputs | undefined
+  if (pair.reference && pair.current) {
+    const manning = resolveExactDecimalInputPair(
+      pair.reference.manning,
+      pair.reference.exactDecimalInputs?.manning,
+      pair.current.manning,
+      pair.current.exactDecimalInputs?.manning
+    )
+    const capacity = resolveExactDecimalInputPair(
+      pair.reference.capacity,
+      pair.reference.exactDecimalInputs?.capacity,
+      pair.current.capacity,
+      pair.current.exactDecimalInputs?.capacity
+    )
+    const yieldValue = resolveExactDecimalInputPair(
+      pair.reference.yield,
+      pair.reference.exactDecimalInputs?.yield,
+      pair.current.yield,
+      pair.current.exactDecimalInputs?.yield,
+      true
+    )
+
+    const referenceRate = resolveSnapshotRoutingRate(pair.reference, referenceRates)
+    const currentRate = resolveSnapshotRoutingRate(pair.current, currentRates)
+    const sameWorkCenter = Boolean(referenceRate && currentRate
+      && normalizeKey(referenceRate.workCenterCode) === normalizeKey(currentRate.workCenterCode))
+    const laborRate = sameWorkCenter
+      ? resolveExactDecimalInputPair(
+          referenceRate!.laborRate,
+          referenceRate!.exactDecimalInputs?.laborRate,
+          currentRate!.laborRate,
+          currentRate!.exactDecimalInputs?.laborRate
+        )
+      : null
+    const burdenRate = sameWorkCenter
+      ? resolveExactDecimalInputPair(
+          referenceRate!.burdenRate,
+          referenceRate!.exactDecimalInputs?.burdenRate,
+          currentRate!.burdenRate,
+          currentRate!.exactDecimalInputs?.burdenRate
+        )
+      : null
+    referenceExactInputs = {
+      manning: manning.reference,
+      capacity: capacity.reference,
+      yield: yieldValue.reference,
+      laborRate: laborRate?.reference ?? (referenceRate?.laborRate == null
+        ? null
+        : exactDecimalInputValue(referenceRate.laborRate, referenceRate.exactDecimalInputs?.laborRate)),
+      burdenRate: burdenRate?.reference ?? (referenceRate?.burdenRate == null
+        ? null
+        : exactDecimalInputValue(referenceRate.burdenRate, referenceRate.exactDecimalInputs?.burdenRate))
+    }
+    currentExactInputs = {
+      manning: manning.current,
+      capacity: capacity.current,
+      yield: yieldValue.current,
+      laborRate: laborRate?.current ?? (currentRate?.laborRate == null
+        ? null
+        : exactDecimalInputValue(currentRate.laborRate, currentRate.exactDecimalInputs?.laborRate)),
+      burdenRate: burdenRate?.current ?? (currentRate?.burdenRate == null
+        ? null
+        : exactDecimalInputValue(currentRate.burdenRate, currentRate.exactDecimalInputs?.burdenRate))
+    }
+  }
+  const reference = pair.reference ? calculateSide(pair.reference, referenceRates, referenceExactInputs) : emptySide
+  const current = pair.current ? calculateSide(pair.current, currentRates, currentExactInputs) : emptySide
   const exactGap = reference.exactTotal && current.exactTotal
     ? subtractExactDecimals(current.exactTotal, reference.exactTotal)
     : null

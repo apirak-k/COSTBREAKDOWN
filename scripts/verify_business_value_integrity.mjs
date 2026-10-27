@@ -1,5 +1,10 @@
 import assert from 'node:assert/strict'
+import { createRequire } from 'node:module'
+import { fileURLToPath } from 'node:url'
 import { createServer } from 'vite'
+
+const require = createRequire(import.meta.url)
+const jiti = require('jiti')(fileURLToPath(import.meta.url))
 
 const vite = await createServer({
   server: { middlewareMode: true, hmr: false },
@@ -17,7 +22,11 @@ try {
   const seedData = await vite.ssrLoadModule('/src/state/seed-data.ts')
   const simulationState = await vite.ssrLoadModule('/src/features/simulation/simulation-state.ts')
   const simulationEngine = await vite.ssrLoadModule('/src/features/simulation/simulation-engine.ts')
-  const snapshotExport = await vite.ssrLoadModule('/src/services/excel/snapshot-export.ts')
+  // ExcelJS's process/browser shim is CommonJS and cannot run as a Vite SSR
+  // inlined ESM module. Load the same production exporter through Node's
+  // CommonJS-compatible TypeScript loader; the workbook export assertions
+  // below still execute the real export and parse paths.
+  const snapshotExport = jiti('../src/services/excel/snapshot-export.ts')
   const snapshotParser = await vite.ssrLoadModule('/src/services/excel/snapshot-parser.ts')
   const { compareSnapshots } = core
   const { getCanonicalComparisonStatus } = statusModule

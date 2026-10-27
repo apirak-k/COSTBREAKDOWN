@@ -6,7 +6,9 @@ import {
   multiplyExactDecimals,
   parseExactDecimal,
   addExactDecimals,
-  subtractExactDecimals
+  subtractExactDecimals,
+  resolveExactDecimalInputPair,
+  type ExactDecimal
 } from '../utils/exact-decimal'
 import { isMasterDataNumericValueValid } from '../utils/master-data-validation'
 
@@ -28,14 +30,22 @@ interface PreciseCost {
   exact: string
 }
 
-function costOf(item: SnapshotBOMItem | undefined): PreciseCost | null {
+type BOMExactInputs = Record<'consumption' | 'price' | 'loss', ExactDecimal | null>
+
+function costOf(item: SnapshotBOMItem | undefined, exactInputs?: BOMExactInputs): PreciseCost | null {
   if (!item
     || item.consumption == null || !isMasterDataNumericValueValid('consumption', item.consumption)
     || item.price == null || !isMasterDataNumericValueValid('price', item.price)
     || item.loss == null || !isMasterDataNumericValueValid('loss', item.loss)) return null
-  const consumption = exactDecimalInputValue(item.consumption, item.exactDecimalInputs?.consumption)
-  const price = exactDecimalInputValue(item.price, item.exactDecimalInputs?.price)
-  const loss = exactDecimalInputValue(item.loss, item.exactDecimalInputs?.loss, true)
+  const consumption = exactInputs
+    ? exactInputs.consumption
+    : exactDecimalInputValue(item.consumption, item.exactDecimalInputs?.consumption)
+  const price = exactInputs
+    ? exactInputs.price
+    : exactDecimalInputValue(item.price, item.exactDecimalInputs?.price)
+  const loss = exactInputs
+    ? exactInputs.loss
+    : exactDecimalInputValue(item.loss, item.exactDecimalInputs?.loss, true)
   const one = parseExactDecimal(1)!
   if (!consumption || !price || !loss) return null
   const exactCost = multiplyExactDecimals(
@@ -49,10 +59,35 @@ function costOf(item: SnapshotBOMItem | undefined): PreciseCost | null {
 
 /** Calculates BOM costs with absent-side zero for added/removed records without converting missing inputs to zero. */
 export function calculateSnapshotBOMDetail(pair: SnapshotBOMPair): SnapshotBOMDetail {
+  let referenceExactInputs: BOMExactInputs | undefined
+  let currentExactInputs: BOMExactInputs | undefined
+  if (pair.reference && pair.current) {
+    const consumption = resolveExactDecimalInputPair(
+      pair.reference.consumption,
+      pair.reference.exactDecimalInputs?.consumption,
+      pair.current.consumption,
+      pair.current.exactDecimalInputs?.consumption
+    )
+    const price = resolveExactDecimalInputPair(
+      pair.reference.price,
+      pair.reference.exactDecimalInputs?.price,
+      pair.current.price,
+      pair.current.exactDecimalInputs?.price
+    )
+    const loss = resolveExactDecimalInputPair(
+      pair.reference.loss,
+      pair.reference.exactDecimalInputs?.loss,
+      pair.current.loss,
+      pair.current.exactDecimalInputs?.loss,
+      true
+    )
+    referenceExactInputs = { consumption: consumption.reference, price: price.reference, loss: loss.reference }
+    currentExactInputs = { consumption: consumption.current, price: price.current, loss: loss.current }
+  }
   // If record does not exist on reference side (ADDED), referenceCost is 0
-  const reference = pair.reference ? costOf(pair.reference) : { value: 0, exact: '0' }
+  const reference = pair.reference ? costOf(pair.reference, referenceExactInputs) : { value: 0, exact: '0' }
   // If record does not exist on current side (REMOVED), currentCost is 0
-  const current = pair.current ? costOf(pair.current) : { value: 0, exact: '0' }
+  const current = pair.current ? costOf(pair.current, currentExactInputs) : { value: 0, exact: '0' }
   const costGap = reference === null || current === null
     ? null
     : subtractExactDecimals(parseExactDecimal(current.exact)!, parseExactDecimal(reference.exact)!)

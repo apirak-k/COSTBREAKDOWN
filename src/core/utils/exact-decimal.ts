@@ -269,3 +269,48 @@ export function exactDecimalInputValue(
   return exactDecimalSidecarValue(numericValue, exactInput, percentageInput)
     ?? parseExactDecimal(numericValue)
 }
+
+export interface ExactDecimalInputPair {
+  reference: ExactDecimal | null
+  current: ExactDecimal | null
+  equivalent: boolean
+}
+
+/**
+ * Resolves two values under the shared comparison rule without changing either
+ * source sidecar. When one side has no valid exact input and both exact values
+ * project to the same stored Number, the calculation pair receives one shared
+ * exact value so its delta is exactly zero. Two different valid sidecars remain
+ * distinct business inputs even when their Number projections happen to match.
+ */
+export function resolveExactDecimalInputPair(
+  referenceNumber: number | null | undefined,
+  referenceInput: string | undefined,
+  currentNumber: number | null | undefined,
+  currentInput: string | undefined,
+  percentageInput = false
+): ExactDecimalInputPair {
+  const referenceSidecar = exactDecimalSidecarValue(referenceNumber, referenceInput, percentageInput)
+  const currentSidecar = exactDecimalSidecarValue(currentNumber, currentInput, percentageInput)
+  const reference = referenceSidecar ?? exactDecimalInputValue(referenceNumber, undefined, percentageInput)
+  const current = currentSidecar ?? exactDecimalInputValue(currentNumber, undefined, percentageInput)
+  if (!reference || !current) return { reference, current, equivalent: false }
+
+  if (compareExactDecimals(reference, current) === 0) {
+    return { reference, current, equivalent: true }
+  }
+
+  if (referenceSidecar && currentSidecar) {
+    return { reference, current, equivalent: false }
+  }
+
+  const referenceProjection = exactDecimalToNumber(reference)
+  const currentProjection = exactDecimalToNumber(current)
+  if (referenceProjection !== null && currentProjection !== null
+    && Object.is(referenceProjection, currentProjection)) {
+    const shared = referenceSidecar ?? currentSidecar ?? reference
+    return { reference: shared, current: shared, equivalent: true }
+  }
+
+  return { reference, current, equivalent: false }
+}

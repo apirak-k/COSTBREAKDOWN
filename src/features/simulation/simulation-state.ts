@@ -1,4 +1,4 @@
-import type { CostSnapshot, MasterDataRole } from '../../core/types'
+import type { CostSnapshot, MasterDataRole, SnapshotBOMItem, SnapshotRoutingStep } from '../../core/types'
 import { compareExactDecimals, exactDecimalInputValue, exactDecimalSidecarValue } from '../../core/utils/exact-decimal'
 import { areNumericValuesEquivalent } from '../../core/utils/guards'
 import { calculateParameterSimulation, isSimulationParameterInputValid } from './simulation-engine'
@@ -50,7 +50,11 @@ export interface SimulationDatasetView extends SimulationDatasetState {
 }
 
 const MASTER_DATA_ROLES: MasterDataRole[] = ['reference', 'current', 'custom']
-const PARAMETER_FIELDS: Record<SimulationParameter, { kind: 'bom' | 'routing'; field: string }> = {
+type SimulationParameterField =
+  | { kind: 'bom'; field: keyof NonNullable<SnapshotBOMItem['exactDecimalInputs']> }
+  | { kind: 'routing'; field: keyof NonNullable<SnapshotRoutingStep['exactDecimalInputs']> }
+
+const PARAMETER_FIELDS: Record<SimulationParameter, SimulationParameterField> = {
   'bom.price': { kind: 'bom', field: 'price' },
   'bom.consumption': { kind: 'bom', field: 'consumption' },
   'bom.loss': { kind: 'bom', field: 'loss' },

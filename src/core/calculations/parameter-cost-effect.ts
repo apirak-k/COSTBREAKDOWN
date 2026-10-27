@@ -3,12 +3,13 @@ import {
   addExactDecimals,
   compareExactDecimals,
   divideExactDecimals,
-  exactDecimalInputValue,
   exactDecimalToNumber,
   multiplyExactDecimals,
   parseExactDecimal,
+  resolveExactDecimalInputPair,
   subtractExactDecimals,
-  type ExactDecimal
+  type ExactDecimal,
+  type ExactDecimalInputPair
 } from '../utils/exact-decimal'
 
 export interface BOMParameterCostEffectInput {
@@ -242,15 +243,19 @@ function lmdiEffect(
   return result !== null && Number.isFinite(result) ? result : null
 }
 
-function exactInput(
-  input: Record<string, unknown> & { exactInputs?: Record<string, string> },
+function exactInputPair(
+  reference: Record<string, unknown> & { exactInputs?: Record<string, string> },
+  current: Record<string, unknown> & { exactInputs?: Record<string, string> },
   field: string,
   percentEntry = false
-): ExactDecimal | null {
-  const value = input[field]
-  return typeof value === 'number'
-    ? exactDecimalInputValue(value, input.exactInputs?.[field], percentEntry)
-    : null
+): ExactDecimalInputPair {
+  return resolveExactDecimalInputPair(
+    reference[field] as number | null,
+    reference.exactInputs?.[field],
+    current[field] as number | null,
+    current.exactInputs?.[field],
+    percentEntry
+  )
 }
 
 function hasAuthoritativeExactInput(
@@ -267,21 +272,6 @@ function usesAuthoritativeExactInput(
   field: string
 ): boolean {
   return hasAuthoritativeExactInput(left, field) || hasAuthoritativeExactInput(right, field)
-}
-
-function inputsEqual(
-  left: Record<string, unknown> & { exactInputs?: Record<string, string> },
-  right: Record<string, unknown> & { exactInputs?: Record<string, string> },
-  field: string,
-  percentEntry = false
-): boolean {
-  if (!usesAuthoritativeExactInput(left, right, field)) {
-    return areNumericValuesEquivalent(left[field] as number | null, right[field] as number | null)
-  }
-  const exactLeft = exactInput(left, field, percentEntry)
-  const exactRight = exactInput(right, field, percentEntry)
-  if (exactLeft && exactRight) return compareExactDecimals(exactLeft, exactRight) === 0
-  return areNumericValuesEquivalent(left[field] as number | null, right[field] as number | null)
 }
 
 function reconcileLastEffect<T extends object>(
@@ -332,12 +322,15 @@ export function calculateBOMParameterCostEffects(
     || reference.loss < 0 || reference.loss > 1
     || current.loss < 0 || current.loss > 1) return UNAVAILABLE
 
-  const referenceUsage = exactInput(reference, 'usage')
-  const currentUsage = exactInput(current, 'usage')
-  const referencePrice = exactInput(reference, 'price')
-  const currentPrice = exactInput(current, 'price')
-  const referenceLoss = exactInput(reference, 'loss', true)
-  const currentLoss = exactInput(current, 'loss', true)
+  const usagePair = exactInputPair(reference, current, 'usage')
+  const pricePair = exactInputPair(reference, current, 'price')
+  const lossPair = exactInputPair(reference, current, 'loss', true)
+  const referenceUsage = usagePair.reference
+  const currentUsage = usagePair.current
+  const referencePrice = pricePair.reference
+  const currentPrice = pricePair.current
+  const referenceLoss = lossPair.reference
+  const currentLoss = lossPair.current
   if (!referenceUsage || !currentUsage || !referencePrice || !currentPrice || !referenceLoss || !currentLoss) return UNAVAILABLE
   const one = parseExactDecimal(1)!
   const referenceLossFactorExact = addExactDecimals(one, referenceLoss)
@@ -354,7 +347,7 @@ export function calculateBOMParameterCostEffects(
   if (referenceCost === null || currentCost === null) return UNAVAILABLE
 
   const changedKeys = (['usage', 'price', 'loss'] as const)
-    .filter(key => !inputsEqual(reference, current, key, key === 'loss'))
+    .filter(key => !({ usage: usagePair, price: pricePair, loss: lossPair }[key]).equivalent)
   if (changedKeys.length === 0) {
     return compareExactDecimals(referenceCostExact, currentCostExact) === 0
       ? { status: 'available', effects: { usage: 0, price: 0, loss: 0 } }
@@ -383,11 +376,11 @@ export function calculateBOMParameterCostEffects(
   const logMean = logarithmicMean(referenceCost, currentCost, referenceCostExact, currentCostExact)
   if (logMean === null) return UNAVAILABLE
 
-  const usageEffect = lmdiEffect(logMean, reference.usage, current.usage, 1, referenceUsage, currentUsage,
+  const usageEffect = usagePair.equivalent ? 0 : lmdiEffect(logMean, reference.usage, current.usage, 1, referenceUsage, currentUsage,
     usesAuthoritativeExactInput(reference, current, 'usage'))
-  const priceEffect = lmdiEffect(logMean, reference.price, current.price, 1, referencePrice, currentPrice,
+  const priceEffect = pricePair.equivalent ? 0 : lmdiEffect(logMean, reference.price, current.price, 1, referencePrice, currentPrice,
     usesAuthoritativeExactInput(reference, current, 'price'))
-  const lossEffect = lmdiEffect(logMean, referenceLossFactor, currentLossFactor, 1, referenceLossFactorExact, currentLossFactorExact,
+  const lossEffect = lossPair.equivalent ? 0 : lmdiEffect(logMean, referenceLossFactor, currentLossFactor, 1, referenceLossFactorExact, currentLossFactorExact,
     usesAuthoritativeExactInput(reference, current, 'loss'))
   if (usageEffect === null || priceEffect === null || lossEffect === null) return UNAVAILABLE
 
@@ -401,6 +394,10 @@ export function calculateBOMParameterCostEffects(
   return reconciled ? { status: 'available', effects: reconciled } : UNAVAILABLE
 }
 
+type RoutingExactField = 'manning' | 'capacity' | 'yield' | 'laborRate' | 'burdenRate'
+type ResolvedRoutingExactInputs = Record<RoutingExactField, ExactDecimal>
+type RoutingExactInputPairs = Record<RoutingExactField, ExactDecimalInputPair>
+
 interface RoutingSideCalculation {
   labor: number
   burden: number
@@ -410,16 +407,20 @@ interface RoutingSideCalculation {
   exactConversion: ExactDecimal
 }
 
-function calculateRoutingSide(input: ValidRoutingParameterCostEffectInput, allowZeroManning = false): RoutingSideCalculation | null {
+function calculateRoutingSide(
+  input: ValidRoutingParameterCostEffectInput,
+  exactInputs: ResolvedRoutingExactInputs,
+  allowZeroManning = false
+): RoutingSideCalculation | null {
   const validManning = allowZeroManning ? isNonNegativeFinite : isPositiveFinite
   if (!validManning(input.manning) || !isPositiveFinite(input.capacity) || !isPositiveFinite(input.yield)
     || !isPositiveFinite(input.laborRate) || !isPositiveFinite(input.burdenRate)) return null
 
-  const manning = exactInput(input, 'manning')
-  const capacity = exactInput(input, 'capacity')
-  const yieldValue = exactInput(input, 'yield', true)
-  const laborRate = exactInput(input, 'laborRate')
-  const burdenRate = exactInput(input, 'burdenRate')
+  const manning = exactInputs.manning
+  const capacity = exactInputs.capacity
+  const yieldValue = exactInputs.yield
+  const laborRate = exactInputs.laborRate
+  const burdenRate = exactInputs.burdenRate
   if (!manning || !capacity || !yieldValue || !laborRate || !burdenRate) return null
   const denominator = multiplyExactDecimals(capacity, yieldValue)
   const factor = divideExactDecimals(manning, denominator)
@@ -443,26 +444,27 @@ function calculateElementEffects(
   referenceCostExact: ExactDecimal,
   currentCostExact: ExactDecimal,
   rateKey: 'laborRate' | 'burdenRate',
-  allowZeroBoundary: boolean
+  allowZeroBoundary: boolean,
+  exactPairs: RoutingExactInputPairs
 ): RoutingCostEffects | null {
   const targetGap = exactDecimalToNumber(subtractExactDecimals(currentCostExact, referenceCostExact))
   if (targetGap === null) return null
 
-  const referenceManning = exactInput(reference, 'manning')
-  const currentManning = exactInput(current, 'manning')
-  const referenceCapacity = exactInput(reference, 'capacity')
-  const currentCapacity = exactInput(current, 'capacity')
-  const referenceYield = exactInput(reference, 'yield', true)
-  const currentYield = exactInput(current, 'yield', true)
-  const referenceLaborRate = exactInput(reference, 'laborRate')
-  const currentLaborRate = exactInput(current, 'laborRate')
-  const referenceBurdenRate = exactInput(reference, 'burdenRate')
-  const currentBurdenRate = exactInput(current, 'burdenRate')
+  const referenceManning = exactPairs.manning.reference
+  const currentManning = exactPairs.manning.current
+  const referenceCapacity = exactPairs.capacity.reference
+  const currentCapacity = exactPairs.capacity.current
+  const referenceYield = exactPairs.yield.reference
+  const currentYield = exactPairs.yield.current
+  const referenceLaborRate = exactPairs.laborRate.reference
+  const currentLaborRate = exactPairs.laborRate.current
+  const referenceBurdenRate = exactPairs.burdenRate.reference
+  const currentBurdenRate = exactPairs.burdenRate.current
   if (!referenceManning || !currentManning || !referenceCapacity || !currentCapacity || !referenceYield || !currentYield
     || !referenceLaborRate || !currentLaborRate || !referenceBurdenRate || !currentBurdenRate) return null
 
   const orderedKeys = ['manning', 'capacity', 'yield', rateKey] as (keyof RoutingCostEffects)[]
-  const changedKeys = orderedKeys.filter(key => !inputsEqual(reference, current, key, key === 'yield'))
+  const changedKeys = orderedKeys.filter(key => !exactPairs[key].equivalent)
   if (allowZeroBoundary && (compareExactDecimals(referenceCostExact, parseExactDecimal(0)!) === 0
     || compareExactDecimals(currentCostExact, parseExactDecimal(0)!) === 0)) {
     const referenceRate = rateKey === 'laborRate' ? referenceLaborRate : referenceBurdenRate
@@ -492,17 +494,17 @@ function calculateElementEffects(
   const logMean = logarithmicMean(referenceCost, currentCost, referenceCostExact, currentCostExact)
   if (logMean === null) return null
 
-  const manningEffect = lmdiEffect(logMean, reference.manning, current.manning, 1, referenceManning, currentManning,
+  const manningEffect = exactPairs.manning.equivalent ? 0 : lmdiEffect(logMean, reference.manning, current.manning, 1, referenceManning, currentManning,
     usesAuthoritativeExactInput(reference, current, 'manning'))
-  const capacityEffect = lmdiEffect(logMean, reference.capacity, current.capacity, -1, referenceCapacity, currentCapacity,
+  const capacityEffect = exactPairs.capacity.equivalent ? 0 : lmdiEffect(logMean, reference.capacity, current.capacity, -1, referenceCapacity, currentCapacity,
     usesAuthoritativeExactInput(reference, current, 'capacity'))
-  const yieldEffect = lmdiEffect(logMean, reference.yield, current.yield, -1, referenceYield, currentYield,
+  const yieldEffect = exactPairs.yield.equivalent ? 0 : lmdiEffect(logMean, reference.yield, current.yield, -1, referenceYield, currentYield,
     usesAuthoritativeExactInput(reference, current, 'yield'))
-  const laborRateEffect = rateKey === 'laborRate'
+  const laborRateEffect = rateKey === 'laborRate' && !exactPairs.laborRate.equivalent
     ? lmdiEffect(logMean, reference.laborRate, current.laborRate, 1, referenceLaborRate, currentLaborRate,
       usesAuthoritativeExactInput(reference, current, 'laborRate'))
     : 0
-  const burdenRateEffect = rateKey === 'burdenRate'
+  const burdenRateEffect = rateKey === 'burdenRate' && !exactPairs.burdenRate.equivalent
     ? lmdiEffect(logMean, reference.burdenRate, current.burdenRate, 1, referenceBurdenRate, currentBurdenRate,
       usesAuthoritativeExactInput(reference, current, 'burdenRate'))
     : 0
@@ -539,17 +541,28 @@ export function calculateRoutingParameterCostEffects(
     || !validManning(current.manning) || !isPositiveFinite(current.capacity) || !isPositiveFinite(current.yield)
     || !isPositiveFinite(current.laborRate) || !isPositiveFinite(current.burdenRate)) return UNAVAILABLE
 
-  const referenceCost = calculateRoutingSide(reference, allowZeroBoundary)
-  const currentCost = calculateRoutingSide(current, allowZeroBoundary)
+  const exactPairs: RoutingExactInputPairs = {
+    manning: exactInputPair(reference, current, 'manning'),
+    capacity: exactInputPair(reference, current, 'capacity'),
+    yield: exactInputPair(reference, current, 'yield', true),
+    laborRate: exactInputPair(reference, current, 'laborRate'),
+    burdenRate: exactInputPair(reference, current, 'burdenRate')
+  }
+  if (Object.values(exactPairs).some(pair => pair.reference === null || pair.current === null)) return UNAVAILABLE
+  const referenceExactInputs = Object.fromEntries(Object.entries(exactPairs).map(([key, pair]) => [key, pair.reference])) as ResolvedRoutingExactInputs
+  const currentExactInputs = Object.fromEntries(Object.entries(exactPairs).map(([key, pair]) => [key, pair.current])) as ResolvedRoutingExactInputs
+
+  const referenceCost = calculateRoutingSide(reference, referenceExactInputs, allowZeroBoundary)
+  const currentCost = calculateRoutingSide(current, currentExactInputs, allowZeroBoundary)
   if (!referenceCost || !currentCost) return UNAVAILABLE
 
   const labor = calculateElementEffects(
     reference, current, referenceCost.labor, currentCost.labor,
-    referenceCost.exactLabor, currentCost.exactLabor, 'laborRate', allowZeroBoundary
+    referenceCost.exactLabor, currentCost.exactLabor, 'laborRate', allowZeroBoundary, exactPairs
   )
   const burden = calculateElementEffects(
     reference, current, referenceCost.burden, currentCost.burden,
-    referenceCost.exactBurden, currentCost.exactBurden, 'burdenRate', allowZeroBoundary
+    referenceCost.exactBurden, currentCost.exactBurden, 'burdenRate', allowZeroBoundary, exactPairs
   )
   if (!labor || !burden) return UNAVAILABLE
 
