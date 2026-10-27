@@ -1,10 +1,17 @@
 param(
-    [switch]$NoBrowser
+    [switch]$NoBrowser,
+    [Parameter(Mandatory = $true)][string]$StatePath,
+    [Parameter(Mandatory = $true)][string]$InstanceToken
 )
 
 $ErrorActionPreference = 'Stop'
 $packageRoot = [System.IO.Path]::GetFullPath($PSScriptRoot)
 $indexPath = [System.IO.Path]::GetFullPath((Join-Path $packageRoot 'index.html'))
+$StatePath = [System.IO.Path]::GetFullPath($StatePath)
+
+if ($InstanceToken -notmatch '^[0-9a-f]{64}$') {
+    throw 'The portable server instance token is invalid.'
+}
 
 if (-not (Test-Path -LiteralPath $indexPath -PathType Leaf)) {
     throw 'Portable application file index.html is missing from this folder.'
@@ -63,21 +70,52 @@ function Get-ContentType {
     }
 }
 
+function Write-InstanceState {
+    $rootBytes = [System.Text.Encoding]::UTF8.GetBytes($packageRoot)
+    $encodedRoot = [System.Convert]::ToBase64String($rootBytes)
+    $contents = @(
+        'version=1'
+        ('pid=' + $PID)
+        ('port=' + $port)
+        ('token=' + $InstanceToken)
+        ('root=' + $encodedRoot)
+    ) -join "`r`n"
+    $temporaryPath = $StatePath + '.' + $PID + '.tmp'
+    [System.IO.File]::WriteAllText($temporaryPath, $contents, [System.Text.UTF8Encoding]::new($false))
+    if ([System.IO.File]::Exists($StatePath)) {
+        [System.IO.File]::Replace($temporaryPath, $StatePath, $null)
+    } else {
+        [System.IO.File]::Move($temporaryPath, $StatePath)
+    }
+}
+
+function Remove-OwnInstanceState {
+    if (-not [System.IO.File]::Exists($StatePath)) { return }
+    try {
+        $fields = @{}
+        foreach ($line in [System.IO.File]::ReadAllLines($StatePath, [System.Text.Encoding]::UTF8)) {
+            $separator = $line.IndexOf('=')
+            if ($separator -gt 0) { $fields[$line.Substring(0, $separator)] = $line.Substring($separator + 1) }
+        }
+        if ($fields['pid'] -eq [string]$PID -and $fields['token'] -ceq $InstanceToken -and $fields['root'] -ceq [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($packageRoot))) {
+            [System.IO.File]::Delete($StatePath)
+        }
+    }
+    catch {
+        # A stale or inaccessible state file must not prevent the server from exiting.
+    }
+}
+
 $listener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Loopback, 0)
+$stopRequested = $false
 
 try {
     $listener.Start()
     $port = [int]$listener.LocalEndpoint.Port
     $baseUrl = 'http://127.0.0.1:' + $port + '/'
+    Write-InstanceState
 
-    Write-Output ('READY_URL=' + $baseUrl)
-    Write-Output 'COSTBREAKDOWN is running. Keep this window open; press Ctrl+C to stop.'
-
-    if (-not $NoBrowser) {
-        Start-Process -FilePath $baseUrl
-    }
-
-    while ($true) {
+    while (-not $stopRequested) {
         $client = $listener.AcceptTcpClient()
         $client.ReceiveTimeout = 10000
         $client.SendTimeout = 10000
@@ -115,6 +153,35 @@ try {
             }
 
             $requestUri = [System.Uri]::new([System.Uri]::new($baseUrl), $requestTarget)
+            $controlRoute = $requestUri.AbsolutePath.TrimStart('/')
+            if ($controlRoute -eq '__costbreakdown_health' -or $controlRoute -eq '__costbreakdown_stop') {
+                $requestToken = $null
+                foreach ($queryPart in $requestUri.Query.TrimStart('?').Split('&')) {
+                    $queryPair = $queryPart.Split('=', 2)
+                    if ($queryPair.Length -eq 2 -and $queryPair[0] -eq 'token') {
+                        $requestToken = [System.Uri]::UnescapeDataString($queryPair[1])
+                        break
+                    }
+                }
+
+                if ($method -ne 'GET' -or $requestToken -cne $InstanceToken) {
+                    $deniedBody = [System.Text.Encoding]::UTF8.GetBytes('Not found')
+                    Write-HttpResponse -Stream $networkStream -StatusCode 404 -Reason 'Not Found' -ContentType 'text/plain; charset=utf-8' -Body $deniedBody
+                    continue
+                }
+
+                if ($controlRoute -eq '__costbreakdown_health') {
+                    $healthBody = [System.Text.Encoding]::UTF8.GetBytes(('COSTBREAKDOWN|' + $PID + '|' + $port))
+                    Write-HttpResponse -Stream $networkStream -StatusCode 200 -Reason 'OK' -ContentType 'text/plain; charset=utf-8' -Body $healthBody
+                    continue
+                }
+
+                $stoppingBody = [System.Text.Encoding]::UTF8.GetBytes('Stopping')
+                Write-HttpResponse -Stream $networkStream -StatusCode 202 -Reason 'Accepted' -ContentType 'text/plain; charset=utf-8' -Body $stoppingBody
+                $stopRequested = $true
+                continue
+            }
+
             $relativePath = [System.Uri]::UnescapeDataString($requestUri.AbsolutePath.TrimStart('/'))
 
             if ($relativePath -eq 'favicon.ico') {
@@ -163,4 +230,5 @@ try {
 }
 finally {
     $listener.Stop()
+    Remove-OwnInstanceState
 }

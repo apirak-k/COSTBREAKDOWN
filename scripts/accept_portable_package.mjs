@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { createHash } from 'node:crypto'
 import { execFileSync, spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { copyFile, mkdir, mkdtemp, readFile, readdir, rm, stat } from 'node:fs/promises'
@@ -50,7 +51,7 @@ function stopProcessTree(pid) {
   try { process.kill(-pid, 'SIGTERM') } catch {}
 }
 
-const allowedRootFiles = new Set(['index.html', 'Launch-COSTBREAKDOWN.bat', 'README.md', 'Serve-COSTBREAKDOWN.ps1'])
+const allowedRootFiles = new Set(['index.html', 'Start COSTBREAKDOWN.exe', 'Stop COSTBREAKDOWN.exe', 'README.md', 'Serve-COSTBREAKDOWN.ps1'])
 async function packageFiles(root, relative = '') {
   const entries = await readdir(join(root, relative), { withFileTypes: true })
   const files = []
@@ -62,11 +63,113 @@ async function packageFiles(root, relative = '') {
   return files
 }
 
+function getInstanceDirectory(root) {
+  const normalizedRoot = resolve(root).replace(/[\\/]+$/, '').toLowerCase()
+  const packageId = createHash('sha256').update(normalizedRoot, 'utf8').digest('hex')
+  const localAppData = process.env.LOCALAPPDATA
+  assert.ok(localAppData, 'LOCALAPPDATA is available for package-scoped runtime state')
+  return join(localAppData, 'COSTBREAKDOWN', 'Portable', packageId)
+}
+
+async function readInstanceState(root) {
+  const statePath = join(getInstanceDirectory(root), 'instance.state')
+  try {
+    const entries = Object.fromEntries((await readFile(statePath, 'utf8')).trim().split(/\r?\n/).map(line => {
+      const separator = line.indexOf('=')
+      return [line.slice(0, separator), line.slice(separator + 1)]
+    }))
+    return {
+      path: statePath,
+      pid: Number(entries.pid),
+      port: Number(entries.port),
+      token: entries.token,
+      root: Buffer.from(entries.root, 'base64').toString('utf8')
+    }
+  } catch (error) {
+    if (error.code === 'ENOENT') return null
+    throw error
+  }
+}
+
+async function hasHealthyServer(state) {
+  if (!state || !Number.isInteger(state.port) || !state.token) return false
+  try {
+    const response = await fetch(`http://127.0.0.1:${state.port}/__costbreakdown_health?token=${encodeURIComponent(state.token)}`, { signal: AbortSignal.timeout(1000) })
+    return response.ok && (await response.text()).includes(`COSTBREAKDOWN|${state.pid}|${state.port}`)
+  } catch {
+    return false
+  }
+}
+
+async function waitForInstance(root, label, timeoutMs = 20000) {
+  const deadline = Date.now() + timeoutMs
+  while (Date.now() < deadline) {
+    const state = await readInstanceState(root)
+    if (await hasHealthyServer(state)) return state
+    await delay(delayPoll)
+  }
+  throw new Error(`${label} did not become ready`)
+}
+
+function runGuiLauncher(executable, args = []) {
+  return new Promise((resolveRun, rejectRun) => {
+    const child = spawn(executable, args, { cwd: dirname(executable), windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] })
+    let stdout = ''
+    let stderr = ''
+    child.stdout.on('data', chunk => { stdout += String(chunk) })
+    child.stderr.on('data', chunk => { stderr += String(chunk) })
+    const timer = setTimeout(() => {
+      child.kill()
+      rejectRun(new Error(`${executable} did not exit promptly`))
+    }, 30000)
+    child.once('error', error => {
+      clearTimeout(timer)
+      rejectRun(error)
+    })
+    child.once('exit', (code, signal) => {
+      clearTimeout(timer)
+      resolveRun({ code, signal, stdout, stderr })
+    })
+  })
+}
+
+function runPowerShellJson(command) {
+  const output = execFileSync('powershell.exe', ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command', command], { encoding: 'utf8', windowsHide: true })
+  return JSON.parse(output.trim())
+}
+
+function getProcessInfo(pid) {
+  return runPowerShellJson(`$p=Get-CimInstance Win32_Process -Filter 'ProcessId = ${pid}'; if($null -eq $p){exit 3}; $g=Get-Process -Id ${pid}; @{name=$p.Name; commandLine=$p.CommandLine; mainWindowHandle=[string]$g.MainWindowHandle} | ConvertTo-Json -Compress`)
+}
+
+function processExists(pid) {
+  try {
+    execFileSync('powershell.exe', ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command', `Get-Process -Id ${pid} -ErrorAction Stop | Out-Null`], { stdio: 'ignore', windowsHide: true })
+    return true
+  } catch {
+    return false
+  }
+}
+
+async function stopPackageServer(packageRoot, executable) {
+  const result = await runGuiLauncher(executable)
+  assert.equal(result.code, 0, `Stop launcher exits successfully: ${result.stderr}`)
+  assert.equal(result.stdout, '', 'Stop launcher has no console output')
+  assert.equal(result.stderr, '', 'Stop launcher has no console error output')
+  const deadline = Date.now() + 20000
+  while (Date.now() < deadline) {
+    const state = await readInstanceState(packageRoot)
+    if (!state || !(await hasHealthyServer(state))) return state
+    await delay(delayPoll)
+  }
+  throw new Error('Stop launcher did not stop its package server')
+}
+
 const scratchRoot = await mkdtemp(join(tmpdir(), 'costbreakdown-portable-acceptance-'))
 const normalizedScratch = resolve(scratchRoot)
 const normalizedTemp = resolve(tmpdir()) + sep
 assert.ok(normalizedScratch.startsWith(normalizedTemp), 'temporary workspace is contained by the system temp directory')
-const packageRoot = join(scratchRoot, 'package')
+const packageRoot = join(scratchRoot, 'COSTBREAKDOWN package copy')
 const profileRoot = join(scratchRoot, 'chrome-profile')
 const downloadRoot = join(scratchRoot, 'downloads')
 await mkdir(packageRoot, { recursive: true })
@@ -77,8 +180,8 @@ for (const file of await packageFiles(sourcePackage)) {
   await copyFile(join(sourcePackage, file), destination)
 }
 
-let serverProcess
 let chromeProcess
+let activePackageRoots = []
 let activeClient
 let secondClient
 const browserErrors = []
@@ -147,7 +250,7 @@ async function waitFor(checkCondition, label, timeoutMs = 20000) {
   const deadline = Date.now() + timeoutMs
   while (Date.now() < deadline) {
     if (await checkCondition()) return
-    if ((chromeProcess && chromeProcess.exitCode !== null) || (serverProcess && serverProcess.exitCode !== null)) break
+    if (chromeProcess && chromeProcess.exitCode !== null) break
     await delay(delayPoll)
   }
   throw new Error(`${label} did not become ready`)
@@ -238,31 +341,106 @@ async function exportWorkbook() {
 try {
   const packagedFiles = (await packageFiles(packageRoot)).sort()
   const rootFiles = packagedFiles.filter(file => !file.includes('/'))
-  check('package has only launcher, README, index.html, and assets at runtime',
-    rootFiles.length === 4 && rootFiles.every(file => allowedRootFiles.has(file)) && packagedFiles.some(file => file.startsWith('assets/')))
+  check('package has Start/Stop launchers, internal server, README, index.html, and assets only',
+    rootFiles.length === 5 && rootFiles.every(file => allowedRootFiles.has(file)) && packagedFiles.some(file => file.startsWith('assets/')))
   check('package excludes XLSX workbooks and development/test files',
     packagedFiles.every(file => !/\.(xlsx|mjs|ts|tsx|map)$/i.test(file)) && !packagedFiles.some(file => /(^|\/)(src|scripts|node_modules|excel_models)(\/|$)/i.test(file)))
 
   const packagedText = await Promise.all(packagedFiles.map(async file => (await readFile(join(packageRoot, file))).toString('utf8')))
-  check('package contains no repository drive path', packagedText.every(text => !/E:[\\/]COSTBREAKDOWN/i.test(text)))
-  const launcherBatch = await readFile(join(packageRoot, 'Launch-COSTBREAKDOWN.bat'), 'utf8')
+  const normalizedRepositoryRoot = resolve(process.cwd()).replaceAll('\\', '/').toLowerCase()
+  check('package text contains no repository-specific path', packagedText.every(text => !text.replaceAll('\\', '/').toLowerCase().includes(normalizedRepositoryRoot)))
+  const launcherSource = await readFile(join(process.cwd(), 'packaging/portable/PortableLauncher.cs'), 'utf8')
   const launcherScript = await readFile(join(packageRoot, 'Serve-COSTBREAKDOWN.ps1'), 'utf8')
-  check('launcher uses Windows PowerShell and contains no Node or npm command',
-    /powershell\.exe/i.test(launcherBatch) && !/\b(node|npm)(\.exe|\.cmd)?\b/i.test(`${launcherBatch}\n${launcherScript}`))
+  const readme = await readFile(join(packageRoot, 'README.md'), 'utf8')
+  check('runtime uses built-in PowerShell only and has no Node/npm command',
+    /powershell\.exe/i.test(launcherSource) && !/\b(node|npm)(\.exe|\.cmd)?\b/i.test(`${launcherSource}\n${launcherScript}`))
+  check('README explains Start, Stop, no install, shortcuts, and Excel data export',
+    /Start COSTBREAKDOWN\.exe/.test(readme) && /Stop COSTBREAKDOWN\.exe/.test(readme) &&
+    /no installation/i.test(readme) && /Node\.js/i.test(readme) && /terminal/i.test(readme) &&
+    /shortcuts/i.test(readme) && /session/i.test(readme) && /Excel/i.test(readme))
+  check('package has no shortcut, installer, registry, or legacy batch files',
+    packagedFiles.every(file => !/\.(lnk|msi|reg|bat|cmd|vbs|ps1\.bak)$/i.test(file)) &&
+    packagedFiles.includes('Serve-COSTBREAKDOWN.ps1') && !packagedFiles.includes('Launch-COSTBREAKDOWN.bat'))
 
-  const output = []
-  const errors = []
-  serverProcess = spawn(process.env.ComSpec ?? 'cmd.exe', ['/c', 'Launch-COSTBREAKDOWN.bat', '--no-browser'], {
-    cwd: packageRoot,
-    stdio: ['ignore', 'pipe', 'pipe']
+  const startExecutable = join(packageRoot, 'Start COSTBREAKDOWN.exe')
+  const stopExecutable = join(packageRoot, 'Stop COSTBREAKDOWN.exe')
+  activePackageRoots.push(packageRoot)
+  const firstStart = await runGuiLauncher(startExecutable, ['--no-browser'])
+  assert.equal(firstStart.code, 0, `Start launcher exits successfully: ${firstStart.stderr}`)
+  assert.equal(firstStart.stdout, '', 'Start launcher has no console output')
+  assert.equal(firstStart.stderr, '', 'Start launcher has no console error output')
+  let packageState = await waitForInstance(packageRoot, 'silent Start launcher')
+  baseUrl = `http://127.0.0.1:${packageState.port}/`
+  check('Start runs the bundled PowerShell server from the copied package without Node/npm', (() => {
+    const info = getProcessInfo(packageState.pid)
+    return info.name.toLowerCase() === 'powershell.exe' &&
+      info.commandLine.toLowerCase().includes(join(packageRoot, 'Serve-COSTBREAKDOWN.ps1').toLowerCase()) &&
+      info.commandLine.toLowerCase().includes(packageState.path.toLowerCase()) &&
+      !/\b(node|npm|vite)(\.exe|\.cmd)?\b/i.test(info.commandLine) &&
+      info.mainWindowHandle === '0'
+  })())
+  check('application is served over loopback HTTP 200', (await fetch(baseUrl)).status === 200)
+
+  const duplicateStart = await runGuiLauncher(startExecutable, ['--no-browser'])
+  const duplicateState = await readInstanceState(packageRoot)
+  check('a second Start reuses the healthy server without a duplicate',
+    duplicateStart.code === 0 && duplicateState.pid === packageState.pid && duplicateState.token === packageState.token)
+
+  const otherPackageRoot = join(scratchRoot, 'separate COSTBREAKDOWN copy')
+  await mkdir(otherPackageRoot, { recursive: true })
+  for (const file of await packageFiles(packageRoot)) {
+    const destination = join(otherPackageRoot, file)
+    await mkdir(dirname(destination), { recursive: true })
+    await copyFile(join(packageRoot, file), destination)
+  }
+  activePackageRoots.push(otherPackageRoot)
+  const otherStart = await runGuiLauncher(join(otherPackageRoot, 'Start COSTBREAKDOWN.exe'), ['--no-browser'])
+  const otherState = await waitForInstance(otherPackageRoot, 'separate package copy')
+  check('a different copied folder gets a distinct server instance',
+    otherStart.code === 0 && otherState.pid !== packageState.pid && otherState.token !== packageState.token && await hasHealthyServer(otherState))
+
+  const unrelatedPowerShell = spawn('powershell.exe', ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command', 'Start-Sleep -Seconds 300'], {
+    windowsHide: true,
+    stdio: 'ignore'
   })
-  serverProcess.stdout.on('data', chunk => output.push(String(chunk)))
-  serverProcess.stderr.on('data', chunk => errors.push(String(chunk)))
-  await waitFor(() => output.join('').match(/READY_URL=(http:\/\/127\.0\.0\.1:\d+\/)/), 'portable batch launcher')
-  baseUrl = output.join('').match(/READY_URL=(http:\/\/127\.0\.0\.1:\d+\/)/)[1]
-  const processInfo = execFileSync('powershell.exe', ['-NoProfile', '-Command', `Get-CimInstance Win32_Process | Where-Object { $_.ParentProcessId -eq ${serverProcess.pid} -or $_.ProcessId -eq ${serverProcess.pid} } | Select-Object -ExpandProperty Name`], { encoding: 'utf8' })
-  check('portable launcher starts its bundled server without a dev server or npm',
-    processInfo.toLowerCase().includes('powershell.exe') && !/node|npm|vite/i.test(processInfo) && (await fetch(baseUrl)).ok)
+  await delay(250)
+  assert.ok(processExists(unrelatedPowerShell.pid), 'unrelated PowerShell sentinel is running before Stop')
+  const stoppedState = await stopPackageServer(packageRoot, stopExecutable)
+  const stoppedRequest = await fetch(baseUrl).then(response => response.status).catch(() => 0)
+  check('Stop makes this package URL stop responding and exits its exact server',
+    (stoppedState === null || !(await hasHealthyServer(stoppedState))) && stoppedRequest === 0 && !processExists(packageState.pid))
+  check('Stop leaves another copied package server running',
+    processExists(otherState.pid) && await hasHealthyServer(otherState))
+  check('Stop leaves an unrelated PowerShell process alive', processExists(unrelatedPowerShell.pid))
+  const idleStop = await runGuiLauncher(stopExecutable)
+  check('Stop exits cleanly and silently when no server is running', idleStop.code === 0 && idleStop.stdout === '' && idleStop.stderr === '')
+  check('an idle Stop does not affect the other copied package server', await hasHealthyServer(otherState))
+  await stopPackageServer(otherPackageRoot, join(otherPackageRoot, 'Stop COSTBREAKDOWN.exe'))
+
+  const restarted = await runGuiLauncher(startExecutable, ['--no-browser'])
+  packageState = await waitForInstance(packageRoot, 'Start after Stop')
+  check('Start works again after Stop', restarted.code === 0 && await hasHealthyServer(packageState))
+
+  const crashedState = packageState
+  const crashedInfo = getProcessInfo(crashedState.pid)
+  assert.ok(crashedInfo.commandLine.toLowerCase().includes(join(packageRoot, 'Serve-COSTBREAKDOWN.ps1').toLowerCase()),
+    'crash simulation targets the exact server process for the copied package')
+  execFileSync('taskkill.exe', ['/PID', String(crashedState.pid), '/F'], { stdio: 'ignore', windowsHide: true })
+  await waitFor(() => !processExists(crashedState.pid), 'simulated package server crash')
+  check('crash simulation leaves package-scoped stale state for recovery', Boolean(await readInstanceState(packageRoot)))
+  const recoveredStart = await runGuiLauncher(startExecutable, ['--no-browser'])
+  packageState = await waitForInstance(packageRoot, 'Start after stale state')
+  check('Start recovers from stale package state without path or port reuse',
+    recoveredStart.code === 0 && packageState.pid !== crashedState.pid && packageState.token !== crashedState.token && await hasHealthyServer(packageState))
+  await stopPackageServer(packageRoot, stopExecutable)
+  const sentinelAliveAfterRecovery = processExists(unrelatedPowerShell.pid)
+  check('recovery and Stop continue leaving unrelated PowerShell alive', sentinelAliveAfterRecovery)
+  unrelatedPowerShell.kill()
+
+  const finalStart = await runGuiLauncher(startExecutable, ['--no-browser'])
+  packageState = await waitForInstance(packageRoot, 'app acceptance server')
+  baseUrl = `http://127.0.0.1:${packageState.port}/`
+  check('copied portable folder starts a fresh HTTP 200 application instance', finalStart.code === 0 && (await fetch(baseUrl)).status === 200)
 
   const debugPort = await unusedPort()
   const chromeArgs = ['--headless=new', '--no-first-run', '--no-default-browser-check', '--disable-background-networking',
@@ -363,20 +541,39 @@ try {
     httpFailures.length === 0 && networkFailures.length === 0 && externalRequests.length === 0)
   check('app raises no browser exceptions or console errors', browserErrors.length === 0)
 
+  const acceptedServerPid = packageState.pid
+  const finalUrlStatus = await fetch(baseUrl).then(response => response.status).catch(() => 0)
+  await stopPackageServer(packageRoot, stopExecutable)
+  const stoppedUrlStatus = await fetch(baseUrl).then(response => response.status).catch(() => 0)
+  check('Stop after browser workflows closes the serving URL and server process',
+    finalUrlStatus === 200 && stoppedUrlStatus === 0 && !processExists(acceptedServerPid))
+
   console.log(JSON.stringify({
     result: 'PASS',
     checks: checkResults.length,
     passed: checkResults,
     warnings: browserWarnings,
     packageFiles: packagedFiles,
-    downloadedWorkbook: exportedFile,
-    serverOutput: output.join('').trim(),
-    stderr: errors.join('').trim()
+    downloadedWorkbook: exportedFile
   }, null, 2))
 } finally {
   for (const client of clients) client.close()
   if (chromeProcess?.pid) stopProcessTree(chromeProcess.pid)
-  if (serverProcess?.pid) stopProcessTree(serverProcess.pid)
+  for (const activePackageRoot of activePackageRoots) {
+    try {
+      const state = await readInstanceState(activePackageRoot)
+      if (state && processExists(state.pid)) {
+        const info = getProcessInfo(state.pid)
+        if (info.commandLine.toLowerCase().includes(join(activePackageRoot, 'Serve-COSTBREAKDOWN.ps1').toLowerCase())) {
+          try {
+            await stopPackageServer(activePackageRoot, join(activePackageRoot, 'Stop COSTBREAKDOWN.exe'))
+          } catch {
+            if (processExists(state.pid)) execFileSync('taskkill.exe', ['/PID', String(state.pid), '/F'], { stdio: 'ignore', windowsHide: true })
+          }
+        }
+      }
+    } catch {}
+  }
   await delay(250)
   await rm(scratchRoot, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })
 }
