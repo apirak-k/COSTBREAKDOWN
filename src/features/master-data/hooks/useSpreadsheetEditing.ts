@@ -41,7 +41,6 @@ export function prepareSpreadsheetBatch<T extends EditableRow>(rows: T[], update
     const row = rowsById.get(id)
     if (!row) return
     const after = { ...changes } as RowChanges<T> & { isGeneratedSizingPlaceholder?: boolean; exactDecimalInputs?: Record<string, string> }
-    if (row.isGeneratedSizingPlaceholder) after.isGeneratedSizingPlaceholder = false
     const exactUpdates = exactById.get(id)
     if (exactUpdates) {
       const exactDecimalInputs = { ...((row as T & { exactDecimalInputs?: Record<string, string> }).exactDecimalInputs ?? {}) }
@@ -49,14 +48,23 @@ export function prepareSpreadsheetBatch<T extends EditableRow>(rows: T[], update
       Object.entries(exactUpdates).forEach(([field, value]) => {
         const numericValue = (changes as Record<string, unknown>)[field]
         if (!Object.prototype.hasOwnProperty.call(changes, field)
-          || !Object.prototype.hasOwnProperty.call(MASTER_DATA_NUMERIC_DOMAINS, field)
-          || !isMasterDataNumericInputValid(field as MasterDataNumericField, numericValue)) return
+          || !Object.prototype.hasOwnProperty.call(MASTER_DATA_NUMERIC_DOMAINS, field)) return
+        if (!isMasterDataNumericInputValid(
+          field as MasterDataNumericField,
+          numericValue,
+          typeof value === 'string' ? value : undefined
+        )) {
+          delete (after as Record<string, unknown>)[field]
+          return
+        }
         acceptedExactUpdate = true
         if (value === null || value === '') delete exactDecimalInputs[field]
         else exactDecimalInputs[field] = value
       })
       if (acceptedExactUpdate) after.exactDecimalInputs = Object.keys(exactDecimalInputs).length ? exactDecimalInputs : undefined
     }
+    if (Object.keys(after).length === 0) return
+    if (row.isGeneratedSizingPlaceholder) after.isGeneratedSizingPlaceholder = false
     batch.push({ id, changes: after })
   })
   return batch

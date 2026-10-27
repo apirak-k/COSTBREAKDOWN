@@ -294,7 +294,7 @@ export const WorkCenterRatesTable: React.FC<WorkCenterRatesTableProps> = ({
 
   return (
     <section aria-label="Work Centers rows" className="border border-slate-300 bg-white select-none">
-      <MasterDataTableHeader title="Work Centers" rowCount={rates.length} selectedCount={selectedIds.size} warningCount={warningCount} blockerCount={blockerItems.length} isEditMode={isEditMode} onNextWarning={handleNextWarning} onNextBlocker={handleNextBlocker} onAddRow={onAddRate} />
+      <MasterDataTableHeader title="Work Centers" rowCount={rates.length} sizingField="wcCount" selectedCount={selectedIds.size} warningCount={warningCount} blockerCount={blockerItems.length} isEditMode={isEditMode} onNextWarning={handleNextWarning} onNextBlocker={handleNextBlocker} onAddRow={onAddRate} />
 
       <StickyTableHeader
         ariaLabel="Work Centers column header controls"

@@ -89,7 +89,9 @@ export const DatasetSizingModal: React.FC<DatasetSizingModalProps> = ({
       const trimmed = value.trim()
       if (!trimmed) return null
       const parsed = Number(trimmed)
-      if (!isMasterDataNumericInputValid(field, parsed)) throw new RangeError(`${label} must be zero or greater.`)
+      if (!isMasterDataNumericInputValid(field, parsed, field === 'sgaPercent' ? trimmed : undefined)) {
+        throw new RangeError(field === 'sgaPercent' ? `${label} must be between 0% and 100%.` : `${label} must be zero or greater.`)
+      }
       return parsed
     }
     const nextProductName = productName.trim()

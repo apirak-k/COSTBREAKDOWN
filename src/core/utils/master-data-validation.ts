@@ -1,4 +1,6 @@
 import type { CostSnapshot } from '../types'
+import { compareExactDecimals, parseExactDecimal } from './exact-decimal'
+import { assertDatasetSizingCounts, DATASET_SIZING_LIMITS, isDatasetSizingCountWithinLimit } from './sizing'
 
 export type MasterDataNumericField =
   | 'sellingPrice'
@@ -38,27 +40,43 @@ interface NumericLocation {
   key: string
   field: MasterDataNumericField
   value: unknown
+  exactValue?: string
   quality?: string
   table: string
   identity: string
 }
 
-function isInvalidNumeric(field: MasterDataNumericField, value: unknown, quality?: string): boolean {
+const exactPercentageUpperBoundFields = new Set<MasterDataNumericField>(['sgaPercent', 'loss', 'yield'])
+const exactPercentageUpperBound = parseExactDecimal(100)!
+
+function isInvalidNumeric(
+  field: MasterDataNumericField,
+  value: unknown,
+  quality?: string,
+  exactValue?: string
+): boolean {
   if (quality === 'invalid') return true
   if (value === null || value === undefined || value === '') return false
   if (typeof value !== 'number' || !Number.isFinite(value)) return true
 
   const domain = MASTER_DATA_NUMERIC_DOMAINS[field]
   if (domain.minExclusive ? value <= domain.min : value < domain.min) return true
-  return domain.max !== undefined && value > domain.max
+  if (domain.max !== undefined && value > domain.max) return true
+
+  if (exactPercentageUpperBoundFields.has(field) && exactValue?.trim()) {
+    const exact = parseExactDecimal(exactValue)
+    if (!exact || compareExactDecimals(exact, exactPercentageUpperBound) > 0) return true
+  }
+
+  return false
 }
 
 export function isMasterDataNumericValueValid(field: MasterDataNumericField, value: unknown): boolean {
   return !isInvalidNumeric(field, value)
 }
 
-export function isMasterDataNumericInputValid(field: MasterDataNumericField, value: unknown): boolean {
-  return !isInvalidNumeric(field, value)
+export function isMasterDataNumericInputValid(field: MasterDataNumericField, value: unknown, exactValue?: string): boolean {
+  return !isInvalidNumeric(field, value, undefined, exactValue)
 }
 
 /** Input constraints use the same canonical domain, converting fractional percent fields for their UI. */
@@ -92,6 +110,9 @@ function numericLocations(snapshot: CostSnapshot): NumericLocation[] {
       key: `product.${field}`,
       field,
       value: snapshot.product[field],
+      ...(field === 'sgaPercent' && snapshot.product.exactDecimalInputs?.sgaPercent !== undefined
+        ? { exactValue: snapshot.product.exactDecimalInputs.sgaPercent }
+        : {}),
       table: 'Metadata',
       identity: field === 'sellingPrice' ? 'Selling Price' : 'SG&A %'
     })),
@@ -99,6 +120,9 @@ function numericLocations(snapshot: CostSnapshot): NumericLocation[] {
       key: `bom.${row.id}.${field}`,
       field,
       value: row[field],
+      ...(field === 'loss' && row.exactDecimalInputs?.loss !== undefined
+        ? { exactValue: row.exactDecimalInputs.loss }
+        : {}),
       quality: row.confidence[field]?.quality,
       table: 'BOM',
       identity: row.description.trim() || row.id
@@ -115,6 +139,9 @@ function numericLocations(snapshot: CostSnapshot): NumericLocation[] {
       key: `routing.${row.id}.${field}`,
       field,
       value: row[field],
+      ...(field === 'yield' && row.exactDecimalInputs?.yield !== undefined
+        ? { exactValue: row.exactDecimalInputs.yield }
+        : {}),
       quality: row.confidence[field]?.quality,
       table: 'Routing',
       identity: row.processName.trim() || row.id
@@ -155,8 +182,18 @@ export function getMasterDataSnapshotValidationErrors(snapshot: CostSnapshot): s
     yield: 'Yield'
   }
   const errors = numericLocations(snapshot)
-    .filter(location => isInvalidNumeric(location.field, location.value, location.quality))
+    .filter(location => isInvalidNumeric(location.field, location.value, location.quality, location.exactValue))
     .map(location => `Invalid ${fieldLabels[location.field]} in ${location.table} · ${location.identity}.`)
+
+  try {
+    assertDatasetSizingCounts({
+      wcCount: snapshot.rates.length,
+      bomCount: snapshot.bom.length,
+      routingCount: snapshot.routing.length
+    }, { allowZero: true })
+  } catch (error) {
+    errors.push(error instanceof Error ? error.message : 'Dataset row count exceeds its configured limit.')
+  }
 
   unresolvedWorkCenterReferences(snapshot).forEach((workCenter, rowId) => {
     const step = snapshot.routing.find(candidate => candidate.id === rowId)
@@ -168,14 +205,27 @@ export function getMasterDataSnapshotValidationErrors(snapshot: CostSnapshot): s
 
 /** Allows legacy invalid data to remain editable while rejecting newly introduced invalid values. */
 export function isMasterDataSnapshotChangeValid(previous: CostSnapshot, next: CostSnapshot): boolean {
+  const previousCounts = {
+    wcCount: previous.rates.length,
+    bomCount: previous.bom.length,
+    routingCount: previous.routing.length
+  }
+  const nextCounts = {
+    wcCount: next.rates.length,
+    bomCount: next.bom.length,
+    routingCount: next.routing.length
+  }
+  if ((Object.keys(DATASET_SIZING_LIMITS) as (keyof typeof DATASET_SIZING_LIMITS)[]).some(field =>
+    nextCounts[field] > previousCounts[field] && !isDatasetSizingCountWithinLimit(field, nextCounts[field]))) return false
+
   const previousInvalid = new Map(numericLocations(previous)
-    .filter(location => isInvalidNumeric(location.field, location.value, location.quality))
+    .filter(location => isInvalidNumeric(location.field, location.value, location.quality, location.exactValue))
     .map(location => [location.key, location]))
 
   const hasNewInvalidNumber = numericLocations(next).some(location => {
-    if (!isInvalidNumeric(location.field, location.value, location.quality)) return false
+    if (!isInvalidNumeric(location.field, location.value, location.quality, location.exactValue)) return false
     const old = previousInvalid.get(location.key)
-    return !old || !Object.is(old.value, location.value) || old.quality !== location.quality
+    return !old || !Object.is(old.value, location.value) || old.quality !== location.quality || old.exactValue !== location.exactValue
   })
   if (hasNewInvalidNumber) return false
 

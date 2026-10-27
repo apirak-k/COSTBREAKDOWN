@@ -6,6 +6,16 @@ export const DATASET_SIZING_LIMITS = {
   routingCount: 500
 } as const
 
+export type DatasetSizingField = keyof typeof DATASET_SIZING_LIMITS
+
+export function isDatasetSizingCountWithinLimit(field: DatasetSizingField, count: number): boolean {
+  return Number.isInteger(count) && count >= 0 && count <= DATASET_SIZING_LIMITS[field]
+}
+
+export function canAddDatasetSizingRow(field: DatasetSizingField, currentCount: number): boolean {
+  return isDatasetSizingCountWithinLimit(field, currentCount) && currentCount < DATASET_SIZING_LIMITS[field]
+}
+
 const DATASET_SIZING_LABELS = {
   wcCount: 'Work Center rows',
   bomCount: 'BOM rows',

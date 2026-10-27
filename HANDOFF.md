@@ -1,4 +1,13 @@
-## Current checkpoint — Final Release Readiness Audit — 2026-10-27
+## Current checkpoint — Final Release Guardrails — 2026-10-28
+
+- **Status:** The two release guardrails from the 2026-10-27 audit are implemented on `feat/selected-value-ux`. This work is limited to Master Data input validation and row-count enforcement.
+- **Row limits:** Work Center 500, BOM 1000, Routing 500. Add Row is disabled at the limit and the state update guard rejects overflow; Excel import rejects an oversized workbook and returns no partial snapshot. The existing Sizing flow retains the same caps.
+- **Percentage validation:** SG&A, Loss, and Routing Yield compare the authoritative exact percentage input to 100 when a sidecar is present. 100% remains valid; `100.000000000000001%` is rejected even when its Number projection is 100; 101% remains invalid. Validation covers direct entry, paste, Sizing, Routing modal, and workbook import.
+- **Boundaries preserved:** No exact-decimal resolver/comparison semantics, Cost Breakdown, Simulation, PCE, Gap, presentation, or calculation logic changed.
+- **Verification:** Targeted spreadsheet batch, sizing, Excel round-trip, and numeric-input checks passed. Final `npm run verify:regressions` — PASS, 104 passed / 0 failed / 0 environment-blocked; `npx tsc --noEmit --pretty false` — PASS; `npm run build` — PASS with the existing ExcelJS/fast-csv browser externalization and large-chunk warnings; `git diff --check` — PASS after this checkpoint update. One initial full-gate browser startup attempt timed out; the verifier passed alone and the repeated full gate passed.
+- **Delivery:** Commit and push were authorized for this fix. Proposed commit message: `fix: close final release guardrail gaps`; the commit and remote receipt are reported in the task completion message.
+
+## Previous checkpoint — Final Release Readiness Audit — 2026-10-27
 
 - **Status:** Final release-readiness audit completed for `feat/selected-value-ux` at `9aa3f8c5917e2bade428807e630b33c21aa580d4`. Product behavior remains feature-frozen. No application source, tests, or behavior were changed in this audit; only this checkpoint and `tasks/todo.md` were updated.
 - **Decision:** `READY FOR CLEANUP`. No `BLOCKER`-class or fundamental issue was confirmed. Two supported Master Data workflows still have **MUST FIX BEFORE RELEASE** defects: exact percentage sidecars can pass domain validation when their JavaScript Number projection equals the boundary, and Add Row/workbook import can exceed configured per-table row limits. Resolve both before portable packaging or company handoff. Current configured limits are implementation values, not numeric product requirements.

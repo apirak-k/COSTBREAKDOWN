@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { prepareSpreadsheetBatch } from '../src/features/master-data/hooks/useSpreadsheetEditing'
 import { parsePercentage } from '../src/features/master-data/table-validation'
 import { normalizeMasterDataSnapshot } from '../src/core/utils/master-data-effective'
+import { getMasterDataSnapshotValidationErrors, isMasterDataSnapshotChangeValid } from '../src/core/utils/master-data-validation'
 import type { CostSnapshot } from '../src/core/types'
 
 interface TestRow {
@@ -89,13 +90,33 @@ assert.equal(validPercentagePaste[0].changes.exactDecimalInputs?.loss, '12.34567
 const invalidDecimalPaste = prepareSpreadsheetBatch(decimalRows, [
   { id: 'decimal-row', changes: { price: -1 }, exactDecimalUpdates: { price: '-1' } }
 ])
-assert.equal(invalidDecimalPaste[0].changes.exactDecimalInputs, undefined,
-  'a rejected numeric paste cannot persist a mismatched exact sidecar')
+assert.equal(invalidDecimalPaste.length, 0,
+  'a rejected numeric paste is not forwarded to the state update')
 const invalidPercentagePaste = prepareSpreadsheetBatch(decimalRows, [
   { id: 'decimal-row', changes: { loss: 1.2 }, exactDecimalUpdates: { loss: '120' } }
 ])
-assert.equal(invalidPercentagePaste[0].changes.exactDecimalInputs, undefined,
-  'a rejected percentage paste cannot persist a mismatched exact sidecar')
+assert.equal(invalidPercentagePaste.length, 0,
+  'a rejected percentage paste is not forwarded to the state update')
+const validMaximumPercentagePaste = prepareSpreadsheetBatch(decimalRows, [
+  { id: 'decimal-row', changes: { loss: 1 }, exactDecimalUpdates: { loss: '100' } }
+])
+assert.equal(validMaximumPercentagePaste[0].changes.loss, 1,
+  'an exact 100% loss paste remains valid')
+assert.equal(validMaximumPercentagePaste[0].changes.exactDecimalInputs?.loss, '100',
+  'an exact 100% paste preserves its authoritative sidecar')
+const invalidExactPercentagePaste = prepareSpreadsheetBatch(decimalRows, [
+  {
+    id: 'decimal-row',
+    changes: { loss: 1, note: 'valid neighboring cell' },
+    exactDecimalUpdates: { loss: '100.000000000000001' }
+  }
+])
+assert.equal(invalidExactPercentagePaste[0].changes.loss, undefined,
+  'an exact percentage above 100% is rejected even when its Number projection is 100%')
+assert.equal({ ...decimalRows[0], ...invalidExactPercentagePaste[0].changes }.exactDecimalInputs?.loss, '1.250',
+  'rejecting an invalid exact percentage preserves the prior sidecar')
+assert.equal(invalidExactPercentagePaste[0].changes.note, 'valid neighboring cell',
+  'rejecting one exact percentage cell preserves valid neighboring pasted cells')
 
 const percentageTextFromGrid = '0.29'
 const percentageGridValue = parsePercentage(percentageTextFromGrid)
@@ -132,5 +153,55 @@ assert.equal(normalizedPercentagePaste.bom[0].loss, 0.0029,
   'Master Data normalization retains the pasted percentage as a fraction')
 assert.equal(normalizedPercentagePaste.bom[0].exactDecimalInputs?.loss, '0.29',
   'Master Data normalization retains the pasted percentage-point sidecar')
+
+const percentageBoundarySnapshot: CostSnapshot = {
+  ...percentageSnapshot,
+  product: {
+    ...percentageSnapshot.product,
+    sgaPercent: 100,
+    exactDecimalInputs: { sgaPercent: '100' }
+  },
+  rates: [{
+    id: 'wc-1', workCenterCode: 'WC-1', description: 'Work Center', laborRate: 0, burdenRate: 0,
+    confidence: {}
+  }],
+  bom: [{
+    ...percentageSnapshot.bom[0], loss: 1, exactDecimalInputs: { loss: '100' }
+  }],
+  routing: [{
+    id: 'routing-1', processName: 'Yield', workCenterId: 'WC-1', manning: 1, capacity: 1,
+    yield: 1, exactDecimalInputs: { yield: '100' }, confidence: {}
+  }]
+}
+assert.deepEqual(getMasterDataSnapshotValidationErrors(percentageBoundarySnapshot), [],
+  'exact 100% remains valid for SG&A, Loss, and Routing Yield')
+
+const exactPercentageOverMaximum = '100.000000000000001'
+const invalidExactPercentageSnapshot: CostSnapshot = {
+  ...percentageBoundarySnapshot,
+  product: {
+    ...percentageBoundarySnapshot.product,
+    exactDecimalInputs: { sgaPercent: exactPercentageOverMaximum }
+  },
+  bom: [{
+    ...percentageBoundarySnapshot.bom[0], exactDecimalInputs: { loss: exactPercentageOverMaximum }
+  }],
+  routing: [{
+    ...percentageBoundarySnapshot.routing[0], exactDecimalInputs: { yield: exactPercentageOverMaximum }
+  }]
+}
+assert.equal(getMasterDataSnapshotValidationErrors(invalidExactPercentageSnapshot).length, 3,
+  'exact values above 100% are invalid for SG&A, Loss, and Routing Yield despite boundary Number projections')
+assert.equal(isMasterDataSnapshotChangeValid(percentageBoundarySnapshot, invalidExactPercentageSnapshot), false,
+  'direct Master Data edits cannot commit an exact percentage above its upper bound')
+
+const invalid101PercentSnapshot: CostSnapshot = {
+  ...percentageBoundarySnapshot,
+  product: { ...percentageBoundarySnapshot.product, sgaPercent: 101, exactDecimalInputs: { sgaPercent: '101' } },
+  bom: [{ ...percentageBoundarySnapshot.bom[0], loss: 1.01, exactDecimalInputs: { loss: '101' } }],
+  routing: [{ ...percentageBoundarySnapshot.routing[0], yield: 1.01, exactDecimalInputs: { yield: '101' } }]
+}
+assert.equal(getMasterDataSnapshotValidationErrors(invalid101PercentSnapshot).length, 3,
+  '101% is invalid for SG&A, Loss, and Routing Yield')
 
 console.log('Master Data spreadsheet batch verification passed')

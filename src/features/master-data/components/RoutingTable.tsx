@@ -280,7 +280,7 @@ export const RoutingTable: React.FC<RoutingTableProps> = ({
 
   return (
     <section aria-label="Routing rows" className="border border-slate-300 bg-white select-none">
-      <MasterDataTableHeader title="Routing" rowCount={routing.length} selectedCount={selectedIds.size} warningCount={warningCount} blockerCount={blockerItems.length} isEditMode={isEditMode} onNextWarning={handleNextWarning} onNextBlocker={handleNextBlocker} onAddRow={onAddRoutingStep} />
+      <MasterDataTableHeader title="Routing" rowCount={routing.length} sizingField="routingCount" selectedCount={selectedIds.size} warningCount={warningCount} blockerCount={blockerItems.length} isEditMode={isEditMode} onNextWarning={handleNextWarning} onNextBlocker={handleNextBlocker} onAddRow={onAddRoutingStep} />
 
       <StickyTableHeader
         ariaLabel="Routing column header controls"

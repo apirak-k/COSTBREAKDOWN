@@ -274,7 +274,7 @@ export const BOMTable: React.FC<BOMTableProps> = ({
 
   return (
     <section aria-label="Bill of Materials rows" className="border border-slate-300 bg-white select-none">
-      <MasterDataTableHeader title="Bill of Materials" rowCount={bom.length} selectedCount={selectedIds.size} warningCount={warningCount} blockerCount={blockerItems.length} isEditMode={isEditMode} onNextWarning={handleNextWarning} onNextBlocker={handleNextBlocker} onAddRow={onAddBOMItem} />
+      <MasterDataTableHeader title="Bill of Materials" rowCount={bom.length} sizingField="bomCount" selectedCount={selectedIds.size} warningCount={warningCount} blockerCount={blockerItems.length} isEditMode={isEditMode} onNextWarning={handleNextWarning} onNextBlocker={handleNextBlocker} onAddRow={onAddBOMItem} />
 
       <StickyTableHeader
         ariaLabel="Bill of Materials column header controls"

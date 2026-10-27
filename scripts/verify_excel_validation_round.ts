@@ -88,6 +88,29 @@ function rewriteWorkbook(bytes: ArrayBuffer, mutate: (workbook: XLSX.WorkBook) =
   return new Uint8Array(XLSX.write(workbook, { type: 'array', bookType: 'xlsx' }))
 }
 
+function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+  return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer
+}
+
+function rewriteTableRowCount(
+  bytes: ArrayBuffer,
+  sheetName: string,
+  count: number,
+  createRow: (index: number) => unknown[]
+): Uint8Array {
+  return rewriteWorkbook(bytes, workbook => {
+    const sourceRows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], {
+      header: 1,
+      defval: null,
+      raw: true
+    }) as unknown[][]
+    const prefix = sourceRows.slice(0, 3)
+    const existingRows = sourceRows.slice(3)
+    const dataRows = Array.from({ length: count }, (_, index) => existingRows[index] ?? createRow(index))
+    workbook.Sheets[sheetName] = XLSX.utils.aoa_to_sheet([...prefix, ...dataRows])
+  })
+}
+
 async function assertValidXlsx(bytes: ArrayBuffer): Promise<void> {
   const zip = await JSZip.loadAsync(bytes)
   assert.ok(zip.file('[Content_Types].xml'), 'XLSX package contains the content types manifest')
@@ -331,6 +354,66 @@ async function main(): Promise<void> {
   console.log('Import transforms initialize target Sizing from rows, preserve peer state, and keep Custom outside the comparison pair.')
 
   const referenceBytes = exportBuffers.get('reference')!
+  const validPercentageBoundary = rewriteWorkbook(referenceBytes, workbook => {
+    workbook.Sheets.META.B6 = { t: 's', v: '100%' }
+    workbook.Sheets.BOM.E4 = { t: 's', v: '100%' }
+    workbook.Sheets.ROUTING.E4 = { t: 's', v: '100%' }
+  })
+  const validPercentageBoundaryResult = parseSnapshotWorkbookData(toArrayBuffer(validPercentageBoundary), 'current')
+  assert.equal(validPercentageBoundaryResult.success, true, validPercentageBoundaryResult.message)
+  assert.equal(validPercentageBoundaryResult.snapshot?.product.sgaPercent, 100)
+  assert.equal(validPercentageBoundaryResult.snapshot?.bom[0].loss, 1)
+  assert.equal(validPercentageBoundaryResult.snapshot?.routing[0].yield, 1)
+
+  const exactPercentageOverMaximum = rewriteWorkbook(referenceBytes, workbook => {
+    workbook.Sheets.META.B6 = { t: 's', v: '100.000000000000001%' }
+    workbook.Sheets.BOM.E4 = { t: 's', v: '100.000000000000001%' }
+    workbook.Sheets.ROUTING.E4 = { t: 's', v: '100.000000000000001%' }
+  })
+  const exactPercentageOverMaximumResult = parseSnapshotWorkbookData(toArrayBuffer(exactPercentageOverMaximum), 'current')
+  assert.equal(exactPercentageOverMaximumResult.success, false,
+    'exact percentage values above 100% are rejected when their Number projection equals 100%')
+  assert.equal(exactPercentageOverMaximumResult.snapshot, undefined,
+    'invalid exact percentage workbooks do not produce an importable snapshot')
+
+  const invalid101Percent = rewriteWorkbook(referenceBytes, workbook => {
+    workbook.Sheets.META.B6 = { t: 's', v: '101%' }
+    workbook.Sheets.BOM.E4 = { t: 's', v: '101%' }
+    workbook.Sheets.ROUTING.E4 = { t: 's', v: '101%' }
+  })
+  const invalid101PercentResult = parseSnapshotWorkbookData(toArrayBuffer(invalid101Percent), 'current')
+  assert.equal(invalid101PercentResult.success, false, '101% is rejected for each Master Data percentage field')
+  console.log('Master Data percentage imports accept 100% and reject exact values above 100% and 101%.')
+
+  const rowLimitCases = [
+    {
+      sheet: 'WORK_CENTER', field: 'rates' as const, label: 'Work Center', limit: 500,
+      row: (index: number) => [`Limit-WC-${index}`, 0, 0, '']
+    },
+    {
+      sheet: 'BOM', field: 'bom' as const, label: 'BOM', limit: 1000,
+      row: (index: number) => [`Limit-Material-${index}`, 1, 'PC', 1, 0, '']
+    },
+    {
+      sheet: 'ROUTING', field: 'routing' as const, label: 'Routing', limit: 500,
+      row: (index: number) => [`Limit-Process-${index}`, 'Reference-CUT', 1, 1, '100%', '']
+    }
+  ]
+  for (const { sheet, field, label, limit, row } of rowLimitCases) {
+    const atLimitWorkbook = rewriteTableRowCount(referenceBytes, sheet, limit, row)
+    const atLimitResult = parseSnapshotWorkbookData(toArrayBuffer(atLimitWorkbook), 'current')
+    assert.equal(atLimitResult.success, true, `${label} import accepts exactly ${limit} rows: ${atLimitResult.message}`)
+    assert.equal(atLimitResult.snapshot?.[field].length, limit, `${label} import preserves all ${limit} rows`)
+
+    const overLimitWorkbook = rewriteTableRowCount(referenceBytes, sheet, limit + 1, row)
+    const overLimitResult = parseSnapshotWorkbookData(toArrayBuffer(overLimitWorkbook), 'current')
+    assert.equal(overLimitResult.success, false, `${label} import rejects ${limit + 1} rows`)
+    assert.equal(overLimitResult.snapshot, undefined, `${label} import does not silently truncate an oversized workbook`)
+    assert.ok(overLimitResult.warnings.some(warning => warning.includes(`${label} rows`)),
+      `${label} import reports its configured row limit`)
+  }
+  console.log('Excel import accepts WC 500, BOM 1000, Routing 500 and rejects the next row without truncation.')
+
   const missingSheet = rewriteWorkbook(referenceBytes, workbook => {
     workbook.SheetNames = workbook.SheetNames.filter(name => name !== 'ROUTING')
     delete workbook.Sheets.ROUTING

@@ -1,11 +1,11 @@
-# Current Release Work — 2026-10-27
+# Current Release Work — 2026-10-28
 
 This is the active company-handoff sequence. Product behavior is feature-frozen; do not start unrelated feature work. The current audit checkpoint and evidence are in [`HANDOFF.md`](../HANDOFF.md).
 
-1. **Final Release Audit — COMPLETE.** Audited branch `feat/selected-value-ux` at `9aa3f8c5917e2bade428807e630b33c21aa580d4`; the full 104-script regression gate, TypeScript check, and production build passed.
-2. **Confirmed blocker fixes — NOT REQUIRED.** No finding met the audit's `BLOCKER` category. Two **MUST FIX BEFORE RELEASE** Master Data defects remain and are release gates before packaging: exact-sidecar percentage-domain validation across import/paste, and configured table row limits for Add Row/import. Add focused regressions while preserving accepted numeric, Cost Breakdown, and Simulation behavior.
+1. **Final Release Audit — COMPLETE.** The 2026-10-27 audit identified two supported Master Data workflows to fix before release; see the previous checkpoint in `HANDOFF.md`.
+2. **Release guardrail fixes — COMPLETE.** Enforced WC 500, BOM 1000, and Routing 500 across Add Row, state updates, Excel import, and existing Sizing. Exact percentage validation accepts 100%, rejects `100.000000000000001%` and 101%, and stays in input validation. Focused tests plus the complete 104-script regression gate, type check, build, and diff check passed.
 3. **Repository cleanup — PENDING.** Inventory legacy Excel scripts and tracked workbooks before removal. Confirm ownership/provenance of RGOM-named and other populated workbooks; do not remove historical requirement evidence or canonical regression coverage.
-4. **Portable packaging — PENDING.** Resolve the two pre-release defects and classify workbook assets before building a static package. `public/*.xlsx` are copied into `dist`; include only approved assets. Prefer company-approved static HTTP/HTTPS hosting so end users do not need Node.js.
+4. **Portable packaging — PENDING.** Classify workbook assets before building a static package. `public/*.xlsx` are copied into `dist`; include only approved assets. Prefer company-approved static HTTP/HTTPS hosting so end users do not need Node.js.
 5. **Clean-machine acceptance testing — PENDING.** Install from the lockfile and exercise startup, import/export, and session behavior on a Windows machine without repository tooling.
 6. **Company-facing usage/deployment documentation — PENDING.** Explain launch/update method, session-scoped data, workbook import/export, and approved storage practices.
 7. **Final release/tag — PENDING.** Proceed only after required fixes, cleanup decisions, packaging, clean-machine acceptance, and company documentation are complete and explicitly reviewed.
