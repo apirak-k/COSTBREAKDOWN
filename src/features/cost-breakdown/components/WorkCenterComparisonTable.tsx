@@ -45,7 +45,8 @@ function rateGap(reference: SnapshotWorkCenterRate | undefined, current: Snapsho
   if (!reference || !current) return null
   const pair = resolveExactDecimalInputPair(
     reference[field], reference.exactDecimalInputs?.[field],
-    current[field], current.exactDecimalInputs?.[field]
+    current[field], current.exactDecimalInputs?.[field],
+    false, { allowOneSidedNumberProjectionMatch: true }
   )
   if (!pair.reference || !pair.current) return null
   return exactDecimalToNumber(subtractExactDecimals(pair.current, pair.reference))

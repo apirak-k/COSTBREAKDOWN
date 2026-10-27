@@ -157,7 +157,10 @@ function parameterValues(row: CandidateTableRow, status: ComparisonStatus | null
       rawValue = beforeValue
       if (rawValue !== null) visible = formatParameterValue(field, rawValue)
     } else if ((status === 'CHANGED' || status === 'UNCHANGED') && beforeValue !== null && afterValue !== null) {
-      const pairValues = resolveExactDecimalInputPair(beforeValue, beforeExact, afterValue, afterExact, percentage)
+      const pairValues = resolveExactDecimalInputPair(
+        beforeValue, beforeExact, afterValue, afterExact, percentage,
+        { allowOneSidedNumberProjectionMatch: true }
+      )
       const exactDifference = pairValues.reference && pairValues.current
         ? exactDecimalToNumber(subtractExactDecimals(pairValues.current, pairValues.reference))
         : null

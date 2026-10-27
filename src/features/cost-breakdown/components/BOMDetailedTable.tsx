@@ -39,7 +39,9 @@ export function getBOMComparisonLabel(finding: ComparisonFinding): ComparisonSta
 }
 
 function comparisonValues(finding: ComparisonFinding | undefined, reference?: SnapshotBOMItem, current?: SnapshotBOMItem) {
-  if (!finding) return calculateSnapshotBOMDetail({ reference, current })
+  if (!finding) return calculateSnapshotBOMDetail(
+    { reference, current }, { allowOneSidedNumberProjectionMatch: true }
+  )
   const effect = finding.costEffect
   return effect
     ? { referenceCost: effect.reference.material, currentCost: effect.current.material, costGap: effect.gap.material }
@@ -123,7 +125,8 @@ export function BOMRecordDetails({
             price: current?.exactDecimalInputs?.price,
             loss: current?.exactDecimalInputs?.loss
           }
-        }
+        },
+        { allowOneSidedNumberProjectionMatch: true }
       )
     : null
   const effects = effect?.status === 'available' ? effect.effects : null

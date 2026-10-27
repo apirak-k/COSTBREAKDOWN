@@ -9,7 +9,8 @@ import {
   parseExactDecimal,
   subtractExactDecimals,
   resolveExactDecimalInputPair,
-  type ExactDecimal
+  type ExactDecimal,
+  type ExactDecimalInputPairOptions
 } from '../utils/exact-decimal'
 import { isMasterDataNumericValueValid } from '../utils/master-data-validation'
 
@@ -132,7 +133,8 @@ function calculateSide(
 export function calculateSnapshotRoutingDetail(
   pair: SnapshotRoutingPair,
   referenceRates: SnapshotWorkCenterRate[],
-  currentRates: SnapshotWorkCenterRate[]
+  currentRates: SnapshotWorkCenterRate[],
+  pairOptions: ExactDecimalInputPairOptions = {}
 ): SnapshotRoutingDetail {
   const zero = parseExactDecimal(0)!
   const emptySide = { runtime: 0, laborCost: 0, burdenCost: 0, total: 0, exactRuntime: zero, exactLaborCost: zero, exactBurdenCost: zero, exactTotal: zero }
@@ -143,20 +145,25 @@ export function calculateSnapshotRoutingDetail(
       pair.reference.manning,
       pair.reference.exactDecimalInputs?.manning,
       pair.current.manning,
-      pair.current.exactDecimalInputs?.manning
+      pair.current.exactDecimalInputs?.manning,
+      false,
+      pairOptions
     )
     const capacity = resolveExactDecimalInputPair(
       pair.reference.capacity,
       pair.reference.exactDecimalInputs?.capacity,
       pair.current.capacity,
-      pair.current.exactDecimalInputs?.capacity
+      pair.current.exactDecimalInputs?.capacity,
+      false,
+      pairOptions
     )
     const yieldValue = resolveExactDecimalInputPair(
       pair.reference.yield,
       pair.reference.exactDecimalInputs?.yield,
       pair.current.yield,
       pair.current.exactDecimalInputs?.yield,
-      true
+      true,
+      pairOptions
     )
 
     const referenceRate = resolveSnapshotRoutingRate(pair.reference, referenceRates)
@@ -168,7 +175,9 @@ export function calculateSnapshotRoutingDetail(
           referenceRate!.laborRate,
           referenceRate!.exactDecimalInputs?.laborRate,
           currentRate!.laborRate,
-          currentRate!.exactDecimalInputs?.laborRate
+          currentRate!.exactDecimalInputs?.laborRate,
+          false,
+          pairOptions
         )
       : null
     const burdenRate = sameWorkCenter
@@ -176,7 +185,9 @@ export function calculateSnapshotRoutingDetail(
           referenceRate!.burdenRate,
           referenceRate!.exactDecimalInputs?.burdenRate,
           currentRate!.burdenRate,
-          currentRate!.exactDecimalInputs?.burdenRate
+          currentRate!.exactDecimalInputs?.burdenRate,
+          false,
+          pairOptions
         )
       : null
     referenceExactInputs = {

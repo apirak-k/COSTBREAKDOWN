@@ -55,6 +55,8 @@ export type ParameterCostEffectResult<T> =
 export interface ParameterCostEffectOptions {
   /** Simulation accepts valid zero-cost boundaries; Cost Breakdown retains its positive-only attribution domain. */
   allowZeroBoundary?: boolean
+  /** Cost Breakdown comparison may align one-sided lexemes; Simulation keeps strict exact comparisons by default. */
+  allowOneSidedNumberProjectionMatch?: boolean
 }
 
 type ValidBOMParameterCostEffectInput = {
@@ -247,14 +249,16 @@ function exactInputPair(
   reference: Record<string, unknown> & { exactInputs?: Record<string, string> },
   current: Record<string, unknown> & { exactInputs?: Record<string, string> },
   field: string,
-  percentEntry = false
+  percentEntry = false,
+  allowOneSidedNumberProjectionMatch = false
 ): ExactDecimalInputPair {
   return resolveExactDecimalInputPair(
     reference[field] as number | null,
     reference.exactInputs?.[field],
     current[field] as number | null,
     current.exactInputs?.[field],
-    percentEntry
+    percentEntry,
+    { allowOneSidedNumberProjectionMatch }
   )
 }
 
@@ -312,7 +316,10 @@ function reconcileLastEffect<T extends object>(
 export function calculateBOMParameterCostEffects(
   reference: BOMParameterCostEffectInput,
   current: BOMParameterCostEffectInput,
-  { allowZeroBoundary = false }: ParameterCostEffectOptions = {}
+  {
+    allowZeroBoundary = false,
+    allowOneSidedNumberProjectionMatch = false
+  }: ParameterCostEffectOptions = {}
 ): ParameterCostEffectResult<BOMParameterCostEffects> {
   if (!hasBOMInputs(reference) || !hasBOMInputs(current)) return UNAVAILABLE
 
@@ -322,9 +329,9 @@ export function calculateBOMParameterCostEffects(
     || reference.loss < 0 || reference.loss > 1
     || current.loss < 0 || current.loss > 1) return UNAVAILABLE
 
-  const usagePair = exactInputPair(reference, current, 'usage')
-  const pricePair = exactInputPair(reference, current, 'price')
-  const lossPair = exactInputPair(reference, current, 'loss', true)
+  const usagePair = exactInputPair(reference, current, 'usage', false, allowOneSidedNumberProjectionMatch)
+  const pricePair = exactInputPair(reference, current, 'price', false, allowOneSidedNumberProjectionMatch)
+  const lossPair = exactInputPair(reference, current, 'loss', true, allowOneSidedNumberProjectionMatch)
   const referenceUsage = usagePair.reference
   const currentUsage = usagePair.current
   const referencePrice = pricePair.reference
@@ -531,7 +538,10 @@ function calculateElementEffects(
 export function calculateRoutingParameterCostEffects(
   reference: RoutingParameterCostEffectInput,
   current: RoutingParameterCostEffectInput,
-  { allowZeroBoundary = false }: ParameterCostEffectOptions = {}
+  {
+    allowZeroBoundary = false,
+    allowOneSidedNumberProjectionMatch = false
+  }: ParameterCostEffectOptions = {}
 ): ParameterCostEffectResult<RoutingParameterCostEffects> {
   if (!hasRoutingInputs(reference) || !hasRoutingInputs(current)) return UNAVAILABLE
 
@@ -542,11 +552,11 @@ export function calculateRoutingParameterCostEffects(
     || !isPositiveFinite(current.laborRate) || !isPositiveFinite(current.burdenRate)) return UNAVAILABLE
 
   const exactPairs: RoutingExactInputPairs = {
-    manning: exactInputPair(reference, current, 'manning'),
-    capacity: exactInputPair(reference, current, 'capacity'),
-    yield: exactInputPair(reference, current, 'yield', true),
-    laborRate: exactInputPair(reference, current, 'laborRate'),
-    burdenRate: exactInputPair(reference, current, 'burdenRate')
+    manning: exactInputPair(reference, current, 'manning', false, allowOneSidedNumberProjectionMatch),
+    capacity: exactInputPair(reference, current, 'capacity', false, allowOneSidedNumberProjectionMatch),
+    yield: exactInputPair(reference, current, 'yield', true, allowOneSidedNumberProjectionMatch),
+    laborRate: exactInputPair(reference, current, 'laborRate', false, allowOneSidedNumberProjectionMatch),
+    burdenRate: exactInputPair(reference, current, 'burdenRate', false, allowOneSidedNumberProjectionMatch)
   }
   if (Object.values(exactPairs).some(pair => pair.reference === null || pair.current === null)) return UNAVAILABLE
   const referenceExactInputs = Object.fromEntries(Object.entries(exactPairs).map(([key, pair]) => [key, pair.reference])) as ResolvedRoutingExactInputs

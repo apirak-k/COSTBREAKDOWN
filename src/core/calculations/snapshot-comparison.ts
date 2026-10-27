@@ -24,7 +24,8 @@ import {
   multiplyExactDecimals,
   parseExactDecimal,
   resolveExactDecimalInputPair,
-  subtractExactDecimals
+  subtractExactDecimals,
+  type ExactDecimalInputPairOptions
 } from '../utils/exact-decimal'
 
 type SnapshotRow = {
@@ -173,7 +174,11 @@ function diffSupportedFields<T extends SnapshotRow>(
   return diffs
 }
 
-function diffProductFields(reference: CostSnapshot['product'], current: CostSnapshot['product']): Record<string, { reference: unknown; current: unknown }> {
+function diffProductFields(
+  reference: CostSnapshot['product'],
+  current: CostSnapshot['product'],
+  allowOneSidedNumberProjectionMatch: boolean
+): Record<string, { reference: unknown; current: unknown }> {
   const diffs: Record<string, { reference: unknown; current: unknown }> = {}
   COMPARABLE_PRODUCT_FIELDS.forEach(field => {
     const referenceValue = (reference as unknown as Record<string, unknown>)[field]
@@ -183,7 +188,22 @@ function diffProductFields(reference: CostSnapshot['product'], current: CostSnap
       const currentRow = current as unknown as SnapshotRow
       const left = exactRowValue(referenceRow, field).exact
       const right = exactRowValue(currentRow, field).exact
-      const equal = exactRowsEqual(referenceRow, currentRow, field)
+      const referenceNumber = (referenceRow as unknown as Record<string, number | null | undefined>)[field]
+      const currentNumber = (currentRow as unknown as Record<string, number | null | undefined>)[field]
+      const referenceInputs = (referenceRow as SnapshotRow & { exactDecimalInputs?: Record<string, string> }).exactDecimalInputs
+      const currentInputs = (currentRow as SnapshotRow & { exactDecimalInputs?: Record<string, string> }).exactDecimalInputs
+      const referenceMissing = referenceNumber === null || referenceNumber === undefined
+      const currentMissing = currentNumber === null || currentNumber === undefined
+      const equal = referenceMissing || currentMissing
+        ? referenceMissing && currentMissing
+        : resolveExactDecimalInputPair(
+            referenceNumber,
+            referenceInputs?.[field],
+            currentNumber,
+            currentInputs?.[field],
+            false,
+            { allowOneSidedNumberProjectionMatch }
+          ).equivalent
       if (!equal) diffs[field] = {
         reference: left ? exactDecimalToString(left) : referenceValue,
         current: right ? exactDecimalToString(right) : currentValue
@@ -341,7 +361,8 @@ function alignEquivalentRowInputs<T extends SnapshotRow>(
   referenceRows: T[],
   currentRows: T[],
   keyOf: (row: T) => string,
-  fields: readonly string[]
+  fields: readonly string[],
+  pairOptions: ExactDecimalInputPairOptions
 ): [T[], T[]] {
   const reference = referenceRows.map(row => row)
   const current = currentRows.map(row => row)
@@ -374,7 +395,8 @@ function alignEquivalentRowInputs<T extends SnapshotRow>(
         leftInputs?.[field],
         rightNumber,
         rightInputs?.[field],
-        percentageInput
+        percentageInput,
+        pairOptions
       )
       if (!pair.equivalent || !pair.reference || !pair.current) continue
       const numericProjection = exactDecimalToNumber(pair.reference)
@@ -390,15 +412,19 @@ function alignEquivalentRowInputs<T extends SnapshotRow>(
   return [reference, current]
 }
 
-function alignEquivalentSnapshotInputs(reference: CostSnapshot, current: CostSnapshot): [CostSnapshot, CostSnapshot] {
+function alignEquivalentSnapshotInputs(
+  reference: CostSnapshot,
+  current: CostSnapshot,
+  pairOptions: ExactDecimalInputPairOptions
+): [CostSnapshot, CostSnapshot] {
   const [referenceBom, currentBom] = alignEquivalentRowInputs(
-    reference.bom, current.bom, bomKey, COMPARABLE_BOM_FIELDS
+    reference.bom, current.bom, bomKey, COMPARABLE_BOM_FIELDS, pairOptions
   )
   const [referenceRouting, currentRouting] = alignEquivalentRowInputs(
-    reference.routing, current.routing, routingKey, ['manning', 'capacity', 'yield']
+    reference.routing, current.routing, routingKey, ['manning', 'capacity', 'yield'], pairOptions
   )
   const [referenceRates, currentRates] = alignEquivalentRowInputs(
-    reference.rates, current.rates, rateKey, COMPARABLE_WORK_CENTER_FIELDS
+    reference.rates, current.rates, rateKey, COMPARABLE_WORK_CENTER_FIELDS, pairOptions
   )
   return [
     { ...reference, bom: referenceBom, routing: referenceRouting, rates: referenceRates },
@@ -655,16 +681,20 @@ function buildProcessingFindings(
 }
 
 /** Calculates both snapshots independently and then returns explicit comparison findings. */
-export function compareSnapshots(reference: CostSnapshot, current: CostSnapshot): CostComparison {
-  const [calculationReference, calculationCurrent] = alignEquivalentSnapshotInputs(reference, current)
+export function compareSnapshots(
+  reference: CostSnapshot,
+  current: CostSnapshot,
+  pairOptions: ExactDecimalInputPairOptions = { allowOneSidedNumberProjectionMatch: true }
+): CostComparison {
+  const [calculationReference, calculationCurrent] = alignEquivalentSnapshotInputs(reference, current, pairOptions)
   const referenceCost = calculateSnapshotCost(calculationReference)
   const currentCost = calculateSnapshotCost(calculationCurrent)
-  const referenceBom = reference.bom
-  const currentBom = current.bom
-  const referenceRouting = reference.routing
-  const currentRouting = current.routing
-  const referenceRates = reference.rates
-  const currentRates = current.rates
+  const referenceBom = calculationReference.bom
+  const currentBom = calculationCurrent.bom
+  const referenceRouting = calculationReference.routing
+  const currentRouting = calculationCurrent.routing
+  const referenceRates = calculationReference.rates
+  const currentRates = calculationCurrent.rates
   const warnings: ComparisonWarning[] = [
     ...calculationWarnings(reference.id, referenceCost.warnings),
     ...calculationWarnings(current.id, currentCost.warnings)
@@ -772,7 +802,9 @@ export function compareSnapshots(reference: CostSnapshot, current: CostSnapshot)
     routingFindings,
     workCenterFindings,
     processingFindings,
-    productFieldDiffs: diffProductFields(reference.product, current.product),
+    productFieldDiffs: diffProductFields(
+      reference.product, current.product, pairOptions.allowOneSidedNumberProjectionMatch === true
+    ),
     warnings,
     reconciliation: {
       reconciled,

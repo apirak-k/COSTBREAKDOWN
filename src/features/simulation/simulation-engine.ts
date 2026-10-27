@@ -88,7 +88,9 @@ export function calculateParameterSimulation(
   beforeSnapshot: CostSnapshot,
   afterSnapshot: CostSnapshot
 ): ParameterSimulationResult {
-  const comparison = compareSnapshots(beforeSnapshot, afterSnapshot)
+  const comparison = compareSnapshots(beforeSnapshot, afterSnapshot, {
+    allowOneSidedNumberProjectionMatch: false
+  })
   const beforeCost = comparison.referenceCost
   const afterCost = comparison.currentCost
   const beforeTotalExact = beforeCost.exactValues?.total ?? (beforeCost.total === null ? null : String(beforeCost.total))

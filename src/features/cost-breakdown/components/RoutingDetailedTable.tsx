@@ -69,7 +69,10 @@ function comparisonValues(
         }
   }
 
-  const detail = calculateSnapshotRoutingDetail({ reference, current }, referenceRates, currentRates)
+  const detail = calculateSnapshotRoutingDetail(
+    { reference, current }, referenceRates, currentRates,
+    { allowOneSidedNumberProjectionMatch: true }
+  )
   const laborGap = detail.referenceLaborCost === null || detail.currentLaborCost === null ? null : detail.currentLaborCost - detail.referenceLaborCost
   const burdenGap = detail.referenceBurdenCost === null || detail.currentBurdenCost === null ? null : detail.currentBurdenCost - detail.referenceBurdenCost
   return {
@@ -165,7 +168,10 @@ export function RoutingRecordDetails({
   const status = getCanonicalComparisonStatus(finding)
   const isMatchedChange = finding?.matchStatus === 'matched' && status === 'CHANGED'
   const effect = isMatchedChange
-    ? calculateRoutingParameterCostEffects(effectInput(reference, referenceRate), effectInput(current, currentRate))
+    ? calculateRoutingParameterCostEffects(
+        effectInput(reference, referenceRate), effectInput(current, currentRate),
+        { allowOneSidedNumberProjectionMatch: true }
+      )
     : null
   const conversionEffects = effect?.status === 'available' ? effect.effects.conversion : null
   const parameterValues = [

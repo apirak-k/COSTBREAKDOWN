@@ -174,7 +174,8 @@ function setExactInputPairCells(
     reference.exactDecimalInputs?.[field],
     current[field] as number | null | undefined,
     current.exactDecimalInputs?.[field],
-    percentageInput
+    percentageInput,
+    { allowOneSidedNumberProjectionMatch: true }
   )
   setExactInputCell(changes, sheet, referenceAddress, reference[field] as number | null | undefined,
     reference.exactDecimalInputs?.[field], percentageInput, pair.reference)
@@ -289,7 +290,10 @@ function exactGap(
   percentageInput = false
 ): number | null {
   if (current === null || current === undefined || reference === null || reference === undefined) return null
-  const pair = resolveExactDecimalInputPair(reference, referenceExact, current, currentExact, percentageInput)
+  const pair = resolveExactDecimalInputPair(
+    reference, referenceExact, current, currentExact, percentageInput,
+    { allowOneSidedNumberProjectionMatch: true }
+  )
   if (!pair.reference || !pair.current) return null
   return exactDecimalToNumber(subtractExactDecimals(pair.current, pair.reference))
 }

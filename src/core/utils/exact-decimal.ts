@@ -290,20 +290,25 @@ export interface ExactDecimalInputPair {
   equivalent: boolean
 }
 
+export interface ExactDecimalInputPairOptions {
+  /** Comparison consumers may equate a one-sided exact lexeme with a Number-only value when projections match. */
+  allowOneSidedNumberProjectionMatch?: boolean
+}
+
 /**
- * Resolves two values under the shared comparison rule without changing either
- * source sidecar. No-sidecar values are first resolved through the same narrow
- * residue policy used by calculations. The current implementation has a
- * bounded three-ULP no-sidecar pair path and a two-ULP standalone cleanup. A
- * valid sidecar remains authoritative when it differs from the other value,
- * even if both Number projections match.
+ * Resolves a pair without changing either source sidecar. No-sidecar values
+ * use the bounded pair residue policy. By default, valid sidecars stay
+ * authoritative; comparison callers may opt into one-sided Number-projection
+ * equivalence because the current model does not record sidecar provenance.
+ * Two valid, distinct sidecars remain distinct in either mode.
  */
 export function resolveExactDecimalInputPair(
   referenceNumber: number | null | undefined,
   referenceInput: string | undefined,
   currentNumber: number | null | undefined,
   currentInput: string | undefined,
-  percentageInput = false
+  percentageInput = false,
+  options: ExactDecimalInputPairOptions = {}
 ): ExactDecimalInputPair {
   const referenceSidecar = exactDecimalSidecarValue(referenceNumber, referenceInput, percentageInput)
   const currentSidecar = exactDecimalSidecarValue(currentNumber, currentInput, percentageInput)
@@ -316,13 +321,6 @@ export function resolveExactDecimalInputPair(
   }
 
   if (referenceSidecar && currentSidecar) {
-    return { reference, current, equivalent: false }
-  }
-
-  // Exact text proves a decimal value, not only its Number projection. Keep it
-  // distinct from a Number-only value when the decimal values differ; the
-  // residue pairing below is reserved for pairs with no sidecars.
-  if (referenceSidecar || currentSidecar) {
     return { reference, current, equivalent: false }
   }
 
@@ -345,6 +343,21 @@ export function resolveExactDecimalInputPair(
     if (referencePairValue && currentPairValue
       && compareExactDecimals(referencePairValue, currentPairValue) === 0) {
       return { reference: referencePairValue, current: referencePairValue, equivalent: true }
+    }
+  }
+
+  // exactDecimalInputs records the lexeme but not whether it came from raw
+  // workbook serialization or an intentional exact edit. Comparison callers
+  // opt into same-Number equivalence only when exactly one side has a sidecar;
+  // strict callers such as Simulation attribution retain one-sided exact diffs.
+  if (options.allowOneSidedNumberProjectionMatch
+    && Boolean(referenceSidecar) !== Boolean(currentSidecar)) {
+    const referenceProjection = exactDecimalToNumber(reference)
+    const currentProjection = exactDecimalToNumber(current)
+    if (referenceProjection !== null && currentProjection !== null
+      && Object.is(referenceProjection, currentProjection)) {
+      const shared = referenceSidecar ?? currentSidecar ?? reference
+      return { reference: shared, current: shared, equivalent: true }
     }
   }
 

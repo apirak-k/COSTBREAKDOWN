@@ -8,7 +8,8 @@ import {
   addExactDecimals,
   subtractExactDecimals,
   resolveExactDecimalInputPair,
-  type ExactDecimal
+  type ExactDecimal,
+  type ExactDecimalInputPairOptions
 } from '../utils/exact-decimal'
 import { isMasterDataNumericValueValid } from '../utils/master-data-validation'
 
@@ -58,7 +59,10 @@ function costOf(item: SnapshotBOMItem | undefined, exactInputs?: BOMExactInputs)
 }
 
 /** Calculates BOM costs with absent-side zero for added/removed records without converting missing inputs to zero. */
-export function calculateSnapshotBOMDetail(pair: SnapshotBOMPair): SnapshotBOMDetail {
+export function calculateSnapshotBOMDetail(
+  pair: SnapshotBOMPair,
+  pairOptions: ExactDecimalInputPairOptions = {}
+): SnapshotBOMDetail {
   let referenceExactInputs: BOMExactInputs | undefined
   let currentExactInputs: BOMExactInputs | undefined
   if (pair.reference && pair.current) {
@@ -66,20 +70,25 @@ export function calculateSnapshotBOMDetail(pair: SnapshotBOMPair): SnapshotBOMDe
       pair.reference.consumption,
       pair.reference.exactDecimalInputs?.consumption,
       pair.current.consumption,
-      pair.current.exactDecimalInputs?.consumption
+      pair.current.exactDecimalInputs?.consumption,
+      false,
+      pairOptions
     )
     const price = resolveExactDecimalInputPair(
       pair.reference.price,
       pair.reference.exactDecimalInputs?.price,
       pair.current.price,
-      pair.current.exactDecimalInputs?.price
+      pair.current.exactDecimalInputs?.price,
+      false,
+      pairOptions
     )
     const loss = resolveExactDecimalInputPair(
       pair.reference.loss,
       pair.reference.exactDecimalInputs?.loss,
       pair.current.loss,
       pair.current.exactDecimalInputs?.loss,
-      true
+      true,
+      pairOptions
     )
     referenceExactInputs = { consumption: consumption.reference, price: price.reference, loss: loss.reference }
     currentExactInputs = { consumption: consumption.current, price: price.current, loss: loss.current }

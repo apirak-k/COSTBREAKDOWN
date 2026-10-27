@@ -136,28 +136,28 @@ const noSidecarResiduePce = calculateBOMParameterCostEffects(
 check.deepEqual(noSidecarResiduePce, { status: 'available', effects: { usage: 0, price: 0, loss: 0 } },
   'equivalent no-sidecar residue produces exact-zero BOM PCE')
 
-const oneSidedExactDifference = makePair()
-oneSidedExactDifference.reference.bom[0] = {
-  ...oneSidedExactDifference.reference.bom[0], consumption: 1, price: 10, loss: 0,
-  exactDecimalInputs: undefined
+const explicitExactDifference = makePair()
+explicitExactDifference.reference.bom[0] = {
+  ...explicitExactDifference.reference.bom[0], consumption: 1, price: 10, loss: 0,
+  exactDecimalInputs: { price: '10' }
 }
-oneSidedExactDifference.current.bom[0] = {
-  ...oneSidedExactDifference.current.bom[0], consumption: 1, price: 10, loss: 0,
+explicitExactDifference.current.bom[0] = {
+  ...explicitExactDifference.current.bom[0], consumption: 1, price: 10, loss: 0,
   exactDecimalInputs: { price: '10.00000000000000001' }
 }
-const oneSidedExactComparison = compareSnapshots(oneSidedExactDifference.reference, oneSidedExactDifference.current)
-const oneSidedExactFinding = oneSidedExactComparison.bomFindings.find(finding =>
-  finding.referenceId === oneSidedExactDifference.reference.bom[0].id)
-check.equal(getCanonicalComparisonStatus(oneSidedExactFinding), 'CHANGED',
-  'a validated one-sided exact decimal difference remains CHANGED despite equal Number projections')
-check.notEqual(oneSidedExactFinding?.costEffect?.gap.material, 0,
-  'a one-sided exact decimal difference keeps its nonzero cost Gap')
-const oneSidedExactPce = calculateBOMParameterCostEffects(
-  { usage: 1, price: 10, loss: 0 },
+const explicitExactComparison = compareSnapshots(explicitExactDifference.reference, explicitExactDifference.current)
+const explicitExactFinding = explicitExactComparison.bomFindings.find(finding =>
+  finding.referenceId === explicitExactDifference.reference.bom[0].id)
+check.equal(getCanonicalComparisonStatus(explicitExactFinding), 'CHANGED',
+  'two different authoritative exact decimal inputs remain CHANGED despite equal Number projections')
+check.notEqual(explicitExactFinding?.costEffect?.gap.material, 0,
+  'two different authoritative exact inputs keep their nonzero cost Gap')
+const explicitExactPce = calculateBOMParameterCostEffects(
+  { usage: 1, price: 10, loss: 0, exactInputs: { price: '10' } },
   { usage: 1, price: 10, loss: 0, exactInputs: { price: '10.00000000000000001' } }
 )
-check.ok(oneSidedExactPce.status === 'available' && oneSidedExactPce.effects.price !== 0,
-  'a one-sided exact decimal difference keeps its nonzero parameter cost effect')
+check.ok(explicitExactPce.status === 'available' && explicitExactPce.effects.price !== 0,
+  'two different authoritative exact inputs keep a nonzero parameter cost effect')
 
 const noSidecarMeaningfulDifference = makePair()
 noSidecarMeaningfulDifference.reference.bom[0] = {
@@ -197,18 +197,23 @@ check.equal(getCanonicalComparisonStatus(outsideNoSidecarBoundaryFinding), 'CHAN
 
 const unchangedRatePair = makePair()
 unchangedRatePair.reference.rates[0] = setExact(
-  unchangedRatePair.reference.rates[0], 'burdenRate', '138.47999999999999'
+  { ...unchangedRatePair.reference.rates[0], burdenRate: 138.48 }, 'burdenRate', undefined
 )
 unchangedRatePair.current.rates[0] = {
   ...unchangedRatePair.current.rates[0],
   burdenRate: 138.48,
   exactDecimalInputs: { ...unchangedRatePair.current.rates[0].exactDecimalInputs, burdenRate: '138.47999999999999' }
 }
+check.equal(unchangedRatePair.reference.rates[0].exactDecimalInputs?.burdenRate, undefined,
+  'the reference Work Center fixture has no exact sidecar')
+check.equal(unchangedRatePair.current.rates[0].exactDecimalInputs?.burdenRate, '138.47999999999999',
+  'the current Work Center fixture retains its raw imported exact lexeme')
 
 const routingDetail = calculateSnapshotRoutingDetail(
   { reference: unchangedRatePair.reference.routing[0], current: unchangedRatePair.current.routing[0] },
   unchangedRatePair.reference.rates,
-  unchangedRatePair.current.rates
+  unchangedRatePair.current.rates,
+  { allowOneSidedNumberProjectionMatch: true }
 )
 check.equal(routingDetail.exactValues?.totalGap, '0', 'machine-equivalent Work Center rates produce exact zero Routing gap')
 check.equal(routingDetail.totalGap, 0, 'machine-equivalent Work Center rates produce numeric zero Routing gap')
@@ -220,7 +225,7 @@ const unchangedRoutingPce = calculateRoutingParameterCostEffects(
     yield: 0.9,
     laborRate: 105.29,
     burdenRate: 138.48,
-    exactInputs: { yield: '90', laborRate: '105.29', burdenRate: '138.47999999999999' }
+    exactInputs: { yield: '90', laborRate: '105.29' }
   },
   {
     manning: 1,
@@ -229,7 +234,8 @@ const unchangedRoutingPce = calculateRoutingParameterCostEffects(
     laborRate: 105.29,
     burdenRate: 138.48,
     exactInputs: { yield: '90', laborRate: '105.29', burdenRate: '138.47999999999999' }
-  }
+  },
+  { allowOneSidedNumberProjectionMatch: true }
 )
 check.equal(unchangedRoutingPce.status, 'available', 'fully unchanged Routing PCE remains available')
 if (unchangedRoutingPce.status === 'available') {
@@ -244,6 +250,10 @@ if (unchangedRoutingPce.status === 'available') {
 const unchangedRateComparison = compareSnapshots(unchangedRatePair.reference, unchangedRatePair.current)
 const cuttingRate = unchangedRateComparison.workCenterFindings.find(finding => finding.referenceId === 'Cutting')
 check.equal(getCanonicalComparisonStatus(cuttingRate), 'UNCHANGED', 'machine-equivalent Work Center row stays UNCHANGED')
+check.equal(cuttingRate?.changeFlags.changedRate, false,
+  'machine-equivalent imported Work Center rate does not set changedRate')
+check.equal(cuttingRate?.fieldDiffs.burdenRate, undefined,
+  'machine-equivalent imported Work Center rate creates no field delta')
 check.equal(cuttingRate?.costEffect, undefined, 'Work Center rate rows do not invent a direct cost effect')
 for (const finding of unchangedRateComparison.routingFindings.filter(finding =>
   unchangedRatePair.reference.routing.some(step => step.id === finding.referenceId && step.workCenterId === 'Cutting'))) {
