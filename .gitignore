@@ -9,6 +9,7 @@ dist/
 build/
 .vite/
 *.tsbuildinfo
+/release/
 
 # Local generated tooling and worktrees
 .worktrees/
