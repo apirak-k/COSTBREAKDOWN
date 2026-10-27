@@ -1,16 +1,16 @@
 # Requirements Index
 
-**Updated:** 2026-10-26
+**Updated:** 2026-10-27
 
 ## Final Logic Authority
 
 [`specs/FINAL_LOGIC_SPEC.md`](specs/FINAL_LOGIC_SPEC.md) is the latest authority for product logic and behavior, consolidating the user-finalized business logic decisions. It finalizes logic/behavior only; it does not replace the rest of the product contract. If an older specification, agreement, design document, implementation decision, or current code conflicts with Final Logic on product logic, follow Final Logic only for that conflicting behavior. Existing finalized or accepted UX/UI, layout, visual style, wording, interaction behavior, and other requirements remain valid when compatible. Absence from Final Logic does not automatically remove an older non-conflicting finalized requirement. Existing code is implementation evidence, not requirements authority.
 
-## Current Phase 2 and Roadmap Status — 2026-10-26
+## Current Phase 2 and Roadmap Status — 2026-10-27
 
 - **Phase 2:** **EXTERNALLY ACCEPTED / CLOSED** after the user-reported `PHASE 2 FINAL EXTERNAL ACCEPTANCE: PASS` for commit `4c1d139f87bf7db6c5f1ad9f6337738674159012`. Prior rounds and corrective follow-ups retain their recorded PASS/CLOSED results, including Master Data Confirmation / Undo-Redo Reconciliation. No Phase 2 implementation work is reopened.
 - **Excel Validation:** **PASS** for the actual current application's workbook generation, import, export, and round-trip behavior. Evidence and environment limits are tracked in [HANDOFF](../HANDOFF.md).
-- **Current next scope:** REAL-WORLD USAGE TEST. It was not started during Excel Validation.
+- **Current next scope:** Continue the REAL-WORLD USAGE TEST. User-reported real-world numeric cases exposed regressions in pair equivalence, calculation reconciliation, and adaptive Cost Breakdown display; this recovery is a corrective pass for those cases and does not mark the broader real-world test complete.
 - **Roadmap:** Phase 2 CLOSED → Excel Validation PASS → Real-world Usage Test → Portable Distribution. Merge status is separate from Phase 2 acceptance.
 
 ## Canonical Specifications Map

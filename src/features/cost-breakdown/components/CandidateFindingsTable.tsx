@@ -1,17 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { ChevronDown, ChevronRight, GripVertical } from 'lucide-react'
 import {
-  formatNumber,
-  formatPercent,
-  formatVariance,
   getCanonicalComparisonStatus,
   getComparisonFindingKey,
   getVarianceClass,
   isMasterDataNumericValueValid,
   resolveSnapshotRoutingRate,
-  exactDecimalInputValue,
   exactDecimalToNumber,
-  subtractExactDecimals
+  subtractExactDecimals,
+  resolveExactDecimalInputPair
 } from '../../../core'
 import type { MasterDataNumericField } from '../../../core'
 import type { ComparisonFinding, ComparisonStatus, CostBreakdownComparisonPair } from '../../../core'
@@ -20,6 +17,7 @@ import { StickyTableHeader, useSynchronizedTableHeader } from '../../../shared/u
 import { Tooltip } from '../../../shared/ui/Tooltip'
 import { RowSelectionButton } from '../../../shared/ui/RowSelectionButton'
 import { SelectedNumber } from '../../../shared/ui/selected-value'
+import { formatBusinessNumber } from '../../../shared/ui/numeric-display'
 import { NumericColumnHeader } from '../../../shared/ui/NumericColumnHeader'
 import { COMPARISON_ROLE_LABELS } from '../../../shared/ui/ComparisonRoleSelector'
 import type { BOMItemizedRow } from './BOMDetailedTable'
@@ -127,7 +125,8 @@ function candidatePercentRatio(gap: number | null, totalGap: number | null): num
 function formatParameterValue(field: MasterDataNumericField, value: number | null | undefined): string {
   const available = validParameter(field, value)
   if (available === null) return '—'
-  return field === 'loss' || field === 'yield' ? formatPercent(available, 2) : formatNumber(available, 2)
+  const percentage = field === 'loss' || field === 'yield'
+  return formatBusinessNumber(percentage ? available * 100 : available, { percent: percentage })
 }
 
 interface DisplayParameter {
@@ -158,19 +157,25 @@ function parameterValues(row: CandidateTableRow, status: ComparisonStatus | null
       rawValue = beforeValue
       if (rawValue !== null) visible = formatParameterValue(field, rawValue)
     } else if ((status === 'CHANGED' || status === 'UNCHANGED') && beforeValue !== null && afterValue !== null) {
-      const beforeDecimal = exactDecimalInputValue(beforeValue, beforeExact, percentage)
-      const afterDecimal = exactDecimalInputValue(afterValue, afterExact, percentage)
-      const exactDifference = beforeDecimal && afterDecimal
-        ? exactDecimalToNumber(subtractExactDecimals(afterDecimal, beforeDecimal))
+      const pairValues = resolveExactDecimalInputPair(beforeValue, beforeExact, afterValue, afterExact, percentage)
+      const exactDifference = pairValues.reference && pairValues.current
+        ? exactDecimalToNumber(subtractExactDecimals(pairValues.current, pairValues.reference))
         : null
-      const difference = exactDifference ?? afterValue - beforeValue
+      const difference = pairValues.equivalent ? 0 : exactDifference ?? afterValue - beforeValue
       if (Number.isFinite(difference)) {
         rawValue = difference
-        visible = percentage ? formatPercent(difference, 2) : formatVariance(difference, 2)
+        visible = formatBusinessNumber(percentage ? difference * 100 : difference, {
+          percent: percentage,
+          signPositive: status === 'CHANGED'
+        })
       }
     }
 
-    return { field, value: rawValue === null ? null : percentage ? rawValue * 100 : rawValue, display: visible, percentage }
+    const displayValue = rawValue === null ? null : percentage ? rawValue * 100 : rawValue
+    if (rawValue !== null && (status === 'ADDED' || status === 'REMOVED')) {
+      visible = formatBusinessNumber(displayValue, { percent: percentage })
+    }
+    return { field, value: displayValue, display: visible, percentage }
   }
 
   if (row.type === 'BOM') {
@@ -397,9 +402,9 @@ export const CandidateFindingsTable: React.FC<CandidateFindingsTableProps> = ({
             const detailId = 'candidate-detail-' + encodeURIComponent(row.key)
             const parameters = parameterValues(row, status, pair)
             const selectionIdPrefix = `cbd:${pair.fingerprint}:candidate:${type}:${encodeURIComponent(row.key)}`
-            const gapLabel = `${identityHeader} ${row.label} Gap ${row.gap === null ? 'unavailable' : formatVariance(row.gap, 2)} THB/pc`
+            const gapLabel = `${identityHeader} ${row.label} Gap ${row.gap === null ? 'unavailable' : formatBusinessNumber(row.gap, { signPositive: true })} THB/pc`
             const percentRatio = candidatePercentRatio(row.gap, totalGap)
-            const percentDisplay = percentRatio === null ? '—' : formatPercent(percentRatio, 2)
+            const percentDisplay = percentRatio === null ? '—' : formatBusinessNumber(percentRatio * 100, { percent: true, signPositive: true })
             const rowType = type
             return <React.Fragment key={row.key}>
               <tr
@@ -461,20 +466,20 @@ export const CandidateFindingsTable: React.FC<CandidateFindingsTableProps> = ({
                   selectionId={`${selectionIdPrefix}:parameter:${parameter.field}`}
                   aria-label={`${identityHeader} ${row.label} ${parameterHeaders[parameterIndex]} ${parameter.display}`}
                   className={parameter.field === 'loss' ? 'mx-auto !w-[58.5%] text-right' : 'text-right'}
-                >{parameter.display}</SelectedNumber></td>)}
+                /></td>)}
                 <td aria-label={gapLabel} className={`whitespace-nowrap px-1 py-2 text-right ${gapTextClass(row.gap)}`}><SelectedNumber numericColumn signPositive
                   value={row.gap}
                   selectionId={`${selectionIdPrefix}:gap`}
                   aria-label={gapLabel}
                   className={`text-right ${gapTextClass(row.gap)}`}
-                >{row.gap === null ? '—' : formatVariance(row.gap, 2)}</SelectedNumber></td>
+                /></td>
                 <td aria-label={`${identityHeader} ${row.label} percent Gap ${percentDisplay}`} className="whitespace-nowrap px-1 py-2 text-right text-slate-700"><SelectedNumber numericColumn signPositive
                   value={percentRatio === null ? null : percentRatio * 100}
                   percentage
                   selectionId={`${selectionIdPrefix}:percent-gap`}
                   aria-label={`${identityHeader} ${row.label} percent Gap ${percentDisplay}`}
                   className="text-right text-slate-700"
-                >{percentDisplay}</SelectedNumber></td>
+                /></td>
                 <td className="px-1 py-2 text-center">
                   <Tooltip label={selected && selectedVisibleCount > 1 ? `Drag selected ${isBOM ? 'BOM' : 'Routing'} findings to reorder` : 'Drag to reorder'}>
                     <button

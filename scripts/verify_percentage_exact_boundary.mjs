@@ -41,6 +41,12 @@ try {
   const stale = exactDecimalSidecarValue(0.7, '99', true)
   assert.equal(stale, null, 'a genuinely stale percentage sidecar is still rejected')
 
+  const numericResidue = 0.29000000000000004
+  const boundaryExact = exactDecimalSidecarValue(numericResidue, '29', true)
+  assert.ok(boundaryExact, '29 percentage points remain valid against the narrow machine-residue fraction projection')
+  assert.equal(exactDecimalToString(exactDecimalInputValue(numericResidue, '29', true)), '0.29',
+    'the authoritative 29% text resolves to the exact stored fraction without inheriting Number residue')
+
   const snapshot = {
     id: 'percentage-boundary',
     comparisonRole: 'current',
@@ -58,6 +64,13 @@ try {
   const normalized = normalizeMasterDataSnapshot(snapshot)
   assert.equal(normalized.bom[0].exactDecimalInputs?.loss, '10.1',
     'Master Data normalization must not discard a valid decimal percentage sidecar')
+
+  const normalizedBoundary = normalizeMasterDataSnapshot({
+    ...snapshot,
+    bom: [{ ...snapshot.bom[0], loss: numericResidue, exactDecimalInputs: { loss: '29' } }]
+  })
+  assert.equal(normalizedBoundary.bom[0].exactDecimalInputs?.loss, '29',
+    'Master Data normalization preserves the exact 29% sidecar at the stored-fraction boundary')
 
   const product = { productName: 'P', uom: 'PC', customer: '', effectiveDate: '' }
   const rate = id => ({

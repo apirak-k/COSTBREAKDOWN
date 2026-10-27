@@ -1,6 +1,6 @@
 import React from 'react'
-import { formatVariance } from '../../../core'
 import type { ComparisonFinding, CostComparison } from '../../../core'
+import { formatBusinessNumber } from '../../../shared/ui/numeric-display'
 import { isVisibleInComparisonView } from './comparison-view'
 import type { ComparisonViewMode } from './comparison-view'
 
@@ -13,15 +13,15 @@ interface VarianceTreeCardProps {
   onOpenDetail: (section: CostDetailSection) => void
 }
 
-const formatGap = (value: number | null): string => value === null ? '—' : formatVariance(value, 2)
+const formatGap = (value: number | null): string => value === null ? '—' : formatBusinessNumber(value, { signPositive: true })
 
 function gapClass(value: number | null): string {
-  if (value === null || Math.abs(value) < 0.00005) return 'text-slate-500'
+  if (value === null || value === 0) return 'text-slate-500'
   return value > 0 ? 'text-rose-700' : 'text-emerald-700'
 }
 
 function darkGapClass(value: number | null): string {
-  if (value === null || Math.abs(value) < 0.00005) return 'text-slate-300'
+  if (value === null || value === 0) return 'text-slate-300'
   return value > 0 ? 'text-rose-300' : 'text-emerald-300'
 }
 

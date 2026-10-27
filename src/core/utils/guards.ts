@@ -2,6 +2,8 @@
  * Poka-Yoke Guards and Safe Mathematical Operations.
  */
 
+import { resolveExactDecimalInputPair } from './exact-decimal'
+
 export function safeDivide(numerator: number, denominator: number): number | null {
   if (!Number.isFinite(numerator) || !Number.isFinite(denominator) || denominator === 0) return null
   const result = numerator / denominator
@@ -28,15 +30,11 @@ export function safeAdd(...values: number[]): number | null {
   return result
 }
 
-/**
- * Compare stored Number projections without rounding or tolerance.
- * Business-decimal equality belongs to the exact-decimal layer; this helper
- * must never collapse two distinct stored Numbers into one business value.
- */
+/** Compare no-sidecar Numbers using the shared narrow business-value rule. */
 export function areNumericValuesEquivalent(a: number | null | undefined, b: number | null | undefined): boolean {
   if (typeof a !== 'number' || typeof b !== 'number') return a === b
   if (!Number.isFinite(a) || !Number.isFinite(b)) return a === b
-  return a === b
+  return resolveExactDecimalInputPair(a, undefined, b, undefined).equivalent
 }
 
 export function parsePercentage(value: string | number): number | null {

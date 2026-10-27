@@ -1,7 +1,8 @@
 import React from 'react'
-import { formatNumber, formatPercent, formatVariance, getVarianceClass, safeAdd, safeDivide } from '../../../core'
+import { getVarianceClass, safeAdd, safeDivide } from '../../../core'
 import type { CostComparison } from '../../../core'
 import { SelectedNumber } from '../../../shared/ui/selected-value'
+import { formatBusinessNumber } from '../../../shared/ui/numeric-display'
 import { NumericColumnHeader } from '../../../shared/ui/NumericColumnHeader'
 import { COST_ELEMENT_COLORS } from './cost-element-colors'
 import {
@@ -42,8 +43,9 @@ type CostRow = {
   total?: boolean
 }
 
-const formatCost = (value: number | null): string => value === null ? '—' : formatNumber(value, 2)
-const formatGap = (value: number | null): string => value === null ? '—' : formatVariance(value, 2)
+const formatCost = (value: number | null): string => value === null ? '—' : formatBusinessNumber(value)
+const formatGap = (value: number | null): string => value === null ? '—' : formatBusinessNumber(value, { signPositive: true })
+const formatGapPercentage = (ratio: number | null): string => ratio === null ? '—' : formatBusinessNumber(ratio * 100, { percent: true })
 
 function renderGap(
   value: number | null,
@@ -69,7 +71,7 @@ function renderGap(
             aria-label={accessibleLabel}
             aria-description={selectedDescription}
             className={selectedValueClassName}
-          >{formatGap(value)}</SelectedNumber>}
+          />}
       {selectedActive
         ? selectedValue === null
           ? <span data-gap-slot="selected" tabIndex={0} aria-label={selectedAccessibleLabel} className="w-[65px] text-right text-[10px] font-normal text-slate-500 tabular-nums">{formatGap(selectedValue)}</span>
@@ -79,7 +81,7 @@ function renderGap(
               selectionId={`cbd:${pairFingerprint}:cost-element:${label.toLowerCase()}:selected-gap`}
               aria-label={selectedAccessibleLabel}
               className="justify-self-end text-right text-[10px] font-normal text-slate-500 tabular-nums"
-            >{formatGap(selectedValue)}</SelectedNumber>
+            />
         : <span data-gap-slot="selected" aria-hidden="true" className="w-[65px] text-right text-[10px] font-normal text-slate-500 tabular-nums invisible">0.00</span>}
     </div>
   )
@@ -157,20 +159,20 @@ export const SnapshotComparisonCard: React.FC<SnapshotComparisonCardProps> = ({
           <tbody data-cbd-summary-body="true" className={CBD_SUMMARY_BODY_GROUP_CLASS}>
             {rows.slice(0, 3).map(row => <tr key={row.label} className={`${CBD_SUMMARY_ROW_CLASS} ${CBD_SUMMARY_BODY_ROW_CLASS}`}>
               <th scope="row" style={row.total ? { color: COST_ELEMENT_COLORS.standardCost } : undefined} className={CBD_SUMMARY_BODY_LABEL_CLASS}>{row.label}</th>
-              <td className={`${CBD_SUMMARY_BODY_VALUE_CLASS} text-slate-600`}><SelectedNumber numericColumn value={row.reference} selectionId={`cbd:${pairFingerprint}:cost-element:${row.label.toLowerCase()}:before`} aria-label={`${row.label} Before ${formatCost(row.reference)}`} className="text-right">{formatCost(row.reference)}</SelectedNumber></td>
-              <td className={`${CBD_SUMMARY_BODY_VALUE_CLASS} text-slate-900`}><SelectedNumber numericColumn value={row.current} selectionId={`cbd:${pairFingerprint}:cost-element:${row.label.toLowerCase()}:after`} aria-label={`${row.label} After ${formatCost(row.current)}`} className="text-right">{formatCost(row.current)}</SelectedNumber></td>
+              <td className={`${CBD_SUMMARY_BODY_VALUE_CLASS} text-slate-600`}><SelectedNumber numericColumn value={row.reference} selectionId={`cbd:${pairFingerprint}:cost-element:${row.label.toLowerCase()}:before`} aria-label={`${row.label} Before ${formatCost(row.reference)}`} className="text-right" /></td>
+              <td className={`${CBD_SUMMARY_BODY_VALUE_CLASS} text-slate-900`}><SelectedNumber numericColumn value={row.current} selectionId={`cbd:${pairFingerprint}:cost-element:${row.label.toLowerCase()}:after`} aria-label={`${row.label} After ${formatCost(row.current)}`} className="text-right" /></td>
               <td className={CBD_SUMMARY_BODY_VALUE_CLASS}>{renderGap(row.gap, row.selectedGap, selectedActive, row.label, gapDirection, pairFingerprint)}</td>
-              <td className={`${CBD_SUMMARY_BODY_VALUE_CLASS} text-slate-600`}>{row.percentage === null ? '—' : <SelectedNumber numericColumn value={row.percentage * 100} percentage selectionId={`cbd:${pairFingerprint}:cost-element:${row.label.toLowerCase()}:percent-gap`} aria-label={`${row.label} percent Gap ${formatPercent(row.percentage, 2)}`} className="text-right">{formatPercent(row.percentage, 2)}</SelectedNumber>}</td>
+              <td className={`${CBD_SUMMARY_BODY_VALUE_CLASS} text-slate-600`}>{row.percentage === null ? '—' : <SelectedNumber numericColumn value={row.percentage * 100} percentage selectionId={`cbd:${pairFingerprint}:cost-element:${row.label.toLowerCase()}:percent-gap`} aria-label={`${row.label} percent Gap ${formatGapPercentage(row.percentage)}`} className="text-right" />}</td>
             </tr>)}
           </tbody>
           <tfoot data-cbd-summary-footer="true" className={CBD_SUMMARY_FOOTER_GROUP_CLASS}>
             {rows.slice(3).map(row => <tr key={row.label} className={`${CBD_SUMMARY_ROW_CLASS} ${CBD_SUMMARY_FOOTER_ROW_CLASS}`}>
               <th scope="row" style={{ color: COST_ELEMENT_COLORS.standardCost }} className={`${CBD_SUMMARY_FOOTER_LABEL_CLASS} text-slate-950`}>{row.label}</th>
-              <td className={`${CBD_SUMMARY_FOOTER_VALUE_CLASS} text-slate-700`}><SelectedNumber numericColumn value={row.reference} selectionId={`cbd:${pairFingerprint}:cost-element:${row.label.toLowerCase()}:before`} aria-label={`${row.label} Before ${formatCost(row.reference)}`} className="text-right">{formatCost(row.reference)}</SelectedNumber></td>
-              <td className={`${CBD_SUMMARY_FOOTER_VALUE_CLASS} text-slate-950`}><SelectedNumber numericColumn value={row.current} selectionId={`cbd:${pairFingerprint}:cost-element:${row.label.toLowerCase()}:after`} aria-label={`${row.label} After ${formatCost(row.current)}`} className="text-right">{formatCost(row.current)}</SelectedNumber></td>
+              <td className={`${CBD_SUMMARY_FOOTER_VALUE_CLASS} text-slate-700`}><SelectedNumber numericColumn value={row.reference} selectionId={`cbd:${pairFingerprint}:cost-element:${row.label.toLowerCase()}:before`} aria-label={`${row.label} Before ${formatCost(row.reference)}`} className="text-right" /></td>
+              <td className={`${CBD_SUMMARY_FOOTER_VALUE_CLASS} text-slate-950`}><SelectedNumber numericColumn value={row.current} selectionId={`cbd:${pairFingerprint}:cost-element:${row.label.toLowerCase()}:after`} aria-label={`${row.label} After ${formatCost(row.current)}`} className="text-right" /></td>
               <td className={CBD_SUMMARY_FOOTER_VALUE_CLASS}>{renderGap(row.gap, row.selectedGap, selectedActive, row.label, gapDirection, pairFingerprint)}</td>
               <td className={`${CBD_SUMMARY_FOOTER_VALUE_CLASS} whitespace-nowrap text-slate-700`}>
-                <SelectedNumber numericColumn value={row.percentage === null ? null : row.percentage * 100} percentage leadingAnnotation={<span data-cbd-total-annotation="true" className="font-sans text-[9px] font-semibold text-slate-500">Total</span>} selectionId={`cbd:${pairFingerprint}:cost-element:${row.label.toLowerCase()}:percent-gap`} aria-label={`${row.label} percent Gap ${row.percentage === null ? '—' : formatPercent(row.percentage, 2)}`} className="text-right">{row.percentage === null ? '—' : formatPercent(row.percentage, 2)}</SelectedNumber>
+                <SelectedNumber numericColumn value={row.percentage === null ? null : row.percentage * 100} percentage leadingAnnotation={<span data-cbd-total-annotation="true" className="font-sans text-[9px] font-semibold text-slate-500">Total</span>} selectionId={`cbd:${pairFingerprint}:cost-element:${row.label.toLowerCase()}:percent-gap`} aria-label={`${row.label} percent Gap ${formatGapPercentage(row.percentage)}`} className="text-right" />
               </td>
             </tr>)}
           </tfoot>

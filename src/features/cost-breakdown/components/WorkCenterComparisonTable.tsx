@@ -2,8 +2,9 @@ import React from 'react'
 import {
   ComparisonFinding,
   SnapshotWorkCenterRate,
-  formatNumber,
-  formatVariance,
+  exactDecimalToNumber,
+  resolveExactDecimalInputPair,
+  subtractExactDecimals,
   getComparisonStatusLabels
 } from '../../../core'
 import type { ComparisonStatus } from '../../../core'
@@ -12,6 +13,7 @@ import { ALL_COMPARISON_STATUSES, isVisibleInComparisonView } from './comparison
 import type { ComparisonViewMode } from './comparison-view'
 import { ComparisonFieldDetails } from './ComparisonFieldDetails'
 import { DataQualityPairBadge } from './DataQualityPairBadge'
+import { formatBusinessNumber } from '../../../shared/ui/numeric-display'
 
 interface WorkCenterComparisonTableProps {
   referenceRates: SnapshotWorkCenterRate[]
@@ -34,18 +36,28 @@ function comparisonClass(label: ReturnType<typeof getWorkCenterComparisonLabel>)
 }
 
 function formatRate(value: number | null | undefined): string {
-  return value === null || value === undefined ? '—' : formatNumber(value, 2)
+  return value === null || value === undefined ? '—' : formatBusinessNumber(value)
 }
 
-function formatRateGap(reference: number | null | undefined, current: number | null | undefined): string {
-  if (reference === null || reference === undefined || current === null || current === undefined) return '—'
-  return formatVariance(current - reference, 2)
+type RateField = 'laborRate' | 'burdenRate'
+
+function rateGap(reference: SnapshotWorkCenterRate | undefined, current: SnapshotWorkCenterRate | undefined, field: RateField): number | null {
+  if (!reference || !current) return null
+  const pair = resolveExactDecimalInputPair(
+    reference[field], reference.exactDecimalInputs?.[field],
+    current[field], current.exactDecimalInputs?.[field]
+  )
+  if (!pair.reference || !pair.current) return null
+  return exactDecimalToNumber(subtractExactDecimals(pair.current, pair.reference))
 }
 
-function gapClass(reference: number | null | undefined, current: number | null | undefined): string {
-  if (reference === null || reference === undefined || current === null || current === undefined) return 'text-slate-400'
-  if (Math.abs(current - reference) < 0.00005) return 'text-slate-400'
-  return current > reference ? 'text-rose-600' : 'text-emerald-700'
+function formatRateGap(value: number | null): string {
+  return value === null ? '—' : formatBusinessNumber(value, { signPositive: true })
+}
+
+function gapClass(value: number | null): string {
+  if (value === null || value === 0) return 'text-slate-400'
+  return value > 0 ? 'text-rose-600' : 'text-emerald-700'
 }
 
 export const WorkCenterComparisonTable: React.FC<WorkCenterComparisonTableProps> = ({
@@ -122,6 +134,8 @@ export const WorkCenterComparisonTable: React.FC<WorkCenterComparisonTableProps>
             const visibleLabel = label === 'UNCHANGED' ? null : label
             const workCenterCode = row.current ? row.current.workCenterCode || '—' : row.reference?.workCenterCode ?? 'Unknown'
             const description = row.current ? row.current.description || '—' : row.reference?.description ?? '—'
+            const laborGap = rateGap(row.reference, row.current, 'laborRate')
+            const burdenGap = rateGap(row.reference, row.current, 'burdenRate')
 
             return (
               <tr key={row.current?.id ?? `removed-${row.reference?.id ?? workCenterCode}`} className={`hover:bg-slate-50/70 transition-colors ${!contextOnly && label === 'REMOVED' ? 'bg-rose-50/60' : ''}`}>
@@ -147,13 +161,13 @@ export const WorkCenterComparisonTable: React.FC<WorkCenterComparisonTableProps>
                 {!contextOnly && <td className="p-2.5"><DataQualityPairBadge reference={row.reference} current={row.current} /></td>}
                 <td className="p-2.5 text-right text-slate-500 tabular-nums">{formatRate(row.reference?.laborRate)}</td>
                 <td className="p-2.5 text-right font-bold text-slate-900 tabular-nums">{formatRate(row.current?.laborRate)}</td>
-                {!contextOnly && <td className={`p-2.5 text-right font-bold tabular-nums ${gapClass(row.reference?.laborRate, row.current?.laborRate)}`}>
-                  {formatRateGap(row.reference?.laborRate, row.current?.laborRate)}
+                {!contextOnly && <td className={`p-2.5 text-right font-bold tabular-nums ${gapClass(laborGap)}`}>
+                  {formatRateGap(laborGap)}
                 </td>}
                 <td className="p-2.5 text-right text-slate-500 tabular-nums">{formatRate(row.reference?.burdenRate)}</td>
                 <td className="p-2.5 text-right font-bold text-slate-900 tabular-nums">{formatRate(row.current?.burdenRate)}</td>
-                {!contextOnly && <td className={`p-2.5 text-right font-bold tabular-nums ${gapClass(row.reference?.burdenRate, row.current?.burdenRate)}`}>
-                  {formatRateGap(row.reference?.burdenRate, row.current?.burdenRate)}
+                {!contextOnly && <td className={`p-2.5 text-right font-bold tabular-nums ${gapClass(burdenGap)}`}>
+                  {formatRateGap(burdenGap)}
                 </td>}
               </tr>
             )

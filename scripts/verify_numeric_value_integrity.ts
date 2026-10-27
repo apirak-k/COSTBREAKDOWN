@@ -73,8 +73,14 @@ const numberOnlyItem: SnapshotBOMItem = {
   exactDecimalInputs: undefined
 }
 const numberOnlyCost = calculateSnapshotBOMDetail({ current: numberOnlyItem })
-assert.equal(numberOnlyCost.exactValues?.currentCost, '11.61000000000000552000000000000016',
-  'Without an exact sidecar, the stored Number itself is authoritative and must not be cleaned in business calculations')
+assert.equal(numberOnlyCost.exactValues?.currentCost, '11.61',
+  'Without an exact sidecar, the finalized narrow residue rule supplies the business decimal before calculation')
+assert.equal(numberOnlyItem.price, Number('9.000000000000004'),
+  'business-value cleanup does not mutate the stored Number compatibility projection')
+assert.equal(numberOnlyItem.loss, Number('0.29000000000000004'),
+  'percentage cleanup does not mutate the stored fraction compatibility projection')
+assert.equal(numberOnlyItem.exactDecimalInputs, undefined,
+  'no-sidecar cleanup does not invent authoritative exact-input state')
 const intentionalExactItem = {
   ...numberOnlyItem,
   exactDecimalInputs: { consumption: '1', price: '9.000000000000004', loss: '29' }
@@ -155,10 +161,12 @@ async function verifyExcelRoundTrip() {
     'Excel export and import must retain exact product input text')
   assert.equal(imported.snapshot?.bom[0].exactDecimalInputs?.price, '12.34567890123456789',
     'Excel export and import must retain exact BOM input text')
-  assert.equal(imported.snapshot?.bom[1].price, Number('9.000000000000004'),
-    'Excel export/import preserves the stored Number when no separate exact source text exists')
-  assert.equal(imported.snapshot?.bom[1].exactDecimalInputs?.price, '9.000000000000004',
-    'Excel round-trip records the authoritative stored Number lexeme without cleaning it')
+  assert.equal(fullSnapshot.bom[1].price, Number('9.000000000000004'),
+    'Excel export does not mutate the source Number compatibility projection')
+  assert.equal(imported.snapshot?.bom[1].price, 9,
+    'Excel export cleans only no-sidecar machine residue before writing the numeric cell')
+  assert.equal(imported.snapshot?.bom[1].exactDecimalInputs?.price, undefined,
+    'Excel round-trip does not turn a cleaned no-sidecar Number into authoritative exact text')
   assert.equal(imported.snapshot?.bom[2].exactDecimalInputs?.price, '9.000000000000004',
     'Excel export and import retain the complete digits when exact source text authorizes them')
   const importedLossExact = exactDecimalInputValue(

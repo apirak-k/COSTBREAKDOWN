@@ -1,7 +1,8 @@
 import React from 'react'
-import { formatNumber, formatPercent, formatVariance, getVarianceClass, safeAdd, safeDivide } from '../../../core'
+import { getVarianceClass, safeAdd, safeDivide } from '../../../core'
 import type { CostComparison, WorkCenterProcessingFinding } from '../../../core'
 import { SelectedNumber } from '../../../shared/ui/selected-value'
+import { formatBusinessNumber } from '../../../shared/ui/numeric-display'
 import { NumericColumnHeader } from '../../../shared/ui/NumericColumnHeader'
 import {
   CBD_SUMMARY_PANEL_CLASS,
@@ -37,11 +38,11 @@ interface WorkCenterRow {
 }
 
 function formatNullable(value: number | null): string {
-  return value === null ? '—' : formatNumber(value, 2)
+  return value === null ? '—' : formatBusinessNumber(value)
 }
 
 function formatGap(value: number | null): string {
-  return value === null ? '—' : formatVariance(value, 2)
+  return value === null ? '—' : formatBusinessNumber(value, { signPositive: true })
 }
 
 function renderGap(value: number | null, label: string, gapDirection: string, pairFingerprint: string, sourceId: string): React.ReactNode {
@@ -56,7 +57,7 @@ function renderGap(value: number | null, label: string, gapDirection: string, pa
     selectionId={`cbd:${pairFingerprint}:work-center:${sourceId}:gap`}
     aria-label={accessibleLabel}
     className={`text-right ${className}`}
-  >{formatGap(value)}</SelectedNumber>
+  />
 }
 
 function renderValue(value: number | null, label: string, selectionId: string, className: string): React.ReactNode {
@@ -64,16 +65,16 @@ function renderValue(value: number | null, label: string, selectionId: string, c
   if (value === null || !Number.isFinite(value)) {
     return <span tabIndex={0} aria-label={ariaLabel} className={`block w-full text-right ${className}`}>{formatNullable(value)}</span>
   }
-  return <SelectedNumber numericColumn value={value} selectionId={selectionId} aria-label={ariaLabel} className={`text-right ${className}`}>{formatNullable(value)}</SelectedNumber>
+  return <SelectedNumber numericColumn value={value} selectionId={selectionId} aria-label={ariaLabel} className={`text-right ${className}`} />
 }
 
 function renderPercentage(value: number | null, label: string, selectionId: string, className: string): React.ReactNode {
-  const display = value === null || !Number.isFinite(value) ? '—' : formatPercent(value, 2)
+  const display = value === null || !Number.isFinite(value) ? '—' : formatBusinessNumber(value * 100, { percent: true })
   const ariaLabel = `${label} ${display}`
   if (value === null || !Number.isFinite(value)) {
     return <span aria-label={ariaLabel} className={`block w-full text-right ${className}`}>{display}</span>
   }
-  return <SelectedNumber numericColumn value={value * 100} percentage selectionId={selectionId} aria-label={ariaLabel} className={`text-right ${className}`}>{display}</SelectedNumber>
+  return <SelectedNumber numericColumn value={value * 100} percentage selectionId={selectionId} aria-label={ariaLabel} className={`text-right ${className}`} />
 }
 
 function conversionTotal(labor: number | null, burden: number | null): number | null {
@@ -153,7 +154,7 @@ export const WorkCenterProcessingTable: React.FC<WorkCenterProcessingTableProps>
             <div role="cell" className={`${CBD_SUMMARY_FOOTER_VALUE_CLASS} text-slate-950`}>{renderValue(totalCurrent, 'Work Center Total After', `cbd:${pairFingerprint}:work-center:total:after`, 'text-slate-950')}</div>
             <div role="cell" className={CBD_SUMMARY_FOOTER_VALUE_CLASS}>{renderGap(totalGap, 'Total', gapDirection, pairFingerprint, 'total')}</div>
             <div role="cell" className={`${CBD_SUMMARY_FOOTER_VALUE_CLASS} whitespace-nowrap text-slate-700`}>
-              <SelectedNumber numericColumn value={totalPercentage === null ? null : totalPercentage * 100} percentage leadingAnnotation={<span data-cbd-total-annotation="true" className="font-sans text-[9px] font-semibold text-slate-500">Total</span>} selectionId={`cbd:${pairFingerprint}:work-center:total:percent-gap`} aria-label={`Work Center Total percent Gap ${totalPercentage === null ? '—' : formatPercent(totalPercentage, 2)}`} className="text-right text-slate-700">{totalPercentage === null ? '—' : formatPercent(totalPercentage, 2)}</SelectedNumber>
+              <SelectedNumber numericColumn value={totalPercentage === null ? null : totalPercentage * 100} percentage leadingAnnotation={<span data-cbd-total-annotation="true" className="font-sans text-[9px] font-semibold text-slate-500">Total</span>} selectionId={`cbd:${pairFingerprint}:work-center:total:percent-gap`} aria-label={`Work Center Total percent Gap ${totalPercentage === null ? '—' : formatBusinessNumber(totalPercentage * 100, { percent: true })}`} className="text-right text-slate-700" />
             </div>
           </div>
         </div>

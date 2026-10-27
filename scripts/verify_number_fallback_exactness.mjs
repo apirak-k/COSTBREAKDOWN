@@ -10,19 +10,44 @@ const vite = await createServer({
 
 try {
   const decimal = await vite.ssrLoadModule('/src/core/utils/exact-decimal.ts')
-  const { compareExactDecimals, exactDecimalInputValue, exactDecimalToString } = decimal
+  const {
+    compareExactDecimals,
+    exactDecimalInputValue,
+    exactDecimalToString,
+    resolveExactDecimalInputPair
+  } = decimal
 
   const baseline = exactDecimalInputValue(1)
-  const nextRepresentable = exactDecimalInputValue(1 + Number.EPSILON)
-  assert.ok(baseline && nextRepresentable)
+  const oneUlpTail = exactDecimalInputValue(1 + Number.EPSILON)
+  assert.ok(baseline && oneUlpTail)
   assert.equal(exactDecimalToString(baseline), '1')
-  assert.equal(exactDecimalToString(nextRepresentable), String(1 + Number.EPSILON))
-  assert.notEqual(compareExactDecimals(baseline, nextRepresentable), 0,
-    'no-sidecar stored Numbers that differ by one representable step remain different business values')
+  assert.equal(exactDecimalToString(oneUlpTail), '1',
+    'no-sidecar Number fallback removes only the accepted two-ULP representation tail')
+  assert.equal(compareExactDecimals(baseline, oneUlpTail), 0,
+    'a materially shorter decimal within two ULP remains the same business value')
+
+  const meaningfulDifference = exactDecimalInputValue(1 + Number.EPSILON * 8)
+  assert.ok(meaningfulDifference)
+  assert.equal(exactDecimalToString(meaningfulDifference), String(1 + Number.EPSILON * 8),
+    'a difference outside the narrow residue rule remains business precision')
+
+  const threeUlpResidue = 0.09000000000000004
+  assert.equal(exactDecimalToString(exactDecimalInputValue(threeUlpResidue)), String(threeUlpResidue),
+    'single-value no-sidecar cleanup remains capped at the finalized two-ULP rule')
+  const equivalentPair = resolveExactDecimalInputPair(0.09, undefined, threeUlpResidue, undefined)
+  assert.equal(equivalentPair.equivalent, true,
+    'the finalized 0.09 pair comparison resolves its explicit three-ULP representation case')
+  assert.equal(exactDecimalToString(equivalentPair.current), '0.09',
+    'the equivalent pair shares a canonical calculation operand without changing stored Numbers')
+
+  const fourUlpDifference = 0.09000000000000005
+  const outsidePairBoundary = resolveExactDecimalInputPair(0.09, undefined, fourUlpDifference, undefined)
+  assert.equal(outsidePairBoundary.equivalent, false,
+    'a no-sidecar pair beyond the explicit three-ULP residue boundary remains different')
 
   const noisyNine = 9.000000000000004
-  assert.equal(exactDecimalToString(exactDecimalInputValue(noisyNine)), String(noisyNine),
-    'business calculation fallback keeps the stored Number instead of presentation cleanup')
+  assert.equal(exactDecimalToString(exactDecimalInputValue(noisyNine)), '9',
+    'business calculation fallback uses the finalized no-sidecar machine-residue cleanup')
 
   const preciseSidecar = exactDecimalInputValue(1, '1.00000000000000001')
   assert.ok(preciseSidecar)

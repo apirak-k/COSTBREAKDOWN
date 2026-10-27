@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url'
 const require = createRequire(import.meta.url)
 const jiti = require('jiti')(fileURLToPath(import.meta.url))
 let assertions = 0
-const check = Object.fromEntries(['equal', 'notEqual', 'ok'].map(method => [method, (...args) => {
+const check = Object.fromEntries(['deepEqual', 'equal', 'notEqual', 'ok'].map(method => [method, (...args) => {
   assertions += 1
   return assert[method](...args)
 }]))
@@ -96,6 +96,73 @@ check.equal(bomPair.current.bom[0].exactDecimalInputs?.consumption, '2.542000000
   'BOM calculation does not discard the imported consumption sidecar')
 check.equal(bomPair.current.bom[0].exactDecimalInputs?.price, '14.835710000000001',
   'BOM calculation does not discard the imported price sidecar')
+
+const noSidecarResiduePair = makePair()
+noSidecarResiduePair.reference.bom[0] = {
+  ...noSidecarResiduePair.reference.bom[0], consumption: 1, price: 0.09, loss: 0,
+  exactDecimalInputs: undefined
+}
+noSidecarResiduePair.current.bom[0] = {
+  ...noSidecarResiduePair.current.bom[0], consumption: 1, price: 0.09000000000000004, loss: 0,
+  exactDecimalInputs: undefined
+}
+const noSidecarResidueComparison = compareSnapshots(noSidecarResiduePair.reference, noSidecarResiduePair.current)
+const noSidecarResidueFinding = noSidecarResidueComparison.bomFindings.find(finding =>
+  finding.referenceId === noSidecarResiduePair.reference.bom[0].id)
+check.equal(getCanonicalComparisonStatus(noSidecarResidueFinding), 'UNCHANGED',
+  'the finalized no-sidecar 0.09 residue example remains UNCHANGED')
+check.equal(noSidecarResidueFinding?.fieldDiffs.price, undefined,
+  'no-sidecar representation residue does not create a field difference')
+check.equal(noSidecarResidueFinding?.costEffect?.gap.material, 0,
+  'equivalent no-sidecar operands enter BOM cost calculation as the same exact decimal')
+check.equal(noSidecarResidueComparison.totalGap, 0,
+  'equivalent no-sidecar BOM residue contributes exact zero aggregate Gap')
+check.equal(noSidecarResiduePair.current.bom[0].price, 0.09000000000000004,
+  'pair reconciliation does not change the source snapshot Number')
+check.equal(noSidecarResiduePair.current.bom[0].exactDecimalInputs, undefined,
+  'pair reconciliation does not create a source exact-decimal sidecar')
+const noSidecarResiduePce = calculateBOMParameterCostEffects(
+  { usage: 1, price: 0.09, loss: 0 },
+  { usage: 1, price: 0.09000000000000004, loss: 0 }
+)
+check.deepEqual(noSidecarResiduePce, { status: 'available', effects: { usage: 0, price: 0, loss: 0 } },
+  'equivalent no-sidecar residue produces exact-zero BOM PCE')
+
+const noSidecarMeaningfulDifference = makePair()
+noSidecarMeaningfulDifference.reference.bom[0] = {
+  ...noSidecarMeaningfulDifference.reference.bom[0], consumption: 1, price: 0.09, loss: 0,
+  exactDecimalInputs: undefined
+}
+noSidecarMeaningfulDifference.current.bom[0] = {
+  ...noSidecarMeaningfulDifference.current.bom[0], consumption: 1, price: 0.091, loss: 0,
+  exactDecimalInputs: undefined
+}
+const noSidecarMeaningfulComparison = compareSnapshots(
+  noSidecarMeaningfulDifference.reference,
+  noSidecarMeaningfulDifference.current
+)
+const noSidecarMeaningfulFinding = noSidecarMeaningfulComparison.bomFindings.find(finding =>
+  finding.referenceId === noSidecarMeaningfulDifference.reference.bom[0].id)
+check.equal(getCanonicalComparisonStatus(noSidecarMeaningfulFinding), 'CHANGED',
+  'a meaningful no-sidecar decimal difference outside the residue rule remains CHANGED')
+
+const outsideNoSidecarBoundary = makePair()
+outsideNoSidecarBoundary.reference.bom[0] = {
+  ...outsideNoSidecarBoundary.reference.bom[0], consumption: 1, price: 0.09, loss: 0,
+  exactDecimalInputs: undefined
+}
+outsideNoSidecarBoundary.current.bom[0] = {
+  ...outsideNoSidecarBoundary.current.bom[0], consumption: 1, price: 0.09000000000000005, loss: 0,
+  exactDecimalInputs: undefined
+}
+const outsideNoSidecarBoundaryComparison = compareSnapshots(
+  outsideNoSidecarBoundary.reference,
+  outsideNoSidecarBoundary.current
+)
+const outsideNoSidecarBoundaryFinding = outsideNoSidecarBoundaryComparison.bomFindings.find(finding =>
+  finding.referenceId === outsideNoSidecarBoundary.reference.bom[0].id)
+check.equal(getCanonicalComparisonStatus(outsideNoSidecarBoundaryFinding), 'CHANGED',
+  'the four-ULP no-sidecar pair remains CHANGED beyond the explicit residue boundary')
 
 const unchangedRatePair = makePair()
 unchangedRatePair.reference.rates[0] = setExact(unchangedRatePair.reference.rates[0], 'burdenRate', undefined)

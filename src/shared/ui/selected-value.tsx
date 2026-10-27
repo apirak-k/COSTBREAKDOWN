@@ -339,7 +339,7 @@ export interface SelectedNumberProps extends Omit<ButtonHTMLAttributes<HTMLButto
 
 export function SelectedNumber({ value, integer, percentage, selectionId, directEditPending, children, className, style, numericColumn = false, numericColumnSigned = true, compactPercentSuffix = false, darkSurface = false, signPositive, leadingAnnotation, sameLineAnnotation, stopKeyboardPropagation = true, onKeyDown, onKeyUp, ...props }: SelectedNumberProps) {
   const { isPinned, preview, clearPreview, pin } = useSelectedValueSource({ value, directEditPending, editable: false, domain: { integer }, percentage }, selectionId)
-  const content = children ?? <BusinessNumber value={value} integer={integer} percent={percentage} leadingAnnotation={leadingAnnotation} />
+  const content = children ?? <BusinessNumber value={value} integer={integer} percent={percentage} signPositive={signPositive} leadingAnnotation={leadingAnnotation} />
   const suppliedDisplay = typeof children === 'string' || typeof children === 'number' ? String(children) : undefined
   const signedDisplay = suppliedDisplay !== undefined && signPositive && value !== null && value !== undefined && value > 0 && !/^[+-]/.test(suppliedDisplay)
     ? `+${suppliedDisplay}`

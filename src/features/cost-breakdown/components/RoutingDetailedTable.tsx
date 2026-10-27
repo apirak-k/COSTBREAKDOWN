@@ -1,9 +1,6 @@
 import {
   calculateRoutingParameterCostEffects,
   calculateSnapshotRoutingDetail,
-  formatNumber,
-  formatPercent,
-  formatVariance,
   getCanonicalComparisonStatus,
   getComparisonStatusLabels,
   getComparisonFindingKey,
@@ -12,6 +9,7 @@ import {
 } from '../../../core'
 import type { ComparisonFinding, ComparisonStatus, SnapshotRoutingStep, SnapshotWorkCenterRate } from '../../../core'
 import { SelectedNumber } from '../../../shared/ui/selected-value'
+import { formatBusinessNumber } from '../../../shared/ui/numeric-display'
 
 export interface RoutingItemizedRow {
   key: string
@@ -175,41 +173,31 @@ export function RoutingRecordDetails({
       field: 'manning' as const,
       reference: reference?.manning,
       current: current?.manning,
-      effect: conversionEffects?.manning,
-      format: (value: number) => formatNumber(value, 2),
-      effectFormat: (value: number) => formatVariance(value, 2)
+      effect: conversionEffects?.manning
     },
     {
       field: 'capacity' as const,
       reference: reference?.capacity,
       current: current?.capacity,
-      effect: conversionEffects?.capacity,
-      format: (value: number) => formatNumber(value, 2),
-      effectFormat: (value: number) => formatVariance(value, 2)
+      effect: conversionEffects?.capacity
     },
     {
       field: 'yield' as const,
       reference: reference?.yield,
       current: current?.yield,
-      effect: conversionEffects?.yield,
-      format: (value: number) => formatPercent(value, 2),
-      effectFormat: (value: number) => formatVariance(value, 2)
+      effect: conversionEffects?.yield
     },
     {
       field: 'laborRate' as const,
       reference: referenceRate?.laborRate,
       current: currentRate?.laborRate,
-      effect: conversionEffects?.laborRate,
-      format: (value: number) => formatNumber(value, 2),
-      effectFormat: (value: number) => formatVariance(value, 2)
+      effect: conversionEffects?.laborRate
     },
     {
       field: 'burdenRate' as const,
       reference: referenceRate?.burdenRate,
       current: currentRate?.burdenRate,
-      effect: conversionEffects?.burdenRate,
-      format: (value: number) => formatNumber(value, 2),
-      effectFormat: (value: number) => formatVariance(value, 2)
+      effect: conversionEffects?.burdenRate
     }
   ]
 
@@ -218,18 +206,18 @@ export function RoutingRecordDetails({
     label: string,
     side: 'before' | 'after' | 'effect',
     field: string,
-    format: (value: number) => string,
     percentage = false
   ) => {
     if (value === null || value === undefined || !Number.isFinite(value)) return '—'
-    const visible = format(value)
+    const displayValue = percentage ? value * 100 : value
+    const visible = formatBusinessNumber(displayValue, { percent: percentage, signPositive: side === 'effect' })
     return <SelectedNumber numericColumn signPositive={side === 'effect'}
-      value={percentage ? value * 100 : value}
+      value={displayValue}
       percentage={percentage}
       selectionId={`${selectionIdPrefix}:${side}:${field}`}
       aria-label={`${label} ${field} ${visible}`}
       className="text-right"
-    >{visible}</SelectedNumber>
+    />
   }
 
   const renderDetailRow = (label: string, side: 'before' | 'after' | 'effect', id?: string) => {
@@ -253,18 +241,17 @@ export function RoutingRecordDetails({
     <td aria-hidden="true" className={`px-2 py-1.5 ${separatorClass}`} />
     {parameterValues.map(item => <td key={item.field} className={`${separatorClass} whitespace-nowrap px-1 py-1.5 text-right`}>
       {effectRow
-        ? <span className={item.field === 'yield' ? 'grid grid-cols-[minmax(0,1fr)_0.6rem] gap-1' : 'block'}>{renderNumericValue(item.effect, label, side, item.field, item.effectFormat)}{item.field === 'yield' && <span aria-hidden="true" />}</span>
+        ? <span className={item.field === 'yield' ? 'grid grid-cols-[minmax(0,1fr)_0.6rem] gap-1' : 'block'}>{renderNumericValue(item.effect, label, side, item.field)}{item.field === 'yield' && <span aria-hidden="true" />}</span>
         : renderNumericValue(
             validFactorValue(item.field, side === 'before' ? item.reference : item.current),
             label,
             side,
             item.field,
-            item.format,
             item.field === 'yield'
           )}
     </td>)}
     <td className={`${separatorClass} whitespace-nowrap px-1 py-1.5 text-right ${effectRow ? 'font-mono tabular-nums' : ''}`}>
-      {effectRow ? renderNumericValue(row.conversionGap, label, side, 'gap', value => formatVariance(value, 2)) : ''}
+      {effectRow ? renderNumericValue(row.conversionGap, label, side, 'gap') : ''}
     </td>
     <td aria-hidden="true" className={`px-2 py-1.5 ${separatorClass}`} />
     <td aria-hidden="true" className={`px-1 py-1.5 ${separatorClass}`} />

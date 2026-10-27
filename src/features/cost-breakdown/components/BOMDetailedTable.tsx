@@ -1,9 +1,6 @@
 import {
   calculateBOMParameterCostEffects,
   calculateSnapshotBOMDetail,
-  formatNumber,
-  formatPercent,
-  formatVariance,
   getCanonicalComparisonStatus,
   getComparisonStatusLabels,
   getComparisonFindingKey,
@@ -11,6 +8,7 @@ import {
 } from '../../../core'
 import type { ComparisonFinding, ComparisonStatus, SnapshotBOMItem } from '../../../core'
 import { SelectedNumber } from '../../../shared/ui/selected-value'
+import { formatBusinessNumber } from '../../../shared/ui/numeric-display'
 
 export interface BOMItemizedRow {
   key: string
@@ -134,22 +132,19 @@ export function BOMRecordDetails({
       field: 'consumption' as const,
       reference: reference?.consumption,
       current: current?.consumption,
-      effect: effects?.usage,
-      format: (value: number) => formatNumber(value, 2)
+      effect: effects?.usage
     },
     {
       field: 'price' as const,
       reference: reference?.price,
       current: current?.price,
-      effect: effects?.price,
-      format: (value: number) => formatNumber(value, 2)
+      effect: effects?.price
     },
     {
       field: 'loss' as const,
       reference: reference?.loss,
       current: current?.loss,
-      effect: effects?.loss,
-      format: (value: number) => formatPercent(value, 2)
+      effect: effects?.loss
     }
   ]
 
@@ -158,18 +153,18 @@ export function BOMRecordDetails({
     label: string,
     side: 'before' | 'after' | 'effect',
     field: string,
-    format: (value: number) => string,
     percentage = false
   ) => {
     if (value === null || value === undefined || !Number.isFinite(value)) return '—'
-    const visible = format(value)
+    const displayValue = percentage ? value * 100 : value
+    const visible = formatBusinessNumber(displayValue, { percent: percentage, signPositive: side === 'effect' })
     return <SelectedNumber numericColumn signPositive={side === 'effect'}
-      value={percentage ? value * 100 : value}
+      value={displayValue}
       percentage={percentage}
       selectionId={`${selectionIdPrefix}:${side}:${field}`}
       aria-label={`${label} ${field} ${visible}`}
       className={percentage && field === 'loss' ? 'mx-auto !w-[58.5%] text-right' : 'text-right'}
-    >{visible}</SelectedNumber>
+    />
   }
 
   const renderDetailRow = (label: string, side: 'before' | 'after' | 'effect', id?: string) => {
@@ -193,18 +188,17 @@ export function BOMRecordDetails({
     <td aria-hidden="true" className={`px-2 py-1.5 ${separatorClass}`} />
     {parameterValues.map(item => <td key={item.field} className={`${separatorClass} whitespace-nowrap px-1 py-1.5 text-right`}>
       {effectRow
-        ? <span className={item.field === 'loss' ? 'grid grid-cols-[minmax(0,1fr)_0.6rem] gap-1' : 'block'}>{renderNumericValue(item.effect, label, side, item.field, value => formatVariance(value, 2))}{item.field === 'loss' && <span aria-hidden="true" />}</span>
+        ? <span className={item.field === 'loss' ? 'grid grid-cols-[minmax(0,1fr)_0.6rem] gap-1' : 'block'}>{renderNumericValue(item.effect, label, side, item.field)}{item.field === 'loss' && <span aria-hidden="true" />}</span>
         : renderNumericValue(
             validFactorValue(item.field, side === 'before' ? item.reference : item.current),
             label,
             side,
             item.field,
-            item.format,
             item.field === 'loss'
           )}
     </td>)}
     <td className={`${separatorClass} whitespace-nowrap px-1 py-1.5 text-right ${effectRow ? 'font-mono tabular-nums' : ''}`}>
-      {effectRow ? renderNumericValue(row.gap, label, side, 'gap', value => formatVariance(value, 2)) : ''}
+      {effectRow ? renderNumericValue(row.gap, label, side, 'gap') : ''}
     </td>
     <td aria-hidden="true" className={`px-2 py-1.5 ${separatorClass}`} />
     <td aria-hidden="true" className={`px-1 py-1.5 ${separatorClass}`} />

@@ -11,6 +11,7 @@ import { ComparisonStatusOptions } from './components/ComparisonStatusOptions'
 import { COST_ELEMENT_COLORS } from './components/cost-element-colors'
 import { Tooltip } from '../../shared/ui/Tooltip'
 import { SelectedNumber } from '../../shared/ui/selected-value'
+import { formatBusinessNumber } from '../../shared/ui/numeric-display'
 import { COMPARISON_ROLE_LABELS, ComparisonRoleSelector } from '../../shared/ui/ComparisonRoleSelector'
 import {
   ALL_COMPARISON_STATUSES,
@@ -20,7 +21,7 @@ import {
   isVisibleInComparisonView
 } from './components/comparison-view'
 import type { ComparisonSortMode, ComparisonViewMode } from './components/comparison-view'
-import { formatVariance, getVarianceClass } from '../../core'
+import { getVarianceClass } from '../../core'
 import type { CandidateManualOrders, CandidateTableType } from './candidate-reorder-history'
 
 interface CostBreakdownPageProps {
@@ -102,7 +103,7 @@ export function GapContributionChart({ segments, fullTotal, selectedTotal, selec
       return result
     })
     : []
-  const valueLabel = (value: number | null) => isAvailableGap(value) ? formatVariance(value, 2) : '—'
+  const valueLabel = (value: number | null) => isAvailableGap(value) ? formatBusinessNumber(value, { signPositive: true }) : '—'
   const selectedText = (value: number | null) => `Selected ${valueLabel(value)}`
   const accessibleLabel = [
     `Full Standard Cost Gap ${valueLabel(fullTotal)}`,
@@ -282,7 +283,7 @@ export const CostBreakdownPage: React.FC<CostBreakdownPageProps> = ({ manualOrde
           </div>
 
           <div
-            aria-label={`Standard Cost Gap ${costBreakdownFullComparison.totalGap === null ? 'unavailable' : formatVariance(costBreakdownFullComparison.totalGap, 2)} THB/pc; Gap = ${gapDirection}`}
+            aria-label={`Standard Cost Gap ${costBreakdownFullComparison.totalGap === null ? 'unavailable' : formatBusinessNumber(costBreakdownFullComparison.totalGap, { signPositive: true })} THB/pc; Gap = ${gapDirection}`}
             title={`Full snapshot · THB/pc · Gap = ${gapDirection}`}
             className="flex shrink-0 items-baseline gap-1.5 whitespace-nowrap border-l border-slate-300 pl-2 text-xs"
           >
@@ -290,10 +291,11 @@ export const CostBreakdownPage: React.FC<CostBreakdownPageProps> = ({ manualOrde
             <span className={costBreakdownFullComparison.totalGap === null ? 'text-slate-400' : getVarianceClass(costBreakdownFullComparison.totalGap)}>
               <SelectedNumber
                 value={costBreakdownFullComparison.totalGap}
+                signPositive
                 selectionId={`cbd:${comparisonPair.fingerprint}:subheader:standard-cost-gap`}
-                aria-label={`Standard Cost Gap ${costBreakdownFullComparison.totalGap === null ? 'unavailable' : formatVariance(costBreakdownFullComparison.totalGap, 2)} THB/pc; Gap = ${gapDirection}`}
+                aria-label={`Standard Cost Gap ${costBreakdownFullComparison.totalGap === null ? 'unavailable' : formatBusinessNumber(costBreakdownFullComparison.totalGap, { signPositive: true })} THB/pc; Gap = ${gapDirection}`}
                 className="font-mono tabular-nums"
-              >{costBreakdownFullComparison.totalGap === null ? '—' : formatVariance(costBreakdownFullComparison.totalGap, 2)}</SelectedNumber>
+              />
             </span>
           </div>
 

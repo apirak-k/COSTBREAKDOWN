@@ -1,4 +1,4 @@
-import assert from 'node:assert/strict'
+import nodeAssert from 'node:assert/strict'
 import { spawn, execFileSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { mkdtemp, rm } from 'node:fs/promises'
@@ -32,6 +32,17 @@ async function unusedPort() {
 }
 
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms))
+let assertionCount = 0
+const assert = new Proxy(nodeAssert, {
+  get(target, property) {
+    const value = Reflect.get(target, property, target)
+    if (typeof value !== 'function') return value
+    return (...args) => {
+      assertionCount += 1
+      return value.apply(target, args)
+    }
+  }
+})
 const repository = process.cwd()
 const fixtureUrlPath = '/scripts/fixtures/cbd-numeric-integrity-browser.html'
 const vitePort = await unusedPort()
@@ -120,7 +131,7 @@ try {
   await send('Page.enable')
   await send('Runtime.enable')
   await send('Page.navigate', { url: baseUrl })
-  await waitFor(async () => evaluate(`document.querySelectorAll('tbody tr[data-candidate-reorder-row]').length >= 6`), 'rendered comparison rows')
+  await waitFor(async () => evaluate(`document.querySelectorAll('tbody tr[data-candidate-reorder-row]').length >= 7`), 'rendered comparison rows')
 
   const rows = await evaluate(`(()=>[...document.querySelectorAll('tbody tr[data-candidate-reorder-row]')].map(row=>({
     label:row.querySelector('th[scope="row"]')?.innerText.trim()??'',
@@ -155,20 +166,63 @@ try {
 
   const tiny = find('Annealing tiny rate')
   assert.equal(tiny.status, 'CHANGED', 'exact rate change remains CHANGED when Number projections are equal')
-  assert.equal(tiny.numericText[4], '+0.00', 'exact positive rate delta retains its sign at display precision')
-  assert.ok(tiny.cells[7].label?.includes('Gap +0.00'), 'tiny exact positive cost Gap uses ordinary zero presentation')
+  assert.equal(tiny.numericText[4], '+1.00E-15', 'genuine tiny exact rate delta remains visible in adaptive notation')
+  assert.match(tiny.cells[7].label ?? '', /Gap \+[0-9.]+E[+-]?\d+/i, 'tiny exact positive cost Gap remains signed and nonzero in its accessible label')
   assert.match(tiny.cells[7].className, /text-rose-600/, 'tiny real positive Gap keeps semantic increase color')
-  assert.ok(tiny.numericText.every(value => !/[0-9]E[+-]?\d+/i.test(value)), 'Candidate numeric display contains no scientific residue')
+  assert.ok(tiny.numericText.some(value => /[0-9.]+E[+-]?\d+/i.test(value)), 'Candidate numeric display adaptively uses scientific notation for tiny business values')
 
   const moved = find('Annealing moved')
   assert.equal(moved.status, 'CHANGED', 'Work Center move remains a real business change')
   assert.equal(moved.cells[7].text, '0.00', 'equal effective rates across a Work Center move retain zero Gap')
   assert.match(moved.cells[7].className, /text-slate-400/, 'zero Gap stays neutral despite CHANGED status')
 
-  const unchangedBOM = find('BOM unchanged')
-  assert.equal(unchangedBOM.status, 'UNCHANGED', 'equivalent BOM inputs remain UNCHANGED in the rendered Candidate table')
+  const residueBOM = find('BOM residue')
+  assert.equal(residueBOM.status, 'UNCHANGED', 'no-sidecar 0.09 representation residue remains UNCHANGED in the rendered Candidate table')
+  assert.deepEqual(residueBOM.numericText.slice(0, 3), ['0.00', '0.00', '0.00'],
+    'no-sidecar residue renders exact-zero BOM parameter deltas')
+  assert.equal(residueBOM.cells[5].text, '0.00', 'no-sidecar residue renders exact-zero BOM Gap')
+  assert.match(residueBOM.cells[5].className, /text-slate-400/, 'no-sidecar residue Gap color is neutral')
+  assert.equal(residueBOM.cells[6].text.replace(/\s+/g, ''), '0.00%', 'no-sidecar residue has zero Candidate %GAP against the nonzero total')
+
+  const bomFactor = find('BOM factor')
+  assert.equal(bomFactor.status, 'CHANGED', 'real Price change keeps the BOM row CHANGED')
+  assert.deepEqual(bomFactor.numericText.slice(0, 3), ['0.00', '+2.00', '0.00'],
+    'a changed BOM row keeps its unchanged Loss delta at exact zero')
+  await evaluate(`(()=>{[...document.querySelectorAll('tbody tr[data-candidate-reorder-row]')].find(item=>item.querySelector('th[scope="row"]')?.innerText.trim()==='BOM factor').click()})()`)
+  await waitFor(async () => evaluate(`Boolean([...document.querySelectorAll('tbody tr[data-candidate-reorder-row]')].find(item=>item.querySelector('th[scope="row"]')?.innerText.trim()==='BOM factor')?.getAttribute('aria-controls'))`), 'BOM expansion state')
+  const bomFactorRow = await evaluate(`([...document.querySelectorAll('tbody tr[data-candidate-reorder-row]')].find(item=>item.querySelector('th[scope="row"]')?.innerText.trim()==='BOM factor')).getAttribute('aria-controls')`)
+  await waitFor(async () => evaluate(`Boolean(document.getElementById(${JSON.stringify(bomFactorRow)}))`), 'expanded BOM parameter details')
+  const bomEffect = await evaluate(`(()=>{const before=document.getElementById(${JSON.stringify(bomFactorRow)});const effect=before?.nextElementSibling?.nextElementSibling;return [...effect.querySelectorAll('[data-numeric-token="true"]')].map(token=>token.innerText.trim())})()`)
+  assert.deepEqual(bomEffect.slice(0, 4), ['0.00', '+2.18', '0.00', '+2.18'],
+    'BOM PCE assigns the real Price effect while unchanged Loss PCE stays exact zero')
+
+  const tinyCandidateGap = find('Annealing tiny rate')
+  assert.match(tinyCandidateGap.cells[7].text, /\+?[0-9.]+E[+-]?\d+/i,
+    'Candidate Gap displays a genuine tiny exact contribution in scientific notation')
+  assert.match(tinyCandidateGap.cells[7].className, /text-rose-600/, 'tiny positive Candidate Gap keeps its semantic positive color')
+  assert.match(tinyCandidateGap.cells[8].text, /[0-9.]+E[+-]?\d+/i,
+    'tiny Candidate %GAP remains nonzero in adaptive scientific presentation')
+  await evaluate(`(()=>{[...document.querySelectorAll('tbody tr[data-candidate-reorder-row]')].find(item=>item.querySelector('th[scope="row"]')?.innerText.trim()==='Annealing tiny rate').click()})()`)
+  await waitFor(async () => evaluate(`Boolean([...document.querySelectorAll('tbody tr[data-candidate-reorder-row]')].find(item=>item.querySelector('th[scope="row"]')?.innerText.trim()==='Annealing tiny rate')?.getAttribute('aria-controls'))`), 'tiny Routing expansion state')
+  const tinyDetailId = await evaluate(`([...document.querySelectorAll('tbody tr[data-candidate-reorder-row]')].find(item=>item.querySelector('th[scope="row"]')?.innerText.trim()==='Annealing tiny rate')).getAttribute('aria-controls')`)
+  await waitFor(async () => evaluate(`Boolean(document.getElementById(${JSON.stringify(tinyDetailId)}))`), 'expanded tiny Routing parameter details')
+  const tinyEffect = await evaluate(`(()=>{const before=document.getElementById(${JSON.stringify(tinyDetailId)});const effect=before?.nextElementSibling?.nextElementSibling;return [...effect.querySelectorAll('[data-numeric-token="true"]')].map(token=>token.innerText.trim())})()`)
+  assert.match(tinyEffect[4], /\+[0-9.]+E[+-]?\d+/i, 'tiny Burden Rate PCE remains signed and nonzero')
+  assert.match(tinyEffect[5], /\+[0-9.]+E[+-]?\d+/i, 'tiny Routing PCE Gap remains signed and nonzero')
+
+  await evaluate(`(()=>{[...document.querySelectorAll('tbody tr[data-candidate-reorder-row]')].find(item=>item.querySelector('th[scope="row"]')?.innerText.trim()==='Annealing capacity').click()})()`)
+  await waitFor(async () => evaluate(`Boolean([...document.querySelectorAll('tbody tr[data-candidate-reorder-row]')].find(item=>item.querySelector('th[scope="row"]')?.innerText.trim()==='Annealing capacity')?.getAttribute('aria-controls'))`), 'Capacity expansion state')
+  const capacityDetailId = await evaluate(`([...document.querySelectorAll('tbody tr[data-candidate-reorder-row]')].find(item=>item.querySelector('th[scope="row"]')?.innerText.trim()==='Annealing capacity')).getAttribute('aria-controls')`)
+  await waitFor(async () => evaluate(`Boolean(document.getElementById(${JSON.stringify(capacityDetailId)}))`), 'expanded changed Capacity details')
+  const capacityEffect = await evaluate(`(()=>{const before=document.getElementById(${JSON.stringify(capacityDetailId)});const effect=before?.nextElementSibling?.nextElementSibling;return [...effect.querySelectorAll('[data-numeric-token="true"]')].map(token=>token.innerText.trim())})()`)
+  assert.notEqual(capacityEffect[1], '0.00', 'changed Capacity receives a nonzero PCE')
+  assert.equal(capacityEffect[4], '0.00', 'unchanged Burden Rate receives exact-zero PCE beside changed Capacity')
+
+  const workCenterTiny = await evaluate(`(()=>{const rows=[...document.querySelectorAll('[data-cbd-summary-body="true"] [role="row"]')];const row=rows.find(item=>item.innerText.includes('WC-TINY'));return [...row.querySelectorAll('[data-numeric-token="true"]')].map(token=>token.innerText.trim())})()`)
+  assert.match(workCenterTiny[2], /\+[0-9.]+E[+-]?\d+/i, 'Work Center summary displays a genuine tiny Gap adaptively')
+  assert.match(workCenterTiny[3], /[0-9.]+E[+-]?\d+/i, 'Work Center summary keeps a genuine tiny %Gap nonzero')
   assert.equal(browserErrors.length, 0, 'browser rendering has no uncaught errors, warnings, or console errors')
-  process.stdout.write(JSON.stringify({ browser: baseUrl, checks: 23, rows }, null, 2) + '\n')
+  process.stdout.write(JSON.stringify({ browser: baseUrl, checks: assertionCount, rows }, null, 2) + '\n')
 } catch (error) {
   process.stderr.write(`${error.stack ?? error}\n`)
   process.stderr.write(`Chrome diagnostics: ${JSON.stringify({ exitCode: chrome.exitCode, signalCode: chrome.signalCode, websocketState: client?.readyState ?? null, stderr: chromeOutput.join('').slice(-6000) })}\n`)

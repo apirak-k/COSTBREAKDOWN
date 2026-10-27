@@ -44,8 +44,11 @@ function numberSpacing(value: number): number {
   return 2 ** (Math.floor(Math.log2(absolute)) - 52)
 }
 
-/** Removes only a narrow floating representation tail for presentation/editor fallback. */
-export function cleanMachineFloatingPointResidue(value: number, text = fullNumberText(value)): string {
+function cleanMachineFloatingPointResidueWithinUlps(
+  value: number,
+  text: string,
+  maximumUlps: number
+): string {
   if (!Number.isFinite(value)) return text
   const decimalIndex = text.indexOf('.')
   if (decimalIndex < 0) return text
@@ -58,14 +61,19 @@ export function cleanMachineFloatingPointResidue(value: number, text = fullNumbe
     if (/[eE]/.test(candidate)) continue
     const candidateValue = Number(candidate)
     if (value !== 0 && candidateValue === 0) continue
-    const tolerance = 2 * Math.max(numberSpacing(value), numberSpacing(candidateValue))
+    const tolerance = maximumUlps * Math.max(numberSpacing(value), numberSpacing(candidateValue))
     if (Math.abs(candidateValue - value) <= tolerance) return candidate
   }
 
   return text
 }
 
-/** Presentation/editor helper only. Never use this to define business-value equality. */
+/** Removes only the finalized two-ULP floating representation tail from a no-sidecar Number. */
+export function cleanMachineFloatingPointResidue(value: number, text = fullNumberText(value)): string {
+  return cleanMachineFloatingPointResidueWithinUlps(value, text, 2)
+}
+
+/** Uses the finalized narrow residue rule when only a legacy/model Number exists. */
 export function exactDecimalNumberText(value: number): string | null {
   return Number.isFinite(value) ? cleanMachineFloatingPointResidue(value) : null
 }
@@ -251,14 +259,20 @@ export function exactDecimalSidecarValue(
     const enteredProjection = exactDecimalToNumber(entered)
     const legacyInputProjection = enteredProjection === null ? null : enteredProjection / 100
     if (legacyInputProjection !== null && Object.is(legacyInputProjection, numericValue)) return storedExact
+
+    // A percentage field stores a fraction, while the editor sidecar stores
+    // percentage points. Accept the already-finalized narrow Number cleanup at
+    // this compatibility boundary without broadening validation to a tolerance.
+    const cleanedProjection = parseExactDecimal(exactDecimalNumberText(numericValue) ?? numericValue)
+    if (cleanedProjection && compareExactDecimals(cleanedProjection, storedExact) === 0) return storedExact
   }
 
   return null
 }
 
 /**
- * Resolves authoritative editor/import text when valid; otherwise the stored
- * Number itself is authoritative. No display cleanup/tolerance is permitted here.
+ * Resolves authoritative editor/import text when valid; otherwise applies the
+ * finalized narrow no-sidecar residue rule without changing the stored Number.
  */
 export function exactDecimalInputValue(
   numericValue: number | null | undefined,
@@ -267,7 +281,7 @@ export function exactDecimalInputValue(
 ): ExactDecimal | null {
   if (numericValue == null || !Number.isFinite(numericValue)) return null
   return exactDecimalSidecarValue(numericValue, exactInput, percentageInput)
-    ?? parseExactDecimal(numericValue)
+    ?? parseExactDecimal(exactDecimalNumberText(numericValue) ?? numericValue)
 }
 
 export interface ExactDecimalInputPair {
@@ -278,10 +292,12 @@ export interface ExactDecimalInputPair {
 
 /**
  * Resolves two values under the shared comparison rule without changing either
- * source sidecar. When one side has no valid exact input and both exact values
- * project to the same stored Number, the calculation pair receives one shared
- * exact value so its delta is exactly zero. Two different valid sidecars remain
- * distinct business inputs even when their Number projections happen to match.
+ * source sidecar. No-sidecar values are first resolved through the same narrow
+ * residue rule used by calculations. The finalized 0.09 pair example also has
+ * a bounded three-ULP pair rule; standalone Number cleanup remains two ULP. A
+ * one-sided sidecar may share a canonical pair value when both values have the
+ * same Number projection; two different valid sidecars remain distinct even
+ * when their Number projections happen to match.
  */
 export function resolveExactDecimalInputPair(
   referenceNumber: number | null | undefined,
@@ -302,6 +318,28 @@ export function resolveExactDecimalInputPair(
 
   if (referenceSidecar && currentSidecar) {
     return { reference, current, equivalent: false }
+  }
+
+  if (!referenceSidecar && !currentSidecar
+    && typeof referenceNumber === 'number' && Number.isFinite(referenceNumber)
+    && typeof currentNumber === 'number' && Number.isFinite(currentNumber)) {
+    // The finalized 0.09 / 0.09000000000000004 example spans three adjacent
+    // Number values at this magnitude. Resolve only the pair to its shared
+    // materially shorter decimal; single-value fallback remains capped at 2 ULP.
+    const referencePairValue = parseExactDecimal(cleanMachineFloatingPointResidueWithinUlps(
+      referenceNumber,
+      fullNumberText(referenceNumber),
+      3
+    ))
+    const currentPairValue = parseExactDecimal(cleanMachineFloatingPointResidueWithinUlps(
+      currentNumber,
+      fullNumberText(currentNumber),
+      3
+    ))
+    if (referencePairValue && currentPairValue
+      && compareExactDecimals(referencePairValue, currentPairValue) === 0) {
+      return { reference: referencePairValue, current: referencePairValue, equivalent: true }
+    }
   }
 
   const referenceProjection = exactDecimalToNumber(reference)

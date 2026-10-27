@@ -207,11 +207,12 @@ function extractElement(markup, start, tag) {
 }
 
 try {
-  const [effects, comparisonCore, comparisonStatus, formatters, routingDetail, bomView, routingView, snapshotView, wcView, itemizedView, candidateView] = await Promise.all([
+  const [effects, comparisonCore, comparisonStatus, formatters, numericDisplay, routingDetail, bomView, routingView, snapshotView, wcView, itemizedView, candidateView] = await Promise.all([
     vite.ssrLoadModule('/src/core/calculations/parameter-cost-effect.ts'),
     vite.ssrLoadModule('/src/core/calculations/snapshot-comparison.ts'),
     vite.ssrLoadModule('/src/core/calculations/comparison-status.ts'),
     vite.ssrLoadModule('/src/core/utils/formatters.ts'),
+    vite.ssrLoadModule('/src/shared/ui/numeric-display.ts'),
     vite.ssrLoadModule('/src/core/calculations/snapshot-routing-detail.ts'),
     vite.ssrLoadModule('/src/features/cost-breakdown/components/BOMDetailedTable.tsx'),
     vite.ssrLoadModule('/src/features/cost-breakdown/components/RoutingDetailedTable.tsx'),
@@ -228,16 +229,18 @@ try {
     'a real negative effect keeps its direction even when it rounds below display precision')
   assert.equal(formatters.getVarianceClass(tinyNegativeEffect), 'text-emerald-600 font-bold',
     'cost-effect color follows the semantic sign rather than a display threshold')
+  assert.equal(numericDisplay.formatBusinessNumber(tinyNegativeEffect, { signPositive: true }), '-5.67E-18',
+    'shared adaptive display preserves a genuine tiny negative effect and its sign')
   const tinyEffectMarkup = renderToStaticMarkup(React.createElement(SelectedNumber, {
     numericColumn: true,
     signPositive: true,
     value: tinyNegativeEffect,
     'aria-label': 'Tiny negative effect'
-  }, formatters.formatVariance(tinyNegativeEffect, 2)))
-  assert.equal(visibleText(tinyEffectMarkup), '-0.00',
-    'numeric-column SelectedNumber honors the caller-owned formatted display value')
-  assert.doesNotMatch(tinyEffectMarkup, /5\.67E-18/i,
-    'numeric-column SelectedNumber does not reformat a supplied zero presentation as scientific notation')
+  }))
+  assert.equal(visibleText(tinyEffectMarkup), '-5.67E-18',
+    'numeric-column SelectedNumber uses the shared adaptive presentation for genuine tiny effects')
+  assert.match(tinyEffectMarkup, /data-numeric-presentation="scientific"/,
+    'numeric-column SelectedNumber marks a genuine tiny effect as scientific presentation')
   const formattedPercentageMarkup = renderToStaticMarkup(React.createElement(SelectedNumber, {
     numericColumn: true,
     percentage: true,
@@ -331,8 +334,14 @@ try {
     { manning: 1, capacity: 1, yield: 1, laborRate: 1, burdenRate: 1 },
     { manning: 1.0000000000000009, capacity: 1, yield: 1, laborRate: 1.0000000000000009, burdenRate: 1.0000000000000009 }
   )
-  assert.equal(routingUnreconciledMachineNoise.status, 'unavailable',
-    'Routing does not report zero effects when equivalent inputs produce an unreconciled cost gap')
+  assert.equal(routingUnreconciledMachineNoise.status, 'available',
+    'Routing values outside the narrow residue rule remain real inputs and receive reconciled effects')
+  if (routingUnreconciledMachineNoise.status === 'available') {
+    assert.notEqual(routingUnreconciledMachineNoise.effects.labor.manning, 0,
+      'a Manning difference beyond the narrow residue rule keeps its PCE')
+    assert.notEqual(routingUnreconciledMachineNoise.effects.labor.laborRate, 0,
+      'a Labor Rate difference beyond the narrow residue rule keeps its PCE')
+  }
 
   const routingNegative = effects.calculateRoutingParameterCostEffects(
     routingReference,
@@ -618,8 +627,8 @@ try {
   const tinyRateMarkup = renderItemized(itemizedView, tinyRateAnnealingComparison,
     identicalAnnealingReference, tinyRateAnnealingCurrent, 'rtg')
   assert.deepEqual(gridCellText(candidateMainRow(tinyRateMarkup, 'Routing', 'Annealing', 'CHANGED')).slice(6, 8), [
-    '0.00', '+0.00'
-  ], 'Candidate rate deltas retain exact sign while formatted precision stays at two decimals')
+    '0.00', '+1.00E-15'
+  ], 'Candidate rate delta uses adaptive notation for a genuine tiny exact difference')
 
   const routingRefSnapshot = costSnapshot('reference', {
     routing: [route('route-ref', 'WC-REF')],

@@ -30,7 +30,7 @@ try {
   const snapshotParser = await vite.ssrLoadModule('/src/services/excel/snapshot-parser.ts')
   const { compareSnapshots } = core
   const { getCanonicalComparisonStatus } = statusModule
-  const { exactDecimalInputValue, exactDecimalToString } = decimal
+  const { exactDecimalInputValue, exactDecimalToString, resolveExactDecimalInputPair } = decimal
   const { areNumericValuesEquivalent } = guards
   const { normalizeMasterDataSnapshot } = masterData
   const { seedSnapshotPair, seedBOM } = seedData
@@ -104,8 +104,10 @@ try {
     warnings: []
   })
 
-  assert.equal(areNumericValuesEquivalent(1, 1 + Number.EPSILON), false,
-    'distinct stored Numbers are never collapsed by tolerance')
+  assert.equal(areNumericValuesEquivalent(1, 1 + Number.EPSILON), true,
+    'no-sidecar values within the finalized residue rule share semantic equality')
+  assert.equal(resolveExactDecimalInputPair(1, '1', 1 + Number.EPSILON, '1.0000000000000002').equivalent, false,
+    'distinct authoritative exact sidecars remain different even when their Number values are adjacent')
 
   assert.equal(
     exactDecimalToString(exactDecimalInputValue(138.48, '138.480000000000001')),

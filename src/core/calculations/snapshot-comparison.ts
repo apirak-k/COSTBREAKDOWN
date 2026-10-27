@@ -325,10 +325,11 @@ function toExactInputText(value: NonNullable<ReturnType<typeof exactDecimalInput
   return exactDecimalToString(inputValue)
 }
 
-function withExactInput<T extends SnapshotRow>(row: T, field: string, exactInput: string): T {
+function withExactInput<T extends SnapshotRow>(row: T, field: string, exactInput: string, numericProjection: number): T {
   const exactDecimalInputs = (row as T & { exactDecimalInputs?: Record<string, string> }).exactDecimalInputs
   return {
     ...row,
+    [field]: numericProjection,
     exactDecimalInputs: { ...exactDecimalInputs, [field]: exactInput }
   } as T
 }
@@ -373,9 +374,14 @@ function alignEquivalentRowInputs<T extends SnapshotRow>(
         percentageInput
       )
       if (!pair.equivalent || !pair.reference || !pair.current) continue
+      const numericProjection = exactDecimalToNumber(pair.reference)
+      if (numericProjection === null) continue
       const sharedInput = toExactInputText(pair.reference, percentageInput)
-      reference[referenceIndex] = withExactInput(left, field, sharedInput)
-      current[currentIndex] = withExactInput(right, field, sharedInput)
+      // These are private calculation copies. Carry both the canonical exact
+      // operand and its matching Number projection so later no-sidecar totals
+      // consume the same pair semantics as row-level calculations.
+      reference[referenceIndex] = withExactInput(left, field, sharedInput, numericProjection)
+      current[currentIndex] = withExactInput(right, field, sharedInput, numericProjection)
     }
   }
   return [reference, current]

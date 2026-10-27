@@ -1,3 +1,38 @@
+## Current checkpoint — Numeric integrity recovery — 2026-10-27
+
+- **Status:** Numeric recovery implemented; required regression, lifecycle, browser, TypeScript, build, and diff checks PASS. Phase 2 remains **EXTERNALLY ACCEPTED / CLOSED**. User-reported real-world values exposed numeric regressions; this corrective pass resolves those cases. The broader Real-World Usage Test remains in progress.
+- **Repository:** `feat/selected-value-ux`, starting HEAD `88fe99819adb0de6139a7b673b2340f44e0f28f7`. The recovery targets the existing branch only; `backup/codex-numeric-fixes` was not touched.
+- **Root cause — comparison vs calculations:** individual no-sidecar calculations previously treated the raw Number as exact input, while status, row details, Candidate deltas, and PCE had different pair-resolution paths. A finalized pair (`0.09` / `0.09000000000000004`) was marked equivalent at row level but could leave `4e-17` in separately calculated aggregate Gap. The matched-snapshot calculation copies now carry both the shared exact operand and its matching Number projection; source snapshots and sidecars remain unchanged.
+- **Residue boundary:** standalone no-sidecar Number cleanup remains the finalized maximum of two ULP. The explicit `0.09` comparison pair is three adjacent Numbers, so the shared pair resolver has a separate, bounded three-ULP common-shorter-decimal rule for no-sidecar pairs. `0.09` / `0.09000000000000005` remains different. Exact sidecars remain authoritative and distinct valid sidecars are not merged.
+- **Root cause — percentage boundary:** Loss/Yield sidecars use percentage points while snapshot numbers store fractions. Validation previously rejected exact `29` against the residue projection `.29000000000000004`, so normalization could drop the accepted sidecar. Validation now accepts only exact equality after the existing narrow residue cleanup; stale sidecars and loose tolerance remain rejected.
+- **Candidate/PCE/Gaps:** Candidate field deltas now consume the shared exact pair. BOM and Routing details and PCE use canonical pair operands; equivalent fields yield exact-zero deltas/effects before presentation, including when another factor changes. Unchanged-factor effects remain zero, while true tiny and exact differences retain their values and signs.
+- **Presentation:** Cost Breakdown fixed-two-decimal formatter children were bypassing the accepted adaptive `formatBusinessNumber` behavior. Summary, Candidate, detail, snapshot comparison, and Work Center displays now pass semantic values to the shared SelectedNumber presentation. Threshold-based tiny-value masking/color neutralization was removed; genuine tiny values retain scientific display and semantic color.
+- **Regression expectation reconciliation:** The first `verify_business_value_integrity.mjs` run failed because an old assertion required `1` and `1 + Number.EPSILON` to remain different. That expectation conflicts with finalized no-sidecar residue cleanup; it now asserts equivalence and separately asserts that distinct authoritative exact sidecars remain different. The updated verifier passes.
+
+### Verification
+
+- `node scripts/verify_cbd_parameter_cost_effect.mjs` — PASS.
+- `node_modules/.bin/jiti scripts/verify_numeric_value_integrity.ts` — PASS.
+- `node scripts/verify_numeric_pair_equivalence.mjs` — PASS, 72 assertions; includes semantic status, field delta, BOM/PCE/record/aggregate Gap, source immutability, true differences, and the explicit pair boundary.
+- `node scripts/verify_business_value_integrity.mjs` — PASS after the finalized-requirement assertion update.
+- `node scripts/verify_percentage_exact_boundary.mjs` — PASS; exact 29% sidecar and Master Data normalization.
+- `node scripts/verify_clone_lifecycle.mjs` — PASS, 529 assertions.
+- `node scripts/verify_simulation_override_sidecar_integrity.mjs` — PASS.
+- `node_modules/.bin/jiti scripts/verify_comparison_export.ts` — PASS.
+- `node scripts/verify_number_fallback_exactness.mjs` — PASS; two-ULP standalone and three-ULP pair boundary.
+- `node scripts/verify_cbd_numeric_integrity_browser.mjs` — PASS, 46 checks; adaptive CBD rendering, zero/unchanged semantics, and genuine tiny values.
+- `node scripts/verify_exact_decimal_lifecycle_browser.mjs` — PASS, 49 assertions.
+- `node scripts/verify_master_data_selected_value.mjs` — PASS, 217/217; no browser errors or warnings.
+- `npx tsc -p tsconfig.json --noEmit --pretty false` — PASS.
+- `npm run build` — PASS. Existing ExcelJS / fast-csv browser externalization and large-chunk warnings remain.
+- `git diff --check` — PASS; Git reports the existing LF-to-CRLF working-copy warning for `scripts/verify_numeric_pair_equivalence.mjs`.
+
+### Decisions and boundaries
+
+- Kept exact lifecycle, Clone, Simulation override, Excel raw-lexeme/export behavior, one-sided pair behavior, and accepted UI contracts. No broad revert or unrelated UX change was made.
+- Updated the canonical Cross-Cutting and Cost Breakdown specifications with the pair invariant, bounded residue distinction, percentage semantics, adaptive presentation ownership, and semantic zero/tiny-value behavior. The Requirements Index records that numeric regressions surfaced during real-world use and that the broader test is not complete.
+- **Delivery:** Committed and pushed to the existing `feat/selected-value-ux` branch under the user-authorized message `fix: reconcile numeric integrity across cost breakdown`; final SHA and remote target verification are reported in the task completion response.
+
 ## Current checkpoint — Phase 2 closure and Excel Validation — 2026-10-26
 
 - **Phase 2:** **EXTERNALLY ACCEPTED / CLOSED.** The user reports `PHASE 2 FINAL EXTERNAL ACCEPTANCE: PASS` for commit `4c1d139f87bf7db6c5f1ad9f6337738674159012`; no new Phase 2 implementation blocker was found. The already accepted implementation was not reopened.
