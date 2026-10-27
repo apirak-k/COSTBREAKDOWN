@@ -458,7 +458,8 @@ async function verify(): Promise<void> {
       negativeBurdenRate: ['B11', 'B12', 'B14'],
       negativeManning: ['B10', 'B11', 'B12', 'B14'],
       negativeSellingPrice: ['B13', 'B14'],
-      negativeSgaPercent: ['B13', 'B14']
+      negativeSgaPercent: ['B13', 'B14'],
+      sgaAbove100: ['B13', 'B14']
     }
     const numericOutputsByScenario: Record<string, string[]> = {
       lossAt100: ['B9', 'B10', 'B11', 'B12', 'B13', 'B14'],
@@ -474,7 +475,7 @@ async function verify(): Promise<void> {
       negativeManning: ['B9', 'B13'],
       negativeSellingPrice: ['B9', 'B10', 'B11', 'B12'],
       negativeSgaPercent: ['B9', 'B10', 'B11', 'B12'],
-      sgaAbove100: ['B9', 'B10', 'B11', 'B12', 'B13', 'B14'],
+      sgaAbove100: ['B9', 'B10', 'B11', 'B12'],
       zeroInclusiveInputs: ['B9', 'B10', 'B11', 'B12', 'B13', 'B14']
     }
     for (const [scenario, addresses] of Object.entries(blankOutputsByScenario)) {
@@ -486,14 +487,14 @@ async function verify(): Promise<void> {
     for (const [scenario, addresses] of Object.entries(numericOutputsByScenario)) {
       for (const address of addresses) {
         const actual = excelEvaluation.cases[scenario]?.[address]
-        assert.equal(typeof actual, 'number', `Excel keeps META ${address} available for ${scenario}`)
+        assert.equal(typeof actual, 'number', `Excel keeps META ${address} available for ${scenario} (received ${JSON.stringify(actual)})`)
         assert.ok(Number.isFinite(actual), `Excel META ${address} is finite for ${scenario}`)
       }
     }
-    assert.equal(excelEvaluation.cases.sgaAbove100?.B13, 180,
-      'SG&A percentages above 100 remain valid and calculate as entered')
-    assert.ok(Math.abs((excelEvaluation.cases.sgaAbove100?.B14 as number) - (150 - runtimeCost.total! - 180)) < 1e-8,
-      'OP remains available with SG&A percentages above 100')
+    assert.equal(excelEvaluation.cases.sgaAbove100?.B13, null,
+      'SG&A percentages above 100 leave SG&A Amount unavailable')
+    assert.equal(excelEvaluation.cases.sgaAbove100?.B14, null,
+      'SG&A percentages above 100 leave OP unavailable')
     assert.equal(excelEvaluation.cases.zeroInclusiveInputs?.B13, 0,
       'zero is retained for fields whose canonical numeric domains include zero')
 

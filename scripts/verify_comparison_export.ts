@@ -6,7 +6,8 @@ import {
   getComparisonExportFilename,
   type ComparisonExportInput
 } from '../src/services/excel/comparison-export'
-import { compareSnapshots } from '../src/core'
+import { readExactNumericCells } from '../src/services/excel/exact-numeric-cells'
+import { compareSnapshots, getCanonicalComparisonStatus } from '../src/core'
 
 const product = {
   productCode: 'TEST-001',
@@ -153,6 +154,35 @@ assert.equal(model.routingRows.reduce((sum, row) => sum + (row.burdenCostGap ?? 
 assert.ok(model.warnings.length >= 0)
 assert.equal(getComparisonExportFilename('RGOM/024'), 'CostBreakdown_Comparison_RGOM_024.xlsx')
 
+const noSidecarResidueReference = {
+  ...reference,
+  id: 'snapshot-export-residue-reference',
+  bom: [{ ...reference.bom[0], price: 0.09 }],
+  routing: [{ ...reference.routing[0], yield: 0.09 }]
+}
+const noSidecarResidueCurrent = {
+  ...noSidecarResidueReference,
+  id: 'snapshot-export-residue-current',
+  bom: [{ ...noSidecarResidueReference.bom[0], price: 0.09000000000000004 }],
+  routing: [{ ...noSidecarResidueReference.routing[0], yield: 0.09000000000000004 }]
+}
+const noSidecarResidueComparison = compareSnapshots(noSidecarResidueReference, noSidecarResidueCurrent)
+const noSidecarResidueExport = buildComparisonExportModel({
+  product,
+  snapshotPair: { reference: noSidecarResidueReference, current: noSidecarResidueCurrent },
+  comparison: noSidecarResidueComparison
+})
+assert.equal(getCanonicalComparisonStatus(noSidecarResidueComparison.bomFindings[0]), 'UNCHANGED')
+assert.equal(noSidecarResidueExport.bomRows[0].comparison, 'UNCHANGED')
+assert.equal(noSidecarResidueExport.bomRows[0].priceGap, 0,
+  'comparison export uses pair semantics for no-sidecar numeric inputs')
+assert.equal(noSidecarResidueExport.bomRows[0].costGap, 0,
+  'comparison export row status and material cost gap remain aligned')
+assert.equal(getCanonicalComparisonStatus(noSidecarResidueComparison.routingFindings[0]), 'UNCHANGED')
+assert.equal(noSidecarResidueExport.routingRows[0].comparison, 'UNCHANGED')
+assert.equal(noSidecarResidueExport.routingRows[0].yieldGap, 0,
+  'comparison export applies shared pair semantics to percentage fractions')
+
 // A Process may be CHANGED solely because its Work Center rate dependency changed.
 // Export summary counts must use the same canonical status as the row label/CBD.
 const rateOnlyCurrent = {
@@ -227,10 +257,18 @@ const exactCurrent = {
   })),
   bom: exactReference.bom.map(row => ({
     ...row,
-    exactDecimalInputs: { ...row.exactDecimalInputs, price: '10.0000000000000001' },
+    exactDecimalInputs: {
+      ...row.exactDecimalInputs,
+      price: '10.0000000000000001',
+      loss: '10.0000000000000001'
+    },
     sourceRef: 'exact-current.xlsx'
   })),
-  routing: exactReference.routing.map(row => ({ ...row, sourceRef: 'exact-current.xlsx' }))
+  routing: exactReference.routing.map(row => ({
+    ...row,
+    exactDecimalInputs: { ...row.exactDecimalInputs, yield: '90.000000000000001' },
+    sourceRef: 'exact-current.xlsx'
+  }))
 }
 assert.equal(exactCurrent.rates[0].laborRate, exactReference.rates[0].laborRate,
   'exact-only rate fixture keeps identical Number projections')
@@ -288,6 +326,32 @@ async function verifyWorkbook(): Promise<void> {
   assert.equal(workbook.getWorksheet('Summary')?.getCell('A15').value, 'CHANGED')
   assert.equal(workbook.getWorksheet('Summary')?.getCell('A18').value, 'Validation warnings')
   assert.equal(workbook.getWorksheet('Work Center Comparison')?.getCell('A4').value, 'Work Center')
+
+  const exactExportBlob = await generateSnapshotComparisonExcel({
+    product,
+    snapshotPair: { reference: exactReference, current: exactCurrent },
+    comparison: exactComparison
+  })
+  const exactExportCells = await readExactNumericCells(await exactExportBlob.arrayBuffer())
+  assert.equal(exactExportCells['BOM Comparison']?.get('J5'), '10.0000000000000001',
+    'comparison export retains exact numeric Price lexemes in numeric XLSX cells')
+  assert.equal(exactExportCells['BOM Comparison']?.get('M5'), '0.100000000000000001',
+    'comparison export converts exact Loss percentage-point text to the stored fraction once')
+  assert.equal(exactExportCells['Routing Comparison']?.get('N5'), '0.90000000000000001',
+    'comparison export converts exact Yield percentage-point text to the stored fraction once')
+  assert.equal(exactExportCells['Work Center Comparison']?.get('F5'), '100.000000000000001',
+    'comparison export retains exact numeric Work Center rate lexemes')
+
+  const residueExportBlob = await generateSnapshotComparisonExcel({
+    product,
+    snapshotPair: { reference: noSidecarResidueReference, current: noSidecarResidueCurrent },
+    comparison: noSidecarResidueComparison
+  })
+  const residueExportCells = await readExactNumericCells(await residueExportBlob.arrayBuffer())
+  assert.equal(residueExportCells['BOM Comparison']?.get('I5'), '0.09',
+    'comparison export cleans the reference side of an equivalent no-sidecar residue pair')
+  assert.equal(residueExportCells['BOM Comparison']?.get('J5'), '0.09',
+    'comparison export writes the shared canonical value for an equivalent no-sidecar residue pair')
 }
 
 verifyWorkbook()

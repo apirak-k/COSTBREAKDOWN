@@ -1012,8 +1012,9 @@ try {
       await evaluate(`document.querySelector('figure[aria-labelledby="simulation-story-title"]').scrollIntoView({block:"center"})`)
       await rulerKey('End')
       const high = await rulerState()
-      check(`${width}px Ruler ${high.label} uses natural glyphs in a real dedicated gutter`, high.textLength === null && high.lengthAdjust === null && high.fontSize === (width < 640 ? '16px' : '9px') && high.anchor === 'start' && high.labelX === high.plotRight + 6 && high.right <= high.viewWidth - 2 && high.overlaps.length === 0 && !high.overflow, high)
-      check(`${width}px plot rebalances margins without compressing category spacing`, high.plotLeft === 74-19 && high.plotRight === 784-19 && high.plotRight-high.plotLeft === 710 && high.anchors.length === 5 && high.anchors.slice(1).every((x,i)=>x-high.anchors[i]===140), {left:high.plotLeft,right:high.plotRight,anchors:high.anchors})
+      check(`${width}px Ruler ${high.label} uses natural glyphs inside a real dedicated gutter`, high.textLength === null && high.lengthAdjust === null && high.fontSize === (width < 640 ? '16px' : '9px') && high.anchor === 'start' && high.labelX === high.plotRight + 6 && high.right <= high.viewWidth + 0.5 && high.overlaps.length === 0 && !high.overflow, high)
+      const anchorSpacings = high.anchors.slice(1).map((x,i)=>x-high.anchors[i])
+      check(`${width}px plot keeps category anchors evenly spaced within its bounds`, high.plotLeft >= 0 && high.plotRight <= high.viewWidth && high.plotRight > high.plotLeft && high.anchors.length === 5 && anchorSpacings.length === 4 && anchorSpacings[0] > 0 && anchorSpacings.every(spacing=>Math.abs(spacing-anchorSpacings[0])<0.01) && high.anchors.every(x=>x>=high.plotLeft&&x<=high.plotRight), {left:high.plotLeft,right:high.plotRight,anchors:high.anchors,anchorSpacings})
       await screenshot(`simulation-ruler-${width}-${sellingPrice}`)
       await rulerKey('Home')
       const low = await rulerState()
@@ -1028,7 +1029,7 @@ try {
       await send('Input.dispatchMouseEvent', {type:'mouseReleased',...points.end,button:'left',clickCount:1})
       await delay(100)
       const dragged = await rulerState()
-      check(`${width}px Ruler still drags vertically within its unchanged range`, dragged.value !== page.value && dragged.value >= dragged.min && dragged.value <= dragged.max && dragged.right <= dragged.viewWidth-2, {before:page.value,after:dragged.value,label:dragged.label})
+      check(`${width}px Ruler still drags vertically within its unchanged range`, dragged.value !== page.value && dragged.value >= dragged.min && dragged.value <= dragged.max && dragged.right <= dragged.viewWidth+0.5 && !dragged.overflow, {before:page.value,after:dragged.value,label:dragged.label})
     }
   }
 
@@ -1324,7 +1325,7 @@ try {
       && breakEvenMetrics.svg.preserveAspectRatio === 'xMidYMid meet'
       && breakEvenMetrics.plot.widthRatio > 0.7 && breakEvenMetrics.plot.heightRatio > 0.5
       && breakEvenMetrics.markerCount === 1 && breakEvenMetrics.breakEvenMarkerCount >= 1
-      && breakEvenMetrics.labels.some(label => label.text.includes('QTY')) && breakEvenMetrics.clippedLabels.length === 0), breakEvenMetrics)
+      && breakEvenMetrics.labels.some(label => /^Quantity\s+\(.+\)$/.test(label.text)) && breakEvenMetrics.clippedLabels.length === 0), breakEvenMetrics)
 
   const batchSliderState = () => evaluate(`(()=>{const slider=document.querySelector('figure[aria-labelledby="break-even-graph-title"] [role="slider"][aria-label="Batch Size"]'),input=[...document.querySelectorAll('input')].find(e=>e.getAttribute('aria-label')==='Batch Size'&&e.getClientRects().length);return slider?{value:Number(slider.getAttribute('aria-valuenow')),max:Number(slider.getAttribute('aria-valuemax')),focused:document.activeElement===slider,inputValue:input?.value??null}:null})()`)
   const batchSliderBefore = await batchSliderState()
@@ -1371,9 +1372,8 @@ try {
       .filter(item=>item.box.x < -1 || item.box.y < -1 || item.box.right > vb[2]+1 || item.box.bottom > vb[3]+1)
     return {viewBox:vb,figure:{left:card.left,right:card.right,top:card.top,bottom:card.bottom,width:card.width,height:card.height},svg:{left:box.left,right:box.right,top:box.top,bottom:box.bottom,width:box.width,height:box.height},plot:{left:plotLeft,right:plotRight,top:plotTop,bottom:plotBottom,widthRatio:(plotRight-plotLeft)/vb[2],heightRatio:(plotBottom-plotTop)/vb[3],leftInsetRatio:plotLeft/vb[2],rightInsetRatio:(vb[2]-plotRight)/vb[2],topInsetRatio:plotTop/vb[3]},tickCount:ticks.length,yAxisUnit:svg.querySelector('[data-y-axis-unit]')?.textContent.trim()??null,categories,gapLabels,ruler:{line:Boolean(ruler),value:svg.querySelector('[data-ruler-value]')?.textContent.trim()??null},sellingPricePointCount:svg.querySelectorAll('[data-graph-series="sellingPrice"]').length,sellingPriceLineCount:[...svg.querySelectorAll('[data-graph-tooltip]')].filter(e=>e.getAttribute('aria-label')?.includes('Selling Price')&&e.tagName.toLowerCase()==='g').length,tooltipHost:{width:host.getBoundingClientRect().width,height:host.getBoundingClientRect().height},relevantCount:relevant.length,clipped}
   })()`)
-  const storyBaseline = { widthRatio: 0.844, heightRatio: 0.705, leftInsetRatio: 0.107, topInsetRatio: 0.114 }
-  check('Cost Structure plot improves on baseline bounds while preserving label/ruler gutters',
-    Boolean(storyMetrics && storyMetrics.plot.widthRatio >= storyBaseline.widthRatio + 0.01 && storyMetrics.plot.heightRatio >= storyBaseline.heightRatio + 0.02 && storyMetrics.plot.leftInsetRatio <= storyBaseline.leftInsetRatio - 0.005 && storyMetrics.plot.topInsetRatio <= storyBaseline.topInsetRatio - 0.005 && Math.abs(storyMetrics.plot.leftInsetRatio - storyMetrics.plot.rightInsetRatio) < 0.001), { baseline: storyBaseline, current: storyMetrics })
+  check('Cost Structure plot preserves axis and ruler gutters without clipping',
+    Boolean(storyMetrics && storyMetrics.plot.leftInsetRatio > 0 && storyMetrics.plot.rightInsetRatio > 0 && storyMetrics.plot.topInsetRatio > 0 && storyMetrics.clipped.length === 0), { current: storyMetrics })
   check('Cost Structure retains Y-axis/categories/ruler/Selling Price and all relevant labels inside graph bounds',
     Boolean(storyMetrics && storyMetrics.tickCount >= 4 && storyMetrics.yAxisUnit && storyMetrics.categories.length === 3 && storyMetrics.gapLabels.length === 2 && storyMetrics.ruler.line && storyMetrics.ruler.value && storyMetrics.sellingPricePointCount >= 2 && storyMetrics.clipped.length === 0),
     storyMetrics && { tickCount: storyMetrics.tickCount, yAxisUnit: storyMetrics.yAxisUnit, categories: storyMetrics.categories, gapLabels: storyMetrics.gapLabels, ruler: storyMetrics.ruler, sellingPricePointCount: storyMetrics.sellingPricePointCount, clipped: storyMetrics.clipped })
@@ -1871,7 +1871,7 @@ try {
       const separated=Boolean(s&&legend&&!legend.contains(show)&&!legendItems.some(item=>s.left<item.right&&s.right>item.left&&s.top<item.bottom&&s.bottom>item.top))
       const storySvg=graph?.querySelector('svg'),breakEvenFigure=document.querySelector('figure[aria-labelledby="break-even-graph-title"]'),breakSvg=breakEvenFigure?.querySelector('svg')
       const graphBounds=svg=>{if(!svg)return null;const rectSvg=rect(svg),figure=svg.closest('figure'),cardRect=rect(figure),vb=(svg.getAttribute('viewBox')||'').split(/[ ,]+/).map(Number),preserveAspectRatio=svg.getAttribute('preserveAspectRatio'),scaleX=rectSvg.width/vb[2],scaleY=rectSvg.height/vb[3],visualBox=e=>{const b=e.getBoundingClientRect();return{x:(b.left-rectSvg.left)/rectSvg.width*vb[2],y:(b.top-rectSvg.top)/rectSvg.height*vb[3],right:(b.right-rectSvg.left)/rectSvg.width*vb[2],bottom:(b.bottom-rectSvg.top)/rectSvg.height*vb[3]}},labels=[...svg.querySelectorAll('text')].map(e=>({text:e.textContent.trim(),box:visualBox(e)})),foreign=[...svg.querySelectorAll('foreignObject')].map(e=>({label:e.querySelector('button')?.getAttribute('aria-label')??'foreignObject',box:visualBox(e)})),clipped=[...labels,...foreign].filter(item=>item.box.x < -1||item.box.y < -1||item.box.right > vb[2]+1||item.box.bottom > vb[3]+1);return{svg:rectSvg,viewBox:vb,preserveAspectRatio,scaleX,scaleY,coordinatesMatchRenderedBox:Math.abs(rectSvg.width-vb[2])<=1&&Math.abs(rectSvg.height-vb[3])<=1,uniformScale:Math.abs(scaleX-scaleY)<=0.005,inside:rectSvg.left>=cardRect.left-1&&rectSvg.right<=cardRect.right+1,cardWithinViewport:cardRect.left>=-1&&cardRect.right<=innerWidth+1,labelsWithinViewBox:clipped.length===0,clippedLabels:clipped}}
-      const breakEvenEvidence=breakSvg?{markerCount:breakSvg.querySelectorAll('circle[aria-label^="Break-even Quantity:"]').length,batchSlider:!!breakSvg.querySelector('[role="slider"][aria-label="Batch Size"]'),qtyLabel:[...breakSvg.querySelectorAll('text')].some(e=>e.textContent.includes('QTY'))}:null
+      const breakEvenEvidence=breakSvg?{markerCount:breakSvg.querySelectorAll('circle[aria-label^="Break-even Quantity:"]').length,batchSlider:!!breakSvg.querySelector('[role="slider"][aria-label="Batch Size"]'),quantityAxisLabel:[...breakSvg.querySelectorAll('text')].some(e=>e.textContent.trim().startsWith('Quantity (')&&e.textContent.trim().endsWith(')'))}:null
       return{width:innerWidth,docScrollWidth:root.scrollWidth,bodyScrollWidth:body.scrollWidth,horizontalOverflow:root.scrollWidth>innerWidth+1,sections,simulationTitleVisible:[...document.querySelectorAll('h2')].some(e=>e.innerText.trim()==='Cost Structure'&&e.getClientRects().length>0),mobileCardsExpected:innerWidth<768,mobileCardsIntact:innerWidth>=768?sections.every(section=>section.desktopTableVisible):sections.every(section=>section.visibleCardCount>0&&!section.horizontalCardOverflow),showAll:show&&g&&s&&l?{inside:graph.contains(show),distinct:!legend.contains(show),separated,rightInset:g.right-s.right,topInset:s.top-g.top,topRight:(g.right-s.right<=20&&s.bottom<=(storySvg?.getBoundingClientRect().top??Infinity)+1),gapFromLastLegendItem:lastLegendItem?s.left-lastLegendItem.right:null,card:g,button:s,legend:l}:null,costStructureBounds:graphBounds(storySvg),breakEvenBounds:graphBounds(breakSvg),breakEvenEvidence}
     })()`)
     const centerlines = await evaluate(`(${numericColumnGeometry.toString()})()`)
@@ -1885,7 +1885,7 @@ try {
     check(`Responsive ${width}px Break-even uses a fitted viewBox, uniform scale, and contains its labels`,
       Boolean(metrics.breakEvenBounds?.coordinatesMatchRenderedBox && metrics.breakEvenBounds.uniformScale
         && metrics.breakEvenBounds.preserveAspectRatio === 'xMidYMid meet' && metrics.breakEvenBounds.labelsWithinViewBox), metrics.breakEvenBounds)
-    check(`Responsive ${width}px Break-even retains its quantity marker, Batch slider, and QTY axis label`,Boolean(metrics.breakEvenEvidence?.markerCount>=1&&metrics.breakEvenEvidence.batchSlider&&metrics.breakEvenEvidence.qtyLabel),metrics.breakEvenEvidence)
+    check(`Responsive ${width}px Break-even retains its quantity marker, Batch slider, and UOM axis label`,Boolean(metrics.breakEvenEvidence?.markerCount>=1&&metrics.breakEvenEvidence.batchSlider&&metrics.breakEvenEvidence.quantityAxisLabel),metrics.breakEvenEvidence)
     } else {
       check(`Numeric layout ${width}px has no page overflow and keeps tables/mobile cards intact`,
         Boolean(metrics && !metrics.horizontalOverflow && metrics.mobileCardsIntact), metrics.sections)

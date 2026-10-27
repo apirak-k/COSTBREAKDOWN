@@ -148,6 +148,15 @@ function calculatedNumber(value: ExactDecimal | null, label: string, warnings: s
   return result === null ? finiteResult(Number.NaN, label, warnings) : finiteResult(result, label, warnings)
 }
 
+function ceilPositiveRatio(numerator: ExactDecimal, denominator: ExactDecimal): bigint | null {
+  if (numerator.coefficient < 0n || denominator.coefficient <= 0n) return null
+  const scaledNumerator = numerator.coefficient * 10n ** BigInt(denominator.scale)
+  const scaledDenominator = denominator.coefficient * 10n ** BigInt(numerator.scale)
+  if (scaledDenominator === 0n) return null
+  const wholeUnits = scaledNumerator / scaledDenominator
+  return wholeUnits + (scaledNumerator % scaledDenominator === 0n ? 0n : 1n)
+}
+
 export function calculateEconomicSimulation(
   afterSnapshot: CostSnapshot,
   afterCost: SnapshotCost | null,
@@ -205,10 +214,13 @@ export function calculateEconomicSimulation(
         ? divideExactDecimals(exactFixedActionCost, exactNetSaving)
         : null
       preciseBreakEvenQuantity = calculatedNumber(exactPreciseBreakEvenQuantity, 'Break-even Quantity', warnings)
-      if (preciseBreakEvenQuantity !== null) {
-        const roundingTolerance = Number.EPSILON * Math.max(1, Math.abs(preciseBreakEvenQuantity)) * 4
-        const roundedQuantity = Math.ceil(preciseBreakEvenQuantity - roundingTolerance)
-        if (Number.isSafeInteger(roundedQuantity)) breakEvenQuantity = roundedQuantity === 0 ? 0 : roundedQuantity
+      if (preciseBreakEvenQuantity !== null && exactFixedActionCost && exactNetSaving) {
+        const roundedQuantityExact = ceilPositiveRatio(exactFixedActionCost, exactNetSaving)
+        const roundedQuantity = roundedQuantityExact === null ? null : Number(roundedQuantityExact)
+        if (roundedQuantityExact !== null && roundedQuantity !== null
+          && Number.isSafeInteger(roundedQuantity) && BigInt(roundedQuantity) === roundedQuantityExact) {
+          breakEvenQuantity = roundedQuantity === 0 ? 0 : roundedQuantity
+        }
         else {
           preciseBreakEvenQuantity = null
           warnings.push('Break-even Quantity exceeds the supported whole-quantity range.')

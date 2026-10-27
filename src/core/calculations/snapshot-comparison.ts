@@ -95,6 +95,9 @@ function exactRowValue(row: SnapshotRow, field: string) {
 function exactRowsEqual(left: SnapshotRow, right: SnapshotRow, field: string): boolean {
   const leftValue = exactRowValue(left, field)
   const rightValue = exactRowValue(right, field)
+  const leftMissing = leftValue.numeric === null || leftValue.numeric === undefined
+  const rightMissing = rightValue.numeric === null || rightValue.numeric === undefined
+  if (leftMissing || rightMissing) return leftMissing && rightMissing
   const leftExactInputs = (left as SnapshotRow & { exactDecimalInputs?: Record<string, string> }).exactDecimalInputs
   const rightExactInputs = (right as SnapshotRow & { exactDecimalInputs?: Record<string, string> }).exactDecimalInputs
   return resolveExactDecimalInputPair(

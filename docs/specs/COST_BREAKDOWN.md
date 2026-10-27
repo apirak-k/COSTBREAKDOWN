@@ -2,7 +2,7 @@
 
 **Status:** Core comparison, calculations, Gap, and Candidate selection behavior is `FINALIZED — USER DECISION`. Phase 2 is complete: CBD compares any ordered pair of Reference, Current, and Custom Working datasets. Phase 1 Simulation behavior remains unchanged.
 
-**Numeric-value integrity update (2026-10-24):** Cost Breakdown reads exact decimal input text when supplied and uses exact decimal operations for BOM, Routing, Standard Cost, comparison differences, and parameter attribution. Without exact text, only the narrow finalized floating-residue rule applies to legacy Number fallback. Loss/Yield sidecars use percentage-point text while their snapshot fields are stored fractions. Existing formulas and unavailable-value rules are unchanged; presentation strings never become calculation inputs. See the [cross-cutting numeric contract](CROSS_CUTTING.md#numeric-display-and-editing).
+**Numeric-value integrity update (2026-10-24):** Cost Breakdown reads exact decimal input text when supplied and uses exact decimal operations for BOM, Routing, Standard Cost, comparison differences, and parameter attribution. Without exact text, the shared narrow floating-residue policy applies to legacy Number fallback; its implementation boundary is not a separate product requirement. Loss/Yield sidecars use percentage-point text while their snapshot fields are stored fractions. Existing formulas and unavailable-value rules are unchanged; presentation strings never become calculation inputs. See the [cross-cutting numeric contract](CROSS_CUTTING.md#numeric-display-and-editing).
 
 ## Final Target State
 

@@ -144,11 +144,16 @@ assert.match(arrowGroup, /relative flex h-6 w-12[^\n]*md:col-start-8 md:w-6 md:j
 assert.match(previousButton, /<ChevronLeft[^>]*className="h-4 w-4"/)
 assert.match(nextButton, /<ChevronRight[^>]*className="h-4 w-4"/)
 assert.match(simulationPage, /<ChevronRight className="h-4 w-4" \/>/, 'row expansion chevrons use the matching 16px size')
-assert.match(simulationPage, /const columnWidths = \['6%', '18%', '10%', '14\.5%', '14\.5%', '14\.5%', '17%', '5\.5%'\]/)
+const columnWidthsDeclaration = simulationPage.match(/const columnWidths = \[([^\]]+)\]/)?.[1]
+assert.ok(columnWidthsDeclaration, 'Simulation keeps explicit table tracks aligned with its shared footer grid')
+const columnWidths = [...columnWidthsDeclaration.matchAll(/(\d+(?:\.\d+)?)%/g)].map(([, width]) => Number(width))
+assert.equal(columnWidths.length, 8, 'Simulation keeps one explicit track for each table/footer column')
+assert.equal(columnWidths.reduce((total, width) => total + width, 0), 100,
+  'Simulation table tracks partition the available width without fixing provisional ratios')
 assert.match(simulationPage, /columnWidths\.map\(\(width, index\) =>/,
   'the table uses the same eight column tracks as the footer control grid')
 assert.match(simulationPage, /gridTemplateColumns: columnWidths\.join\(' '\)/)
-assert.match(simulationPage, /\{displayMoney\(analysis\.simCost\)\}<\/td>\s*<td className="px-0\.5 py-1 text-center">[\s\S]*?<ChevronRight className="h-4 w-4" \/>/,
+assert.match(simulationPage, /<SelectedNumber value=\{analysis\.simCost\} numericColumn[\s\S]*?<\/td>\s*<td className=\{`px-0\.5 py-1 text-center \$\{groupEndClass\}`\}>[\s\S]*?<ChevronRight className="h-4 w-4" \/>/,
   'the row Details chevron is centered in table column 8')
 assert.doesNotMatch(footer, /[◀▶]/)
 const orderedRowsDefinition = simulationPage.match(/const orderedRows =[\s\S]*?(?=\n\s*const visibleRange)/)?.[0]
@@ -234,8 +239,10 @@ const cbdTables = source('src/features/cost-breakdown/components/CandidateFindin
 const itemized = source('src/features/cost-breakdown/components/ItemizedComparisonTable.tsx')
 const cbdOffsetUpdate = cbdPage.match(/const updateStickyOffset[\s\S]*?;/)?.[0]
 assert.ok(cbdOffsetUpdate, 'Cost Breakdown measures the sticky shell for the table header offset')
-assert.match(cbdOffsetUpdate, /shell\.getBoundingClientRect\(\)\.height/)
-assert.doesNotMatch(cbdOffsetUpdate, /height\s*[+*/-]|(?:\+\s*8)|(?:8\s*\+)/, 'sticky offset is the measured shell height alone')
+assert.match(cbdOffsetUpdate, /shell\.getBoundingClientRect\(\)\.bottom/)
+assert.match(cbdOffsetUpdate, /main\?\.getBoundingClientRect\(\)\.top \?\? 0/)
+assert.match(cbdOffsetUpdate, /shellBottom - mainTop/,
+  'sticky table offset uses the shell bottom relative to the CBD main content origin')
 assert.match(cbdPage, /new ResizeObserver\(updateStickyOffset\)/)
 assert.match(cbdPage, /data-cbd-sticky-shell="true"[^>]*lg:sticky lg:top-0/)
 const cbdShellClass = cbdPage.match(/data-cbd-sticky-shell="true"[^>]*className="([^"]+)"/)?.[1]
@@ -261,8 +268,10 @@ assert.match(cbdTables, /<div className="overflow-x-auto" onScroll=\{syncHeaderS
 assert.match(cbdTables, /<div className="border border-slate-200">\s*<StickyTableHeader/)
 assert.doesNotMatch(cbdTables, /<div className="overflow-x-auto border border-slate-200">/)
 assert.match(cbdTables, /<thead className="sr-only">[\s\S]*?<\/thead>/)
-assert.match(cbdTables, /min-w-\[1040px\]/)
-assert.match(cbdTables, /min-w-\[1260px\]/)
+assert.match(cbdTables, /const tableClassName = `w-full \$\{isBOM \? 'min-w-\[\d+px\]' : 'min-w-\[\d+px\]'\} table-fixed/,
+  'BOM and Routing findings retain their own responsive table-width budgets')
+assert.match(cbdTables, /<colgroup>\{columnWidths\.map\(/,
+  'Candidate headers and body cells share the declared comparison column tracks')
 const cbdCandidateTypes = [...itemized.matchAll(/<CandidateFindingsTable\b[\s\S]*?type="(bom|routing)"/g)].map(([, type]) => type)
 assert.deepEqual(cbdCandidateTypes, ['bom', 'routing'], 'both BOM and Routing findings use the shared CandidateFindingsTable')
 assert.match(itemized, /typeTab !== 'rtg'[\s\S]*type="bom"[\s\S]*typeTab !== 'bom'[\s\S]*type="routing"/)

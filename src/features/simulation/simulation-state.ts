@@ -1,5 +1,10 @@
 import type { CostSnapshot, MasterDataRole, SnapshotBOMItem, SnapshotRoutingStep } from '../../core/types'
-import { compareExactDecimals, exactDecimalInputValue, exactDecimalSidecarValue } from '../../core/utils/exact-decimal'
+import {
+  compareExactDecimals,
+  exactDecimalInputValue,
+  exactDecimalSidecarValue,
+  resolveExactDecimalInputPair
+} from '../../core/utils/exact-decimal'
 import { areNumericValuesEquivalent } from '../../core/utils/guards'
 import { calculateParameterSimulation, isSimulationParameterInputValid } from './simulation-engine'
 import {
@@ -155,11 +160,16 @@ export function getEffectiveSimulationDataset(
   const stored = state.datasets[role]
   let dataset: SimulationDatasetState
   if (stored?.basisFingerprint === simulationBasisFingerprint(role, sources)) {
-    const parameterOverrides = normalizeParameterOverrides(stored.parameterOverrides, sources[role])
+    const parameterOverrides = normalizeParameterOverrides(stored.parameterOverrides, sources[role], stored.exactDecimalInputs)
     dataset = {
       ...stored,
       parameterOverrides,
-      exactDecimalInputs: normalizeExactDecimalInputs(stored.exactDecimalInputs, sources[role], parameterOverrides)
+      exactDecimalInputs: normalizeExactDecimalInputs(
+        stored.exactDecimalInputs,
+        sources[role],
+        parameterOverrides,
+        stored.parameterOverrides
+      )
     }
   } else {
     dataset = createEmptyDataset(role, sources)
@@ -389,8 +399,13 @@ function reconcileDataset(value: unknown, role: MasterDataRole, sources: Simulat
   const fresh = createEmptyDataset(role, sources)
   if (!isRecord(value) || value.basisFingerprint !== fresh.basisFingerprint) return fresh
 
-  const parameterOverrides = normalizeParameterOverrides(value.parameterOverrides, sources[role])
-  const exactDecimalInputs = normalizeExactDecimalInputs(value.exactDecimalInputs, sources[role], parameterOverrides)
+  const parameterOverrides = normalizeParameterOverrides(value.parameterOverrides, sources[role], value.exactDecimalInputs)
+  const exactDecimalInputs = normalizeExactDecimalInputs(
+    value.exactDecimalInputs,
+    sources[role],
+    parameterOverrides,
+    value.parameterOverrides
+  )
   const snapshot = applyParameterOverrides(sources[role], parameterOverrides, exactDecimalInputs)
   const selection = Array.isArray(value.workingSelection)
     ? [...new Set(value.workingSelection.filter((item): item is string => typeof item === 'string'))]
@@ -431,12 +446,19 @@ function normalizeEconomicInputs(
   }
 }
 
-function normalizeParameterOverrides(value: unknown, baseline: CostSnapshot): SimulationParameterOverrides {
+function normalizeParameterOverrides(
+  value: unknown,
+  baseline: CostSnapshot,
+  exactDecimalInputsValue?: unknown
+): SimulationParameterOverrides {
   if (!isRecord(value)) return {}
   const result: SimulationParameterOverrides = {}
   for (const parameter of SIMULATION_PARAMETERS) {
     const entries = value[parameter]
     if (!isRecord(entries)) continue
+    const exactEntries = isRecord(exactDecimalInputsValue) && isRecord(exactDecimalInputsValue[parameter])
+      ? exactDecimalInputsValue[parameter]
+      : {}
     const { kind, field } = PARAMETER_FIELDS[parameter]
     const rows = kind === 'bom' ? baseline.bom : baseline.routing
     const valid: Record<string, number | null> = {}
@@ -444,7 +466,24 @@ function normalizeParameterOverrides(value: unknown, baseline: CostSnapshot): Si
       const matches = rows.filter(row => row.id === recordId)
       if (!recordId || matches.length !== 1 || (candidate !== null && typeof candidate !== 'number')) continue
       if (!isSimulationParameterInputValid(parameter, candidate as number | null)) continue
-      if (areNumericValuesEquivalent((matches[0] as unknown as Record<string, unknown>)[field] as number | null | undefined, candidate as number | null | undefined)) continue
+      const baselineRow = matches[0] as unknown as Record<string, unknown> & { exactDecimalInputs?: Record<string, string> }
+      const baselineValue = baselineRow[field] as number | null | undefined
+      const candidateValue = candidate as number | null
+      const candidateExact = typeof exactEntries[recordId] === 'string' ? exactEntries[recordId] as string : undefined
+      const validCandidateExact = typeof candidateValue === 'number'
+        && exactDecimalSidecarValue(candidateValue, candidateExact, isPercentageParameter(parameter))
+        ? candidateExact
+        : undefined
+      const equivalent = typeof baselineValue === 'number' && typeof candidateValue === 'number'
+        ? resolveExactDecimalInputPair(
+          baselineValue,
+          baselineRow.exactDecimalInputs?.[field],
+          candidateValue,
+          validCandidateExact,
+          isPercentageParameter(parameter)
+        ).equivalent
+        : areNumericValuesEquivalent(baselineValue, candidateValue)
+      if (equivalent) continue
       valid[recordId] = candidate as number | null
     }
     if (Object.keys(valid).length) result[parameter] = valid
@@ -455,13 +494,17 @@ function normalizeParameterOverrides(value: unknown, baseline: CostSnapshot): Si
 function normalizeExactDecimalInputs(
   value: unknown,
   baseline: CostSnapshot,
-  overrides: SimulationParameterOverrides = {}
+  overrides: SimulationParameterOverrides = {},
+  rawOverridesValue?: unknown
 ): SimulationParameterExactInputs {
   if (!isRecord(value)) return {}
   const result: SimulationParameterExactInputs = {}
   for (const parameter of SIMULATION_PARAMETERS) {
     const entries = value[parameter]
     if (!isRecord(entries)) continue
+    const rawOverrideEntries = isRecord(rawOverridesValue) && isRecord(rawOverridesValue[parameter])
+      ? rawOverridesValue[parameter]
+      : undefined
     const { kind, field } = PARAMETER_FIELDS[parameter]
     const rows = kind === 'bom' ? baseline.bom : baseline.routing
     const valid: Record<string, string> = {}
@@ -472,6 +515,13 @@ function normalizeExactDecimalInputs(
       const row = matches[0] as unknown as Record<string, unknown> & { exactDecimalInputs?: Record<string, string> }
       const parameterOverrides = overrides[parameter]
       const hasOverride = Boolean(parameterOverrides && Object.prototype.hasOwnProperty.call(parameterOverrides, recordId))
+      const hadStoredOverride = Boolean(rawOverrideEntries && Object.prototype.hasOwnProperty.call(rawOverrideEntries, recordId))
+      if (hadStoredOverride) {
+        const storedNumber = rawOverrideEntries?.[recordId]
+        if (typeof storedNumber !== 'number'
+          || !isSimulationParameterInputValid(parameter, storedNumber)
+          || !exactDecimalSidecarValue(storedNumber, candidate, isPercentageParameter(parameter))) continue
+      }
       const numericValue = hasOverride
         ? parameterOverrides?.[recordId]
         : row[field] as number | null | undefined

@@ -185,6 +185,15 @@ All product requirements and lifecycle boundaries are complete under the finaliz
 - **Review trigger:** external visual audit findings, layout clipping, Result↔Break-even overlap, or unnecessary scrollbars.
 - **Related contracts:** [`CROSS_CUTTING.md`](specs/CROSS_CUTTING.md), [`SIMULATION.md`](specs/SIMULATION.md), and [`COST_BREAKDOWN.md`](specs/COST_BREAKDOWN.md).
 
+### P-017 — Bounded no-sidecar floating-residue implementation
+
+- **Status:** `PROVISIONAL — AI CHOICE`
+- **Choice:** the current exact-decimal implementation uses a two-ULP bound when cleaning a standalone no-sidecar Number and a three-ULP bound for the pair-specific no-sidecar comparison path. The `0.09` / `0.09000000000000004` pair is a regression example for the current implementation.
+- **Why:** these bounded paths address observed JavaScript representation tails while leaving source Numbers and authoritative exact sidecars unchanged.
+- **Must preserve:** the finalized behavior in [`CROSS_CUTTING.md`](specs/CROSS_CUTTING.md#numeric-display-and-editing): authoritative exact input takes precedence; comparison and calculation use consistent pair semantics; focus/formatting do not rewrite storage; meaningful small nonzero business values remain meaningful; distinct valid exact sidecars are not merged.
+- **Reversible:** the numeric ULP bounds and candidate-cleanup algorithm are implementation details. They may change when evidence supports a safer algorithm, provided the finalized behavior and regression cases remain correct.
+- **Review trigger:** a reproducible false change, a meaningful value collapsed by the current boundary, or an explicit later user decision.
+
 ## Human Review Checkpoint
 
 Human visual review is an implementation verification checkpoint. It does not make the explicit Simulation decisions above provisional.

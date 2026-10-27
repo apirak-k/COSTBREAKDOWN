@@ -2,7 +2,6 @@ import assert from 'node:assert/strict'
 import React from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { createServer } from 'vite'
-import { stepNumericValue } from '../src/shared/ui/numeric-input-rules.ts'
 import type { CostSnapshot, SnapshotCost } from '../src/core/types'
 
 const vite = await createServer({
@@ -15,17 +14,20 @@ const vite = await createServer({
 let panelModule: any
 let economicsModule: any
 let selectedValueModule: any
+let numericInputRulesModule: any
 try {
-  ;[panelModule, economicsModule, selectedValueModule] = await Promise.all([
+  ;[panelModule, economicsModule, selectedValueModule, numericInputRulesModule] = await Promise.all([
     vite.ssrLoadModule('/src/features/simulation/EconomicSimulationPanel.tsx'),
     vite.ssrLoadModule('/src/features/simulation/simulation-economics.ts'),
-    vite.ssrLoadModule('/src/shared/ui/selected-value.tsx')
+    vite.ssrLoadModule('/src/shared/ui/selected-value.tsx'),
+    vite.ssrLoadModule('/src/shared/ui/numeric-input-rules.ts')
   ])
 } finally {
   await vite.close()
 }
 
 const { EconomicBreakEvenGraphPanel, EconomicSimulationPanel } = panelModule
+const { stepNumericValue } = numericInputRulesModule
 const { SelectedValueProvider } = selectedValueModule
 const renderWithSelectedValueProvider = (element: React.ReactNode) => renderToStaticMarkup(
   React.createElement(SelectedValueProvider, { scopeKey: 'simulation-economics-verifier' }, element)
@@ -112,6 +114,18 @@ const higherSaving = calculateEconomicSimulation(currentSnapshot, simulationCost
 })
 assert.equal(higherSaving.preciseBreakEvenQuantity, 20000 / 7)
 assert.equal(higherSaving.breakEvenQuantity, 2858, 'Parameter Saving changes Break-even Quantity')
+
+const exactQuantityJustAboveInteger = calculateEconomicSimulation(
+  currentSnapshot,
+  simulationCost,
+  1,
+  withInputs({ fixedActionCost: '1.00000000000000001', variableActionCostPerPiece: '0' }),
+  '1'
+)
+assert.equal(exactQuantityJustAboveInteger.preciseBreakEvenQuantity, 1,
+  'the precise quantity is projected through the existing Number interface')
+assert.equal(exactQuantityJustAboveInteger.breakEvenQuantity, 2,
+  'ceiling uses the exact quotient when the Number projection hides a positive fraction above an integer')
 
 const noSaving = calculateEconomicSimulation(currentSnapshot, simulationCost, 2, worked)
 assert.equal(noSaving.breakEvenQuantity, null)

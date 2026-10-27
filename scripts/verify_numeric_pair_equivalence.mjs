@@ -40,7 +40,11 @@ bomPair.reference.bom[0] = {
   consumption: 0.02542,
   price: 14.83571,
   loss: 0.101,
-  exactDecimalInputs: { loss: '10.1' }
+  exactDecimalInputs: {
+    consumption: '2.5420000000000002E-2',
+    price: '14.835710000000001',
+    loss: '10.1'
+  }
 }
 bomPair.current.bom[0] = {
   ...bomPair.current.bom[0],
@@ -66,7 +70,11 @@ const bomEffects = calculateBOMParameterCostEffects(
     usage: 0.02542,
     price: 14.83571,
     loss: 0.101,
-    exactInputs: { loss: '10.1' }
+    exactInputs: {
+      usage: '2.5420000000000002E-2',
+      price: '14.835710000000001',
+      loss: '10.1'
+    }
   },
   {
     usage: 0.02542,
@@ -110,7 +118,7 @@ const noSidecarResidueComparison = compareSnapshots(noSidecarResiduePair.referen
 const noSidecarResidueFinding = noSidecarResidueComparison.bomFindings.find(finding =>
   finding.referenceId === noSidecarResiduePair.reference.bom[0].id)
 check.equal(getCanonicalComparisonStatus(noSidecarResidueFinding), 'UNCHANGED',
-  'the finalized no-sidecar 0.09 residue example remains UNCHANGED')
+  'the current no-sidecar 0.09 residue regression example remains UNCHANGED')
 check.equal(noSidecarResidueFinding?.fieldDiffs.price, undefined,
   'no-sidecar representation residue does not create a field difference')
 check.equal(noSidecarResidueFinding?.costEffect?.gap.material, 0,
@@ -127,6 +135,29 @@ const noSidecarResiduePce = calculateBOMParameterCostEffects(
 )
 check.deepEqual(noSidecarResiduePce, { status: 'available', effects: { usage: 0, price: 0, loss: 0 } },
   'equivalent no-sidecar residue produces exact-zero BOM PCE')
+
+const oneSidedExactDifference = makePair()
+oneSidedExactDifference.reference.bom[0] = {
+  ...oneSidedExactDifference.reference.bom[0], consumption: 1, price: 10, loss: 0,
+  exactDecimalInputs: undefined
+}
+oneSidedExactDifference.current.bom[0] = {
+  ...oneSidedExactDifference.current.bom[0], consumption: 1, price: 10, loss: 0,
+  exactDecimalInputs: { price: '10.00000000000000001' }
+}
+const oneSidedExactComparison = compareSnapshots(oneSidedExactDifference.reference, oneSidedExactDifference.current)
+const oneSidedExactFinding = oneSidedExactComparison.bomFindings.find(finding =>
+  finding.referenceId === oneSidedExactDifference.reference.bom[0].id)
+check.equal(getCanonicalComparisonStatus(oneSidedExactFinding), 'CHANGED',
+  'a validated one-sided exact decimal difference remains CHANGED despite equal Number projections')
+check.notEqual(oneSidedExactFinding?.costEffect?.gap.material, 0,
+  'a one-sided exact decimal difference keeps its nonzero cost Gap')
+const oneSidedExactPce = calculateBOMParameterCostEffects(
+  { usage: 1, price: 10, loss: 0 },
+  { usage: 1, price: 10, loss: 0, exactInputs: { price: '10.00000000000000001' } }
+)
+check.ok(oneSidedExactPce.status === 'available' && oneSidedExactPce.effects.price !== 0,
+  'a one-sided exact decimal difference keeps its nonzero parameter cost effect')
 
 const noSidecarMeaningfulDifference = makePair()
 noSidecarMeaningfulDifference.reference.bom[0] = {
@@ -165,7 +196,9 @@ check.equal(getCanonicalComparisonStatus(outsideNoSidecarBoundaryFinding), 'CHAN
   'the four-ULP no-sidecar pair remains CHANGED beyond the explicit residue boundary')
 
 const unchangedRatePair = makePair()
-unchangedRatePair.reference.rates[0] = setExact(unchangedRatePair.reference.rates[0], 'burdenRate', undefined)
+unchangedRatePair.reference.rates[0] = setExact(
+  unchangedRatePair.reference.rates[0], 'burdenRate', '138.47999999999999'
+)
 unchangedRatePair.current.rates[0] = {
   ...unchangedRatePair.current.rates[0],
   burdenRate: 138.48,
@@ -187,7 +220,7 @@ const unchangedRoutingPce = calculateRoutingParameterCostEffects(
     yield: 0.9,
     laborRate: 105.29,
     burdenRate: 138.48,
-    exactInputs: { yield: '90', laborRate: '105.29' }
+    exactInputs: { yield: '90', laborRate: '105.29', burdenRate: '138.47999999999999' }
   },
   {
     manning: 1,
@@ -248,7 +281,7 @@ changedRoutingPair.reference.rates[0] = {
   ...changedRoutingPair.reference.rates[0],
   laborRate: 105.29,
   burdenRate: 138.48,
-  exactDecimalInputs: { laborRate: '105.29' }
+  exactDecimalInputs: { laborRate: '105.29', burdenRate: '138.47999999999999' }
 }
 changedRoutingPair.current.rates[0] = {
   ...changedRoutingPair.current.rates[0],
@@ -273,7 +306,7 @@ const changedRoutingPce = calculateRoutingParameterCostEffects(
     yield: 0.9,
     laborRate: 105.29,
     burdenRate: 138.48,
-    exactInputs: { yield: '90', laborRate: '105.29' }
+    exactInputs: { yield: '90', laborRate: '105.29', burdenRate: '138.47999999999999' }
   },
   {
     manning: 1,

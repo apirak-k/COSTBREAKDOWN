@@ -22,7 +22,7 @@ try {
   assert.ok(baseline && oneUlpTail)
   assert.equal(exactDecimalToString(baseline), '1')
   assert.equal(exactDecimalToString(oneUlpTail), '1',
-    'no-sidecar Number fallback removes only the accepted two-ULP representation tail')
+    'no-sidecar Number fallback removes only the current two-ULP representation tail')
   assert.equal(compareExactDecimals(baseline, oneUlpTail), 0,
     'a materially shorter decimal within two ULP remains the same business value')
 
@@ -33,21 +33,21 @@ try {
 
   const threeUlpResidue = 0.09000000000000004
   assert.equal(exactDecimalToString(exactDecimalInputValue(threeUlpResidue)), String(threeUlpResidue),
-    'single-value no-sidecar cleanup remains capped at the finalized two-ULP rule')
+    'single-value no-sidecar cleanup remains capped at the current two-ULP rule')
   const equivalentPair = resolveExactDecimalInputPair(0.09, undefined, threeUlpResidue, undefined)
   assert.equal(equivalentPair.equivalent, true,
-    'the finalized 0.09 pair comparison resolves its explicit three-ULP representation case')
+    'the current pair comparison resolves the 0.09 regression representation case')
   assert.equal(exactDecimalToString(equivalentPair.current), '0.09',
     'the equivalent pair shares a canonical calculation operand without changing stored Numbers')
 
   const fourUlpDifference = 0.09000000000000005
   const outsidePairBoundary = resolveExactDecimalInputPair(0.09, undefined, fourUlpDifference, undefined)
   assert.equal(outsidePairBoundary.equivalent, false,
-    'a no-sidecar pair beyond the explicit three-ULP residue boundary remains different')
+    'a no-sidecar pair outside the current bounded residue policy remains different')
 
   const noisyNine = 9.000000000000004
   assert.equal(exactDecimalToString(exactDecimalInputValue(noisyNine)), '9',
-    'business calculation fallback uses the finalized no-sidecar machine-residue cleanup')
+    'business calculation fallback uses the current no-sidecar machine-residue cleanup')
 
   const preciseSidecar = exactDecimalInputValue(1, '1.00000000000000001')
   assert.ok(preciseSidecar)

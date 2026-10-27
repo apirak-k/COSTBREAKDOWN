@@ -567,7 +567,7 @@ The cross-page numeric contract is specified in [`CROSS_CUTTING.md`](CROSS_CUTTI
 - [x] Spinner, ArrowUp/Down, and focused-wheel steps follow the digit place under the caret for decimal and integer inputs; unavailable active place falls back to units; unfocused wheel remains available to page scrolling.
 - [x] Capacity and Yield accept valid fractions below one through a transient zero-prefix draft, reject zero and out-of-range values, and do not coerce invalid input.
 - [x] Paste applies numeric syntax and domain checks; invalid edits remain uncommitted and do not replace a required-value Blocker with valid-looking data.
-- [x] Domain boundaries are field-specific: Selling Price, SG&A (without an upper bound), BOM Usage/Price, Labor/Burden Rate, and Manning are `>= 0`; Loss is `0..100%` inclusive; Capacity is `> 0`; Yield is `> 0..100%` inclusive; configured row counts are bounded whole numbers `>= 1`.
+- [x] Historical domain boundary at this 2026-10-12 checkpoint: Selling Price, SG&A (then without an upper bound), BOM Usage/Price, Labor/Burden Rate, and Manning are `>= 0`; Loss is `0..100%` inclusive; Capacity is `> 0`; Yield is `> 0..100%` inclusive; configured row counts are bounded whole numbers `>= 1`. The later canonical Master Data domain sets SG&A to `0–100%` inclusive; see [`MASTER_DATA.md`](MASTER_DATA.md).
 - [x] The numeric rules, formatter, Master Data input filter, and Simulation input guard have targeted automated coverage.
 - [x] Browser review verifies live typing, blanking, focused spinners, focused/unfocused wheel behavior, and Poka-Yoke for Capacity/Yield.
 

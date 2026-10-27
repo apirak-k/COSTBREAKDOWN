@@ -123,7 +123,7 @@ try {
 
   const genuinelyDifferentRate = {
     ...currentRate,
-    exactDecimalInputs: { ...currentRate.exactDecimalInputs, burdenRate: '138.481' },
+    exactDecimalInputs: { ...currentRate.exactDecimalInputs, burdenRate: '138.480000000000001' },
     // Keep the Number projection equal on purpose: exact business text must win.
     burdenRate: 138.48
   }

@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict'
 import { prepareSpreadsheetBatch } from '../src/features/master-data/hooks/useSpreadsheetEditing'
+import { parsePercentage } from '../src/features/master-data/table-validation'
+import { normalizeMasterDataSnapshot } from '../src/core/utils/master-data-effective'
+import type { CostSnapshot } from '../src/core/types'
 
 interface TestRow {
   id: string
@@ -93,5 +96,41 @@ const invalidPercentagePaste = prepareSpreadsheetBatch(decimalRows, [
 ])
 assert.equal(invalidPercentagePaste[0].changes.exactDecimalInputs, undefined,
   'a rejected percentage paste cannot persist a mismatched exact sidecar')
+
+const percentageTextFromGrid = '0.29'
+const percentageGridValue = parsePercentage(percentageTextFromGrid)
+assert.equal(percentageGridValue, 0.0029,
+  'copied percentage-point grid text parses back to the stored fractional value')
+const percentageSnapshot = {
+  id: 'percentage-paste',
+  comparisonRole: 'custom' as const,
+  status: 'draft' as const,
+  sourceRef: 'fixture',
+  effectiveDate: '',
+  product: {
+    productCode: 'P', productDescription: 'Product', uom: 'PC', customer: '', effectiveDate: '',
+    sellingPrice: null, sgaPercent: null
+  },
+  rates: [],
+  bom: [{
+    id: 'percentage-row', itemCode: 'LOSS', description: 'Loss', consumption: 1,
+    unit: 'PC', price: 1, loss: 0.1, exactDecimalInputs: { loss: '10' }, confidence: {}
+  }],
+  routing: [],
+  warnings: []
+} satisfies CostSnapshot
+const percentageGridPaste = prepareSpreadsheetBatch(percentageSnapshot.bom, [{
+  id: 'percentage-row',
+  changes: { loss: percentageGridValue },
+  exactDecimalUpdates: { loss: percentageTextFromGrid }
+}])
+const normalizedPercentagePaste = normalizeMasterDataSnapshot({
+  ...percentageSnapshot,
+  bom: [{ ...percentageSnapshot.bom[0], ...percentageGridPaste[0].changes }]
+}, percentageSnapshot)
+assert.equal(normalizedPercentagePaste.bom[0].loss, 0.0029,
+  'Master Data normalization retains the pasted percentage as a fraction')
+assert.equal(normalizedPercentagePaste.bom[0].exactDecimalInputs?.loss, '0.29',
+  'Master Data normalization retains the pasted percentage-point sidecar')
 
 console.log('Master Data spreadsheet batch verification passed')

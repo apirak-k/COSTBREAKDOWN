@@ -4,6 +4,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import type { FocusEvent, InputHTMLAttributes, KeyboardEvent, PointerEvent as ReactPointerEvent } from 'react'
 import { businessNumberPresentation, formatFocusedNumericValue, formatFullNumericValue, formatHeaderNumericValue } from './numeric-display'
 import { measureNumericText, numericDecimalPrefixWidth, numericColumnPresentation, numericScientificFitFloor, useNumericColumnMetrics } from './numeric-column-layout'
+import { compareExactDecimals, parseExactDecimal } from '../../core/utils/exact-decimal'
 import {
   formatNumericInputValue,
   isNumericDraftSyntax,
@@ -38,6 +39,15 @@ export interface NumericInputProps extends Omit<InputHTMLAttributes<HTMLInputEle
 
 const defaultInputClassName = 'h-8 w-full min-w-0 font-mono text-xs tabular-nums focus:outline-none'
 const useIsomorphicLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect
+
+function exactDecimalValuesEqual(left: string | number | null | undefined, right: string | number | null | undefined): boolean {
+  const leftText = left == null ? '' : String(left)
+  const rightText = right == null ? '' : String(right)
+  if (leftText === rightText) return true
+  const leftValue = parseExactDecimal(leftText)
+  const rightValue = parseExactDecimal(rightText)
+  return leftValue !== null && rightValue !== null && compareExactDecimals(leftValue, rightValue) === 0
+}
 
 export function NumericInput({
   value,
@@ -181,6 +191,16 @@ export function NumericInput({
     const valueChanged = !Object.is(previousValueRef.current, value)
     const exactValueChanged = !Object.is(exactValuePropRef.current, exactValue)
     const editorFocused = inputRef.current !== null && document.activeElement === inputRef.current
+    // Simulation can prune an override when a draft crosses the baseline. Keep
+    // the local text when that parent echo is the same exact decimal value.
+    const localDraftAcknowledged = editorFocused
+      && typeof exactValue === 'string'
+      && exactValue !== ''
+      && Object.is(value, lastEmittedValueRef.current)
+      && exactDecimalValuesEqual(
+        authoritativeSourceRef.current ?? lastEmittedValueRef.current,
+        exactValue
+      )
 
     // The numeric prop remains the calculation representation. Preserve an
     // owning exact string; otherwise rebuild the draft without Number residue.
@@ -188,7 +208,7 @@ export function NumericInput({
       authoritativeDraftRef.current = exactValue ?? formatFocusedNumericValue(value, integer)
       authoritativeSourceRef.current = exactValue
       authoritativeDraftValueRef.current = value
-    } else if (exactValueChanged) {
+    } else if (exactValueChanged && !localDraftAcknowledged) {
       authoritativeDraftRef.current = exactValue ?? formatFocusedNumericValue(value, integer)
       authoritativeSourceRef.current = exactValue
       authoritativeDraftValueRef.current = value
@@ -197,12 +217,11 @@ export function NumericInput({
     // Clipboard edits update the parent value without going through this input's
     // onChange handler. Keep the focused editor in sync when it still shows the
     // previous committed value, while preserving an in-progress numeric draft.
-    if (!editorFocused || exactValueChanged || (valueChanged && (
+    if (!editorFocused || (!localDraftAcknowledged && (exactValueChanged || (valueChanged && (
       draft === previousFormattedValueRef.current
       || draft === formatFocusedNumericValue(previousValueRef.current, integer)
-      || exactValueChanged
       || (displayMode === 'full' && !Object.is(value, lastEmittedValueRef.current))
-    ))) {
+    ))))) {
       setDraft(editorFocused && !inputProps.readOnly
         ? (exactValue ?? authoritativeDraftRef.current ?? formatFocusedNumericValue(value, integer))
         : formattedValue)

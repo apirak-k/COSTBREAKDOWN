@@ -105,7 +105,7 @@ try {
   })
 
   assert.equal(areNumericValuesEquivalent(1, 1 + Number.EPSILON), true,
-    'no-sidecar values within the finalized residue rule share semantic equality')
+    'no-sidecar values within the current residue policy share semantic equality')
   assert.equal(resolveExactDecimalInputPair(1, '1', 1 + Number.EPSILON, '1.0000000000000002').equivalent, false,
     'distinct authoritative exact sidecars remain different even when their Number values are adjacent')
 

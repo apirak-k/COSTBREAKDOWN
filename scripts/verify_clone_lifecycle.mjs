@@ -134,12 +134,12 @@ const importedRoundTripCurrent = {
 }
 const importedRoundTripComparison = compareSnapshots(withoutReferencePriceSidecar, importedRoundTripCurrent)
 const importedRoundTripFinding = importedRoundTripComparison.bomFindings.find(finding => finding.referenceId === reference.bom[0].id)
-check.equal(getCanonicalComparisonStatus(importedRoundTripFinding), 'UNCHANGED',
-  'an imported exact lexeme with the same Number projection as a no-sidecar value is semantically unchanged')
-check.equal(importedRoundTripFinding?.fieldDiffs.price, undefined,
-  'machine-equivalent imported lexeme does not create a price field diff')
-check.equal(importedRoundTripFinding?.fieldDiffs.consumption, undefined,
-  'machine-equivalent imported lexeme does not create a consumption field diff')
+check.equal(getCanonicalComparisonStatus(importedRoundTripFinding), 'CHANGED',
+  'an imported exact lexeme that differs from a no-sidecar value remains semantically distinct even when its Number projection matches')
+check.ok(importedRoundTripFinding?.fieldDiffs.price !== undefined && importedRoundTripFinding.fieldDiffs.price !== 0,
+  'an authoritative imported price lexeme retains its exact nonzero field difference')
+check.ok(importedRoundTripFinding?.fieldDiffs.consumption !== undefined && importedRoundTripFinding.fieldDiffs.consumption !== 0,
+  'an authoritative imported usage lexeme retains its exact nonzero field difference')
 check.equal(importedRoundTripCurrent.bom[0].exactDecimalInputs?.price, '14.835710000000001',
   'comparison keeps the imported exact lexeme intact')
 check.equal(importedRoundTripCurrent.bom[0].exactDecimalInputs?.consumption, '2.5420000000000002E-2',
@@ -173,18 +173,18 @@ const importedRateCurrent = {
 }
 const importedRateComparison = compareSnapshots(withoutReferenceRateSidecar, importedRateCurrent)
 const cuttingRateFinding = importedRateComparison.workCenterFindings.find(finding => finding.referenceId === 'Cutting')
-check.equal(getCanonicalComparisonStatus(cuttingRateFinding), 'UNCHANGED',
-  'a machine-equivalent imported Work Center rate does not mark the Work Center changed')
-check.equal(cuttingRateFinding?.fieldDiffs.burdenRate, undefined,
-  'a machine-equivalent imported Work Center rate does not create a field diff')
+check.equal(getCanonicalComparisonStatus(cuttingRateFinding), 'CHANGED',
+  'an imported exact Work Center rate remains changed from a no-sidecar value when its decimal value differs')
+check.ok(cuttingRateFinding?.fieldDiffs.burdenRate !== undefined && cuttingRateFinding.fieldDiffs.burdenRate !== 0,
+  'an authoritative imported Work Center rate retains its exact nonzero field difference')
 const cuttingRouteFindings = importedRateComparison.routingFindings.filter(finding =>
   finding.referenceId === 'rt-1' || finding.referenceId === 'rt-2')
 check.equal(cuttingRouteFindings.length, 2, 'both Routing rows using the Work Center are compared')
 for (const finding of cuttingRouteFindings) {
-  check.equal(getCanonicalComparisonStatus(finding), 'UNCHANGED',
-    `routing finding ${finding.referenceId} stays UNCHANGED when its imported Work Center rate is machine-equivalent`)
-  check.equal(finding.changeFlags.changedRate, false,
-    `routing finding ${finding.referenceId} does not inherit a false changedRate flag`)
+  check.equal(getCanonicalComparisonStatus(finding), 'CHANGED',
+    `routing finding ${finding.referenceId} reflects its Work Center's authoritative exact rate difference`)
+  check.equal(finding.changeFlags.changedRate, true,
+    `routing finding ${finding.referenceId} attributes the authoritative Work Center rate difference`)
 }
 check.equal(importedRateCurrent.rates[0].exactDecimalInputs?.burdenRate, '138.47999999999999',
   'comparison keeps the imported Work Center rate lexeme intact')

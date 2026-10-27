@@ -74,7 +74,7 @@ const numberOnlyItem: SnapshotBOMItem = {
 }
 const numberOnlyCost = calculateSnapshotBOMDetail({ current: numberOnlyItem })
 assert.equal(numberOnlyCost.exactValues?.currentCost, '11.61',
-  'Without an exact sidecar, the finalized narrow residue rule supplies the business decimal before calculation')
+  'Without an exact sidecar, the current narrow residue policy supplies the business decimal before calculation')
 assert.equal(numberOnlyItem.price, Number('9.000000000000004'),
   'business-value cleanup does not mutate the stored Number compatibility projection')
 assert.equal(numberOnlyItem.loss, Number('0.29000000000000004'),

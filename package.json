@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "excel": "node scripts/build_excel_models.js && node scripts/verify_excel_models.js"
+    "excel": "node scripts/build_excel_models.js && node scripts/verify_excel_models.js",
+    "verify:regressions": "node scripts/verify_regression_suite.mjs"
   },
   "dependencies": {
     "buffer": "5.7.1",

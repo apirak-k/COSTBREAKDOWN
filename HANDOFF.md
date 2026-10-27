@@ -1,4 +1,15 @@
-## Current checkpoint — Numeric integrity recovery — 2026-10-27
+## Current checkpoint — Full repository recovery — 2026-10-27
+
+- **Status:** This recovery reconciles numeric comparison, calculations, Simulation input lifecycle, export and workbook behavior, stale verification expectations, and documentation against the current requirements. Phase 2 remains **EXTERNALLY ACCEPTED / CLOSED**; the broader Real-World Usage Test remains in progress.
+- **Repository:** `E:\COSTBREAKDOWN`, branch `feat/selected-value-ux`; audited base HEAD `6d000b362a23fe8596b86bc44fc6fb0d594a36a9`. `backup/codex-numeric-fixes` was not touched.
+- **Resolved behavior:** Shared exact-decimal pair semantics now carry through comparison status, field deltas, PCE, aggregate Gap, Simulation, and comparison export. Valid authoritative sidecars that contain different exact values remain distinct even when their JavaScript Number projections match; no-sidecar machine residue remains pair-aware and bounded. Zero/tiny presentation stays semantic and adaptive.
+- **Lifecycle and workbook:** Simulation's focused numeric draft survives a parent echo that returns to the same exact baseline value; dropping an exact sidecar still rebuilds the focused draft from Number fallback. Excel comparison export preserves exact numeric input lexemes. Workbook checks follow the current `0–100%` Master Data SG&A domain; the old 2026-10-12 toolbar note is explicitly historical.
+- **Verification:** `npm run verify:regressions` passed all 104 current verification scripts (0 failed, 0 environment-blocked); the legacy v1 verifier remains excluded because its generated root workbooks are absent and no current app path references them. `npx tsc -p tsconfig.json --noEmit --pretty false`, `npm run build`, and `git diff --check` passed. Build emitted the existing ExcelJS/fast-csv browser externalization and large-chunk warnings; Git emitted LF-to-CRLF working-copy warnings for two modified `.mjs` verifiers.
+- **Delivery:** The user authorized committing and pushing the completed recovery to `origin/feat/selected-value-ux` with `fix: reconcile repository behavior with finalized requirements`. The final commit SHA and remote verification belong in the completion report.
+
+## Previous checkpoint — Numeric integrity recovery — 2026-10-27
+
+This earlier numeric recovery started from `88fe99819adb0de6139a7b673b2340f44e0f28f7`. Its pair semantics and completion claims are superseded by the full repository recovery checkpoint above.
 
 - **Status:** Numeric recovery implemented; required regression, lifecycle, browser, TypeScript, build, and diff checks PASS. Phase 2 remains **EXTERNALLY ACCEPTED / CLOSED**. User-reported real-world values exposed numeric regressions; this corrective pass resolves those cases. The broader Real-World Usage Test remains in progress.
 - **Repository:** `feat/selected-value-ux`, starting HEAD `88fe99819adb0de6139a7b673b2340f44e0f28f7`. The recovery targets the existing branch only; `backup/codex-numeric-fixes` was not touched.

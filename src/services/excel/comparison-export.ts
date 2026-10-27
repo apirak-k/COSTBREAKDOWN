@@ -13,8 +13,12 @@ import {
 import {
   exactDecimalInputValue,
   exactDecimalToNumber,
-  subtractExactDecimals
+  exactDecimalToString,
+  resolveExactDecimalInputPair,
+  subtractExactDecimals,
+  type ExactDecimal
 } from '../../core/utils/exact-decimal'
+import { writeExactNumericCells, type ExactNumericCellChanges } from './exact-numeric-cells'
 
 export interface ComparisonExportInput {
   product: ProductMaster
@@ -136,6 +140,147 @@ type ComparisonExportRow = {
   currentSource: string
 }
 
+type NumericExportRow = {
+  exactDecimalInputs?: Record<string, string | undefined>
+} & Record<string, unknown>
+
+function setExactInputCell(
+  changes: ExactNumericCellChanges,
+  sheet: string,
+  address: string,
+  value: number | null | undefined,
+  exactInput: string | undefined,
+  percentageInput = false,
+  resolvedValue?: ExactDecimal | null
+): void {
+  const exact = resolvedValue === undefined
+    ? exactDecimalInputValue(value, exactInput, percentageInput)
+    : resolvedValue
+  if (exact) (changes[sheet] ??= {})[address] = exactDecimalToString(exact)
+}
+
+function setExactInputPairCells(
+  changes: ExactNumericCellChanges,
+  sheet: string,
+  referenceAddress: string,
+  currentAddress: string,
+  reference: NumericExportRow,
+  current: NumericExportRow,
+  field: string,
+  percentageInput = false
+): void {
+  const pair = resolveExactDecimalInputPair(
+    reference[field] as number | null | undefined,
+    reference.exactDecimalInputs?.[field],
+    current[field] as number | null | undefined,
+    current.exactDecimalInputs?.[field],
+    percentageInput
+  )
+  setExactInputCell(changes, sheet, referenceAddress, reference[field] as number | null | undefined,
+    reference.exactDecimalInputs?.[field], percentageInput, pair.reference)
+  setExactInputCell(changes, sheet, currentAddress, current[field] as number | null | undefined,
+    current.exactDecimalInputs?.[field], percentageInput, pair.current)
+}
+
+function setExactInputRowCell(
+  changes: ExactNumericCellChanges,
+  sheet: string,
+  address: string,
+  row: NumericExportRow,
+  field: string,
+  percentageInput = false
+): void {
+  setExactInputCell(changes, sheet, address, row[field] as number | null | undefined,
+    row.exactDecimalInputs?.[field], percentageInput)
+}
+
+function exactNumericCellChanges(input: ComparisonExportInput): ExactNumericCellChanges {
+  const changes: ExactNumericCellChanges = {}
+  const referenceSnapshot = input.snapshotPair.reference
+  const currentSnapshot = input.snapshotPair.current
+
+  const referenceBOMById = new Map(referenceSnapshot.bom.map(row => [row.id, row as unknown as NumericExportRow]))
+  const bomFindingByCurrentId = new Map(input.comparison.bomFindings
+    .filter(finding => finding.currentId)
+    .map(finding => [finding.currentId as string, finding]))
+  currentSnapshot.bom.forEach((currentRow, index) => {
+    const rowNumber = 5 + index
+    const finding = bomFindingByCurrentId.get(currentRow.id)
+    const referenceRow = finding?.referenceId ? referenceBOMById.get(finding.referenceId) : undefined
+    const current = currentRow as unknown as NumericExportRow
+    if (referenceRow) {
+      setExactInputPairCells(changes, 'BOM Comparison', `E${rowNumber}`, `F${rowNumber}`, referenceRow, current, 'consumption')
+      setExactInputPairCells(changes, 'BOM Comparison', `I${rowNumber}`, `J${rowNumber}`, referenceRow, current, 'price')
+      setExactInputPairCells(changes, 'BOM Comparison', `L${rowNumber}`, `M${rowNumber}`, referenceRow, current, 'loss', true)
+    } else {
+      setExactInputRowCell(changes, 'BOM Comparison', `F${rowNumber}`, current, 'consumption')
+      setExactInputRowCell(changes, 'BOM Comparison', `J${rowNumber}`, current, 'price')
+      setExactInputRowCell(changes, 'BOM Comparison', `M${rowNumber}`, current, 'loss', true)
+    }
+  })
+  input.comparison.bomFindings.filter(finding => !finding.currentId && finding.referenceId).forEach((finding, index) => {
+    const referenceRow = referenceBOMById.get(finding.referenceId as string)
+    if (!referenceRow) return
+    const rowNumber = 5 + currentSnapshot.bom.length + index
+    setExactInputRowCell(changes, 'BOM Comparison', `E${rowNumber}`, referenceRow, 'consumption')
+    setExactInputRowCell(changes, 'BOM Comparison', `I${rowNumber}`, referenceRow, 'price')
+    setExactInputRowCell(changes, 'BOM Comparison', `L${rowNumber}`, referenceRow, 'loss', true)
+  })
+
+  const referenceRoutingById = new Map(referenceSnapshot.routing.map(row => [row.id, row as unknown as NumericExportRow]))
+  const routingFindingByCurrentId = new Map(input.comparison.routingFindings
+    .filter(finding => finding.currentId)
+    .map(finding => [finding.currentId as string, finding]))
+  currentSnapshot.routing.forEach((currentRow, index) => {
+    const rowNumber = 5 + index
+    const finding = routingFindingByCurrentId.get(currentRow.id)
+    const referenceRow = finding?.referenceId ? referenceRoutingById.get(finding.referenceId) : undefined
+    const current = currentRow as unknown as NumericExportRow
+    setExactInputRowCell(changes, 'Routing Comparison', `I${rowNumber}`, current, 'manning')
+    if (referenceRow) {
+      setExactInputPairCells(changes, 'Routing Comparison', `J${rowNumber}`, `K${rowNumber}`, referenceRow, current, 'capacity')
+      setExactInputPairCells(changes, 'Routing Comparison', `M${rowNumber}`, `N${rowNumber}`, referenceRow, current, 'yield', true)
+    } else {
+      setExactInputRowCell(changes, 'Routing Comparison', `K${rowNumber}`, current, 'capacity')
+      setExactInputRowCell(changes, 'Routing Comparison', `N${rowNumber}`, current, 'yield', true)
+    }
+  })
+  input.comparison.routingFindings.filter(finding => !finding.currentId && finding.referenceId).forEach((finding, index) => {
+    const referenceRow = referenceRoutingById.get(finding.referenceId as string)
+    if (!referenceRow) return
+    const rowNumber = 5 + currentSnapshot.routing.length + index
+    setExactInputRowCell(changes, 'Routing Comparison', `J${rowNumber}`, referenceRow, 'capacity')
+    setExactInputRowCell(changes, 'Routing Comparison', `M${rowNumber}`, referenceRow, 'yield', true)
+  })
+
+  const referenceRatesById = new Map(referenceSnapshot.rates.map(row => [row.id, row as unknown as NumericExportRow]))
+  const rateFindingByCurrentId = new Map(input.comparison.workCenterFindings
+    .filter(finding => finding.currentId)
+    .map(finding => [finding.currentId as string, finding]))
+  currentSnapshot.rates.forEach((currentRow, index) => {
+    const rowNumber = 5 + index
+    const finding = rateFindingByCurrentId.get(currentRow.id)
+    const referenceRow = finding?.referenceId ? referenceRatesById.get(finding.referenceId) : undefined
+    const current = currentRow as unknown as NumericExportRow
+    if (referenceRow) {
+      setExactInputPairCells(changes, 'Work Center Comparison', `E${rowNumber}`, `F${rowNumber}`, referenceRow, current, 'laborRate')
+      setExactInputPairCells(changes, 'Work Center Comparison', `H${rowNumber}`, `I${rowNumber}`, referenceRow, current, 'burdenRate')
+    } else {
+      setExactInputRowCell(changes, 'Work Center Comparison', `F${rowNumber}`, current, 'laborRate')
+      setExactInputRowCell(changes, 'Work Center Comparison', `I${rowNumber}`, current, 'burdenRate')
+    }
+  })
+  input.comparison.workCenterFindings.filter(finding => !finding.currentId && finding.referenceId).forEach((finding, index) => {
+    const referenceRow = referenceRatesById.get(finding.referenceId as string)
+    if (!referenceRow) return
+    const rowNumber = 5 + currentSnapshot.rates.length + index
+    setExactInputRowCell(changes, 'Work Center Comparison', `E${rowNumber}`, referenceRow, 'laborRate')
+    setExactInputRowCell(changes, 'Work Center Comparison', `H${rowNumber}`, referenceRow, 'burdenRate')
+  })
+
+  return changes
+}
+
 function exactGap(
   current: number | null | undefined,
   reference: number | null | undefined,
@@ -144,10 +289,9 @@ function exactGap(
   percentageInput = false
 ): number | null {
   if (current === null || current === undefined || reference === null || reference === undefined) return null
-  const currentValue = exactDecimalInputValue(current, currentExact, percentageInput)
-  const referenceValue = exactDecimalInputValue(reference, referenceExact, percentageInput)
-  if (!currentValue || !referenceValue) return null
-  return exactDecimalToNumber(subtractExactDecimals(currentValue, referenceValue))
+  const pair = resolveExactDecimalInputPair(reference, referenceExact, current, currentExact, percentageInput)
+  if (!pair.reference || !pair.current) return null
+  return exactDecimalToNumber(subtractExactDecimals(pair.current, pair.reference))
 }
 
 function sourceOf(row: { sourceRef?: string } | undefined, fallback: CostSnapshot): string {
@@ -883,7 +1027,8 @@ export async function generateSnapshotComparisonExcel(input: ComparisonExportInp
   writeWorkCenterSheet(workbook, model)
 
   const buffer = await writeExcelJSBuffer(workbook)
-  return new Blob([buffer], {
+  const exactBuffer = await writeExactNumericCells(buffer as Uint8Array, exactNumericCellChanges(input))
+  return new Blob([exactBuffer], {
     type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
   })
 }

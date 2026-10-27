@@ -273,7 +273,7 @@ try {
   }))
   assert.match(ui, /Standard Cost Gap[^>]*Gap = Custom − Current/)
   assert.match(ui, /Cost Element for Before, After, Gap, and Gap percentage/)
-  assert.match(ui, />Before<\/th>[\s\S]*>After<\/th>/)
+  assert.match(ui, /data-cbd-summary-header="true"[\s\S]*data-numeric-column-header="true"[^>]*>Before<\/span>[\s\S]*data-numeric-column-header="true"[^>]*>After<\/span>/)
   assert.doesNotMatch(ui, /Before → After/)
   assert.match(ui, /CHANGED rows expand Current, Custom, and Parameter Cost Effect details/)
   assert.match(ui, /Gap = Custom − Current/)
