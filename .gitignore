@@ -10,6 +10,10 @@ build/
 .vite/
 *.tsbuildinfo
 
+# Local generated tooling and worktrees
+.worktrees/
+graphify-out/
+
 # System / Temp
 .gemini/
 *.log
