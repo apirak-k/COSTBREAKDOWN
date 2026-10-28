@@ -10,10 +10,16 @@
 
 - **Phase 2:** **EXTERNALLY ACCEPTED / CLOSED** after the user-reported `PHASE 2 FINAL EXTERNAL ACCEPTANCE: PASS` for commit `4c1d139f87bf7db6c5f1ad9f6337738674159012`. No Phase 2 implementation work is reopened.
 - **Excel Validation:** **PASS** for the current application's workbook generation, import, export, and round-trip behavior. Evidence and environment limits are tracked in [HANDOFF](../HANDOFF.md).
-- **Accepted application checkpoint:** `3a2d819c807da2b8766f71761851c860ae6098a3`. Application behavior is accepted; current work finalizes repository branch workspaces only.
-- **Branch strategy:** `oldmain` preserves the old frontend reference at `c6ecbe1b295b2e2017ce545a3bd2785505e8525e`; `dev` is the full development workspace for source, tests/verifiers, scripts, build/packaging tooling, and technical documentation; `main` is the workspace for the user/company-ready version and starts from the same current accepted application state as `dev`. Details are in [HANDOFF](../HANDOFF.md).
+- **Accepted application checkpoint:** `3a2d819c807da2b8766f71761851c860ae6098a3`. Application behavior for the completed release work is accepted and feature-frozen.
+- **Branch strategy:** `oldmain` is the old frontend reference; `dev` is the full development workspace for source, tests/verifiers, scripts, build/packaging tooling, and technical documentation; `main` is the clean user/company-ready runtime package, not the development source workspace. Details are in [HANDOFF](../HANDOFF.md).
+- **Main package cleanup:** **COMPLETE.** The tracked `main` tree contains `Start COSTBREAKDOWN.exe`, `Stop COSTBREAKDOWN.exe`, `Serve-COSTBREAKDOWN.ps1`, `index.html`, `assets/`, and `README.md`; it has no `src/` tree or `package.json`.
+- **Built-in test data:** `Complete Mock` and `Incomplete Mock` remain available through Header `i` → `Prepare Dataset` in the user-facing application.
+- **Portable Start/Stop:** **COMPLETE.** Portable acceptance passed 35/35 on this computer. A clean-machine acceptance test on another Windows machine has not been performed.
+- **Branch/workspace status:** local `main`, `dev`, and `oldmain` track `origin/main`, `origin/dev`, and `origin/oldmain`; all three local SHAs matched the live origin refs on 2026-10-28.
+- **Local Vite/CSS diagnosis:** the unstyled page was caused by duplicate/stale Vite servers and an incorrect branch/server state. After stopping the servers, a single `npm run dev` on `dev` started at 5173 with normal styling, transformed Tailwind/PostCSS CSS, and no browser console errors. No source defect was identified.
 - **Current Import UI:** Valid workbooks show filename, `Valid`, Product Name, BOM / Work Center / Routing row summary, and Import action, with no warning accordion/list. Invalid workbooks show an invalid icon, filename, and `Invalid`, with no red explanatory box or Import action. Parser warning generation and Master Data warning/blocker behavior remain intact.
-- **Current task:** preserve old `main` as `oldmain`, update and push branch-workspace documentation on `dev`, point `main` to that current development commit, and remove the obsolete temporary branch. No user-facing cleanup, packaging changes, guide PDF, sample workbook, visual polish, or tag work is included.
+- **Local ignored cleanup:** cleanup commands were blocked by tool policy, so no local files were deleted. Optional manual cleanup candidates and paths that must be preserved are recorded in [HANDOFF](../HANDOFF.md).
+- **Current roadmap:** development stays on `dev`; use `main` only for the user-ready runtime package. Remaining work is optional safe cleanup of ignored local clutter, a clean-machine Windows acceptance test, company/final user documentation when explicitly requested, and final release/version packaging or tagging when explicitly ready to ship. Do not create a guide PDF, external sample workbook, or release/tag now.
 
 ## Canonical Specifications Map
 

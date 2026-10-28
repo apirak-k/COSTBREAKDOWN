@@ -1,29 +1,35 @@
-# Current Branch Workspace Roadmap — 2026-10-28
+# Current Project Status and Roadmap — 2026-10-28
 
-Application behavior is accepted and feature-frozen. The accepted application baseline is `3a2d819c807da2b8766f71761851c860ae6098a3`; this task only finalizes the repository branch/workspace structure. See [`HANDOFF.md`](../HANDOFF.md) for the current checkpoint and historical evidence.
+Application behavior for the completed release work is accepted and feature-frozen. The accepted application baseline is `3a2d819c807da2b8766f71761851c860ae6098a3`. This roadmap records current repository status; it does not authorize application changes.
 
 ## Branch roles
 
-- `oldmain` preserves the old frontend-reference state that was on `main` at `c6ecbe1b295b2e2017ce545a3bd2785505e8525e`.
-- `dev` is the full development workspace: application source, tests/verifiers, scripts, build/packaging tooling, and technical documentation.
-- `main` is the workspace for the user/company-ready version. It starts from the same current accepted application state as `dev`; later work will clean/adjust `main` for end users.
+- `oldmain` is the old frontend reference.
+- `dev` is the development workspace for application source, tests/verifiers, scripts, build/packaging tooling, and technical documentation.
+- `main` is the clean user/company-ready package. **Main package cleanup is COMPLETE:** its tracked tree contains the user-facing runtime package rather than the development source workspace.
 
-## Current application state and boundaries
+## Completed and accepted
 
-- Valid workbook: filename, `Valid`, Product Name, BOM / Work Center / Routing row summary, and Import action. No `Import warnings` accordion/list appears in the Import modal.
-- Invalid workbook: invalid icon, filename, and `Invalid`; no red explanatory error box and no Import action.
-- Parser warning generation and Master Data warning/blocker behavior remain intact. The user confirmed first workbook selection did not reload the page; Codex's fresh-browser reproduction did not reproduce the earlier reload symptom, and no Vite/product workaround was added.
-- This task prepares branch workspaces only. Do not reorganize the portable package, create `USER_GUIDE.pdf`, add sample workbooks, change application behavior, start visual polish, or add release/tag work.
+- Numeric behavior, business logic, Import UI, portable Start/Stop workflow, branch/workspace structure, and `main` package cleanup are complete. Do not reopen these without a new reproducible defect.
+- `Complete Mock` and `Incomplete Mock` remain supported in the user-facing application through Header `i` → `Prepare Dataset`.
+- Portable Start/Stop acceptance passed 35/35 on this computer. Acceptance on a separate clean Windows machine remains unverified.
+- The local Vite/CSS issue was caused by duplicate/stale dev servers and an incorrect branch/server state. After stopping those servers, one `npm run dev` on `dev` started at 5173 and displayed normally styled content; the CSS was transformed and the browser reported no runtime errors.
+- Local workspace cleanup was inspected, but deletion was blocked by tool policy. No files were deleted; optional manual cleanup candidates and preserved local verifier scripts are recorded in `HANDOFF.md`.
 
-## Branch workspace transition
+## Normal workflow
 
-1. **Preserve old `main` as `oldmain` — COMPLETE.** `oldmain` was pushed and verified at `c6ecbe1b295b2e2017ce545a3bd2785505e8525e` before changing `main`.
-2. **Update current branch documentation on `dev` — this checkpoint.** Commit and push these documentation-only changes; direct review and `git diff --check` are sufficient.
-3. **Set `main` to the current `dev` HEAD.** Do this only after `oldmain` is verified and the documentation commit is pushed. Do not clean `main` in this task.
-4. **Remove the obsolete temporary branch `release/user-ready`.** It is not part of the intended branch model.
-5. **Next phase:** clean/adjust `main` for the user/company-ready version in a separately authorized task.
+- **Development:** `dev` → `npm run dev` → develop/test → commit/push `dev`.
+- **User-ready package:** `main` → launch `Start COSTBREAKDOWN.exe`.
+- **Future release update:** develop on `dev` → verify → build/package → update the user-facing runtime contents of `main`.
 
-The intended branch set after this transition is exactly `oldmain`, `dev`, and `main`. Do not start user-facing cleanup as part of this task.
+## Remaining work
+
+- Optional manual cleanup of ignored local clutter where safe; preserve `node_modules/`, `graphify-out/`, `.superpowers/`, and local verifier scripts. Do not delete tracked `src/` or `.planning/` while on `dev`.
+- Clean-machine acceptance on another Windows machine before an actual company handoff.
+- Company/final user documentation only when explicitly requested.
+- Final release/version packaging or tag only when explicitly ready to ship.
+
+Do not create `USER_GUIDE.pdf`, add an external sample workbook, or create a release/tag now. Do not perform normal source development directly on `main`.
 
 # Operational Task Ledger — Master Data Refresh and Selected Comparison
 
