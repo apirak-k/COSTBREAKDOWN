@@ -1,6 +1,6 @@
 # Current Project Status and Roadmap — 2026-10-29
 
-Application behavior for the completed release work is accepted and feature-frozen. The accepted application baseline is `3a2d819c807da2b8766f71761851c860ae6098a3`. The cross-platform launcher/package update is complete: `dev` is at `9f4441dd7cf0ad4d3ea2cbdadcc815210f127acb`, and the distribution-only `main` package is at `1dcd7c0bf5ae5f1744a9d53dcef34c44bc6b997e`. This roadmap records current repository status; it does not authorize application changes.
+Application behavior for the completed release work is accepted and feature-frozen. The accepted application baseline is `3a2d819c807da2b8766f71761851c860ae6098a3`. The cross-platform launcher/package update is complete: its implementation commit on `dev` is `9f4441dd7cf0ad4d3ea2cbdadcc815210f127acb`, followed by a documentation-only checkpoint update; the distribution-only `main` release commit is `1dcd7c0bf5ae5f1744a9d53dcef34c44bc6b997e`. This roadmap records current repository status; it does not authorize application changes.
 
 ## Branch roles
 
