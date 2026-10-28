@@ -1,17 +1,19 @@
 # Requirements Index
 
-**Updated:** 2026-10-27
+**Updated:** 2026-10-28
 
 ## Final Logic Authority
 
 [`specs/FINAL_LOGIC_SPEC.md`](specs/FINAL_LOGIC_SPEC.md) is the latest authority for product logic and behavior, consolidating the user-finalized business logic decisions. It finalizes logic/behavior only; it does not replace the rest of the product contract. If an older specification, agreement, design document, implementation decision, or current code conflicts with Final Logic on product logic, follow Final Logic only for that conflicting behavior. Existing finalized or accepted UX/UI, layout, visual style, wording, interaction behavior, and other requirements remain valid when compatible. Absence from Final Logic does not automatically remove an older non-conflicting finalized requirement. Existing code is implementation evidence, not requirements authority.
 
-## Current Phase 2 and Roadmap Status — 2026-10-27
+## Current Release Preparation Status — 2026-10-28
 
-- **Phase 2:** **EXTERNALLY ACCEPTED / CLOSED** after the user-reported `PHASE 2 FINAL EXTERNAL ACCEPTANCE: PASS` for commit `4c1d139f87bf7db6c5f1ad9f6337738674159012`. Prior rounds and corrective follow-ups retain their recorded PASS/CLOSED results, including Master Data Confirmation / Undo-Redo Reconciliation. No Phase 2 implementation work is reopened.
-- **Excel Validation:** **PASS** for the actual current application's workbook generation, import, export, and round-trip behavior. Evidence and environment limits are tracked in [HANDOFF](../HANDOFF.md).
-- **Current next scope:** Continue the REAL-WORLD USAGE TEST. User-reported real-world numeric cases exposed regressions in pair equivalence, calculation reconciliation, and adaptive Cost Breakdown display; this recovery is a corrective pass for those cases and does not mark the broader real-world test complete.
-- **Roadmap:** Phase 2 CLOSED → Excel Validation PASS → Real-world Usage Test → Portable Distribution. Merge status is separate from Phase 2 acceptance.
+- **Phase 2:** **EXTERNALLY ACCEPTED / CLOSED** after the user-reported `PHASE 2 FINAL EXTERNAL ACCEPTANCE: PASS` for commit `4c1d139f87bf7db6c5f1ad9f6337738674159012`. No Phase 2 implementation work is reopened.
+- **Excel Validation:** **PASS** for the current application's workbook generation, import, export, and round-trip behavior. Evidence and environment limits are tracked in [HANDOFF](../HANDOFF.md).
+- **Accepted application checkpoint:** `3a2d819c807da2b8766f71761851c860ae6098a3`. Application behavior is accepted; current work is release preparation and documentation/branch alignment.
+- **Branch strategy:** `dev` is for development source, tests/verifiers, scripts, build/packaging tooling, and technical documentation. `main` is the clean user/company-facing release branch and remains untouched until an accepted user-facing release is ready. The release workflow and current branch-preparation step are in [HANDOFF](../HANDOFF.md).
+- **Current Import UI:** Valid workbooks show filename, `Valid`, Product Name, BOM / Work Center / Routing row summary, and Import action, with no warning accordion/list. Invalid workbooks show an invalid icon, filename, and `Invalid`, with no red explanatory box or Import action. Parser warning generation and Master Data warning/blocker behavior remain intact.
+- **Roadmap:** `dev` → reconcile current documentation → `release/user-ready` → organize and test/audit the clean user-facing release → preserve old `main` → replace/update `main` only after acceptance → optional version tag later. `USER_GUIDE.pdf`, an external sample workbook, and optional visual polish are not part of the current scope.
 
 ## Canonical Specifications Map
 
@@ -83,7 +85,7 @@ The latest finalized logic establishes:
 
 ## Selected Value / Decimal UX — 2026-10-21
 
-This dated record preserves the status at that checkpoint. Its external-audit and Phase 2 status statements are historical; the current milestone status is recorded above under **Current Phase 2 and Roadmap Status**.
+This dated record preserves the status at that checkpoint. Its external-audit and Phase 2 status statements are historical; the current milestone status is recorded above under **Current Release Preparation Status**.
 
 `FINALIZED — USER DECISION`: the Selected Value / Decimal UX contract, including hover-preview-first priority, focus-owned writer, transient preview, and pinned read-only value lifecycles, is in [`CROSS_CUTTING.md`](specs/CROSS_CUTTING.md#numeric-display-and-editing). Master Data Round 2 retains its finalized 350ms Header preview dwell, prompt cancellation, stable Header numeric / `%` / spinner regions, and calm editable affordance. Round 3's shared no-focus `SelectedNumber` is transparent at rest, uses `#E9EEF4` only on direct pointer hover, and keeps Pin at `blue-100`; Candidate row hover alone does not trigger Number Hover. Eligible CHANGED-row whitespace—including unused space in numeric, `#`, and reorder cells—expands/collapses and preserves Pin, while each actual control performs only its own action. Header Preview still begins after the shared 350ms dwell. The same pin toggles off, and a genuinely blank/background click discards Pin while intentional controls preserve it. Round 1, Round 2 — Master Data, Round 3 — Cost Breakdown, and the original five-item Round 4A — Simulation UI Polish are CLOSED. The pre-Round-4B corrective gate is **EXTERNALLY ACCEPTED / CLOSED** and human visual acceptance **PASSED**; Round 4B — Simulation Selected Value / Decimal UX is **EXTERNALLY AUDITED / ACCEPTED / CLOSED**; The preceding three-fix corrective round PASSED for its own scope, as confirmed by the user; the separate follow-up is recorded in the current Handoff. The operational order, gates, history, and current checkpoint are recorded in [`PHASE_2_SELECTED_VALUE_DECIMAL_UX_PLAN.md`](PHASE_2_SELECTED_VALUE_DECIMAL_UX_PLAN.md); that plan and [`HANDOFF.md`](../HANDOFF.md) do not override this or other canonical product requirements. Numeric domains, formulas, dataset/comparison lifecycle, and history semantics remain unchanged.
 

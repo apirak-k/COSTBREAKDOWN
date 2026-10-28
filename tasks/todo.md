@@ -1,17 +1,33 @@
-# Current Release Readiness Roadmap — 2026-10-28
+# Current Release Preparation Roadmap — 2026-10-28
 
-Product behavior is feature-frozen. This run performs **Parts 1–4 only** and must stop after final user-style acceptance. Do not begin Parts 5–8 in this run. Current evidence is recorded in [`HANDOFF.md`](../HANDOFF.md).
+Application behavior is accepted and feature-frozen. The latest accepted application checkpoint is `3a2d819c807da2b8766f71761851c860ae6098a3`; this task changes current documentation and branch state only. See [`HANDOFF.md`](../HANDOFF.md) for the current checkpoint and historical evidence.
 
-1. **Release documentation correction and roadmap update — COMPLETE.** The user-facing application runs from a copied or extracted portable folder. End users do not install from the repository lockfile or need repository tooling.
-2. **Isolated portable acceptance — COMPLETE on this computer.** `node scripts/accept_portable_package.mjs` passed 35/35 checks with no warnings on a fresh copy of the rebuilt package, covering the packaged app, launch/stop isolation, Excel import/export, Cost Breakdown, Simulation, session behavior, and package assets. A physical clean-machine test remains unverified.
-3. **Simple English README / User Guide — COMPLETE.** `packaging/portable/README.md` documents the supported workflow and controls checked against the current UI and isolated package acceptance.
-4. **Final user-style acceptance — COMPLETE.** The user reported passing Start, the guide, Import, Master Data edits and Save, Reference/Current comparison, Selected Comparison, Simulation, Export, Stop, and restart. The Import warning list height issue was fixed with a collapsed disclosure and bounded internal scroll. Focused browser verification used 27 warnings and passed; final regression, typecheck, build, portable package acceptance (35/35), and diff checks passed. A physical clean-machine test remains unverified; details are in `HANDOFF.md`.
-5. **Independent final review / audit — NOT STARTED.** Begin only after Parts 1–4 are complete and pushed.
-6. **Merge to `main` — NOT STARTED.** Requires independent review and explicit acceptance of the release branch.
-7. **Final release / tag — NOT STARTED.** Prepare the final distributable after merge and release approval.
-8. **Optional visual UI polish — LATER, OPTIONAL.** After the stable release baseline, use a separate branch. Preserve existing UX logic, workflows, calculations, application behavior, and supported features; improve presentation only.
+## Branch strategy
 
-Parts 5–8 are roadmap context only. Do not perform them in this run.
+- `dev` is the development branch for application source, tests/verifiers, scripts, build and packaging tooling, and technical documentation.
+- `main` is the user/company-facing branch for a clean release intended for end users. Keep the existing `main` intact until a later accepted user-facing release is ready.
+- The user-ready preparation branch is based on the exact documentation commit on `dev`, created and pushed after remote `dev` is verified.
+- Workflow: `dev` → reconcile current documentation → `release/user-ready` → organize the clean user-facing release → test/audit that release → preserve old `main` → replace/update `main` with the accepted user-facing release → optional version tag later.
+- Do not merge development clutter directly into `main`.
+
+## Current Import and release boundaries
+
+- Valid workbook: filename, `Valid`, Product Name, BOM / Work Center / Routing row summary, and Import action. No `Import warnings` accordion/list appears in the Import modal.
+- Invalid workbook: invalid icon, filename, and `Invalid`; no red explanatory error box and no Import action.
+- Parser warning generation and Master Data warning/blocker behavior remain intact. The user confirmed first workbook selection did not reload the page; Codex's fresh-browser reproduction did not reproduce the earlier reload symptom, and no Vite/product workaround was added.
+- Do not create `USER_GUIDE.pdf` or add an external sample workbook. Built-in Complete Mock / Incomplete Mock remain the quick-test mechanism. Optional visual polish has not started.
+
+## Roadmap from this checkpoint
+
+1. **Rename the development branch to `dev` — COMPLETE.** Remote `dev` was verified at the accepted application checkpoint before the old remote `feat/selected-value-ux` branch was removed. `main` was not modified.
+2. **Reconcile current documentation on `dev` — this checkpoint.** This documentation/branch-strategy update records the current Import behavior, branch roles, and remaining release workflow. Review the changed documentation and run `git diff --check`; the full regression suite is not part of this documentation-only step.
+3. **User-ready branch transition.** After the documentation commit is pushed and remote `dev` is confirmed, create and push `release/user-ready` from that exact commit. Keep it as the base for the next user-facing organization phase; do not reorganize the package in this task.
+4. **Organize the clean user-facing release on `release/user-ready`.** This is the next phase after this branch-preparation task.
+5. **Test and audit the user-ready release.** Record a physical clean-machine test only if one is actually performed.
+6. **Preserve the old `main`, then replace/update it with the accepted user-facing release.** Do not update `main` before review and release acceptance.
+7. **Optionally add a version tag later.** No tag or release is created in this task.
+
+Do not begin the user-facing package organization or modify `main` as part of this branch-preparation task.
 
 # Operational Task Ledger — Master Data Refresh and Selected Comparison
 
