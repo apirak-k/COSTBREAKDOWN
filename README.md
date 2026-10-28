@@ -1,52 +1,43 @@
 # COSTBREAKDOWN
 
-COSTBREAKDOWN is a local tool for preparing product cost data, comparing Reference and Current datasets, reviewing cost changes, trying supported changes in Simulation, and exporting data to Excel.
+COSTBREAKDOWN helps you prepare product cost data, compare datasets, and test supported what-if changes. Use it to see how BOM, Work Center, and Routing data affect cost.
 
-## Workflow
+## Quick Start
+
+1. [Download the ZIP from the `main` branch](https://github.com/apirak-k/COSTBREAKDOWN/archive/refs/heads/main.zip).
+2. Extract the ZIP and keep the extracted folder together.
+3. Double-click `Start COSTBREAKDOWN.exe`.
+4. Use COSTBREAKDOWN in the browser tab that opens.
+5. When you finish, double-click `Stop COSTBREAKDOWN.exe`. Closing the browser tab alone does not stop the local app.
+
+## How COSTBREAKDOWN Works
 
 ```text
-Master Data → Cost Breakdown → optional Selected Comparison → Simulation → Excel export
+                         ┌─ Cost Breakdown: compare Before and After
+Master Data ─────────────┤     └─ Selected Comparison: optional focus on findings
+Reference / Current /    │
+Custom                   └─ Simulation: test supported what-if changes
+                              └─ Send to the matching Master Data dataset
+
+Master Data Export ───────────────→ Excel workbook to keep or share
 ```
 
-Selected Comparison is a temporary focus within Cost Breakdown. It does not change the datasets or limit Simulation.
+Master Data supplies the latest Working data to both Cost Breakdown and Simulation. Save is a checkpoint inside the current browser session; it is not required before you compare or simulate.
 
-## Start and stop
+### Prepare data in Master Data
 
-1. Keep the portable folder together.
-2. Double-click `Start COSTBREAKDOWN.exe`. The app opens in your default browser without leaving a terminal window open. You may create shortcuts to the Start and Stop files if you prefer.
-3. When finished, double-click `Stop COSTBREAKDOWN.exe` to stop this folder's local app. Closing the browser tab alone may leave the app running.
+Prepare `Reference`, `Current`, and `Custom` datasets. Import a supported Excel workbook or edit data in the app. Review warnings and blockers from Header `i` → `Prepare Dataset`. Built-in `Complete Mock` and `Incomplete Mock` data are available there for examples and data-quality checks.
 
-No installation, Node.js, or npm is required. Use a current version of Microsoft Edge or Google Chrome.
+### Compare in Cost Breakdown
 
-## Prepare data in Master Data
+Choose datasets for `Before` and `After`. Cost Breakdown shows the full cost gap and BOM or Routing findings. Select findings to view an optional Selected Comparison within Cost Breakdown. The full comparison remains available, and the selection does not change Simulation.
 
-Choose `Reference`, `Current`, or `Custom`. Use `Import` to load a compatible `.xlsx` workbook into the dataset currently open. You can also edit the fields and table rows directly. Use `Save` to keep the current working version for this browser-tab session.
+### Test changes in Simulation
 
-`Reset` returns the dataset to its saved version (or its initial version if it has not been saved). `Clone from` copies another dataset into the one currently open. Use `Sizing` to set the table row counts; `Apply Sizing` updates the tables, and `Download Template` creates an Excel template for those counts.
+Simulation is a separate what-if workflow. Choose an active dataset, change supported parameters or economic assumptions, and review the `Result`, `Cost Structure`, and `Break-even` views. `Send` sends the active dataset's BOM and Routing parameter changes to the matching Master Data Working dataset. Economic what-if assumptions stay in Simulation. `Send all datasets` sends parameter changes for all three matching roles.
 
-### Built-in quick-test data
+## Keep a Copy of Your Work
 
-Use `Complete Mock` and `Incomplete Mock` in the `Prepare Dataset` panel to load built-in test data. They replace the Reference and Current Working datasets, clear Custom Working rows, and select Current, while leaving all Last Saved snapshots unchanged. Complete Mock provides a ready example; Incomplete Mock provides warnings and blockers for checking those review flows. Undo reverses a mock load as one action. These buttons are included in the portable app.
+COSTBREAKDOWN keeps working data in browser session storage, not in a company database. Use `Export` in Master Data to create an Excel copy of the current Working dataset, including edits not yet saved with `Save`.
 
-## Review and simulate
-
-Open `Cost Breakdown` to compare Reference with Current. The page starts with the full comparison and shows cost totals and BOM or Routing findings. Select finding checkboxes to focus the totals on selected findings. Clear the selections to return to the full comparison.
-
-Open `Simulation` to compare the datasets shown in its `Before dataset` and `After dataset` controls. Try supported changes in the Simulation BOM and Routing tables, then review the `Result`, `Cost Structure`, and `Break-even` views. Selected Comparison from Cost Breakdown does not carry into Simulation.
-
-## Import, export, and saving work
-
-Import accepts `.xlsx` workbooks in the COSTBREAKDOWN workbook format. In Master Data, `Export` downloads the current working dataset as an Excel workbook, including edits not yet saved with `Save`. Save important workbooks in an approved company location so you can keep or share them.
-
-Working data belongs to the current browser-tab session. COSTBREAKDOWN does not provide a durable company database or shared backup. Export important work before closing the session.
-
-## Remove COSTBREAKDOWN
-
-Run `Stop COSTBREAKDOWN.exe`, then delete the portable folder. There is no installer or uninstaller.
-
-## Troubleshooting
-
-- **The browser did not open:** Double-click `Start COSTBREAKDOWN.exe` again and check that Edge or Chrome is available as the default browser.
-- **The app is already open:** Start reuses the healthy local app for this folder. Use the existing app tab, or run `Stop COSTBREAKDOWN.exe` and start again.
-- **Import does not accept a file:** Choose an `.xlsx` workbook in the COSTBREAKDOWN workbook format.
-- **Closing the tab did not stop the app:** Run `Stop COSTBREAKDOWN.exe` from the same portable folder.
+For step-by-step instructions, see the [COSTBREAKDOWN User Guide](USER_GUIDE.md).
