@@ -1,43 +1,35 @@
 # COSTBREAKDOWN
 
-COSTBREAKDOWN helps you prepare product cost data, compare datasets, and test supported what-if changes. Use it to see how BOM, Work Center, and Routing data affect cost.
+Understand what changed in a product's cost, then try changes before putting them into use.
 
-## Quick Start
+COSTBREAKDOWN is a portable Windows application for preparing BOM, Work Center, and Routing data, comparing costs, and exploring what-if scenarios.
 
-1. [Download the ZIP from the `main` branch](https://github.com/apirak-k/COSTBREAKDOWN/archive/refs/heads/main.zip).
-2. Extract the ZIP and keep the extracted folder together.
-3. Double-click `Start COSTBREAKDOWN.exe`.
-4. Use COSTBREAKDOWN in the browser tab that opens.
-5. When you finish, double-click `Stop COSTBREAKDOWN.exe`. Closing the browser tab alone does not stop the local app.
+## Your path through the app
 
-## How COSTBREAKDOWN Works
+![Suggested user journey: open the app, prepare and check data, compare costs or try a scenario, export the work you need, and stop the app.](docs/images/user-journey.svg)
 
-```text
-                         ┌─ Cost Breakdown: compare Before and After
-Master Data ─────────────┤     └─ Selected Comparison: optional focus on findings
-Reference / Current /    │
-Custom                   └─ Simulation: test supported what-if changes
-                              └─ Send to the matching Master Data dataset
+Use either analysis path, or both. **Selected Comparison belongs to Cost Breakdown**: it focuses on chosen findings and does not control Simulation.
 
-Master Data Export ───────────────→ Excel workbook to keep or share
-```
+## Open COSTBREAKDOWN
 
-Master Data supplies the latest Working data to both Cost Breakdown and Simulation. Save is a checkpoint inside the current browser session; it is not required before you compare or simulate.
+1. [Download the application ZIP](https://github.com/apirak-k/COSTBREAKDOWN/archive/refs/heads/main.zip), or use the package supplied by your company.
+2. Extract the ZIP into a folder. Keep the complete folder together, including its assets folder.
+3. Double-click **Start COSTBREAKDOWN.exe**. The app opens in your browser.
 
-### Prepare data in Master Data
+If this package is already running, Start opens the running app again. When finished, double-click **Stop COSTBREAKDOWN.exe** from the same folder. Closing the browser tab alone does not stop the app.
 
-Prepare `Reference`, `Current`, and `Custom` datasets. Import a supported Excel workbook or edit data in the app. Review warnings and blockers from Header `i` → `Prepare Dataset`.
+## Find your next step
 
-### Compare in Cost Breakdown
+| What you want to do | Where to go |
+|---|---|
+| Enter cost data or import Excel | [Prepare data in Master Data](USER_GUIDE.md#prepare-your-cost-data) |
+| Find missing data and review warnings | [Check the datasets](USER_GUIDE.md#check-the-datasets) |
+| Explain a cost difference | [Compare costs](USER_GUIDE.md#compare-costs) |
+| Test a proposed change | [Try a scenario](USER_GUIDE.md#try-a-scenario) |
+| Keep a copy or finish work | [Keep your work](USER_GUIDE.md#keep-your-work-and-close-the-app) |
 
-Choose datasets for `Before` and `After`. Cost Breakdown shows the full cost gap and BOM or Routing findings. Select findings to view an optional Selected Comparison within Cost Breakdown. The full comparison remains available, and the selection does not change Simulation.
+Master Data holds **Reference**, **Current**, and **Custom**. Its latest Working values feed both analysis pages; Save is not a prerequisite for comparison or Simulation.
 
-### Test changes in Simulation
+**Before ending your browser session, Export important datasets from Master Data.** Save creates a checkpoint within the current browser session. Export creates an Excel file you can keep separately.
 
-Simulation is a separate what-if workflow. Choose an active dataset, change supported parameters or economic assumptions, and review the `Result`, `Cost Structure`, and `Break-even` views. `Send` sends the active dataset's BOM and Routing parameter changes to the matching Master Data Working dataset. Economic what-if assumptions stay in Simulation. `Send all datasets` sends parameter changes for all three matching roles.
-
-## Keep a Copy of Your Work
-
-COSTBREAKDOWN keeps working data in browser session storage, not in a company database. Use `Export` in Master Data to create an Excel copy of the current Working dataset, including edits not yet saved with `Save`.
-
-For step-by-step instructions, see the [COSTBREAKDOWN User Guide](USER_GUIDE.md).
+For screen locations, step-by-step instructions, and troubleshooting, open the [User Guide](USER_GUIDE.md).
