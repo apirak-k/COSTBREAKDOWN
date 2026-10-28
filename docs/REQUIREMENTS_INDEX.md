@@ -6,14 +6,14 @@
 
 [`specs/FINAL_LOGIC_SPEC.md`](specs/FINAL_LOGIC_SPEC.md) is the latest authority for product logic and behavior, consolidating the user-finalized business logic decisions. It finalizes logic/behavior only; it does not replace the rest of the product contract. If an older specification, agreement, design document, implementation decision, or current code conflicts with Final Logic on product logic, follow Final Logic only for that conflicting behavior. Existing finalized or accepted UX/UI, layout, visual style, wording, interaction behavior, and other requirements remain valid when compatible. Absence from Final Logic does not automatically remove an older non-conflicting finalized requirement. Existing code is implementation evidence, not requirements authority.
 
-## Current Release Preparation Status — 2026-10-28
+## Current Branch Workspace Status — 2026-10-28
 
 - **Phase 2:** **EXTERNALLY ACCEPTED / CLOSED** after the user-reported `PHASE 2 FINAL EXTERNAL ACCEPTANCE: PASS` for commit `4c1d139f87bf7db6c5f1ad9f6337738674159012`. No Phase 2 implementation work is reopened.
 - **Excel Validation:** **PASS** for the current application's workbook generation, import, export, and round-trip behavior. Evidence and environment limits are tracked in [HANDOFF](../HANDOFF.md).
-- **Accepted application checkpoint:** `3a2d819c807da2b8766f71761851c860ae6098a3`. Application behavior is accepted; current work is release preparation and documentation/branch alignment.
-- **Branch strategy:** `dev` is for development source, tests/verifiers, scripts, build/packaging tooling, and technical documentation. `main` is the clean user/company-facing release branch and remains untouched until an accepted user-facing release is ready. The release workflow and current branch-preparation step are in [HANDOFF](../HANDOFF.md).
+- **Accepted application checkpoint:** `3a2d819c807da2b8766f71761851c860ae6098a3`. Application behavior is accepted; current work finalizes repository branch workspaces only.
+- **Branch strategy:** `oldmain` preserves the old frontend reference at `c6ecbe1b295b2e2017ce545a3bd2785505e8525e`; `dev` is the full development workspace for source, tests/verifiers, scripts, build/packaging tooling, and technical documentation; `main` is the workspace for the user/company-ready version and starts from the same current accepted application state as `dev`. Details are in [HANDOFF](../HANDOFF.md).
 - **Current Import UI:** Valid workbooks show filename, `Valid`, Product Name, BOM / Work Center / Routing row summary, and Import action, with no warning accordion/list. Invalid workbooks show an invalid icon, filename, and `Invalid`, with no red explanatory box or Import action. Parser warning generation and Master Data warning/blocker behavior remain intact.
-- **Roadmap:** `dev` → reconcile current documentation → `release/user-ready` → organize and test/audit the clean user-facing release → preserve old `main` → replace/update `main` only after acceptance → optional version tag later. `USER_GUIDE.pdf`, an external sample workbook, and optional visual polish are not part of the current scope.
+- **Current task:** preserve old `main` as `oldmain`, update and push branch-workspace documentation on `dev`, point `main` to that current development commit, and remove the obsolete temporary branch. No user-facing cleanup, packaging changes, guide PDF, sample workbook, visual polish, or tag work is included.
 
 ## Canonical Specifications Map
 

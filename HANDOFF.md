@@ -1,13 +1,14 @@
-## Current checkpoint — Release branch preparation — 2026-10-28
+## Current checkpoint — Branch workspace alignment — 2026-10-28
 
-- **Accepted application baseline:** `3a2d819c807da2b8766f71761851c860ae6098a3` (`fix: simplify Import modal feedback`) is the latest accepted application checkpoint. This work continues that application state and changes documentation and branch metadata only.
-- **Branch strategy:** `dev` is the long-term development branch for source code, tests/verifiers, scripts, build and packaging tooling, and technical documentation. `main` is the user/company-facing branch for the clean accepted release. `main` remains the old release branch until a later accepted user-facing release replaces it.
-- **Branch workflow:** `dev` → reconcile current documentation → `release/user-ready` → organize the clean user-facing release → test/audit that release → preserve old `main` → replace/update `main` with the accepted user-facing release → optional version tag later. The release-preparation branch is created from the exact documentation commit on `dev`, after that commit is pushed and verified. Do not merge development clutter directly into `main`.
+- **Accepted application baseline:** `3a2d819c807da2b8766f71761851c860ae6098a3` (`fix: simplify Import modal feedback`). Application behavior remains accepted; this checkpoint changes branch/workspace metadata and current-status documentation only.
+- **Branch roles:** `oldmain` preserves the old frontend-reference state from the former `main` at `c6ecbe1b295b2e2017ce545a3bd2785505e8525e`. `dev` is the full development workspace for source, tests/verifiers, scripts, build/packaging tooling, and technical documentation. `main` is the workspace for the user/company-ready version; it is based on the accepted current application state and will be cleaned/adjusted in later work.
+- **Branch transition:** `oldmain` was pushed and verified at the old `main` SHA before `main` is moved. The documentation update is committed and pushed on `dev`; `main` is then set to that same current commit. Do not clean `main` in this branch-structure task.
 - **Current Import behavior:** A valid workbook shows its filename, `Valid`, Product Name, BOM / Work Center / Routing row summary, and Import action; the modal shows no `Import warnings` accordion or list. An invalid workbook shows an invalid icon, filename, and `Invalid`, without a red explanatory error box or Import action. Parser warning generation and Master Data warning/blocker behavior remain intact.
 - **First-import reload check:** The user manually confirmed that selecting the first workbook did not reload the page. Codex's fresh-browser reproduction also did not reproduce the earlier reload symptom; no Vite or product workaround was added.
-- **Packaging and polish boundaries:** `USER_GUIDE.pdf` is not being created yet. Do not add an external sample workbook; the built-in Complete Mock / Incomplete Mock remain the quick-test mechanism. Optional visual polish has not started.
-- **Scope of this checkpoint:** Reconcile current documentation on `dev`, commit and push the documentation/branch strategy, then create and push `release/user-ready` from that exact `dev` commit. Do not organize the user-facing package or modify `main` in this scope.
-- **Verification:** For this documentation-only change, directly review the edited sections and run `git diff --check`; do not rerun the full regression suite.
+- **Scope boundaries:** This task prepares branch workspaces only. Do not reorganize the portable package, create `USER_GUIDE.pdf`, add an external sample workbook, change application behavior, start visual polish, or add release/tag work.
+- **Verification:** For this documentation-only change, directly review the edited sections and run `git diff --check`; do not rerun regression, browser, build, or typecheck suites.
+
+## Previous checkpoint — Release branch preparation — 2026-10-28
 
 ## Previous checkpoint — Release Readiness Parts 1–4 — 2026-10-28
 

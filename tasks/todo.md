@@ -1,33 +1,29 @@
-# Current Release Preparation Roadmap — 2026-10-28
+# Current Branch Workspace Roadmap — 2026-10-28
 
-Application behavior is accepted and feature-frozen. The latest accepted application checkpoint is `3a2d819c807da2b8766f71761851c860ae6098a3`; this task changes current documentation and branch state only. See [`HANDOFF.md`](../HANDOFF.md) for the current checkpoint and historical evidence.
+Application behavior is accepted and feature-frozen. The accepted application baseline is `3a2d819c807da2b8766f71761851c860ae6098a3`; this task only finalizes the repository branch/workspace structure. See [`HANDOFF.md`](../HANDOFF.md) for the current checkpoint and historical evidence.
 
-## Branch strategy
+## Branch roles
 
-- `dev` is the development branch for application source, tests/verifiers, scripts, build and packaging tooling, and technical documentation.
-- `main` is the user/company-facing branch for a clean release intended for end users. Keep the existing `main` intact until a later accepted user-facing release is ready.
-- The user-ready preparation branch is based on the exact documentation commit on `dev`, created and pushed after remote `dev` is verified.
-- Workflow: `dev` → reconcile current documentation → `release/user-ready` → organize the clean user-facing release → test/audit that release → preserve old `main` → replace/update `main` with the accepted user-facing release → optional version tag later.
-- Do not merge development clutter directly into `main`.
+- `oldmain` preserves the old frontend-reference state that was on `main` at `c6ecbe1b295b2e2017ce545a3bd2785505e8525e`.
+- `dev` is the full development workspace: application source, tests/verifiers, scripts, build/packaging tooling, and technical documentation.
+- `main` is the workspace for the user/company-ready version. It starts from the same current accepted application state as `dev`; later work will clean/adjust `main` for end users.
 
-## Current Import and release boundaries
+## Current application state and boundaries
 
 - Valid workbook: filename, `Valid`, Product Name, BOM / Work Center / Routing row summary, and Import action. No `Import warnings` accordion/list appears in the Import modal.
 - Invalid workbook: invalid icon, filename, and `Invalid`; no red explanatory error box and no Import action.
 - Parser warning generation and Master Data warning/blocker behavior remain intact. The user confirmed first workbook selection did not reload the page; Codex's fresh-browser reproduction did not reproduce the earlier reload symptom, and no Vite/product workaround was added.
-- Do not create `USER_GUIDE.pdf` or add an external sample workbook. Built-in Complete Mock / Incomplete Mock remain the quick-test mechanism. Optional visual polish has not started.
+- This task prepares branch workspaces only. Do not reorganize the portable package, create `USER_GUIDE.pdf`, add sample workbooks, change application behavior, start visual polish, or add release/tag work.
 
-## Roadmap from this checkpoint
+## Branch workspace transition
 
-1. **Rename the development branch to `dev` — COMPLETE.** Remote `dev` was verified at the accepted application checkpoint before the old remote `feat/selected-value-ux` branch was removed. `main` was not modified.
-2. **Reconcile current documentation on `dev` — this checkpoint.** This documentation/branch-strategy update records the current Import behavior, branch roles, and remaining release workflow. Review the changed documentation and run `git diff --check`; the full regression suite is not part of this documentation-only step.
-3. **User-ready branch transition.** After the documentation commit is pushed and remote `dev` is confirmed, create and push `release/user-ready` from that exact commit. Keep it as the base for the next user-facing organization phase; do not reorganize the package in this task.
-4. **Organize the clean user-facing release on `release/user-ready`.** This is the next phase after this branch-preparation task.
-5. **Test and audit the user-ready release.** Record a physical clean-machine test only if one is actually performed.
-6. **Preserve the old `main`, then replace/update it with the accepted user-facing release.** Do not update `main` before review and release acceptance.
-7. **Optionally add a version tag later.** No tag or release is created in this task.
+1. **Preserve old `main` as `oldmain` — COMPLETE.** `oldmain` was pushed and verified at `c6ecbe1b295b2e2017ce545a3bd2785505e8525e` before changing `main`.
+2. **Update current branch documentation on `dev` — this checkpoint.** Commit and push these documentation-only changes; direct review and `git diff --check` are sufficient.
+3. **Set `main` to the current `dev` HEAD.** Do this only after `oldmain` is verified and the documentation commit is pushed. Do not clean `main` in this task.
+4. **Remove the obsolete temporary branch `release/user-ready`.** It is not part of the intended branch model.
+5. **Next phase:** clean/adjust `main` for the user/company-ready version in a separately authorized task.
 
-Do not begin the user-facing package organization or modify `main` as part of this branch-preparation task.
+The intended branch set after this transition is exactly `oldmain`, `dev`, and `main`. Do not start user-facing cleanup as part of this task.
 
 # Operational Task Ledger — Master Data Refresh and Selected Comparison
 
