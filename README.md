@@ -1,69 +1,52 @@
-# Cost Breakdown
+# COSTBREAKDOWN
 
-An Excel-assisted cost analysis application for preparing datasets, comparing cost, and reviewing improvement scenarios.
+COSTBREAKDOWN is a local tool for preparing product cost data, comparing Reference and Current datasets, reviewing cost changes, trying supported changes in Simulation, and exporting data to Excel.
 
-## Current requirements
+## Workflow
 
-The decision authority and current specifications are listed in [docs/REQUIREMENTS_INDEX.md](docs/REQUIREMENTS_INDEX.md). Read the relevant files under [docs/specs/](docs/specs/) for the consolidated behavior. Files in [agreements/](agreements/) preserve prior decisions; finalized decisions stay valid unless a later explicit user decision supersedes them. Missing spec coverage is a migration gap.
+```text
+Master Data → Cost Breakdown → optional Selected Comparison → Simulation → Excel export
+```
 
-For a diagram-oriented overview, see the [System Logic Diagram](docs/SYSTEM_LOGIC_DIAGRAM.md).
+Selected Comparison is a temporary focus within Cost Breakdown. It does not change the datasets or limit Simulation.
 
-## Project context
+## Start and stop
 
-PROJECT.md summarizes the current implementation architecture. HANDOFF.md
-records the latest implementation checkpoint. Historical task ledgers and
-agreement files preserve provenance; their old implementation status is not
-current status. Existing implementation and verification evidence is not human
-acceptance.
+1. Keep the portable folder together.
+2. Double-click `Start COSTBREAKDOWN.exe`. The app opens in your default browser without leaving a terminal window open. You may create shortcuts to the Start and Stop files if you prefer.
+3. When finished, double-click `Stop COSTBREAKDOWN.exe` to stop this folder's local app. Closing the browser tab alone may leave the app running.
 
-## Before changing product behavior
+No installation, Node.js, or npm is required. Use a current version of Microsoft Edge or Google Chrome.
 
-1. Read [docs/REQUIREMENTS_INDEX.md](docs/REQUIREMENTS_INDEX.md) and the canonical spec for the requested flow.
-2. Read [PROJECT_SPECIFIC.md](PROJECT_SPECIFIC.md) and [CONSTRAINTS.md](CONSTRAINTS.md) for maintainability and verification rules.
-3. Read the current checkpoint at the top of [HANDOFF.md](HANDOFF.md).
-4. Check [tasks/todo.md](tasks/todo.md) before creating or replacing a plan.
-5. Keep implementation verification separate from user acceptance.
+## Prepare data in Master Data
 
-## Run locally
+Choose `Reference`, `Current`, or `Custom`. Use `Import` to load a compatible `.xlsx` workbook into the dataset currently open. You can also edit the fields and table rows directly. Use `Save` to keep the current working version for this browser-tab session.
 
-- Install dependencies with npm install.
-- Start the development server with npm run dev.
+`Reset` returns the dataset to its saved version (or its initial version if it has not been saved). `Clone from` copies another dataset into the one currently open. Use `Sizing` to set the table row counts; `Apply Sizing` updates the tables, and `Download Template` creates an Excel template for those counts.
 
-### Default verification
+### Built-in quick-test data
 
-- Run the relevant canonical `scripts/verify_*` verifiers for the changed behavior.
-- Run the TypeScript typecheck with `npx tsc --noEmit --pretty false`.
-- Build for production with `npm run build`.
-- Check whitespace and patch formatting with `git diff --check`.
+Use `Complete Mock` and `Incomplete Mock` in the `Prepare Dataset` panel to load built-in test data. They replace the Reference and Current Working datasets, clear Custom Working rows, and select Current, while leaving all Last Saved snapshots unchanged. Complete Mock provides a ready example; Incomplete Mock provides warnings and blockers for checking those review flows. Undo reverses a mock load as one action. These buttons are included in the portable app.
 
-### Specialized legacy Excel model generation
+## Review and simulate
 
-`npm run excel` runs the legacy model generator and its matching verifier. It
-is not the canonical workbook round-trip verification path and may generate old
-operational-looking workbook artifacts. Use it only when specifically working
-on those legacy model files; do not include it in normal verification.
+Open `Cost Breakdown` to compare Reference with Current. The page starts with the full comparison and shows cost totals and BOM or Routing findings. Select finding checkboxes to focus the totals on selected findings. Clear the selections to return to the full comparison.
 
-## Repository map
+Open `Simulation` to compare the datasets shown in its `Before dataset` and `After dataset` controls. Try supported changes in the Simulation BOM and Routing tables, then review the `Result`, `Cost Structure`, and `Break-even` views. Selected Comparison from Cost Breakdown does not carry into Simulation.
 
-- `src/main.tsx` and `src/App.tsx` — application entry and feature navigation.
-- `src/features/` — feature pages and feature-owned UI.
-- `src/core/` — domain types, calculations, and migrations.
-- `src/state/` — application state and dataset operations.
-- `src/services/` — Excel and browser-session storage integrations.
-- `src/shared/` — layout and UI shared by active features.
-- `scripts/` — canonical `verify_*` scripts plus specialized legacy Excel model
-  tools.
-- `excel_models/` — legacy calculation reference workbooks; not the canonical
-  workbook contract.
-- `docs/specs/` — canonical product specifications.
-- `agreements/` — historical decision records and provenance; follow current
-  canonical specs for implementation.
-- `docs/history/` — dated source, specification, and checkpoint records; use chronology and original decision status.
-- `tasks/source-crosswalk-80.md` — historical topic-level traceability/status,
-  not current completion status or a requirements source.
-- `tasks/` — historical operational plans and task records; current completion
-  status is in the frozen audit under
-  `.planning/2026-10-09-final-logic-implementation/`.
-- `.planning/` — dated audit and planning records.
+## Import, export, and saving work
 
-Do not commit real factory data, proprietary workbooks, credentials, or other confidential material.
+Import accepts `.xlsx` workbooks in the COSTBREAKDOWN workbook format. In Master Data, `Export` downloads the current working dataset as an Excel workbook, including edits not yet saved with `Save`. Save important workbooks in an approved company location so you can keep or share them.
+
+Working data belongs to the current browser-tab session. COSTBREAKDOWN does not provide a durable company database or shared backup. Export important work before closing the session.
+
+## Remove COSTBREAKDOWN
+
+Run `Stop COSTBREAKDOWN.exe`, then delete the portable folder. There is no installer or uninstaller.
+
+## Troubleshooting
+
+- **The browser did not open:** Double-click `Start COSTBREAKDOWN.exe` again and check that Edge or Chrome is available as the default browser.
+- **The app is already open:** Start reuses the healthy local app for this folder. Use the existing app tab, or run `Stop COSTBREAKDOWN.exe` and start again.
+- **Import does not accept a file:** Choose an `.xlsx` workbook in the COSTBREAKDOWN workbook format.
+- **Closing the tab did not stop the app:** Run `Stop COSTBREAKDOWN.exe` from the same portable folder.
