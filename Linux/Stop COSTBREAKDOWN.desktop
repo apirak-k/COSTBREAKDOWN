@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Stop COSTBREAKDOWN
+Comment=Open or stop the local COSTBREAKDOWN app
+Terminal=false
+Exec=sh -c "exec \"$(dirname \"$1\")/Stop COSTBREAKDOWN\"" sh %k
+Categories=Utility;

@@ -1,12 +1,15 @@
 param(
     [switch]$NoBrowser,
+    [Parameter(Mandatory = $true)][string]$PackageRoot,
+    [Parameter(Mandatory = $true)][string]$AppRoot,
     [Parameter(Mandatory = $true)][string]$StatePath,
     [Parameter(Mandatory = $true)][string]$InstanceToken
 )
 
 $ErrorActionPreference = 'Stop'
-$packageRoot = [System.IO.Path]::GetFullPath($PSScriptRoot)
-$indexPath = [System.IO.Path]::GetFullPath((Join-Path $packageRoot 'index.html'))
+$packageRoot = [System.IO.Path]::GetFullPath($PackageRoot)
+$appRoot = [System.IO.Path]::GetFullPath($AppRoot)
+$indexPath = [System.IO.Path]::GetFullPath((Join-Path $appRoot 'index.html'))
 $StatePath = [System.IO.Path]::GetFullPath($StatePath)
 
 if ($InstanceToken -notmatch '^[0-9a-f]{64}$') {
@@ -17,9 +20,9 @@ if (-not (Test-Path -LiteralPath $indexPath -PathType Leaf)) {
     throw 'Portable application file index.html is missing from this folder.'
 }
 
-$packageRootPrefix = $packageRoot
-if (-not $packageRootPrefix.EndsWith([System.IO.Path]::DirectorySeparatorChar.ToString())) {
-    $packageRootPrefix += [System.IO.Path]::DirectorySeparatorChar
+$appRootPrefix = $appRoot
+if (-not $appRootPrefix.EndsWith([System.IO.Path]::DirectorySeparatorChar.ToString())) {
+    $appRootPrefix += [System.IO.Path]::DirectorySeparatorChar
 }
 
 function Write-HttpResponse {
@@ -194,11 +197,11 @@ try {
                 $filePath = $indexPath
             } else {
                 $localRelativePath = $relativePath.Replace('/', [System.IO.Path]::DirectorySeparatorChar)
-                $filePath = [System.IO.Path]::GetFullPath((Join-Path $packageRoot $localRelativePath))
+                $filePath = [System.IO.Path]::GetFullPath((Join-Path $appRoot $localRelativePath))
             }
 
             $insidePackage = $filePath.Equals($indexPath, [System.StringComparison]::OrdinalIgnoreCase) -or
-                $filePath.StartsWith($packageRootPrefix, [System.StringComparison]::OrdinalIgnoreCase)
+                $filePath.StartsWith($appRootPrefix, [System.StringComparison]::OrdinalIgnoreCase)
 
             if (-not $insidePackage) {
                 $notFoundBody = [System.Text.Encoding]::UTF8.GetBytes('Not found')

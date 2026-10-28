@@ -1,35 +1,36 @@
 # COSTBREAKDOWN
 
-Understand what changed in a product's cost, then try changes before putting them into use.
+COSTBREAKDOWN is a local tool for preparing cost data, comparing datasets, reviewing cost changes, testing supported changes in Simulation, and exporting data to Excel.
 
-COSTBREAKDOWN is a portable Windows application for preparing BOM, Work Center, and Routing data, comparing costs, and exploring what-if scenarios.
+## Open the app
 
-## Your path through the app
+1. Extract the complete ZIP into a folder. Keep `app`, `Windows`, `macOS`, `Linux`, `docs`, and both guides together.
+2. Open the launcher for your operating system:
 
-![Suggested user journey: open the app, prepare and check data, compare costs or try a scenario, export the work you need, and stop the app.](docs/images/user-journey.svg)
+   - **Windows:** `Windows/Start COSTBREAKDOWN.exe`
+   - **macOS:** `macOS/Start COSTBREAKDOWN.app`
+   - **Linux:** `Linux/Start COSTBREAKDOWN` or `Linux/Start COSTBREAKDOWN.desktop`
 
-Use either analysis path, or both. **Selected Comparison belongs to Cost Breakdown**: it focuses on chosen findings and does not control Simulation.
+The launcher starts a local server on loopback and opens the default browser. Starting the same package again reuses its existing server. It does not require Node.js, npm, Go, a Vite server, or administrator privileges.
 
-## Open COSTBREAKDOWN
+## Close the app
 
-1. [Download the application ZIP](https://github.com/apirak-k/COSTBREAKDOWN/archive/refs/heads/main.zip), or use the package supplied by your company.
-2. Extract the ZIP into a folder. Keep the complete folder together, including its assets folder.
-3. Double-click **Start COSTBREAKDOWN.exe**. The app opens in your browser.
+Use the matching Stop launcher from the same package folder:
 
-If this package is already running, Start opens the running app again. When finished, double-click **Stop COSTBREAKDOWN.exe** from the same folder. Closing the browser tab alone does not stop the app.
+- **Windows:** `Windows/Stop COSTBREAKDOWN.exe`
+- **macOS:** `macOS/Stop COSTBREAKDOWN.app`
+- **Linux:** `Linux/Stop COSTBREAKDOWN` or `Linux/Stop COSTBREAKDOWN.desktop`
 
-## Find your next step
+Closing the browser tab alone may leave the local server running. Stop only closes the server started from that package folder.
 
-| What you want to do | Where to go |
-|---|---|
-| Enter cost data or import Excel | [Prepare data in Master Data](USER_GUIDE.md#prepare-your-cost-data) |
-| Find missing data and review warnings | [Check the datasets](USER_GUIDE.md#check-the-datasets) |
-| Explain a cost difference | [Compare costs](USER_GUIDE.md#compare-costs) |
-| Test a proposed change | [Try a scenario](USER_GUIDE.md#try-a-scenario) |
-| Keep a copy or finish work | [Keep your work](USER_GUIDE.md#keep-your-work-and-close-the-app) |
+## Platform notes
 
-Master Data holds **Reference**, **Current**, and **Custom**. Its latest Working values feed both analysis pages; Save is not a prerequisite for comparison or Simulation.
+- **Windows:** Use a current version of Microsoft Edge or Google Chrome. The package does not install software or change system settings.
+- **macOS:** These app bundles are not signed or notarized. macOS may prevent them from opening. This package does not bypass Gatekeeper; ask your company administrator for an approved signed build if macOS blocks it.
+- **Linux:** The bundled helpers support x86_64 and arm64. A desktop environment may ask you to trust or allow a downloaded `.desktop` launcher before it runs. Follow your organization's desktop policy; the package does not change trust settings.
 
-**Before ending your browser session, Export important datasets from Master Data.** Save creates a checkpoint within the current browser session. Export creates an Excel file you can keep separately.
+## Your work
 
-For screen locations, step-by-step instructions, and troubleshooting, open the [User Guide](USER_GUIDE.md).
+Use Master Data to prepare or import a dataset, then open Cost Breakdown or Simulation for the analysis you need. Export important work to Excel before closing your browser session. Working data and saved checkpoints belong to that browser tab and are not a permanent database or shared backup.
+
+For step-by-step instructions, see [USER_GUIDE.md](USER_GUIDE.md).

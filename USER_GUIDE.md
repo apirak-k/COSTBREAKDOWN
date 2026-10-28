@@ -14,9 +14,13 @@ Screenshots show the current application with fictional example data. Open an im
 
 ## Open the app
 
-1. [Download the application ZIP](https://github.com/apirak-k/COSTBREAKDOWN/archive/refs/heads/main.zip), or locate the package supplied by your company.
-2. Extract it into a folder before running it. Keep the package files and assets folder together.
-3. Double-click **Start COSTBREAKDOWN.exe**. COSTBREAKDOWN opens in a browser tab.
+1. Download the package supplied by your company and extract the complete ZIP into a folder. Keep the package folders together.
+2. Choose the launcher for your operating system:
+   - **Windows:** double-click `Windows/Start COSTBREAKDOWN.exe`.
+   - **macOS:** open `macOS/Start COSTBREAKDOWN.app`. This package is not signed or notarized; if macOS blocks it, do not bypass Gatekeeper—ask your company administrator for an approved build.
+   - **Linux:** open `Linux/Start COSTBREAKDOWN` or `Linux/Start COSTBREAKDOWN.desktop`. Your desktop environment may ask you to trust the downloaded launcher first.
+
+COSTBREAKDOWN starts a local server and opens in your default browser. Starting the same package again reuses its running server.
 
 Starting the same package again reuses the running app. You do not need to start a second copy.
 
@@ -246,7 +250,10 @@ Sending copies BOM and Routing parameter changes into Master Data Working data. 
 1. Return to **Master Data** and select the dataset you want to keep.
 2. Choose **Export**. It creates an Excel workbook from that dataset's current Working data, including edits not yet saved with Save and values received from Simulation.
 3. Repeat Export for each dataset you need to keep. Store the files somewhere you can find them again.
-4. When finished, double-click **Stop COSTBREAKDOWN.exe** in the application folder.
+4. When finished, use the matching Stop launcher from the same package folder:
+   - **Windows:** `Windows/Stop COSTBREAKDOWN.exe`.
+   - **macOS:** `macOS/Stop COSTBREAKDOWN.app`.
+   - **Linux:** `Linux/Stop COSTBREAKDOWN` or `Linux/Stop COSTBREAKDOWN.desktop`.
 
 Master Data, Last Saved checkpoints, and Simulation work are temporary browser-session data. They are not a permanent company database or shared backup. Save does not create a file, and Stop does not export your data. Export important work before ending the browser session; you can later Import a compatible workbook into the intended dataset.
 
@@ -256,12 +263,14 @@ Export is available in Master Data. Cost Breakdown and Simulation have no separa
 
 | What you see | What to try |
 |---|---|
-| The app does not open | Extract the complete package and run Start COSTBREAKDOWN.exe from that folder. If a restart is needed, run Stop from the same folder, then Start again. |
+| The app does not open | Extract the complete package and use the Start launcher for your operating system. If a restart is needed, run its matching Stop launcher from the same folder, then Start again. |
 | Reference or Current is Incomplete | Open header i → Prepare Dataset. Expand a Blocker category and select a location to reach the field. |
 | A workbook is Invalid | Use Download Template in Sizing. Check that the file is .xlsx and its required sheets and headings are intact. |
 | A value cannot be edited | Check that Master Data is in Edit mode. In Simulation, only the supported fields listed above are editable. |
 | Send appears to affect a different dataset than expected | Check the active dataset label under Cost Structure, rather than relying on Result's After selector. Review the same role in Master Data. |
 | You want to discard an experiment | Use Simulation Reset or Reset all. For Master Data Working changes, use its own Reset command. |
+| macOS prevents the app from opening | This package is not signed or notarized. Do not bypass Gatekeeper; ask your company administrator for an approved signed build. |
+| Linux asks whether to trust the launcher | Follow your desktop environment and company policy for downloaded launchers. The package does not change trust settings. |
 | Data is absent in a new browser session | Import a previously exported workbook. Do not rely on Save as a permanent backup. |
 
 [Return to the overview](README.md)
