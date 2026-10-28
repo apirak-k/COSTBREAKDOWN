@@ -5,7 +5,7 @@ import{a as Rh,c as Xe,b as fr,r as tf,d as rf,e as sf,f as nf,g as af}from"./ex
  * @author Louis-Dominique Dubeau
  * @license MIT
  * @copyright Louis-Dominique Dubeau
- */Object.defineProperty(a,"__esModule",{value:!0}),a.CHAR=`\t
+ */Object.defineProperty(a,"__esModule",{value:!0}),a.CHAR=`	
 \r -퟿-�𐀀-􏿿`,a.S=` 	\r
 `,a.NAME_START_CHAR=":A-Z_a-zÀ-ÖØ-öø-˿Ͱ-ͽͿ-῿‌‍⁰-↏Ⰰ-⿯、-퟿豈-﷏ﷰ-�𐀀-󯿿",a.NAME_CHAR="-"+a.NAME_START_CHAR+".0-9·̀-ͯ‿-⁀",a.CHAR_RE=new RegExp("^["+a.CHAR+"]$","u"),a.S_RE=new RegExp("^["+a.S+"]+$","u"),a.NAME_START_CHAR_RE=new RegExp("^["+a.NAME_START_CHAR+"]$","u"),a.NAME_CHAR_RE=new RegExp("^["+a.NAME_CHAR+"]$","u"),a.NAME_RE=new RegExp("^["+a.NAME_START_CHAR+"]["+a.NAME_CHAR+"]*$","u"),a.NMTOKEN_RE=new RegExp("^["+a.NAME_CHAR+"]+$","u");var h=9,l=10,s=13,r=32;a.S_LIST=[r,l,s,h];function t(o){return o>=r&&o<=55295||o===l||o===s||o===h||o>=57344&&o<=65533||o>=65536&&o<=1114111}a.isChar=t;function e(o){return o===r||o===l||o===s||o===h}a.isS=e;function i(o){return o>=65&&o<=90||o>=97&&o<=122||o===58||o===95||o===8204||o===8205||o>=192&&o<=214||o>=216&&o<=246||o>=248&&o<=767||o>=880&&o<=893||o>=895&&o<=8191||o>=8304&&o<=8591||o>=11264&&o<=12271||o>=12289&&o<=55295||o>=63744&&o<=64975||o>=65008&&o<=65533||o>=65536&&o<=983039}a.isNameStartChar=i;function n(o){return i(o)||o>=48&&o<=57||o===45||o===46||o===183||o>=768&&o<=879||o>=8255&&o<=8256}a.isNameChar=n})(oi)),oi}var li={},_o;function kf(){return _o||(_o=1,(function(a){/**
  * Character classes and associated utilities for the 2nd edition of XML 1.1.
