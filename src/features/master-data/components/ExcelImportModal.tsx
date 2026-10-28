@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { CheckCircle2, ChevronDown, ChevronUp, CircleAlert, X } from 'lucide-react'
+import { CheckCircle2, CircleAlert, X } from 'lucide-react'
 import type { MasterDataRole, SnapshotImportResult } from '../../../core'
 import { ExcelUploadDropzone } from '../../../shared/ui/ExcelUploadDropzone'
 import { useDialogFocus } from '../use-dialog-focus'
@@ -14,14 +14,6 @@ interface ExcelImportModalProps {
 
 const roleLabel = (role: MasterDataRole) => role === 'reference' ? 'Reference' : role === 'current' ? 'Current' : 'Custom'
 
-const getImportErrorSummary = (message: string) => {
-  if (message.startsWith('Dataset workbook not recognized')) return 'Workbook structure is not supported. Choose a COSTBREAKDOWN dataset workbook.'
-  if (message.startsWith('PRODUCT must contain')) return 'Workbook must contain exactly one Product record.'
-  if (message.startsWith('Import rejected')) return 'Required values are invalid or a Routing Work Center cannot be resolved.'
-  if (message.startsWith('Choose an Excel workbook')) return 'Choose an Excel workbook (.xlsx).'
-  return 'This workbook could not be read. Check the file and try again.'
-}
-
 export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
   isOpen,
   onClose,
@@ -32,7 +24,6 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
   const [selectedFileName, setSelectedFileName] = useState('')
   const [parsedImport, setParsedImport] = useState<SnapshotImportResult | null>(null)
   const [isParsing, setIsParsing] = useState(false)
-  const [areWarningsExpanded, setAreWarningsExpanded] = useState(false)
   const dialogRef = useDialogFocus(isOpen, onClose)
   const targetLabel = roleLabel(importRole)
 
@@ -41,7 +32,6 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
       setSelectedFileName('')
       setParsedImport(null)
       setIsParsing(false)
-      setAreWarningsExpanded(false)
     }
   }, [isOpen])
 
@@ -86,7 +76,6 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
             onFileSelected={fileName => {
               setSelectedFileName(fileName)
               setParsedImport(null)
-              setAreWarningsExpanded(false)
             }}
             onParsed={setParsedImport}
             onParsingChange={setIsParsing}
@@ -131,41 +120,6 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
                 </div>
               </dl>
             </div>
-          )}
-
-          {!isParsing && parsedImport && !parsedImport.success && parsedImport.message && (
-            <div role="alert" className="border-l-2 border-rose-500 bg-rose-50/70 px-3 py-2 text-xs text-rose-900">
-              <p className="font-medium">{getImportErrorSummary(parsedImport.message)}</p>
-            </div>
-          )}
-
-          {!isParsing && parsedImport?.warnings && parsedImport.warnings.length > 0 && (
-            <section className="border border-amber-200 bg-amber-50/50">
-              <button
-                type="button"
-                aria-expanded={areWarningsExpanded}
-                aria-controls="import-warning-details"
-                onClick={() => setAreWarningsExpanded(expanded => !expanded)}
-                className={`grid min-h-7 w-full grid-cols-[minmax(0,1fr)_2rem_1.5rem] items-center gap-2 px-2 text-left text-xs text-amber-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700 ${areWarningsExpanded ? 'bg-amber-100/60' : 'hover:bg-amber-100/40'}`}
-              >
-                <span className="min-w-0 font-medium">Import warnings</span>
-                <span className="w-full text-right font-mono tabular-nums text-amber-900">{parsedImport.warnings.length}</span>
-                <span className="grid h-6 w-6 place-items-center text-amber-800" aria-hidden="true">
-                  {areWarningsExpanded
-                    ? <ChevronUp className="h-3.5 w-3.5" />
-                    : <ChevronDown className="h-3.5 w-3.5" />}
-                </span>
-              </button>
-              <ul
-                id="import-warning-details"
-                aria-label="Import warning details"
-                hidden={!areWarningsExpanded}
-                tabIndex={0}
-                className="mx-2 mb-2 max-h-28 min-h-0 space-y-0.5 overflow-y-auto overscroll-contain border-l border-amber-300 pl-3 text-amber-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700"
-              >
-                {parsedImport.warnings.map((warning, index) => <li key={index} className="min-h-6 py-1 text-[11px] leading-4">{warning}</li>)}
-              </ul>
-            </section>
           )}
 
           {hasWorkingData && parsedImport?.success && (

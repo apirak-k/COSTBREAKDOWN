@@ -2,8 +2,9 @@ import assert from 'node:assert/strict'
 import { spawn, execFileSync } from 'node:child_process'
 import { copyFile, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { createRequire } from 'node:module'
+import { basename, join } from 'node:path'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import net from 'node:net'
 import * as XLSX from 'xlsx'
 import { existsSync } from 'node:fs'
@@ -32,6 +33,8 @@ async function unusedPort() {
 
 const delay = ms => new Promise(resolveDelay => setTimeout(resolveDelay, ms))
 const repository = process.cwd()
+const require = createRequire(import.meta.url)
+const loadTypeScript = require('jiti')(import.meta.url)
 const artifactDir = process.env.COSTBREAKDOWN_EXCEL_VALIDATION_DIR ?? '/tmp/costbreakdown-excel-validation-2026-10-26'
 const requiredArtifacts = ['export-reference.xlsx', 'export-current.xlsx', 'export-custom.xlsx']
 for (const artifact of requiredArtifacts) {
@@ -45,7 +48,13 @@ await import('node:fs/promises').then(({ mkdir }) => mkdir(downloadDir, { recurs
 const vitePort = await unusedPort()
 const debugPort = await unusedPort()
 const viteCliPath = fileURLToPath(new URL('../../bin/vite.js', import.meta.resolve('vite')))
-const vite = spawn(process.execPath, [viteCliPath, '--host', '127.0.0.1', '--port', String(vitePort), '--strictPort'], {
+const viteCacheDir = await mkdtemp(join(tmpdir(), 'costbreakdown-import-vite-cache-'))
+const viteConfigPath = join(artifactDir, 'vite-import-test.config.mjs')
+await writeFile(viteConfigPath, [
+  `import projectConfig from ${JSON.stringify(pathToFileURL(join(repository, 'vite.config.ts')).href)}`,
+  `export default { ...projectConfig, cacheDir: ${JSON.stringify(viteCacheDir)} }`
+].join('\n'))
+const vite = spawn(process.execPath, [viteCliPath, '--config', viteConfigPath, '--configLoader', 'runner', '--host', '127.0.0.1', '--port', String(vitePort), '--strictPort'], {
   cwd: repository,
   stdio: ['ignore', 'pipe', 'pipe']
 })
@@ -55,6 +64,8 @@ let chrome
 let client
 const browserErrors = []
 const browserDownloads = []
+const browserViteMessages = []
+const mainFrameNavigations = []
 
 function stopChild(child) {
   return new Promise(resolveStop => {
@@ -84,9 +95,13 @@ try {
     throw new Error(`${label} did not become ready`)
   }
   const debugUrl = `http://127.0.0.1:${debugPort}`
-  await waitFor(async () => {
-    try { return (await fetch(baseUrl)).ok } catch { return false }
-  }, 'Vite')
+  try {
+    await waitFor(async () => {
+      try { return (await fetch(baseUrl)).ok } catch { return false }
+    }, 'Vite')
+  } catch (error) {
+    throw new Error(`${error instanceof Error ? error.message : String(error)}; Vite output=${viteOutput.join('').slice(-5000)}`)
+  }
   await waitFor(async () => {
     try { return (await fetch(`${debugUrl}/json/version`)).ok } catch { return false }
   }, 'Chrome DevTools')
@@ -103,13 +118,18 @@ try {
   const pending = new Map()
   client.addEventListener('message', event => {
     const message = JSON.parse(String(event.data))
+    if (message.method === 'Page.frameNavigated' && !message.params.frame.parentId) {
+      mainFrameNavigations.push({ url: message.params.frame.url, loaderId: message.params.frame.loaderId })
+    }
     if (message.method === 'Runtime.exceptionThrown') {
       const details = message.params.exceptionDetails
       const stack = details.stackTrace?.callFrames?.slice(0, 4).map(frame => `${frame.functionName || '<anonymous>'}@${frame.url}:${frame.lineNumber + 1}:${frame.columnNumber + 1}`).join(' <- ')
       browserErrors.push(`${details.text}: ${details.exception?.description ?? ''}${stack ? ` (${stack})` : ''}`)
     }
-    if (message.method === 'Runtime.consoleAPICalled' && ['error', 'warning'].includes(message.params.type)) {
-      browserErrors.push(message.params.args.map(argument => argument.value ?? argument.description).join(' '))
+    if (message.method === 'Runtime.consoleAPICalled') {
+      const text = message.params.args.map(argument => argument.value ?? argument.description).join(' ')
+      if (['error', 'warning'].includes(message.params.type)) browserErrors.push(text)
+      if (/\[vite\]|dependenc(?:y|ies).*optim|page reload/i.test(text)) browserViteMessages.push(text)
     }
     if (message.method?.startsWith('Browser.download')) browserDownloads.push({ method: message.method, params: message.params })
     if (message.id && pending.has(message.id)) {
@@ -190,7 +210,90 @@ try {
   }
   const stageFile = async filePath => {
     await setFile(filePath)
-    await waitUntil(`Boolean(document.querySelector('[role="dialog"] [aria-label="Workbook import summary"]') || document.querySelector('[role="dialog"] [role="alert"]'))`, `file validation: ${filePath}`)
+    const expectedFileName = basename(filePath)
+    try {
+      await waitUntil(`(() => {
+        const dialog = document.querySelector('[role="dialog"]')
+        const fileName = [...(dialog?.querySelectorAll('[title]') ?? [])].find(element => element.getAttribute('title') === ${JSON.stringify(expectedFileName)})
+        const status = [...(fileName?.parentElement?.querySelectorAll('span') ?? [])].some(element => ['Valid', 'Invalid'].includes(element.textContent.trim()))
+        return Boolean(fileName && status)
+      })()`, `file validation: ${filePath}`)
+    } catch (error) {
+      throw new Error(`${error instanceof Error ? error.message : String(error)}; main-frame navigations=${JSON.stringify(mainFrameNavigations)}; Vite output=${viteOutput.join('').slice(-3000)}; Vite browser messages=${JSON.stringify(browserViteMessages)}`)
+    }
+  }
+  const workbookImportSummary = async filePath => {
+    const workbook = XLSX.read(await readFile(filePath), { type: 'buffer' })
+    const rows = sheetName => Math.max(0, XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1, defval: null }).length - 3)
+    const meta = XLSX.utils.sheet_to_json(workbook.Sheets.META, { header: 1, defval: null })
+    return {
+      productName: meta[2]?.[1] ?? '',
+      rows: [
+        { label: 'Bill of Materials', value: `${rows('BOM')} rows` },
+        { label: 'Work Centers', value: `${rows('WORK_CENTER')} rows` },
+        { label: 'Routing', value: `${rows('ROUTING')} rows` }
+      ]
+    }
+  }
+  const assertValidWorkbookPresentation = async (filePath, label) => {
+    const expectedFileName = basename(filePath)
+    const expectedSummary = await workbookImportSummary(filePath)
+    const state = await evaluate(`(() => {
+      const dialog = document.querySelector('[role="dialog"]')
+      const fileName = [...(dialog?.querySelectorAll('[title]') ?? [])].find(element => element.getAttribute('title') === ${JSON.stringify(expectedFileName)})
+      const status = [...(fileName?.parentElement?.querySelectorAll('span') ?? [])].find(element => ['Valid', 'Invalid'].includes(element.textContent.trim()))?.textContent.trim() ?? null
+      const summary = dialog?.querySelector('[aria-label="Workbook import summary"]')
+      const summaryRows = [...(summary?.querySelectorAll('dl > div') ?? [])].map(row => ({
+        label: row.querySelector('dt')?.textContent.trim() ?? '',
+        value: row.querySelector('dd')?.textContent.trim() ?? ''
+      }))
+      const warningUi = [...(dialog?.querySelectorAll('*') ?? [])].some(element => {
+        const classes = typeof element.className === 'string' ? element.className : ''
+        return /(?:text|bg|border)-(?:amber|yellow)-/i.test(classes)
+      })
+      return {
+        dialogOpen: Boolean(dialog),
+        fileName: fileName?.textContent.trim() ?? null,
+        status,
+        summary: summary ? {
+          productName: summary.querySelector(':scope > div span:last-child')?.textContent.trim() ?? '',
+          rows: summaryRows
+        } : null,
+        importAvailable: Boolean([...dialog?.querySelectorAll('button') ?? []].find(button => button.innerText.trim() === 'Import' && !button.disabled)),
+        warningLabelOrDetails: Boolean(dialog?.querySelector('[aria-label*="warning" i], [id*="import-warning" i], [aria-controls="import-warning-details"]')) || /Import warnings?/i.test(dialog?.innerText ?? ''),
+        warningUi
+      }
+    })()`)
+    assert.equal(state.dialogOpen, true, `${label}: valid workbook keeps Import modal open`)
+    assert.equal(state.fileName, expectedFileName, `${label}: exact filename is shown`)
+    assert.equal(state.status, 'Valid', `${label}: status is Valid`)
+    assert.deepEqual(state.summary, expectedSummary, `${label}: product and row summary match the workbook`)
+    assert.equal(state.importAvailable, true, `${label}: Import action is available`)
+    assert.equal(state.warningLabelOrDetails, false, `${label}: Import warning label/count/details are absent`)
+    assert.equal(state.warningUi, false, `${label}: warning-specific amber/yellow UI is absent`)
+  }
+  const assertInvalidWorkbookPresentation = async (filePath, label, priorProductName) => {
+    const expectedFileName = basename(filePath)
+    const state = await evaluate(`(() => {
+      const dialog = document.querySelector('[role="dialog"]')
+      const fileName = [...(dialog?.querySelectorAll('[title]') ?? [])].find(element => element.getAttribute('title') === ${JSON.stringify(expectedFileName)})
+      const row = fileName?.parentElement
+      return {
+        dialogOpen: Boolean(dialog),
+        fileName: fileName?.textContent.trim() ?? null,
+        status: [...(row?.querySelectorAll('span') ?? [])].find(element => ['Valid', 'Invalid'].includes(element.textContent.trim()))?.textContent.trim() ?? null,
+        alertPresent: Boolean(dialog?.querySelector('[role="alert"]')),
+        explanatoryError: Boolean(dialog?.querySelector('p')) || /Choose an Excel workbook|Workbook structure is not supported|Could not read the workbook|Import rejected/i.test(dialog?.innerText ?? ''),
+        importAvailable: Boolean([...dialog?.querySelectorAll('button') ?? []].find(button => button.innerText.trim() === 'Import'))
+      }
+    })()`)
+    assert.equal(state.dialogOpen, true, `${label}: invalid workbook keeps Import modal open`)
+    assert.equal(state.fileName, expectedFileName, `${label}: exact invalid filename is shown`)
+    assert.equal(state.status, 'Invalid', `${label}: status is Invalid`)
+    assert.equal(state.alertPresent, false, `${label}: no alert is rendered`)
+    assert.equal(state.explanatoryError, false, `${label}: no red explanation or parser detail is rendered`)
+    assert.equal(state.importAvailable, false, `${label}: Import action is absent`)
+    assert.equal(await mainProductValue(), priorProductName, `${label}: invalid workbook does not change Working`)
   }
   const dialogButton = text => clickText(text, 'document.querySelector("[role=dialog]")')
   const waitDialogClosed = () => waitUntil('!document.querySelector("[role=dialog]")', 'dialog close')
@@ -222,6 +325,7 @@ try {
   await waitUntil(`Boolean(document.querySelector('button[aria-label="Import"]'))`, 'Master Data workspace')
   await evaluate('(()=>{Object.defineProperty(window,"showSaveFilePicker",{value:undefined,configurable:true});return true})()')
   await waitUntil('document.querySelector("[role=switch]")?.getAttribute("aria-checked")==="true"', 'Master Data edit mode')
+  const appMainFrameNavigationCount = () => mainFrameNavigations.filter(navigation => navigation.url.startsWith(baseUrl)).length
 
   const artifacts = {
     reference: join(artifactDir, 'export-reference.xlsx'),
@@ -230,13 +334,34 @@ try {
   }
   const nextRole = { reference: 'current', current: 'custom', custom: 'reference' }
   const expectedWorking = {}
+  let firstWorkbookSelected = false
 
   for (const role of ['reference', 'current', 'custom']) {
     const label = activeRoleName(role)
     await selectRole(label)
     const before = await mainProductValue()
     await openImport()
+    const beforeFirstWorkbookNavigationCount = !firstWorkbookSelected
+      ? appMainFrameNavigationCount()
+      : null
     await stageFile(artifacts[role])
+    if (beforeFirstWorkbookNavigationCount !== null) {
+      const viteLines = viteOutput.join('').split(/\r?\n/).filter(line => /optim|dependenc|reload/i.test(line))
+      const newNavigations = appMainFrameNavigationCount()
+      console.log(`First XLSX selection diagnostics: app navigations ${beforeFirstWorkbookNavigationCount} → ${newNavigations}; Vite=${JSON.stringify(viteLines)}; browser=${JSON.stringify(browserViteMessages)}`)
+      assert.equal(newNavigations, beforeFirstWorkbookNavigationCount, 'first XLSX selection does not trigger a full-page reload')
+      firstWorkbookSelected = true
+      await assertValidWorkbookPresentation(artifacts[role], `${label} first valid XLSX selection`)
+
+      const beforeSubsequentSelectionNavigationCount = appMainFrameNavigationCount()
+      await stageFile(artifacts[nextRole[role]])
+      await assertValidWorkbookPresentation(artifacts[nextRole[role]], `${label} subsequent valid XLSX selection`)
+      assert.equal(appMainFrameNavigationCount(), beforeSubsequentSelectionNavigationCount,
+        'a subsequent valid workbook selection in the same browser session does not reload the app')
+
+      await stageFile(artifacts[role])
+      await assertValidWorkbookPresentation(artifacts[role], `${label} reselected valid XLSX`)
+    }
     assert.equal(await mainProductValue(), before, `${label} file selection stages the workbook without mutating Working`)
     await dialogButton('Cancel')
     await waitDialogClosed()
@@ -244,7 +369,7 @@ try {
 
     await openImport()
     await stageFile(artifacts[role])
-    assert.ok(await evaluate(`Boolean(document.querySelector('[role=dialog] [aria-label="Workbook import summary"]'))`), 'valid workbook has a staged summary')
+    await assertValidWorkbookPresentation(artifacts[role], `${label} import selection`)
     await dialogButton('Import')
     await waitDialogClosed()
     const baselineName = `${label} Precision Part`
@@ -290,10 +415,10 @@ try {
   invalidWorkbook.Sheets.BOM.A3 = { t: 's', v: 'Unsupported Header' }
   const invalidPath = join(artifactDir, 'browser-invalid-header.xlsx')
   await writeFile(invalidPath, XLSX.write(invalidWorkbook, { type: 'buffer', bookType: 'xlsx' }))
-  await setFile(invalidPath)
-  await waitUntil('Boolean(document.querySelector("[role=dialog] [role=alert]"))', 'invalid header error')
-  assert.equal(await mainProductValue(), stagedBeforeInvalid, 'invalid workbook never mutates Working')
-  assert.equal(await evaluate(`Boolean([...document.querySelectorAll('[role=dialog] button')].find(b=>b.innerText.trim()==='Import'))`), false, 'invalid workbook exposes no Import action')
+  const invalidHeaderNavigationCount = appMainFrameNavigationCount()
+  await stageFile(invalidPath)
+  await assertInvalidWorkbookPresentation(invalidPath, 'invalid header workbook', stagedBeforeInvalid)
+  assert.equal(appMainFrameNavigationCount(), invalidHeaderNavigationCount, 'invalid workbook does not reload the app')
   await dialogButton('Cancel')
   await waitDialogClosed()
   assert.equal(await mainProductValue(), stagedBeforeInvalid)
@@ -301,111 +426,65 @@ try {
   const xlsNamedPath = join(artifactDir, 'browser-invalid-extension.xls')
   await copyFile(artifacts.reference, xlsNamedPath)
   await openImport()
+  const invalidExtensionNavigationCount = appMainFrameNavigationCount()
   await stageFile(xlsNamedPath)
-  assert.match(await evaluate('document.querySelector("[role=dialog] [role=alert]")?.innerText ?? ""'), /Choose an Excel workbook/)
+  await assertInvalidWorkbookPresentation(xlsNamedPath, 'non-.xlsx extension', stagedBeforeInvalid)
+  assert.equal(appMainFrameNavigationCount(), invalidExtensionNavigationCount, 'invalid extension does not reload the app')
   await dialogButton('Cancel')
   await waitDialogClosed()
-  console.log('Invalid header and non-.xlsx selection are rejected without changing Working.')
+  console.log('Invalid header and non-.xlsx selections keep filename + Invalid status, hide error explanations and Import, stay open, and preserve Working.')
 
   await selectRole('Custom')
   const warningWorkbook = XLSX.read(await readFile(artifacts.reference), { type: 'buffer' })
-  const warningRows = Array.from({ length: 27 }, (_, index) => [`Warning material ${index + 1}`, 1, '', 1, 0, ''])
+  const warningRows = Array.from({ length: 27 }, (_, index) => index === 0
+    ? ['', 1, '', '', 0, '']
+    : [`Warning material ${index + 1}`, 1, '', 1, 0, ''])
   XLSX.utils.sheet_add_aoa(warningWorkbook.Sheets.BOM, warningRows, { origin: 'A4' })
   const manyWarningsPath = join(artifactDir, 'browser-many-warnings.xlsx')
   await writeFile(manyWarningsPath, XLSX.write(warningWorkbook, { type: 'buffer', bookType: 'xlsx' }))
-  const warningDisclosureSelector = '[role="dialog"] button[aria-controls="import-warning-details"]'
+  const warningBytes = await readFile(manyWarningsPath)
+  const { parseSnapshotWorkbookData } = loadTypeScript(join(repository, 'src/services/excel/snapshot-parser.ts'))
+  const warningData = warningBytes.buffer.slice(warningBytes.byteOffset, warningBytes.byteOffset + warningBytes.byteLength)
+  const warningImportResult = parseSnapshotWorkbookData(warningData, 'custom')
+  assert.equal(warningImportResult.success, true, 'workbook containing parser warnings is accepted for import')
+  assert.ok(warningImportResult.warnings.length > 0, 'warning fixture produces parser warnings')
+  assert.ok(warningImportResult.warnings.some(warning => /Missing unit at row/.test(warning)), 'warning fixture includes missing-unit parser warnings')
+  assert.ok(warningImportResult.warnings.some(warning => /Missing price at row/.test(warning)), 'warning fixture includes a missing-price parser warning')
+  assert.equal(warningImportResult.snapshot?.bom.length, 27, 'warning fixture preserves all BOM rows')
+  assert.equal(warningImportResult.snapshot?.bom[0].price, null, 'missing numeric BOM price remains null')
+  assert.equal(warningImportResult.snapshot?.bom[0].isGeneratedBusinessIdentity, true, 'blank BOM identity is preserved as a generated-identity row')
   const warningProductName = await workbookProductName(artifacts.reference)
   await openImport()
+  const warningNavigationCount = appMainFrameNavigationCount()
   await stageFile(manyWarningsPath)
-  assert.equal(await evaluate(`Boolean(document.querySelector(${JSON.stringify(warningDisclosureSelector)}))`), true,
-    'Import warnings disclosure appears for a many-warning workbook')
-  const collapsedWarningState = await evaluate(`(() => {
-    const button = document.querySelector(${JSON.stringify(warningDisclosureSelector)})
-    const spans = [...button.querySelectorAll('span')]
-    const controlled = document.getElementById(button.getAttribute('aria-controls'))
-    return {
-      label: spans.find(span => span.textContent.trim() === 'Import warnings')?.textContent.trim(),
-      count: spans.find(span => /^\\d+$/.test(span.textContent.trim()))?.textContent.trim(),
-      expanded: button.getAttribute('aria-expanded'),
-      height: button.getBoundingClientRect().height,
-      detailsVisible: Boolean(controlled && controlled.getClientRects().length),
-      modalText: document.querySelector('[role="dialog"]')?.innerText ?? ''
-    }
-  })()`)
-  assert.equal(collapsedWarningState.label, 'Import warnings', 'warning disclosure uses the required label')
-  assert.equal(collapsedWarningState.count, '27', 'collapsed disclosure shows the exact warning count')
-  assert.equal(collapsedWarningState.expanded, 'false', 'warning details are collapsed by default')
-  assert.ok(collapsedWarningState.height <= 32, `collapsed warning disclosure is one compact row (${collapsedWarningState.height}px)`)
-  assert.equal(collapsedWarningState.detailsVisible, false, 'warning details are hidden while collapsed')
-  assert.doesNotMatch(collapsedWarningState.modalText, /Show all|\+\s*\d+\s+more/i, 'no Show all or + N more summary is shown')
-
-  await click(warningDisclosureSelector)
-  await waitUntil(`document.querySelector(${JSON.stringify(warningDisclosureSelector)})?.getAttribute('aria-expanded') === 'true'`, 'Import warnings expansion')
-  const expandedWarningState = await evaluate(`(() => {
-    const button = document.querySelector(${JSON.stringify(warningDisclosureSelector)})
-    const panel = document.getElementById(button.getAttribute('aria-controls'))
-    const panelRect = panel.getBoundingClientRect()
-    const rows = [...panel.querySelectorAll('li')]
-    return {
-      panelHeight: panel.clientHeight,
-      scrollHeight: panel.scrollHeight,
-      warningTexts: rows.map(row => row.textContent.trim()),
-      visibleRows: rows.filter(row => {
-        const rect = row.getBoundingClientRect()
-        return rect.top < panelRect.bottom && rect.bottom > panelRect.top
-      }).length
-    }
-  })()`)
-  assert.deepEqual(expandedWarningState.warningTexts, Array.from({ length: 27 }, (_, index) => `Missing unit at row ${index + 4}`),
-    'expanded disclosure preserves every warning and its text')
-  assert.ok(expandedWarningState.panelHeight >= 96 && expandedWarningState.panelHeight <= 120,
-    `warning area is capped near four rows (${expandedWarningState.panelHeight}px)`)
-  assert.ok(expandedWarningState.scrollHeight > expandedWarningState.panelHeight,
-    'additional warnings overflow inside the warning area')
-  assert.ok(expandedWarningState.visibleRows >= 3 && expandedWarningState.visibleRows <= 5,
-    `approximately four warning rows are visible before scrolling (${expandedWarningState.visibleRows})`)
-  const warningScrollState = await evaluate(`(() => {
-    const button = document.querySelector(${JSON.stringify(warningDisclosureSelector)})
-    const panel = document.getElementById(button.getAttribute('aria-controls'))
-    panel.scrollTop = panel.scrollHeight
-    const panelRect = panel.getBoundingClientRect()
-    const lastWarningRect = panel.lastElementChild.getBoundingClientRect()
-    return {
-      scrollTop: panel.scrollTop,
-      lastWarningVisible: lastWarningRect.top >= panelRect.top - 1 && lastWarningRect.bottom <= panelRect.bottom + 1
-    }
-  })()`)
-  assert.ok(warningScrollState.scrollTop > 0, 'warning details can be scrolled internally')
-  assert.equal(warningScrollState.lastWarningVisible, true, 'the final warning is reachable within the warning area')
-
-  await send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 720, deviceScaleFactor: 1, mobile: false })
-  const compactViewportState = await evaluate(`(() => {
-    const modal = document.querySelector('[role="dialog"] > div')
-    const button = document.querySelector(${JSON.stringify(warningDisclosureSelector)})
-    const panel = document.getElementById(button.getAttribute('aria-controls'))
-    return {
-      viewportHeight: window.innerHeight,
-      modalHeight: modal.getBoundingClientRect().height,
-      warningPanelHeight: panel.clientHeight,
-      warningScrollHeight: panel.scrollHeight
-    }
-  })()`)
-  assert.ok(compactViewportState.modalHeight <= compactViewportState.viewportHeight - 32 + 1,
-    `modal stays within the smaller laptop viewport (${compactViewportState.modalHeight}px of ${compactViewportState.viewportHeight}px)`)
-  assert.ok(compactViewportState.warningPanelHeight <= 120 && compactViewportState.warningScrollHeight > compactViewportState.warningPanelHeight,
-    'the warning list remains internally scrollable at a smaller laptop viewport')
-  await send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1800, deviceScaleFactor: 1, mobile: false })
-
-  await click(warningDisclosureSelector)
-  await waitUntil(`document.querySelector(${JSON.stringify(warningDisclosureSelector)})?.getAttribute('aria-expanded') === 'false'`, 'Import warnings collapse')
-  assert.equal(await evaluate(`Boolean(document.getElementById(document.querySelector(${JSON.stringify(warningDisclosureSelector)}).getAttribute('aria-controls'))?.getClientRects().length)`), false,
-    'collapsing hides the warning details again')
+  await assertValidWorkbookPresentation(manyWarningsPath, 'parser-warning workbook selection')
+  assert.equal(appMainFrameNavigationCount(), warningNavigationCount, 'parser-warning workbook selection does not reload the app')
   await dialogButton('Import')
   await waitDialogClosed()
-  await waitUntil(`document.querySelector('[aria-label="Working dataset controls"] input[aria-label="Product Name"]')?.value===${JSON.stringify(warningProductName)}`, 'Import applies the many-warning workbook')
-  assert.equal(await mainProductValue(), warningProductName, 'Import still applies the staged workbook after warning review')
-  console.log('Import warnings: 27 preserved details collapse by default, expand to a bounded scroll area, collapse again, and still import successfully.')
-
+  await waitUntil(`document.querySelector('[aria-label="Working dataset controls"] input[aria-label="Product Name"]')?.value===${JSON.stringify(warningProductName)}`, 'Import applies the parser-warning workbook')
+  assert.equal(await mainProductValue(), warningProductName, 'Import applies the staged parser-warning workbook')
+  const bomIssueControls = await evaluate(`(() => {
+    const bom = document.querySelector('section[aria-label="Bill of Materials rows"]')
+    const warning = bom?.querySelector('button[aria-label^="Jump to next warning,"]')
+    const blocker = bom?.querySelector('button[aria-label^="Jump to next blocker,"]')
+    return {
+      warningLabel: warning?.getAttribute('aria-label') ?? null,
+      warningCount: warning?.querySelector('span')?.textContent.trim() ?? null,
+      warningDisabled: warning?.disabled ?? null,
+      blockerLabel: blocker?.getAttribute('aria-label') ?? null,
+      blockerCount: blocker?.querySelector('span')?.textContent.trim() ?? null,
+      blockerDisabled: blocker?.disabled ?? null
+    }
+  })()`)
+  assert.match(bomIssueControls.warningLabel ?? '', /^Jump to next warning, 1 in Bill of Materials$/,
+    'Master Data warning navigation/count remains present for the blank BOM identity')
+  assert.equal(bomIssueControls.warningCount, '1', 'BOM warning count remains visible after import')
+  assert.equal(bomIssueControls.warningDisabled, false, 'BOM warning navigation remains enabled after import')
+  assert.match(bomIssueControls.blockerLabel ?? '', /^Jump to next blocker, 1 in Bill of Materials$/,
+    'Master Data blocker navigation/count remains present for the missing BOM price')
+  assert.equal(bomIssueControls.blockerCount, '1', 'BOM blocker count remains visible after import')
+  assert.equal(bomIssueControls.blockerDisabled, false, 'BOM blocker navigation remains enabled after import')
+  console.log('Parser-warning workbook imports successfully; generated-identity warning and missing-price blocker remain visible and navigable in Master Data.')
   const customBeforeTemplate = await mainProductValue()
   await click('button[aria-label="Sizing"]')
   await waitUntil('Boolean(document.querySelector("#dataset-sizing-bom-rows"))', 'Sizing dialog')
@@ -438,5 +517,6 @@ try {
   client?.close()
   await stopChild(chrome)
   await stopChild(vite)
+  try { await rm(viteCacheDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }) } catch (error) { console.warn(`Temporary Vite cache cleanup deferred: ${error.message}`) }
   try { await rm(chromeProfile, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }) } catch (error) { console.warn(`Temporary browser profile cleanup deferred: ${error.message}`) }
 }

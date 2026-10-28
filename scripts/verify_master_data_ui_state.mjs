@@ -1266,8 +1266,12 @@ try {
   assert.match(importDropzoneSource, /extension\.endsWith\('\.xlsx'\)[\s\S]*Choose an Excel workbook \(\.xlsx\)\.[\s\S]*accept="\.xlsx"[\s\S]*\.xlsx files only/,
     'Import accepts and describes only .xlsx files')
   assert.doesNotMatch(importDropzoneSource, /\.xls(?!x)/, 'Import does not list or accept legacy .xls files')
-  assert.match(importModalSource, /getImportErrorSummary\(parsedImport\.message\)/,
-    'Import errors are summarized for the user rather than exposing raw parser messages')
+  assert.match(importModalSource, /selectedFileName && \([\s\S]*title=\{selectedFileName\}>\{selectedFileName\}<\/span>[\s\S]*parsedImport && !parsedImport\.success[\s\S]*>Invalid<\/span>/,
+    'invalid Import state keeps the selected filename and Invalid status in the conditional status row')
+  assert.doesNotMatch(importModalSource, /role="alert"|parsedImport\.message|getImportErrorSummary/,
+    'invalid Import state does not render parser explanations or an alert')
+  assert.doesNotMatch(importModalSource, /Import warnings|import-warning-details|parsedImport\?\.warnings/,
+    'Import modal has no parser warning disclosure or details UI')
   assert.match(importModalSource, /parsedImport\.snapshot\.bom\.length[\s\S]*parsedImport\.snapshot\.rates\.length[\s\S]*parsedImport\.snapshot\.routing\.length/,
     'valid Import state shows concise BOM, Work Center, and Routing counts')
   assert.match(importModalSource, /hasWorkingData && parsedImport\?\.success[\s\S]*This will replace \{targetLabel\} Working data\. Last Saved remains unchanged\./,
