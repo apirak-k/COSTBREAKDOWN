@@ -26,7 +26,7 @@ Master Data supplies the latest Working data to both Cost Breakdown and Simulati
 
 ### Prepare data in Master Data
 
-Prepare `Reference`, `Current`, and `Custom` datasets. Import a supported Excel workbook or edit data in the app. Review warnings and blockers from Header `i` → `Prepare Dataset`. Built-in `Complete Mock` and `Incomplete Mock` data are available there for examples and data-quality checks.
+Prepare `Reference`, `Current`, and `Custom` datasets. Import a supported Excel workbook or edit data in the app. Review warnings and blockers from Header `i` → `Prepare Dataset`.
 
 ### Compare in Cost Breakdown
 

@@ -68,15 +68,6 @@ Open Header `i` → `Prepare Dataset`. The panel shows whether Reference and Cur
 
 Warnings identify items to review. Blockers identify missing required data and can keep Reference or Current from being ready. Custom issues are listed too, but Custom does not determine the Reference/Current readiness indicator.
 
-### Use the built-in mock data
-
-Open Header `i` → `Prepare Dataset`, then choose:
-
-- **Complete Mock** for a complete example dataset.
-- **Incomplete Mock** for an example with warnings and blockers.
-
-Loading either mock replaces Reference and Current Working data, clears Custom Working data, and selects Current. It leaves the Last Saved checkpoints unchanged and can be undone as one action. Export each Working dataset you want to keep before loading a mock.
-
 ## 4. Compare Data in Cost Breakdown
 
 Cost Breakdown starts with `Before: Reference` and `After: Current`. You can choose Reference, Current, or Custom for either side.
@@ -138,6 +129,5 @@ Master Data Working data, Last Saved checkpoints, and Simulation what-if values 
 
 - **The app does not open:** Run `Start COSTBREAKDOWN.exe` from the extracted folder. If you need to restart the local app, run `Stop COSTBREAKDOWN.exe` from that folder, then Start it again.
 - **Reference or Current is Incomplete:** Open Header `i` → `Prepare Dataset` and select a listed blocker to jump to the field that needs attention.
-- **You want to see the warning flow:** Load `Incomplete Mock` from Prepare Dataset.
 - **A workbook is invalid:** Use `Download Template` in Sizing and keep the required workbook sheets and headings intact.
 - **You need to keep your work:** Use `Export` in Master Data before ending the browser session.
