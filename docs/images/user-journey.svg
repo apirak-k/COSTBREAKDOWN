@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="930" viewBox="0 0 1100 930" role="img" aria-labelledby="title desc">
+<title id="title">Your path through COSTBREAKDOWN</title>
+<desc id="desc">Open the portable app. Prepare Reference, Current, and Custom in Master Data and review warnings and blockers. Choose Cost Breakdown to compare costs, or Simulation to try changes. Selected Comparison stays within Cost Breakdown. Simulation can send parameter changes back to the matching Master Data dataset. Export important datasets, then stop the app.</desc>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 Z" fill="#52677b"/></marker></defs>
+<rect width="1100" height="930" fill="#ffffff"/>
+<g fill="none" stroke="#52677b" stroke-width="3" marker-end="url(#arrow)">
+<path d="M550 106 V130"/><path d="M550 238 V262"/>
+<path d="M550 352 V380 H295 V404"/><path d="M550 352 V380 H805 V404"/>
+<path d="M295 592 V626 H550 V654"/><path d="M805 592 V626 H550" marker-end="none"/>
+<path d="M550 774 V798"/>
+</g>
+<g font-family="Segoe UI,Arial,sans-serif" text-anchor="middle" fill="#14243a">
+<rect x="230" y="24" width="640" height="82" rx="8" fill="#14243a"/>
+<text x="550" y="58" font-size="27" font-weight="700" fill="#ffffff">Open COSTBREAKDOWN</text>
+<text x="550" y="87" font-size="20" fill="#ffffff">Extract the package · Start COSTBREAKDOWN.exe</text>
+<rect x="160" y="134" width="780" height="104" rx="8" fill="#e7f5f2"/>
+<text x="550" y="176" font-size="29" font-weight="700">Prepare your cost data</text>
+<text x="550" y="211" font-size="23">Master Data · Reference / Current / Custom</text>
+<rect x="160" y="266" width="780" height="86" rx="8" fill="#f1f5f9"/>
+<text x="550" y="301" font-size="26" font-weight="700">Check what needs attention</text>
+<text x="550" y="331" font-size="21">Prepare Dataset · Warnings / Blockers</text>
+<rect x="60" y="408" width="470" height="184" rx="8" fill="#e7f5f2"/>
+<text x="295" y="447" font-size="28" font-weight="700">Compare costs</text>
+<text x="295" y="479" font-size="24" fill="#006d66">Cost Breakdown</text>
+<text x="295" y="515" font-size="20">Before / After · Standard Cost Gap</text>
+<text x="295" y="550" font-size="19">Selected Comparison:</text>
+<text x="295" y="575" font-size="19">focus on chosen findings</text>
+<rect x="570" y="408" width="470" height="184" rx="8" fill="#edf2f8"/>
+<text x="805" y="447" font-size="28" font-weight="700">Try a scenario</text>
+<text x="805" y="479" font-size="24" fill="#244b78">Simulation</text>
+<text x="805" y="515" font-size="19">Result · Cost Structure · Break-even</text>
+<text x="805" y="550" font-size="19">Send parameter changes back</text>
+<text x="805" y="575" font-size="19">to matching Master Data roles if needed</text>
+<rect x="160" y="658" width="780" height="116" rx="8" fill="#e7f5f2"/>
+<text x="550" y="696" font-size="28" font-weight="700">Keep the work you need</text>
+<text x="550" y="728" font-size="21">Master Data · Export each dataset to Excel</text>
+<text x="550" y="756" font-size="18">After Send, review the matching dataset before saving or exporting.</text>
+<rect x="230" y="802" width="640" height="82" rx="8" fill="#14243a"/>
+<text x="550" y="837" font-size="27" font-weight="700" fill="#ffffff">Finish for the day</text>
+<text x="550" y="865" font-size="22" fill="#ffffff">Stop COSTBREAKDOWN.exe</text>
+<text x="550" y="916" font-size="17" fill="#52677b">Suggested journey · Compare, simulate, or use both paths</text>
+</g>
+</svg>

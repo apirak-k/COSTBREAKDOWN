@@ -51,7 +51,6 @@ function stopProcessTree(pid) {
   try { process.kill(-pid, 'SIGTERM') } catch {}
 }
 
-const allowedRootFiles = new Set(['index.html', 'Start COSTBREAKDOWN.exe', 'Stop COSTBREAKDOWN.exe', 'README.md', 'Serve-COSTBREAKDOWN.ps1'])
 async function packageFiles(root, relative = '') {
   const entries = await readdir(join(root, relative), { withFileTypes: true })
   const files = []
@@ -138,6 +137,11 @@ function runPowerShellJson(command) {
   return JSON.parse(output.trim())
 }
 
+function getListeningSockets(pid) {
+  const rows = runPowerShellJson(`$rows=@(Get-NetTCPConnection -State Listen -OwningProcess ${pid} -ErrorAction Stop | Select-Object @{n='address';e={$_.LocalAddress}},@{n='port';e={$_.LocalPort}}); ConvertTo-Json -InputObject $rows -Compress`)
+  return Array.isArray(rows) ? rows : [rows]
+}
+
 function getProcessInfo(pid) {
   return runPowerShellJson(`$p=Get-CimInstance Win32_Process -Filter 'ProcessId = ${pid}'; if($null -eq $p){exit 3}; $g=Get-Process -Id ${pid}; @{name=$p.Name; commandLine=$p.CommandLine; mainWindowHandle=[string]$g.MainWindowHandle} | ConvertTo-Json -Compress`)
 }
@@ -186,6 +190,7 @@ let activeClient
 let secondClient
 const browserErrors = []
 const networkFailures = []
+const networkResponses = []
 const externalRequests = []
 const httpFailures = []
 const browserWarnings = []
@@ -216,6 +221,9 @@ async function connect(webSocketUrl) {
     }
     if (message.method === 'Network.responseReceived' && message.params.response.status >= 400) {
       httpFailures.push({ url: message.params.response.url, status: message.params.response.status })
+    }
+    if (message.method === 'Network.responseReceived' && message.params.response.status < 400) {
+      networkResponses.push({ url: message.params.response.url, mimeType: message.params.response.mimeType })
     }
     if (message.method === 'Network.loadingFailed' && message.params.errorText !== 'net::ERR_ABORTED') {
       networkFailures.push({ url: message.params.requestId, error: message.params.errorText })
@@ -341,29 +349,39 @@ async function exportWorkbook() {
 try {
   const packagedFiles = (await packageFiles(packageRoot)).sort()
   const rootFiles = packagedFiles.filter(file => !file.includes('/'))
-  check('package has Start/Stop launchers, internal server, README, index.html, and assets only',
-    rootFiles.length === 5 && rootFiles.every(file => allowedRootFiles.has(file)) && packagedFiles.some(file => file.startsWith('assets/')))
+  check('package has one shared app and OS-specific Start/Stop launchers',
+    JSON.stringify(rootFiles) === JSON.stringify(['README.md', 'USER_GUIDE.md']) &&
+    packagedFiles.includes('app/index.html') && packagedFiles.some(file => file.startsWith('app/assets/')) &&
+    packagedFiles.includes('Windows/Start COSTBREAKDOWN.exe') && packagedFiles.includes('Windows/Stop COSTBREAKDOWN.exe') &&
+    packagedFiles.includes('Windows/Serve-COSTBREAKDOWN.ps1') &&
+    packagedFiles.includes('macOS/Start COSTBREAKDOWN.app/Contents/Info.plist') &&
+    packagedFiles.includes('macOS/Stop COSTBREAKDOWN.app/Contents/Info.plist') &&
+    packagedFiles.includes('Linux/Start COSTBREAKDOWN') && packagedFiles.includes('Linux/Stop COSTBREAKDOWN'))
   check('package excludes XLSX workbooks and development/test files',
     packagedFiles.every(file => !/\.(xlsx|mjs|ts|tsx|map)$/i.test(file)) && !packagedFiles.some(file => /(^|\/)(src|scripts|node_modules|excel_models)(\/|$)/i.test(file)))
 
-  const packagedText = await Promise.all(packagedFiles.map(async file => (await readFile(join(packageRoot, file))).toString('utf8')))
+  const packagedTextFiles = packagedFiles.filter(file => /\.(md|ps1|html|js|css|svg|plist|desktop)$/i.test(file) || /(?:^|\/)(?:Start|Stop) COSTBREAKDOWN$/.test(file))
+  const packagedText = await Promise.all(packagedTextFiles.map(async file => (await readFile(join(packageRoot, file))).toString('utf8')))
   const normalizedRepositoryRoot = resolve(process.cwd()).replaceAll('\\', '/').toLowerCase()
   check('package text contains no repository-specific path', packagedText.every(text => !text.replaceAll('\\', '/').toLowerCase().includes(normalizedRepositoryRoot)))
   const launcherSource = await readFile(join(process.cwd(), 'packaging/portable/PortableLauncher.cs'), 'utf8')
-  const launcherScript = await readFile(join(packageRoot, 'Serve-COSTBREAKDOWN.ps1'), 'utf8')
+  const launcherScript = await readFile(join(packageRoot, 'Windows', 'Serve-COSTBREAKDOWN.ps1'), 'utf8')
   const readme = await readFile(join(packageRoot, 'README.md'), 'utf8')
-  check('runtime uses built-in PowerShell only and has no Node/npm command',
-    /powershell\.exe/i.test(launcherSource) && !/\b(node|npm)(\.exe|\.cmd)?\b/i.test(`${launcherSource}\n${launcherScript}`))
-  check('README explains Start, Stop, no install, shortcuts, and Excel data export',
-    /Start COSTBREAKDOWN\.exe/.test(readme) && /Stop COSTBREAKDOWN\.exe/.test(readme) &&
-    /no installation/i.test(readme) && /Node\.js/i.test(readme) && /terminal/i.test(readme) &&
-    /shortcuts/i.test(readme) && /session/i.test(readme) && /Excel/i.test(readme))
-  check('package has no shortcut, installer, registry, or legacy batch files',
+  const unixSource = await readFile(join(process.cwd(), 'packaging/portable/PortableUnixLauncher.go'), 'utf8')
+  check('runtime launchers use only bundled helpers and operating-system tools',
+    /powershell\.exe/i.test(launcherSource) && /os\/exec/.test(unixSource) &&
+    !/\b(node|npm|vite)(\.exe|\.cmd)?\b/i.test(`${launcherSource}\n${launcherScript}\n${unixSource}`))
+  check('README explains all platform launchers, no install, and Excel export/session behavior',
+    /Windows\/Start COSTBREAKDOWN\.exe/.test(readme) && /macOS\/Start COSTBREAKDOWN\.app/.test(readme) &&
+    /Linux\/Start COSTBREAKDOWN/.test(readme) && /Windows\/Stop COSTBREAKDOWN\.exe/.test(readme) &&
+    /macOS\/Stop COSTBREAKDOWN\.app/.test(readme) && /Linux\/Stop COSTBREAKDOWN/.test(readme) &&
+    /does not require Node\.js, npm, Go/i.test(readme) && /Excel/i.test(readme) && /browser session/i.test(readme))
+  check('package has no installer, registry, or legacy batch files',
     packagedFiles.every(file => !/\.(lnk|msi|reg|bat|cmd|vbs|ps1\.bak)$/i.test(file)) &&
-    packagedFiles.includes('Serve-COSTBREAKDOWN.ps1') && !packagedFiles.includes('Launch-COSTBREAKDOWN.bat'))
+    packagedFiles.includes('Windows/Serve-COSTBREAKDOWN.ps1') && !packagedFiles.includes('Launch-COSTBREAKDOWN.bat'))
 
-  const startExecutable = join(packageRoot, 'Start COSTBREAKDOWN.exe')
-  const stopExecutable = join(packageRoot, 'Stop COSTBREAKDOWN.exe')
+  const startExecutable = join(packageRoot, 'Windows', 'Start COSTBREAKDOWN.exe')
+  const stopExecutable = join(packageRoot, 'Windows', 'Stop COSTBREAKDOWN.exe')
   activePackageRoots.push(packageRoot)
   const firstStart = await runGuiLauncher(startExecutable, ['--no-browser'])
   assert.equal(firstStart.code, 0, `Start launcher exits successfully: ${firstStart.stderr}`)
@@ -371,15 +389,22 @@ try {
   assert.equal(firstStart.stderr, '', 'Start launcher has no console error output')
   let packageState = await waitForInstance(packageRoot, 'silent Start launcher')
   baseUrl = `http://127.0.0.1:${packageState.port}/`
+  check('server chooses an available nonzero port', Number.isInteger(packageState.port) && packageState.port > 0)
+  const listeningSockets = getListeningSockets(packageState.pid)
+  check('server listens only on IPv4 loopback', listeningSockets.length > 0 &&
+    listeningSockets.every(socket => socket.address === '127.0.0.1' && Number(socket.port) === packageState.port))
   check('Start runs the bundled PowerShell server from the copied package without Node/npm', (() => {
     const info = getProcessInfo(packageState.pid)
     return info.name.toLowerCase() === 'powershell.exe' &&
-      info.commandLine.toLowerCase().includes(join(packageRoot, 'Serve-COSTBREAKDOWN.ps1').toLowerCase()) &&
+      info.commandLine.toLowerCase().includes(join(packageRoot, 'Windows', 'Serve-COSTBREAKDOWN.ps1').toLowerCase()) &&
       info.commandLine.toLowerCase().includes(packageState.path.toLowerCase()) &&
       !/\b(node|npm|vite)(\.exe|\.cmd)?\b/i.test(info.commandLine) &&
       info.mainWindowHandle === '0'
   })())
-  check('application is served over loopback HTTP 200', (await fetch(baseUrl)).status === 200)
+  const appResponse = await fetch(baseUrl)
+  check('application is served over loopback HTTP 200', appResponse.status === 200)
+  check('unknown application routes return the shared app entry',
+    (await fetch(`${baseUrl}portable-acceptance-route`)).status === 200)
 
   const duplicateStart = await runGuiLauncher(startExecutable, ['--no-browser'])
   const duplicateState = await readInstanceState(packageRoot)
@@ -394,7 +419,7 @@ try {
     await copyFile(join(packageRoot, file), destination)
   }
   activePackageRoots.push(otherPackageRoot)
-  const otherStart = await runGuiLauncher(join(otherPackageRoot, 'Start COSTBREAKDOWN.exe'), ['--no-browser'])
+  const otherStart = await runGuiLauncher(join(otherPackageRoot, 'Windows', 'Start COSTBREAKDOWN.exe'), ['--no-browser'])
   const otherState = await waitForInstance(otherPackageRoot, 'separate package copy')
   check('a different copied folder gets a distinct server instance',
     otherStart.code === 0 && otherState.pid !== packageState.pid && otherState.token !== packageState.token && await hasHealthyServer(otherState))
@@ -415,7 +440,7 @@ try {
   const idleStop = await runGuiLauncher(stopExecutable)
   check('Stop exits cleanly and silently when no server is running', idleStop.code === 0 && idleStop.stdout === '' && idleStop.stderr === '')
   check('an idle Stop does not affect the other copied package server', await hasHealthyServer(otherState))
-  await stopPackageServer(otherPackageRoot, join(otherPackageRoot, 'Stop COSTBREAKDOWN.exe'))
+  await stopPackageServer(otherPackageRoot, join(otherPackageRoot, 'Windows', 'Stop COSTBREAKDOWN.exe'))
 
   const restarted = await runGuiLauncher(startExecutable, ['--no-browser'])
   packageState = await waitForInstance(packageRoot, 'Start after Stop')
@@ -423,7 +448,7 @@ try {
 
   const crashedState = packageState
   const crashedInfo = getProcessInfo(crashedState.pid)
-  assert.ok(crashedInfo.commandLine.toLowerCase().includes(join(packageRoot, 'Serve-COSTBREAKDOWN.ps1').toLowerCase()),
+  assert.ok(crashedInfo.commandLine.toLowerCase().includes(join(packageRoot, 'Windows', 'Serve-COSTBREAKDOWN.ps1').toLowerCase()),
     'crash simulation targets the exact server process for the copied package')
   execFileSync('taskkill.exe', ['/PID', String(crashedState.pid), '/F'], { stdio: 'ignore', windowsHide: true })
   await waitFor(() => !processExists(crashedState.pid), 'simulated package server crash')
@@ -462,6 +487,8 @@ try {
   await send('Page.navigate', { url: baseUrl })
   await waitExpression(`document.title.includes('COSTBREAKDOWN')`, 'portable app page')
   await waitExpression(`Boolean(document.querySelector('nav[aria-label="Main navigation"]'))`, 'main navigation')
+  await waitExpression(`Boolean(document.querySelector('link[rel="stylesheet"]'))`, 'compiled stylesheet link')
+  check('the shared app applies its compiled stylesheet', await evaluate(`(()=>{const link=document.querySelector('link[rel="stylesheet"]');return Boolean(link&&link.sheet&&getComputedStyle(document.body).fontFamily)})()`))
   const navigation = await evaluate(`[...document.querySelectorAll('nav[aria-label="Main navigation"] button')].map(button=>button.innerText.trim())`)
   check('Master Data, Cost Breakdown, and Simulation navigation load',
     ['Master Data', 'Cost Breakdown', 'Simulation'].every(label => navigation.includes(label)))
@@ -538,7 +565,9 @@ try {
 
   await delay(500)
   check('package loads with no missing-file, asset, or external network requests',
-    httpFailures.length === 0 && networkFailures.length === 0 && externalRequests.length === 0)
+    httpFailures.length === 0 && networkFailures.length === 0 && externalRequests.length === 0 &&
+    networkResponses.some(response => response.mimeType === 'text/css') &&
+    networkResponses.some(response => /javascript/i.test(response.mimeType)))
   check('app raises no browser exceptions or console errors', browserErrors.length === 0)
 
   const acceptedServerPid = packageState.pid
@@ -564,9 +593,9 @@ try {
       const state = await readInstanceState(activePackageRoot)
       if (state && processExists(state.pid)) {
         const info = getProcessInfo(state.pid)
-        if (info.commandLine.toLowerCase().includes(join(activePackageRoot, 'Serve-COSTBREAKDOWN.ps1').toLowerCase())) {
+        if (info.commandLine.toLowerCase().includes(join(activePackageRoot, 'Windows', 'Serve-COSTBREAKDOWN.ps1').toLowerCase())) {
           try {
-            await stopPackageServer(activePackageRoot, join(activePackageRoot, 'Stop COSTBREAKDOWN.exe'))
+            await stopPackageServer(activePackageRoot, join(activePackageRoot, 'Windows', 'Stop COSTBREAKDOWN.exe'))
           } catch {
             if (processExists(state.pid)) execFileSync('taskkill.exe', ['/PID', String(state.pid), '/F'], { stdio: 'ignore', windowsHide: true })
           }

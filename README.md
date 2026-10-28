@@ -29,6 +29,10 @@ acceptance.
 - Install dependencies with npm install.
 - Start the development server with npm run dev.
 
+## Portable user package
+
+The portable package contains one shared `app/` build and a launcher for each supported operating system. Extract the supplied ZIP, then open `Windows/Start COSTBREAKDOWN.exe`, `macOS/Start COSTBREAKDOWN.app`, or `Linux/Start COSTBREAKDOWN` (or its `.desktop` entry). Use the matching Stop launcher in the same package folder when finished. End users do not need Node.js, npm, Go, or administrator privileges. See [USER_GUIDE.md](USER_GUIDE.md) for the user workflow; macOS signing/notarization and Linux desktop trust requirements are documented there.
+
 ### Default verification
 
 - Run the relevant canonical `scripts/verify_*` verifiers for the changed behavior.

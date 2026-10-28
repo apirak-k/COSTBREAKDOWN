@@ -26,12 +26,17 @@ internal static class PortableLauncher
         try
         {
             string executableName = Path.GetFileNameWithoutExtension(Assembly.GetExecutingAssembly().Location);
-            string packageRoot = NormalizeRoot(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location));
+            string launcherDirectory = NormalizeRoot(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location));
+            DirectoryInfo platformDirectory = new DirectoryInfo(launcherDirectory);
+            if (!String.Equals(platformDirectory.Name, "Windows", StringComparison.OrdinalIgnoreCase)) return 1;
+            DirectoryInfo packageDirectory = platformDirectory.Parent;
+            if (packageDirectory == null) return 1;
+            string packageRoot = NormalizeRoot(packageDirectory.FullName);
             bool noBrowser = Array.Exists(args, value => String.Equals(value, "--no-browser", StringComparison.OrdinalIgnoreCase));
 
             if (String.Equals(executableName, "Start COSTBREAKDOWN", StringComparison.OrdinalIgnoreCase))
             {
-                return Start(packageRoot, noBrowser);
+                return Start(packageRoot, launcherDirectory, noBrowser);
             }
 
             if (String.Equals(executableName, "Stop COSTBREAKDOWN", StringComparison.OrdinalIgnoreCase))
@@ -47,7 +52,7 @@ internal static class PortableLauncher
         }
     }
 
-    private static int Start(string packageRoot, bool noBrowser)
+    private static int Start(string packageRoot, string launcherDirectory, bool noBrowser)
     {
         string statePath = GetStatePath(packageRoot);
         string packageId = Path.GetFileName(Path.GetDirectoryName(statePath));
@@ -65,8 +70,9 @@ internal static class PortableLauncher
 
                 DeleteStaleState(statePath);
                 string token = CreateToken();
-                string serverScript = Path.Combine(packageRoot, "Serve-COSTBREAKDOWN.ps1");
-                if (!File.Exists(serverScript) || !File.Exists(Path.Combine(packageRoot, "index.html"))) return 3;
+                string serverScript = Path.Combine(launcherDirectory, "Serve-COSTBREAKDOWN.ps1");
+                string appRoot = Path.Combine(packageRoot, "app");
+                if (!File.Exists(serverScript) || !File.Exists(Path.Combine(appRoot, "index.html"))) return 3;
 
                 string powershell = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "WindowsPowerShell", "v1.0", "powershell.exe");
                 if (!File.Exists(powershell)) return 4;
@@ -74,8 +80,9 @@ internal static class PortableLauncher
                 ProcessStartInfo startInfo = new ProcessStartInfo();
                 startInfo.FileName = powershell;
                 startInfo.Arguments = "-NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -WindowStyle Hidden -File " + Quote(serverScript) +
+                    " -PackageRoot " + Quote(packageRoot) + " -AppRoot " + Quote(appRoot) +
                     " -StatePath " + Quote(statePath) + " -InstanceToken " + Quote(token) + (noBrowser ? " -NoBrowser" : String.Empty);
-                startInfo.WorkingDirectory = packageRoot;
+                startInfo.WorkingDirectory = launcherDirectory;
                 startInfo.UseShellExecute = false;
                 startInfo.CreateNoWindow = true;
                 startInfo.WindowStyle = ProcessWindowStyle.Hidden;
