@@ -1,73 +1,53 @@
-# Cost Breakdown
+# COSTBREAKDOWN
 
-An Excel-assisted cost analysis application for preparing datasets, comparing cost, and reviewing improvement scenarios.
+Understand what changed in product cost, then test the changes you want to make.
 
-## Current requirements
+COSTBREAKDOWN compares material, labor, and burden costs across datasets. Prepare data in the app or Excel, trace the cost difference to individual materials and operations, and try a what-if scenario before applying it.
 
-The decision authority and current specifications are listed in [docs/REQUIREMENTS_INDEX.md](docs/REQUIREMENTS_INDEX.md). Read the relevant files under [docs/specs/](docs/specs/) for the consolidated behavior. Files in [agreements/](agreements/) preserve prior decisions; finalized decisions stay valid unless a later explicit user decision supersedes them. Missing spec coverage is a migration gap.
+![Cost Breakdown showing Before and After datasets, the Standard Cost Gap, and the materials and operations contributing to it.](docs/images/cost-breakdown.png)
 
-For a diagram-oriented overview, see the [System Logic Diagram](docs/SYSTEM_LOGIC_DIAGRAM.md).
+[Get started](#get-started) · [Explore the workflow](#from-cost-data-to-a-decision) · [Read the user guide](USER_GUIDE.md)
 
-## Project context
+## From cost data to a decision
 
-PROJECT.md summarizes the current implementation architecture. HANDOFF.md
-records the latest implementation checkpoint. Historical task ledgers and
-agreement files preserve provenance; their old implementation status is not
-current status. Existing implementation and verification evidence is not human
-acceptance.
+Start with the question you need to answer: **What changed?** or **What if we changed it?**
 
-## Before changing product behavior
+```mermaid
+flowchart TB
+    Prepare["Master Data<br/>Prepare and check datasets"] --> Compare["Cost Breakdown<br/>Explain cost changes"]
+    Prepare --> Simulate["Simulation<br/>Try proposed changes"]
+    Compare --> Keep["Master Data<br/>Review and Export"]
+    Simulate -->|"Send changes if needed"| Keep
+    Keep --> Excel["Excel workbook<br/>Keep or share your data"]
+```
 
-1. Read [docs/REQUIREMENTS_INDEX.md](docs/REQUIREMENTS_INDEX.md) and the canonical spec for the requested flow.
-2. Read [PROJECT_SPECIFIC.md](PROJECT_SPECIFIC.md) and [CONSTRAINTS.md](CONSTRAINTS.md) for maintainability and verification rules.
-3. Read the current checkpoint at the top of [HANDOFF.md](HANDOFF.md).
-4. Check [tasks/todo.md](tasks/todo.md) before creating or replacing a plan.
-5. Keep implementation verification separate from user acceptance.
+This is a suggested working order ([static overview](docs/images/user-journey.svg)). Cost Breakdown and Simulation are separate analysis paths. After Simulation, Send transfers supported parameter changes to Master Data so you can review and export them.
 
-## Run locally
+## Find the answer you need
 
-- Install dependencies with npm install.
-- Start the development server with npm run dev.
+| Your question | Where to work |
+|---|---|
+| Is my cost data ready? | **Master Data:** prepare Reference, Current, and Custom; check missing values and identity warnings. |
+| Why did the cost change? | **Cost Breakdown:** compare any two datasets and trace the Gap through BOM and Routing findings. |
+| How much did these items contribute? | **Selected Comparison:** focus on chosen findings within Cost Breakdown while keeping the full Gap visible. |
+| Would a proposed change pay off? | **Simulation:** adjust supported parameters and economic assumptions; review cost, profit, and break-even results. |
+| How do I keep or share the inputs? | **Excel:** download a template, import a compatible workbook, or export the current Master Data dataset. |
 
-## Portable user package
+## Get started
 
-The portable package contains one shared `app/` build and a launcher for each supported operating system. Extract the supplied ZIP, then open `Windows/Start COSTBREAKDOWN.exe`, `macOS/Start COSTBREAKDOWN.app`, or `Linux/Start COSTBREAKDOWN` (or its `.desktop` entry). Use the matching Stop launcher in the same package folder when finished. End users do not need Node.js, npm, Go, or administrator privileges. See [USER_GUIDE.md](USER_GUIDE.md) for the user workflow; macOS signing/notarization and Linux desktop trust requirements are documented there.
+1. Download the package supplied to you and **extract the complete ZIP**. Keep its folders together.
+2. Open the folder for your operating system: `Windows`, `macOS`, or `Linux`.
+3. Use its **Start COSTBREAKDOWN** launcher. The app opens in your browser.
+4. Begin in **Master Data**, or follow [Prepare your datasets](USER_GUIDE.md#prepare-your-datasets) for an Excel-based starting point.
 
-### Default verification
+When finished, export the datasets you need and use the matching **Stop COSTBREAKDOWN** launcher from the same package. Closing the browser tab alone can leave the local server running.
 
-- Run the relevant canonical `scripts/verify_*` verifiers for the changed behavior.
-- Run the TypeScript typecheck with `npx tsc --noEmit --pretty false`.
-- Build for production with `npm run build`.
-- Check whitespace and patch formatting with `git diff --check`.
+End users do not need Node.js, npm, Go, or development tools. See [Troubleshooting](USER_GUIDE.md#troubleshooting) if your operating system prevents a launcher from opening.
 
-### Specialized legacy Excel model generation
+## Keep an Excel copy
 
-`npm run excel` runs the legacy model generator and its matching verifier. It
-is not the canonical workbook round-trip verification path and may generate old
-operational-looking workbook artifacts. Use it only when specifically working
-on those legacy model files; do not include it in normal verification.
+**Save creates a checkpoint in the current browser session. Export creates an Excel file you can keep.**
 
-## Repository map
+The app runs through a local loopback server and stores working data in the browser session. It has no permanent shared database. Export important work before ending the session.
 
-- `src/main.tsx` and `src/App.tsx` — application entry and feature navigation.
-- `src/features/` — feature pages and feature-owned UI.
-- `src/core/` — domain types, calculations, and migrations.
-- `src/state/` — application state and dataset operations.
-- `src/services/` — Excel and browser-session storage integrations.
-- `src/shared/` — layout and UI shared by active features.
-- `scripts/` — canonical `verify_*` scripts plus specialized legacy Excel model
-  tools.
-- `excel_models/` — legacy calculation reference workbooks; not the canonical
-  workbook contract.
-- `docs/specs/` — canonical product specifications.
-- `agreements/` — historical decision records and provenance; follow current
-  canonical specs for implementation.
-- `docs/history/` — dated source, specification, and checkpoint records; use chronology and original decision status.
-- `tasks/source-crosswalk-80.md` — historical topic-level traceability/status,
-  not current completion status or a requirements source.
-- `tasks/` — historical operational plans and task records; current completion
-  status is in the frozen audit under
-  `.planning/2026-10-09-final-logic-implementation/`.
-- `.planning/` — dated audit and planning records.
-
-Do not commit real factory data, proprietary workbooks, credentials, or other confidential material.
+[Open the user guide](USER_GUIDE.md) for importing data, resolving issues, comparing costs, and sending Simulation changes back to Master Data.

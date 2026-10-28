@@ -349,36 +349,45 @@ async function exportWorkbook() {
 try {
   const packagedFiles = (await packageFiles(packageRoot)).sort()
   const rootFiles = packagedFiles.filter(file => !file.includes('/'))
+  const windowsRootFiles = (await readdir(join(packageRoot, 'Windows'))).sort()
+  const linuxRootFiles = (await readdir(join(packageRoot, 'Linux'))).sort()
+  const macRootFiles = (await readdir(join(packageRoot, 'macOS'))).sort()
   check('package has one shared app and OS-specific Start/Stop launchers',
     JSON.stringify(rootFiles) === JSON.stringify(['README.md', 'USER_GUIDE.md']) &&
     packagedFiles.includes('app/index.html') && packagedFiles.some(file => file.startsWith('app/assets/')) &&
     packagedFiles.includes('Windows/Start COSTBREAKDOWN.exe') && packagedFiles.includes('Windows/Stop COSTBREAKDOWN.exe') &&
-    packagedFiles.includes('Windows/Serve-COSTBREAKDOWN.ps1') &&
+    packagedFiles.includes('Windows/runtime/Serve-COSTBREAKDOWN.ps1') &&
     packagedFiles.includes('macOS/Start COSTBREAKDOWN.app/Contents/Info.plist') &&
     packagedFiles.includes('macOS/Stop COSTBREAKDOWN.app/Contents/Info.plist') &&
-    packagedFiles.includes('Linux/Start COSTBREAKDOWN') && packagedFiles.includes('Linux/Stop COSTBREAKDOWN'))
+    packagedFiles.includes('Linux/Start COSTBREAKDOWN.desktop') && packagedFiles.includes('Linux/Stop COSTBREAKDOWN.desktop') &&
+    packagedFiles.includes('Linux/runtime/start.sh') && packagedFiles.includes('Linux/runtime/stop.sh') &&
+    !packagedFiles.includes('Linux/Start COSTBREAKDOWN') && !packagedFiles.includes('Linux/Stop COSTBREAKDOWN'))
+  check('each operating system folder shows only one Start and one Stop launcher',
+    JSON.stringify(windowsRootFiles) === JSON.stringify(['Start COSTBREAKDOWN.exe', 'Stop COSTBREAKDOWN.exe', 'runtime'].sort()) &&
+    JSON.stringify(linuxRootFiles) === JSON.stringify(['Start COSTBREAKDOWN.desktop', 'Stop COSTBREAKDOWN.desktop', 'runtime'].sort()) &&
+    JSON.stringify(macRootFiles) === JSON.stringify(['Start COSTBREAKDOWN.app', 'Stop COSTBREAKDOWN.app'].sort()))
   check('package excludes XLSX workbooks and development/test files',
     packagedFiles.every(file => !/\.(xlsx|mjs|ts|tsx|map)$/i.test(file)) && !packagedFiles.some(file => /(^|\/)(src|scripts|node_modules|excel_models)(\/|$)/i.test(file)))
 
-  const packagedTextFiles = packagedFiles.filter(file => /\.(md|ps1|html|js|css|svg|plist|desktop)$/i.test(file) || /(?:^|\/)(?:Start|Stop) COSTBREAKDOWN$/.test(file))
+  const packagedTextFiles = packagedFiles.filter(file => /\.(md|ps1|html|js|css|svg|plist|desktop|sh)$/i.test(file))
   const packagedText = await Promise.all(packagedTextFiles.map(async file => (await readFile(join(packageRoot, file))).toString('utf8')))
   const normalizedRepositoryRoot = resolve(process.cwd()).replaceAll('\\', '/').toLowerCase()
   check('package text contains no repository-specific path', packagedText.every(text => !text.replaceAll('\\', '/').toLowerCase().includes(normalizedRepositoryRoot)))
   const launcherSource = await readFile(join(process.cwd(), 'packaging/portable/PortableLauncher.cs'), 'utf8')
-  const launcherScript = await readFile(join(packageRoot, 'Windows', 'Serve-COSTBREAKDOWN.ps1'), 'utf8')
+  const launcherScript = await readFile(join(packageRoot, 'Windows', 'runtime', 'Serve-COSTBREAKDOWN.ps1'), 'utf8')
   const readme = await readFile(join(packageRoot, 'README.md'), 'utf8')
   const unixSource = await readFile(join(process.cwd(), 'packaging/portable/PortableUnixLauncher.go'), 'utf8')
   check('runtime launchers use only bundled helpers and operating-system tools',
     /powershell\.exe/i.test(launcherSource) && /os\/exec/.test(unixSource) &&
     !/\b(node|npm|vite)(\.exe|\.cmd)?\b/i.test(`${launcherSource}\n${launcherScript}\n${unixSource}`))
   check('README explains all platform launchers, no install, and Excel export/session behavior',
-    /Windows\/Start COSTBREAKDOWN\.exe/.test(readme) && /macOS\/Start COSTBREAKDOWN\.app/.test(readme) &&
-    /Linux\/Start COSTBREAKDOWN/.test(readme) && /Windows\/Stop COSTBREAKDOWN\.exe/.test(readme) &&
-    /macOS\/Stop COSTBREAKDOWN\.app/.test(readme) && /Linux\/Stop COSTBREAKDOWN/.test(readme) &&
-    /does not require Node\.js, npm, Go/i.test(readme) && /Excel/i.test(readme) && /browser session/i.test(readme))
+    /operating system/i.test(readme) && /Windows.*macOS.*Linux/is.test(readme) &&
+    /Start COSTBREAKDOWN/.test(readme) && /matching.*Stop COSTBREAKDOWN/is.test(readme) &&
+    /do not need Node\.js, npm, Go/i.test(readme) && /Excel/i.test(readme) && /browser tab/i.test(readme))
   check('package has no installer, registry, or legacy batch files',
     packagedFiles.every(file => !/\.(lnk|msi|reg|bat|cmd|vbs|ps1\.bak)$/i.test(file)) &&
-    packagedFiles.includes('Windows/Serve-COSTBREAKDOWN.ps1') && !packagedFiles.includes('Launch-COSTBREAKDOWN.bat'))
+    packagedFiles.includes('Windows/runtime/Serve-COSTBREAKDOWN.ps1') && !packagedFiles.includes('Windows/Serve-COSTBREAKDOWN.ps1') &&
+    !packagedFiles.includes('Launch-COSTBREAKDOWN.bat'))
 
   const startExecutable = join(packageRoot, 'Windows', 'Start COSTBREAKDOWN.exe')
   const stopExecutable = join(packageRoot, 'Windows', 'Stop COSTBREAKDOWN.exe')
@@ -396,7 +405,7 @@ try {
   check('Start runs the bundled PowerShell server from the copied package without Node/npm', (() => {
     const info = getProcessInfo(packageState.pid)
     return info.name.toLowerCase() === 'powershell.exe' &&
-      info.commandLine.toLowerCase().includes(join(packageRoot, 'Windows', 'Serve-COSTBREAKDOWN.ps1').toLowerCase()) &&
+      info.commandLine.toLowerCase().includes(join(packageRoot, 'Windows', 'runtime', 'Serve-COSTBREAKDOWN.ps1').toLowerCase()) &&
       info.commandLine.toLowerCase().includes(packageState.path.toLowerCase()) &&
       !/\b(node|npm|vite)(\.exe|\.cmd)?\b/i.test(info.commandLine) &&
       info.mainWindowHandle === '0'
@@ -448,7 +457,7 @@ try {
 
   const crashedState = packageState
   const crashedInfo = getProcessInfo(crashedState.pid)
-  assert.ok(crashedInfo.commandLine.toLowerCase().includes(join(packageRoot, 'Windows', 'Serve-COSTBREAKDOWN.ps1').toLowerCase()),
+  assert.ok(crashedInfo.commandLine.toLowerCase().includes(join(packageRoot, 'Windows', 'runtime', 'Serve-COSTBREAKDOWN.ps1').toLowerCase()),
     'crash simulation targets the exact server process for the copied package')
   execFileSync('taskkill.exe', ['/PID', String(crashedState.pid), '/F'], { stdio: 'ignore', windowsHide: true })
   await waitFor(() => !processExists(crashedState.pid), 'simulated package server crash')
@@ -593,7 +602,7 @@ try {
       const state = await readInstanceState(activePackageRoot)
       if (state && processExists(state.pid)) {
         const info = getProcessInfo(state.pid)
-        if (info.commandLine.toLowerCase().includes(join(activePackageRoot, 'Windows', 'Serve-COSTBREAKDOWN.ps1').toLowerCase())) {
+        if (info.commandLine.toLowerCase().includes(join(activePackageRoot, 'Windows', 'runtime', 'Serve-COSTBREAKDOWN.ps1').toLowerCase())) {
           try {
             await stopPackageServer(activePackageRoot, join(activePackageRoot, 'Windows', 'Stop COSTBREAKDOWN.exe'))
           } catch {

@@ -70,7 +70,7 @@ internal static class PortableLauncher
 
                 DeleteStaleState(statePath);
                 string token = CreateToken();
-                string serverScript = Path.Combine(launcherDirectory, "Serve-COSTBREAKDOWN.ps1");
+                string serverScript = Path.Combine(launcherDirectory, "runtime", "Serve-COSTBREAKDOWN.ps1");
                 string appRoot = Path.Combine(packageRoot, "app");
                 if (!File.Exists(serverScript) || !File.Exists(Path.Combine(appRoot, "index.html"))) return 3;
 

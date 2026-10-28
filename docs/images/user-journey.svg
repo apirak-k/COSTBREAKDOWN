@@ -12,7 +12,7 @@
 <g font-family="Segoe UI,Arial,sans-serif" text-anchor="middle" fill="#14243a">
 <rect x="230" y="24" width="640" height="82" rx="8" fill="#14243a"/>
 <text x="550" y="58" font-size="27" font-weight="700" fill="#ffffff">Open COSTBREAKDOWN</text>
-<text x="550" y="87" font-size="20" fill="#ffffff">Extract the package · Start COSTBREAKDOWN.exe</text>
+<text x="550" y="87" font-size="20" fill="#ffffff">Extract the package · Use your OS Start launcher</text>
 <rect x="160" y="134" width="780" height="104" rx="8" fill="#e7f5f2"/>
 <text x="550" y="176" font-size="29" font-weight="700">Prepare your cost data</text>
 <text x="550" y="211" font-size="23">Master Data · Reference / Current / Custom</text>
@@ -37,7 +37,7 @@
 <text x="550" y="756" font-size="18">After Send, review the matching dataset before saving or exporting.</text>
 <rect x="230" y="802" width="640" height="82" rx="8" fill="#14243a"/>
 <text x="550" y="837" font-size="27" font-weight="700" fill="#ffffff">Finish for the day</text>
-<text x="550" y="865" font-size="22" fill="#ffffff">Stop COSTBREAKDOWN.exe</text>
+<text x="550" y="865" font-size="22" fill="#ffffff">Use the matching Stop launcher</text>
 <text x="550" y="916" font-size="17" fill="#52677b">Suggested journey · Compare, simulate, or use both paths</text>
 </g>
 </svg>

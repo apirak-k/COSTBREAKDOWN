@@ -12,7 +12,7 @@ $portableSources = Join-Path $repositoryRoot 'packaging\portable'
 $unixLauncherSource = Join-Path $portableSources 'PortableUnixLauncher.go'
 $windowsLauncherSource = Join-Path $portableSources 'PortableLauncher.cs'
 $windowsServerSource = Join-Path $portableSources 'Serve-COSTBREAKDOWN.ps1'
-$packageReadmeSource = Join-Path $portableSources 'README.md'
+$readmeSource = Join-Path $repositoryRoot 'README.md'
 $userGuideSource = Join-Path $repositoryRoot 'USER_GUIDE.md'
 $imageSource = Join-Path $repositoryRoot 'docs\images'
 $combineMachOScript = Join-Path $repositoryRoot 'scripts\combine_universal_macho.mjs'
@@ -74,7 +74,7 @@ foreach ($requiredSource in @(
     $unixLauncherSource,
     $windowsLauncherSource,
     $windowsServerSource,
-    $packageReadmeSource,
+    $readmeSource,
     $userGuideSource,
     $combineMachOScript,
     $zipScript,
@@ -146,19 +146,20 @@ try {
     }
 
     $windowsRoot = Join-Path $stageRoot 'Windows'
+    $windowsRuntime = Join-Path $windowsRoot 'runtime'
     $macRoot = Join-Path $stageRoot 'macOS'
     $linuxRoot = Join-Path $stageRoot 'Linux'
     $appRoot = Join-Path $stageRoot 'app'
-    New-Item -ItemType Directory -Path $windowsRoot, $macRoot, $linuxRoot, $appRoot -Force | Out-Null
+    New-Item -ItemType Directory -Path $windowsRoot, $windowsRuntime, $macRoot, $linuxRoot, $appRoot -Force | Out-Null
 
-    Copy-Item -LiteralPath $packageReadmeSource -Destination (Join-Path $stageRoot 'README.md')
+    Copy-Item -LiteralPath $readmeSource -Destination (Join-Path $stageRoot 'README.md')
     Copy-Item -LiteralPath $userGuideSource -Destination (Join-Path $stageRoot 'USER_GUIDE.md')
     $packageImages = Join-Path $stageRoot 'docs\images'
     New-Item -ItemType Directory -Path $packageImages -Force | Out-Null
     Copy-Item -Path (Join-Path $imageSource '*') -Destination $packageImages -Recurse
     Copy-Item -LiteralPath (Join-Path $distRoot 'index.html') -Destination $appRoot
     Copy-Item -LiteralPath (Join-Path $distRoot 'assets') -Destination $appRoot -Recurse
-    Copy-Item -LiteralPath $windowsServerSource -Destination $windowsRoot
+    Copy-Item -LiteralPath $windowsServerSource -Destination $windowsRuntime
 
     $windowsStart = Join-Path $windowsRoot 'Start COSTBREAKDOWN.exe'
     & $compiler '/nologo' '/target:winexe' '/optimize+' ("/out:$windowsStart") $windowsLauncherSource
@@ -210,31 +211,33 @@ try {
         Write-Utf8File -Path (Join-Path $contentsRoot 'Info.plist') -Contents $plist
     }
 
-$linuxStart = @'
+    $linuxStart = @'
 #!/bin/sh
 set -eu
-launcher_dir=$(CDPATH= cd "$(dirname "$0")" && pwd)
+runtime_dir=$(CDPATH= cd "$(dirname "$0")" && pwd)
 case "$(uname -m)" in
   x86_64|amd64) architecture=amd64 ;;
   aarch64|arm64) architecture=arm64 ;;
   *) printf '%s\n' 'This Linux package supports x86_64 and arm64.' >&2; exit 1 ;;
 esac
-exec "$launcher_dir/runtime/costbreakdown-linux-$architecture" --start "$@"
+exec "$runtime_dir/costbreakdown-linux-$architecture" --start "$@"
 '@
     $linuxStop = $linuxStart.Replace('--start', '--stop')
-    Write-Utf8File -Path (Join-Path $linuxRoot 'Start COSTBREAKDOWN') -Contents $linuxStart
-    Write-Utf8File -Path (Join-Path $linuxRoot 'Stop COSTBREAKDOWN') -Contents $linuxStop
+    Write-Utf8File -Path (Join-Path $linuxRuntime 'start.sh') -Contents $linuxStart
+    Write-Utf8File -Path (Join-Path $linuxRuntime 'stop.sh') -Contents $linuxStop
 
     foreach ($launcherName in @('Start COSTBREAKDOWN', 'Stop COSTBREAKDOWN')) {
+        $runtimeScript = if ($launcherName.StartsWith('Start')) { 'start.sh' } else { 'stop.sh' }
         $desktop = @"
 [Desktop Entry]
 Type=Application
-Name=$launcherName
+Name=__LAUNCHER_NAME__
 Comment=Open or stop the local COSTBREAKDOWN app
 Terminal=false
-Exec=sh -c "exec \"`$(dirname \"`$1\")/$launcherName\"" sh %k
+Exec=sh -c "exec \"`$(dirname \"`$1\")/runtime/__RUNTIME_SCRIPT__\"" sh "%k"
 Categories=Utility;
 "@
+        $desktop = $desktop.Replace('__LAUNCHER_NAME__', $launcherName).Replace('__RUNTIME_SCRIPT__', $runtimeScript)
         Write-Utf8File -Path (Join-Path $linuxRoot ($launcherName + '.desktop')) -Contents $desktop
     }
 

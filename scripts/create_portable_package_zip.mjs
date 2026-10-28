@@ -9,7 +9,8 @@ if (!process.argv[2] || !process.argv[3]) {
 }
 
 const executablePatterns = [
-  /^Linux\/(?:Start COSTBREAKDOWN|Stop COSTBREAKDOWN|Start COSTBREAKDOWN\.desktop|Stop COSTBREAKDOWN\.desktop)$/,
+  /^Linux\/(?:Start COSTBREAKDOWN|Stop COSTBREAKDOWN)\.desktop$/,
+  /^Linux\/runtime\/(?:start|stop)\.sh$/,
   /^Linux\/runtime\/costbreakdown-linux-(?:amd64|arm64)$/,
   /^macOS\/(?:Start|Stop) COSTBREAKDOWN\.app\/Contents\/MacOS\/(?:Start|Stop) COSTBREAKDOWN$/,
 ]
