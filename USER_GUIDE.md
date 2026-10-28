@@ -181,7 +181,7 @@ Save does not create a file. Export does not require Save first. Cost Breakdown 
 | What happened | What to do |
 |---|---|
 | The app does not open | Extract the complete ZIP and use your operating system's Start launcher. If needed, run the matching Stop from the same package, then Start again. |
-| The operating system blocks a launcher | Follow company security policy. The macOS bundles are unsigned and not notarized; request an approved build if blocked. Do not bypass security controls. |
+| The operating system blocks a launcher | Follow company security policy. The macOS apps are unsigned and not notarized; request an approved build if blocked. Some Linux desktop environments ask you to trust or allow a downloaded launcher first. Do not bypass security controls. |
 | Reference or Current is Incomplete | Open header i → Prepare Dataset, expand Blockers, and select an affected location. |
 | Import says Invalid | Use a compatible `.xlsx` workbook. Start with Download Template and preserve its required sheets and headings. |
 | A field cannot be edited | Check Master Data Edit mode, or the supported Simulation fields listed above. |
