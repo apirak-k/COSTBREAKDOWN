@@ -1,36 +1,53 @@
 # COSTBREAKDOWN
 
-COSTBREAKDOWN is a local tool for preparing cost data, comparing datasets, reviewing cost changes, testing supported changes in Simulation, and exporting data to Excel.
+Understand what changed in product cost, then test the changes you want to make.
 
-## Open the app
+COSTBREAKDOWN compares material, labor, and burden costs across datasets. Prepare data in the app or Excel, trace the cost difference to individual materials and operations, and try a what-if scenario before applying it.
 
-1. Extract the complete ZIP into a folder. Keep `app`, `Windows`, `macOS`, `Linux`, `docs`, and both guides together.
-2. Open the launcher for your operating system:
+![Cost Breakdown showing Before and After datasets, the Standard Cost Gap, and the materials and operations contributing to it.](docs/images/cost-breakdown.png)
 
-   - **Windows:** `Windows/Start COSTBREAKDOWN.exe`
-   - **macOS:** `macOS/Start COSTBREAKDOWN.app`
-   - **Linux:** `Linux/Start COSTBREAKDOWN` or `Linux/Start COSTBREAKDOWN.desktop`
+[Get started](#get-started) · [Explore the workflow](#from-cost-data-to-a-decision) · [Read the user guide](USER_GUIDE.md)
 
-The launcher starts a local server on loopback and opens the default browser. Starting the same package again reuses its existing server. It does not require Node.js, npm, Go, a Vite server, or administrator privileges.
+## From cost data to a decision
 
-## Close the app
+Start with the question you need to answer: **What changed?** or **What if we changed it?**
 
-Use the matching Stop launcher from the same package folder:
+```mermaid
+flowchart TB
+    Prepare["Master Data<br/>Prepare and check datasets"] --> Compare["Cost Breakdown<br/>Explain cost changes"]
+    Prepare --> Simulate["Simulation<br/>Try proposed changes"]
+    Compare --> Keep["Master Data<br/>Review and Export"]
+    Simulate -->|"Send changes if needed"| Keep
+    Keep --> Excel["Excel workbook<br/>Keep or share your data"]
+```
 
-- **Windows:** `Windows/Stop COSTBREAKDOWN.exe`
-- **macOS:** `macOS/Stop COSTBREAKDOWN.app`
-- **Linux:** `Linux/Stop COSTBREAKDOWN` or `Linux/Stop COSTBREAKDOWN.desktop`
+This is a suggested working order ([static overview](docs/images/user-journey.svg)). Cost Breakdown and Simulation are separate analysis paths. After Simulation, Send transfers supported parameter changes to Master Data so you can review and export them.
 
-Closing the browser tab alone may leave the local server running. Stop only closes the server started from that package folder.
+## Find the answer you need
 
-## Platform notes
+| Your question | Where to work |
+|---|---|
+| Is my cost data ready? | **Master Data:** prepare Reference, Current, and Custom; check missing values and identity warnings. |
+| Why did the cost change? | **Cost Breakdown:** compare any two datasets and trace the Gap through BOM and Routing findings. |
+| How much did these items contribute? | **Selected Comparison:** focus on chosen findings within Cost Breakdown while keeping the full Gap visible. |
+| Would a proposed change pay off? | **Simulation:** adjust supported parameters and economic assumptions; review cost, profit, and break-even results. |
+| How do I keep or share the inputs? | **Excel:** download a template, import a compatible workbook, or export the current Master Data dataset. |
 
-- **Windows:** Use a current version of Microsoft Edge or Google Chrome. The package does not install software or change system settings.
-- **macOS:** These app bundles are not signed or notarized. macOS may prevent them from opening. This package does not bypass Gatekeeper; ask your company administrator for an approved signed build if macOS blocks it.
-- **Linux:** The bundled helpers support x86_64 and arm64. A desktop environment may ask you to trust or allow a downloaded `.desktop` launcher before it runs. Follow your organization's desktop policy; the package does not change trust settings.
+## Get started
 
-## Your work
+1. Download the package supplied to you and **extract the complete ZIP**. Keep its folders together.
+2. Open the folder for your operating system: `Windows`, `macOS`, or `Linux`.
+3. Use its **Start COSTBREAKDOWN** launcher. The app opens in your browser.
+4. Begin in **Master Data**, or follow [Prepare your datasets](USER_GUIDE.md#prepare-your-datasets) for an Excel-based starting point.
 
-Use Master Data to prepare or import a dataset, then open Cost Breakdown or Simulation for the analysis you need. Export important work to Excel before closing your browser session. Working data and saved checkpoints belong to that browser tab and are not a permanent database or shared backup.
+When finished, export the datasets you need and use the matching **Stop COSTBREAKDOWN** launcher from the same package. Closing the browser tab alone can leave the local server running.
 
-For step-by-step instructions, see [USER_GUIDE.md](USER_GUIDE.md).
+End users do not need Node.js, npm, Go, or development tools. See [Troubleshooting](USER_GUIDE.md#troubleshooting) if your operating system prevents a launcher from opening.
+
+## Keep an Excel copy
+
+**Save creates a checkpoint in the current browser session. Export creates an Excel file you can keep.**
+
+The app runs through a local loopback server and stores working data in the browser session. It has no permanent shared database. Export important work before ending the session.
+
+[Open the user guide](USER_GUIDE.md) for importing data, resolving issues, comparing costs, and sending Simulation changes back to Master Data.
