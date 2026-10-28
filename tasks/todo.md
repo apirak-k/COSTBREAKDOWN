@@ -1,14 +1,17 @@
-# Current Release Work — 2026-10-28
+# Current Release Readiness Roadmap — 2026-10-28
 
-This is the active company-handoff sequence. Product behavior is feature-frozen; do not start unrelated feature work. The current audit checkpoint and evidence are in [`HANDOFF.md`](../HANDOFF.md).
+Product behavior is feature-frozen. This run performs **Parts 1–4 only** and must stop after final user-style acceptance. Do not begin Parts 5–8 in this run. Current evidence is recorded in [`HANDOFF.md`](../HANDOFF.md).
 
-1. **Final Release Audit — COMPLETE.** The 2026-10-27 audit identified two supported Master Data workflows to fix before release; see the previous checkpoint in `HANDOFF.md`.
-2. **Release guardrail fixes — COMPLETE.** Enforced WC 500, BOM 1000, and Routing 500 across Add Row, state updates, Excel import, and existing Sizing. Exact percentage validation accepts 100%, rejects `100.000000000000001%` and 101%, and stays in input validation. Focused tests plus the complete 104-script regression gate, type check, build, and diff check passed.
-3. **Repository cleanup — COMPLETE.** Removed the unused `clsx` and `tailwind-merge` dependencies, the duplicate Excel wrapper, and the machine-specific Excel COM inspector; added shared ignores for local worktrees and generated Graphify output. Kept all tracked workbooks and legacy Excel tooling because ownership or continuing purpose is not fully established. See the current checkpoint in `HANDOFF.md` for verification and the portable-preparation inventory.
-4. **Portable packaging with silent Start/Stop — COMPLETE.** `release/COSTBREAKDOWN-portable/` contains `Start COSTBREAKDOWN.exe`, `Stop COSTBREAKDOWN.exe`, the built app, its required hidden PowerShell server, and README. A fresh copied-folder acceptance run outside the repository passed 35 checks covering silent launch, scoped stop, stale-state recovery, two copied instances, app workflows, Excel import/export, Cost Breakdown, Simulation, and session behavior. Repo regression, typecheck, and build gates passed; final `git diff --check` is recorded in the current `HANDOFF.md` checkpoint. No workbook fixtures or shortcut/installer files enter the package.
-5. **Clean-machine acceptance testing — PENDING.** Install from the lockfile and exercise startup, import/export, and session behavior on a Windows machine without repository tooling.
-6. **Company-facing usage/deployment documentation — PENDING.** Explain launch/update method, session-scoped data, workbook import/export, and approved storage practices.
-7. **Final release/tag — PENDING.** Proceed only after required fixes, cleanup decisions, packaging, clean-machine acceptance, and company documentation are complete and explicitly reviewed.
+1. **Release documentation correction and roadmap update — COMPLETE.** The user-facing application runs from a copied or extracted portable folder. End users do not install from the repository lockfile or need repository tooling.
+2. **Isolated portable acceptance — COMPLETE on this computer.** `node scripts/accept_portable_package.mjs` passed 35/35 checks with no warnings on a fresh copy of the rebuilt package, covering the packaged app, launch/stop isolation, Excel import/export, Cost Breakdown, Simulation, session behavior, and package assets. A physical clean-machine test remains unverified.
+3. **Simple English README / User Guide — COMPLETE.** `packaging/portable/README.md` documents the supported workflow and controls checked against the current UI and isolated package acceptance.
+4. **Final user-style acceptance — COMPLETE.** The user reported passing Start, the guide, Import, Master Data edits and Save, Reference/Current comparison, Selected Comparison, Simulation, Export, Stop, and restart. The Import warning list height issue was fixed with a collapsed disclosure and bounded internal scroll. Focused browser verification used 27 warnings and passed; final regression, typecheck, build, portable package acceptance (35/35), and diff checks passed. A physical clean-machine test remains unverified; details are in `HANDOFF.md`.
+5. **Independent final review / audit — NOT STARTED.** Begin only after Parts 1–4 are complete and pushed.
+6. **Merge to `main` — NOT STARTED.** Requires independent review and explicit acceptance of the release branch.
+7. **Final release / tag — NOT STARTED.** Prepare the final distributable after merge and release approval.
+8. **Optional visual UI polish — LATER, OPTIONAL.** After the stable release baseline, use a separate branch. Preserve existing UX logic, workflows, calculations, application behavior, and supported features; improve presentation only.
+
+Parts 5–8 are roadmap context only. Do not perform them in this run.
 
 # Operational Task Ledger — Master Data Refresh and Selected Comparison
 

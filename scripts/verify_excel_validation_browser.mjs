@@ -308,6 +308,104 @@ try {
   console.log('Invalid header and non-.xlsx selection are rejected without changing Working.')
 
   await selectRole('Custom')
+  const warningWorkbook = XLSX.read(await readFile(artifacts.reference), { type: 'buffer' })
+  const warningRows = Array.from({ length: 27 }, (_, index) => [`Warning material ${index + 1}`, 1, '', 1, 0, ''])
+  XLSX.utils.sheet_add_aoa(warningWorkbook.Sheets.BOM, warningRows, { origin: 'A4' })
+  const manyWarningsPath = join(artifactDir, 'browser-many-warnings.xlsx')
+  await writeFile(manyWarningsPath, XLSX.write(warningWorkbook, { type: 'buffer', bookType: 'xlsx' }))
+  const warningDisclosureSelector = '[role="dialog"] button[aria-controls="import-warning-details"]'
+  const warningProductName = await workbookProductName(artifacts.reference)
+  await openImport()
+  await stageFile(manyWarningsPath)
+  assert.equal(await evaluate(`Boolean(document.querySelector(${JSON.stringify(warningDisclosureSelector)}))`), true,
+    'Import warnings disclosure appears for a many-warning workbook')
+  const collapsedWarningState = await evaluate(`(() => {
+    const button = document.querySelector(${JSON.stringify(warningDisclosureSelector)})
+    const spans = [...button.querySelectorAll('span')]
+    const controlled = document.getElementById(button.getAttribute('aria-controls'))
+    return {
+      label: spans.find(span => span.textContent.trim() === 'Import warnings')?.textContent.trim(),
+      count: spans.find(span => /^\\d+$/.test(span.textContent.trim()))?.textContent.trim(),
+      expanded: button.getAttribute('aria-expanded'),
+      height: button.getBoundingClientRect().height,
+      detailsVisible: Boolean(controlled && controlled.getClientRects().length),
+      modalText: document.querySelector('[role="dialog"]')?.innerText ?? ''
+    }
+  })()`)
+  assert.equal(collapsedWarningState.label, 'Import warnings', 'warning disclosure uses the required label')
+  assert.equal(collapsedWarningState.count, '27', 'collapsed disclosure shows the exact warning count')
+  assert.equal(collapsedWarningState.expanded, 'false', 'warning details are collapsed by default')
+  assert.ok(collapsedWarningState.height <= 32, `collapsed warning disclosure is one compact row (${collapsedWarningState.height}px)`)
+  assert.equal(collapsedWarningState.detailsVisible, false, 'warning details are hidden while collapsed')
+  assert.doesNotMatch(collapsedWarningState.modalText, /Show all|\+\s*\d+\s+more/i, 'no Show all or + N more summary is shown')
+
+  await click(warningDisclosureSelector)
+  await waitUntil(`document.querySelector(${JSON.stringify(warningDisclosureSelector)})?.getAttribute('aria-expanded') === 'true'`, 'Import warnings expansion')
+  const expandedWarningState = await evaluate(`(() => {
+    const button = document.querySelector(${JSON.stringify(warningDisclosureSelector)})
+    const panel = document.getElementById(button.getAttribute('aria-controls'))
+    const panelRect = panel.getBoundingClientRect()
+    const rows = [...panel.querySelectorAll('li')]
+    return {
+      panelHeight: panel.clientHeight,
+      scrollHeight: panel.scrollHeight,
+      warningTexts: rows.map(row => row.textContent.trim()),
+      visibleRows: rows.filter(row => {
+        const rect = row.getBoundingClientRect()
+        return rect.top < panelRect.bottom && rect.bottom > panelRect.top
+      }).length
+    }
+  })()`)
+  assert.deepEqual(expandedWarningState.warningTexts, Array.from({ length: 27 }, (_, index) => `Missing unit at row ${index + 4}`),
+    'expanded disclosure preserves every warning and its text')
+  assert.ok(expandedWarningState.panelHeight >= 96 && expandedWarningState.panelHeight <= 120,
+    `warning area is capped near four rows (${expandedWarningState.panelHeight}px)`)
+  assert.ok(expandedWarningState.scrollHeight > expandedWarningState.panelHeight,
+    'additional warnings overflow inside the warning area')
+  assert.ok(expandedWarningState.visibleRows >= 3 && expandedWarningState.visibleRows <= 5,
+    `approximately four warning rows are visible before scrolling (${expandedWarningState.visibleRows})`)
+  const warningScrollState = await evaluate(`(() => {
+    const button = document.querySelector(${JSON.stringify(warningDisclosureSelector)})
+    const panel = document.getElementById(button.getAttribute('aria-controls'))
+    panel.scrollTop = panel.scrollHeight
+    const panelRect = panel.getBoundingClientRect()
+    const lastWarningRect = panel.lastElementChild.getBoundingClientRect()
+    return {
+      scrollTop: panel.scrollTop,
+      lastWarningVisible: lastWarningRect.top >= panelRect.top - 1 && lastWarningRect.bottom <= panelRect.bottom + 1
+    }
+  })()`)
+  assert.ok(warningScrollState.scrollTop > 0, 'warning details can be scrolled internally')
+  assert.equal(warningScrollState.lastWarningVisible, true, 'the final warning is reachable within the warning area')
+
+  await send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 720, deviceScaleFactor: 1, mobile: false })
+  const compactViewportState = await evaluate(`(() => {
+    const modal = document.querySelector('[role="dialog"] > div')
+    const button = document.querySelector(${JSON.stringify(warningDisclosureSelector)})
+    const panel = document.getElementById(button.getAttribute('aria-controls'))
+    return {
+      viewportHeight: window.innerHeight,
+      modalHeight: modal.getBoundingClientRect().height,
+      warningPanelHeight: panel.clientHeight,
+      warningScrollHeight: panel.scrollHeight
+    }
+  })()`)
+  assert.ok(compactViewportState.modalHeight <= compactViewportState.viewportHeight - 32 + 1,
+    `modal stays within the smaller laptop viewport (${compactViewportState.modalHeight}px of ${compactViewportState.viewportHeight}px)`)
+  assert.ok(compactViewportState.warningPanelHeight <= 120 && compactViewportState.warningScrollHeight > compactViewportState.warningPanelHeight,
+    'the warning list remains internally scrollable at a smaller laptop viewport')
+  await send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1800, deviceScaleFactor: 1, mobile: false })
+
+  await click(warningDisclosureSelector)
+  await waitUntil(`document.querySelector(${JSON.stringify(warningDisclosureSelector)})?.getAttribute('aria-expanded') === 'false'`, 'Import warnings collapse')
+  assert.equal(await evaluate(`Boolean(document.getElementById(document.querySelector(${JSON.stringify(warningDisclosureSelector)}).getAttribute('aria-controls'))?.getClientRects().length)`), false,
+    'collapsing hides the warning details again')
+  await dialogButton('Import')
+  await waitDialogClosed()
+  await waitUntil(`document.querySelector('[aria-label="Working dataset controls"] input[aria-label="Product Name"]')?.value===${JSON.stringify(warningProductName)}`, 'Import applies the many-warning workbook')
+  assert.equal(await mainProductValue(), warningProductName, 'Import still applies the staged workbook after warning review')
+  console.log('Import warnings: 27 preserved details collapse by default, expand to a bounded scroll area, collapse again, and still import successfully.')
+
   const customBeforeTemplate = await mainProductValue()
   await click('button[aria-label="Sizing"]')
   await waitUntil('Boolean(document.querySelector("#dataset-sizing-bom-rows"))', 'Sizing dialog')
