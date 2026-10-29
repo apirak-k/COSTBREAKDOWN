@@ -91,7 +91,7 @@ export const Navbar: React.FC<NavbarProps> = ({ cbdReorderUndoRedo, simulationUn
       ? 'cost-breakdown'
       : activeTab === 'simulation'
         ? 'simulation'
-        : 'getting-started'
+        : 'workflow'
 
   const closeHelp = () => {
     const panel = document.getElementById('app-help-dialog')

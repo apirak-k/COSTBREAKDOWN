@@ -2,13 +2,10 @@ import React, { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import {
   AlertTriangle,
-  ArrowDown,
-  ArrowLeftRight,
   ChevronDown,
   CircleX,
   Copy,
   FileSpreadsheet,
-  FlaskConical,
   Info,
   Pencil,
   Redo2,
@@ -25,8 +22,7 @@ import {
 import { useTransientInteraction } from '../ui/transient-interactions'
 
 export type HelpSectionId =
-  | 'getting-started'
-  | 'guided-workflow'
+  | 'workflow'
   | 'master-data'
   | 'cost-breakdown'
   | 'simulation'
@@ -35,8 +31,7 @@ export type HelpSectionId =
   | 'faq'
 
 const helpSections: Array<{ id: HelpSectionId; label: string }> = [
-  { id: 'getting-started', label: 'Getting Started' },
-  { id: 'guided-workflow', label: 'Guided Workflow' },
+  { id: 'workflow', label: 'Workflow' },
   { id: 'master-data', label: 'Master Data' },
   { id: 'cost-breakdown', label: 'Cost Breakdown' },
   { id: 'simulation', label: 'Simulation' },
@@ -62,7 +57,7 @@ interface HelpTool {
 const masterDataTools: HelpTool[] = [
   { label: 'Edit', description: 'Change Working values.', Icon: Pencil },
   { label: 'Import', description: 'Load XLSX into this dataset.', Icon: FileSpreadsheet },
-  { label: 'Clone', description: 'Source Working → Destination Working.', Icon: Copy },
+  { label: 'Clone', description: 'Copy Working values to another role.', Icon: Copy },
   { label: 'Sizing', description: 'Set row counts or download a template.', Icon: Table2 },
   { label: 'Prepare Dataset', description: 'Review warnings and blockers.', Icon: Info },
   { label: 'Save', description: 'Working → Last Saved.', Icon: Save },
@@ -84,9 +79,9 @@ const quickTools: HelpTool[] = [
 
 const faqItems = [
   { question: 'Where should I start?', answer: 'Start in Master Data. Prepare and check your data.' },
-  { question: 'Do I need to Save before Export?', answer: 'No. Export uses current Working values.' },
-  { question: 'Why does Cost Breakdown change after editing Master Data?', answer: 'Cost Breakdown reads the latest Master Data Working values, including unsaved edits.' },
-  { question: 'Where does Simulation Send go?', answer: 'It goes to the Master Data dataset that matches the Active Dataset.' },
+  { question: 'Do I need to Save before Export?', answer: 'No. Export uses current Working values and saves an XLSX where you choose.' },
+  { question: 'Why does Cost Breakdown change after editing Master Data?', answer: 'It reads Master Data Working values, including unsaved edits.' },
+  { question: 'Where does Simulation Send go?', answer: 'It sends supported BOM and Routing changes to the Master Data role that matches the Active Dataset.' },
   { question: 'Why did my Simulation scenario rebuild or reset?', answer: 'If that dataset’s Master Data values change, its scenario rebuilds from them.' },
   { question: 'What happens when I close the browser?', answer: 'The current session ends. Export data you want to keep.' },
   { question: 'Where is my exported XLSX?', answer: 'Export saves the XLSX to the location you choose.' }
@@ -140,6 +135,24 @@ function StateCard({ title, children, icon }: { title: string; children: React.R
   )
 }
 
+function StatePair({
+  label,
+  first,
+  second
+}: {
+  label: string
+  first: { title: string; description: string; icon?: React.ReactNode }
+  second: { title: string; description: string; icon?: React.ReactNode }
+}) {
+  return (
+    <div role="group" aria-label={label} className="grid min-w-0 gap-1 border border-slate-200 bg-slate-50 p-2">
+      <StateCard title={first.title} icon={first.icon}>{first.description}</StateCard>
+      <span aria-hidden="true" className="text-center text-xs leading-3 text-slate-400">↕</span>
+      <StateCard title={second.title} icon={second.icon}>{second.description}</StateCard>
+    </div>
+  )
+}
+
 function HelpContent({
   section,
   selectedFaq,
@@ -156,89 +169,89 @@ function HelpContent({
   onFaqToggle: (question: string) => void
 }) {
   switch (section) {
-    case 'getting-started':
+    case 'workflow':
       return (
         <>
-          <h3 className="text-sm font-semibold text-slate-900">Start with Master Data</h3>
-          <p className="mt-1 text-xs leading-5 text-slate-600">Prepare data first. Then review a cost change or test an idea. Export the XLSX you want to keep.</p>
-          <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(15rem,0.85fr)_minmax(0,1.15fr)]">
-            <section aria-label="What each page does" className="border border-slate-200 bg-white p-3">
-              <h4 className="mb-2 text-xs font-semibold text-slate-800">What each page does</h4>
-              <dl className="divide-y divide-slate-200">
-                <div className="flex items-center gap-2 py-2"><Table2 aria-hidden="true" className="h-4 w-4 text-slate-500" /><dt className="text-xs font-semibold text-slate-800">Master Data</dt><dd className="ml-auto text-right text-xs text-slate-600">Prepare data</dd></div>
-                <div className="flex items-center gap-2 py-2"><ArrowLeftRight aria-hidden="true" className="h-4 w-4 text-slate-500" /><dt className="text-xs font-semibold text-slate-800">Cost Breakdown</dt><dd className="ml-auto text-right text-xs text-slate-600">Explain cost changes</dd></div>
-                <div className="flex items-center gap-2 py-2"><FlaskConical aria-hidden="true" className="h-4 w-4 text-slate-500" /><dt className="text-xs font-semibold text-slate-800">Simulation</dt><dd className="ml-auto text-right text-xs text-slate-600">Test what-if changes</dd></div>
-                <div className="flex items-center gap-2 py-2"><Upload aria-hidden="true" className="h-4 w-4 text-slate-500" /><dt className="text-xs font-semibold text-slate-800">Export</dt><dd className="ml-auto text-right text-xs text-slate-600">Keep an XLSX</dd></div>
-              </dl>
-            </section>
-            <div
-              role="img"
-              aria-label="Master Data prepares data. Cost Breakdown explains cost changes or Simulation tests a change. Export saves the XLSX you choose."
-              className="border border-slate-200 bg-slate-50 p-3"
-            >
-              <h4 className="mb-2 text-xs font-semibold text-slate-800">Main flow</h4>
-              <div className="mx-auto grid max-w-xl gap-2">
-                <div className="border border-slate-300 bg-white px-3 py-2 text-center">
-                  <p className="text-xs font-semibold text-slate-900">Master Data</p>
-                  <p className="text-xs text-slate-600">Prepare data</p>
+          <section data-help-workflow-diagram aria-label="How the app areas connect" className="border border-slate-200 bg-slate-50 p-3">
+            <h3 className="mb-3 text-xs font-semibold text-slate-800">How the areas connect</h3>
+            <div role="img" aria-label="Master Data prepares datasets for Cost Breakdown, Simulation, or Export. Simulation can send supported changes back to the matching Master Data role." className="mx-auto max-w-3xl">
+              <div className="mx-auto max-w-sm border border-slate-300 bg-white px-3 py-2 text-center">
+                <p className="text-xs font-semibold text-slate-900">Master Data</p>
+                <p className="text-xs text-slate-600">Prepare and manage datasets</p>
+              </div>
+              <div className="mt-1 grid grid-cols-3 gap-2 text-center">
+                <span aria-hidden="true" className="text-xs leading-4 text-slate-400">↓</span>
+                <span aria-hidden="true" className="text-xs leading-4 text-slate-400">↓</span>
+                <span aria-hidden="true" className="text-xs leading-4 text-slate-400">↓</span>
+                <div className="min-w-0 border border-slate-300 bg-white px-2 py-2">
+                  <p className="text-xs font-semibold text-slate-900">Cost Breakdown</p>
+                  <p className="mt-1 text-xs text-slate-600">Compare cost changes</p>
                 </div>
-                <ArrowDown aria-hidden="true" className="mx-auto h-4 w-4 text-slate-400" />
-                <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
-                  <div className="border border-slate-300 bg-white px-2 py-2 text-center">
-                    <p className="text-xs font-semibold text-slate-900">Cost Breakdown</p>
-                    <p className="text-xs text-slate-600">Why did cost change?</p>
-                  </div>
-                  <span className="text-xs text-slate-500">or</span>
-                  <div className="border border-slate-300 bg-white px-2 py-2 text-center">
-                    <p className="text-xs font-semibold text-slate-900">Simulation</p>
-                    <p className="text-xs text-slate-600">What if we change it?</p>
-                  </div>
+                <div className="min-w-0 border border-slate-300 bg-white px-2 py-2">
+                  <p className="text-xs font-semibold text-slate-900">Simulation</p>
+                  <p className="mt-1 text-xs text-slate-600">Test supported changes</p>
+                  <p className="mt-2 border-t border-slate-200 pt-2 text-xs font-medium text-slate-700">Send → matching Master Data</p>
                 </div>
-                <ArrowDown aria-hidden="true" className="mx-auto h-4 w-4 text-slate-400" />
-                <div className="border border-slate-300 bg-white px-3 py-2 text-center">
+                <div className="min-w-0 border border-slate-300 bg-white px-2 py-2">
                   <p className="text-xs font-semibold text-slate-900">Export</p>
-                  <p className="text-xs text-slate-600">Keep the XLSX</p>
+                  <p className="mt-1 text-xs text-slate-600">Save a chosen XLSX</p>
                 </div>
               </div>
             </div>
-          </div>
-        </>
-      )
-    case 'guided-workflow':
-      return (
-        <>
-          <h3 className="text-sm font-semibold text-slate-900">From XLSX to a decision</h3>
-          <ol aria-label="Seven steps to prepare, compare, test, and export data" className="mt-3 grid gap-2 sm:grid-cols-2">
-            <li className="flex min-w-0 items-start gap-2 border border-slate-200 bg-white px-3 py-2 text-xs leading-5 text-slate-700"><span className="w-4 shrink-0 font-mono text-slate-400">1</span><FileSpreadsheet aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-slate-500" /><span>Import original XLSX into Reference.</span></li>
-            <li className="flex min-w-0 items-start gap-2 border border-slate-200 bg-white px-3 py-2 text-xs leading-5 text-slate-700"><span className="w-4 shrink-0 font-mono text-slate-400">2</span><Copy aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-slate-500" /><span>Clone Reference → Current to start from the same baseline.</span></li>
-            <li className="flex min-w-0 items-start gap-2 border border-slate-200 bg-white px-3 py-2 text-xs leading-5 text-slate-700"><span className="w-4 shrink-0 font-mono text-slate-400">3</span><Pencil aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-slate-500" /><span>Edit Current, then check it with Prepare Dataset.</span></li>
-            <li className="flex min-w-0 items-start gap-2 border border-slate-200 bg-white px-3 py-2 text-xs leading-5 text-slate-700"><span className="w-4 shrink-0 font-mono text-slate-400">4</span><ArrowLeftRight aria-hidden="true" data-help-icon="compare" className="mt-0.5 h-4 w-4 shrink-0 text-slate-500" /><span>Review Reference → Current in Cost Breakdown.</span></li>
-            <li className="flex min-w-0 items-start gap-2 border border-slate-200 bg-white px-3 py-2 text-xs leading-5 text-slate-700"><span className="w-4 shrink-0 font-mono text-slate-400">5</span><Copy aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-slate-500" /><span>Clone Current → Custom to test without changing Current.</span></li>
-            <li className="flex min-w-0 items-start gap-2 border border-slate-200 bg-white px-3 py-2 text-xs leading-5 text-slate-700"><span className="w-4 shrink-0 font-mono text-slate-400">6</span><Send aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-slate-500" /><span>Send supported changes to matching Master Data if needed.</span></li>
-            <li className="flex min-w-0 items-start gap-2 border border-slate-200 bg-white px-3 py-2 text-xs leading-5 text-slate-700 sm:col-span-2"><span className="w-4 shrink-0 font-mono text-slate-400">7</span><Upload aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-slate-500" /><span>Export the dataset you want to keep.</span></li>
-          </ol>
-          <p className="mt-3 border-l-2 border-slate-300 bg-slate-50 px-3 py-2 text-xs leading-5 text-slate-700"><strong className="font-semibold text-slate-800">Need to add or remove data?</strong> Use Master Data. Simulation adjusts supported parameters of existing data.</p>
+          </section>
+          <section aria-label="Six-step workflow" className="mt-4">
+            <h3 className="mb-2 text-xs font-semibold text-slate-800">A simple workflow</h3>
+            <ol aria-label="Six steps to prepare, compare, test, send, and export" className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+              {[
+                'Prepare datasets in Master Data.',
+                'Check data with Prepare Dataset.',
+                'Compare datasets in Cost Breakdown.',
+                'Test supported changes in Simulation.',
+                'Send to matching Master Data if needed.',
+                'Export the dataset you want to keep.'
+              ].map((step, index) => (
+                <li key={step} className="flex min-w-0 items-start gap-2 border border-slate-200 bg-white px-3 py-2 text-xs leading-5 text-slate-700">
+                  <span aria-hidden="true" className="grid h-5 w-5 shrink-0 place-items-center bg-slate-100 font-mono text-[11px] font-semibold text-slate-600">{index + 1}</span>
+                  <span>{step}</span>
+                </li>
+              ))}
+            </ol>
+          </section>
         </>
       )
     case 'master-data':
       return (
         <>
-          <h3 className="text-sm font-semibold text-slate-900">Prepare and check your datasets</h3>
-          <div className="mt-3 grid gap-2 sm:grid-cols-3">
-            <StateCard title="Reference">Baseline</StateCard>
-            <StateCard title="Current">Latest Working data</StateCard>
-            <StateCard title="Custom">Separate alternative</StateCard>
-          </div>
-          <h4 className="mb-2 mt-4 text-xs font-semibold text-slate-800">Tools and data flow</h4>
+          <section aria-label="Independent dataset roles" className="border border-slate-200 bg-slate-50 p-3">
+            <h3 className="text-xs font-semibold text-slate-800">Manage any dataset</h3>
+            <div className="mt-2 grid gap-2 sm:grid-cols-3">
+              <StateCard title="Reference">Baseline</StateCard>
+              <StateCard title="Current">Latest</StateCard>
+              <StateCard title="Custom">Alternative</StateCard>
+            </div>
+            <p className="mt-2 text-xs font-semibold text-slate-700">Roles are independent, not stages.</p>
+            <p className="mt-1 text-xs leading-5 text-slate-600">Import · Edit · Clone · Clear · Reset can apply to any role.</p>
+            <p className="mt-2 border-t border-slate-200 pt-2 text-xs leading-5 text-slate-600"><strong className="font-semibold text-slate-800">Clone:</strong> Source Working → Destination Working.</p>
+          </section>
+          <h3 className="mb-2 mt-4 text-xs font-semibold text-slate-800">Tools</h3>
           <HelpToolGrid tools={masterDataTools} label="Master Data tools" />
-          <h4 className="mb-2 mt-4 text-xs font-semibold text-slate-800">Values and status</h4>
-          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-            <StateCard title="Working">Values in use.</StateCard>
-            <StateCard title="Last Saved">Session checkpoint.</StateCard>
-            <StateCard title="Saved" icon={<span aria-hidden="true" className="h-2 w-2 rounded-full bg-emerald-500 ring-2 ring-inset ring-emerald-700/70" />}>Working matches Last Saved.</StateCard>
-            <StateCard title="Draft" icon={<span aria-hidden="true" className="h-2 w-2 rounded-full bg-slate-400 ring-2 ring-inset ring-slate-600/70" />}>Working differs or has no checkpoint.</StateCard>
-            <StateCard title="Warning" icon={<AlertTriangle aria-hidden="true" className="h-3.5 w-3.5 text-amber-700" />}>Review recommended. You can continue.</StateCard>
-            <StateCard title="Blocker" icon={<CircleX aria-hidden="true" className="h-3.5 w-3.5 text-rose-700" />}>Resolve it for dataset readiness.</StateCard>
+          <h3 className="mb-2 mt-4 text-xs font-semibold text-slate-800">Values and status</h3>
+          <div className="grid gap-2 sm:grid-cols-3">
+            <StatePair
+              label="Saved and Draft"
+              first={{ title: 'Saved', description: 'Working matches Last Saved.', icon: <span aria-hidden="true" className="h-2 w-2 rounded-full bg-emerald-500 ring-2 ring-inset ring-emerald-700/70" /> }}
+              second={{ title: 'Draft', description: 'Working differs or has no checkpoint.', icon: <span aria-hidden="true" className="h-2 w-2 rounded-full bg-slate-400 ring-2 ring-inset ring-slate-600/70" /> }}
+            />
+            <StatePair
+              label="Working and Last Saved"
+              first={{ title: 'Working', description: 'Values in use.' }}
+              second={{ title: 'Last Saved', description: 'Session checkpoint.' }}
+            />
+            <StatePair
+              label="Warning and Blocker"
+              first={{ title: 'Warning', description: 'Review recommended. You can continue.', icon: <AlertTriangle aria-hidden="true" className="h-3.5 w-3.5 text-amber-700" /> }}
+              second={{ title: 'Blocker', description: 'Fix for readiness.', icon: <CircleX aria-hidden="true" className="h-3.5 w-3.5 text-rose-700" /> }}
+            />
           </div>
         </>
       )
@@ -246,53 +259,67 @@ function HelpContent({
       return (
         <>
           <h3 className="text-sm font-semibold text-slate-900">Why did the cost change?</h3>
-          <div aria-label="After minus Before equals Standard Cost Gap" className="mt-4 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto_minmax(0,1.2fr)] items-center gap-2">
+          <div aria-label="After minus Before equals Standard Cost Gap" className="mt-3 grid items-center gap-1 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto_minmax(0,1.2fr)] sm:gap-2">
             <StateCard title="After">Choose a dataset.</StateCard>
             <span aria-hidden="true" className="text-lg font-medium text-slate-500">−</span>
             <StateCard title="Before">Choose a dataset.</StateCard>
             <span aria-hidden="true" className="text-lg font-medium text-slate-500">=</span>
             <StateCard title="Standard Cost Gap">After − Before</StateCard>
           </div>
-          <h4 className="mb-2 mt-4 text-xs font-semibold text-slate-800">Row status</h4>
-          <div className="grid gap-2 sm:grid-cols-3">
-            <StateCard title="CHANGED">Values differ. Expand for Parameter Cost Effects.</StateCard>
-            <StateCard title="ADDED">In After only.</StateCard>
-            <StateCard title="REMOVED">In Before only.</StateCard>
+          <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
+            <section data-help-cost-group="row-status" aria-label="Row status" className="border border-slate-200 bg-slate-50 p-3">
+              <h4 className="mb-2 text-xs font-semibold text-slate-800">Row status</h4>
+              <div className="grid gap-2 sm:grid-cols-3">
+                <StateCard title="CHANGED">Values differ. Expand for Parameter Cost Effects.</StateCard>
+                <StateCard title="ADDED">In After only.</StateCard>
+                <StateCard title="REMOVED">In Before only.</StateCard>
+              </div>
+            </section>
+            <section data-help-cost-group="gap" aria-label="Gap" className="border border-slate-200 bg-slate-50 p-3">
+              <h4 className="mb-2 text-xs font-semibold text-slate-800">Gap</h4>
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+                <StateCard title="Full Gap">All compared cost changes.</StateCard>
+                <StateCard title="Selected contribution">Contribution from selected rows.</StateCard>
+              </div>
+            </section>
           </div>
-          <div className="mt-3 grid gap-2 sm:grid-cols-2">
-            <StateCard title="Full Gap">All cost changes.</StateCard>
-            <StateCard title="Selected contribution">Only the selected rows.</StateCard>
-          </div>
-          <p className="mt-3 border-l-2 border-slate-300 bg-slate-50 px-3 py-2 text-xs leading-5 text-slate-700">Cost Breakdown reads the latest Master Data Working values, including unsaved edits.</p>
+          <p className="mt-3 text-xs leading-5 text-slate-600">Uses Master Data Working, including unsaved edits.</p>
         </>
       )
     case 'simulation':
       return (
         <>
           <h3 className="text-sm font-semibold text-slate-900">What if we changed this?</h3>
-          <div className="mt-3 grid gap-2 sm:grid-cols-2">
-            <StateCard title="Active Dataset">Edit, Send, and Reset target.</StateCard>
-            <StateCard title="Result Before / After">Choose the two datasets to compare.</StateCard>
+          <div className="mt-3 grid gap-3">
+            <section data-help-simulation-block="edit-scenario" aria-label="Edit scenario" className="border border-slate-200 bg-slate-50 p-3">
+              <h4 className="mb-2 text-xs font-semibold text-slate-800">Edit scenario</h4>
+              <StateCard title="Active Dataset">Edit / Send / Reset target.</StateCard>
+              <div className="mt-2 grid gap-2 sm:grid-cols-3">
+                <StateCard title="BOM">Price · Usage · Loss</StateCard>
+                <StateCard title="Routing">Manning · Capacity · Yield</StateCard>
+                <StateCard title="Economics">Selling Price · SG&amp;A · Variable / Fixed Action Cost · Batch Size</StateCard>
+              </div>
+              <p className="mt-2 text-xs leading-5 text-slate-600">Simulation edits supported parameters of existing rows. Add or remove rows in Master Data.</p>
+            </section>
+            <section data-help-simulation-block="result-comparison" aria-label="Result comparison" className="border border-slate-200 bg-slate-50 p-3">
+              <h4 className="mb-2 text-xs font-semibold text-slate-800">Result comparison</h4>
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 border border-slate-200 bg-white px-3 py-2 text-xs">
+                <strong className="font-semibold text-slate-800">Result Before</strong>
+                <span aria-hidden="true" className="text-slate-400">→</span>
+                <strong className="font-semibold text-slate-800">Result After</strong>
+                <span className="ml-auto text-slate-500">Comparison only</span>
+              </div>
+              <p className="mt-2 text-xs font-semibold leading-5 text-slate-800">Active Dataset ≠ Result Before / After</p>
+              <p className="text-xs leading-5 text-slate-600">Changing Before / After does not change Active Dataset or Send target.</p>
+            </section>
+            <section data-help-simulation-block="actions" aria-label="Actions" className="border border-slate-200 bg-slate-50 p-3">
+              <h4 className="mb-2 text-xs font-semibold text-slate-800">Actions</h4>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <StateCard title="Send"><span className="inline-flex items-start gap-1.5"><Send aria-hidden="true" className="mt-0.5 h-3.5 w-3.5 shrink-0" /><span>Active Dataset → matching Master Data Working. BOM/Routing parameters only; Simulation economics are not sent.</span></span></StateCard>
+                <StateCard title="Reset"><span className="inline-flex items-start gap-1.5"><RotateCcw aria-hidden="true" className="mt-0.5 h-3.5 w-3.5 shrink-0" /><span>Restores parameters, Selling Price, and SG&amp;A from this role’s Master Data Working. Clears Variable/Fixed Action Cost and Batch Size.</span></span></StateCard>
+              </div>
+            </section>
           </div>
-          <div className="mt-2 flex flex-wrap items-center gap-2 border border-blue-200 bg-blue-50 px-3 py-2">
-            <Send aria-hidden="true" className="h-4 w-4 shrink-0 text-blue-700" />
-            <span className="text-xs font-semibold text-slate-800">Active Dataset</span>
-            <span aria-hidden="true" className="text-slate-500">→</span>
-            <span className="text-xs text-slate-700">Matching Master Data Working</span>
-            <strong className="ml-auto text-xs text-slate-800">Send target</strong>
-          </div>
-          <p className="mt-2 text-xs font-semibold leading-5 text-slate-800">Send follows the Active Dataset, not Result After. Changing Result Before or After does not change the Send target.</p>
-          <h4 className="mb-2 mt-4 text-xs font-semibold text-slate-800">Supported changes</h4>
-          <div className="grid gap-2 sm:grid-cols-3">
-            <StateCard title="BOM">Price · Usage · Loss</StateCard>
-            <StateCard title="Routing">Manning · Capacity · Yield</StateCard>
-            <StateCard title="Simulation only">Selling Price · SG&amp;A · Variable / Fixed Action Cost · Batch Size</StateCard>
-          </div>
-          <div className="mt-3 grid gap-2 sm:grid-cols-2">
-            <StateCard title="Send"><span className="inline-flex items-center gap-1"><Send aria-hidden="true" className="h-3.5 w-3.5" /> Supported BOM and Routing parameters go to matching Master Data Working.</span></StateCard>
-            <StateCard title="Reset"><span className="inline-flex items-center gap-1"><RotateCcw aria-hidden="true" className="h-3.5 w-3.5" /> Restores this dataset’s Master Data values and clears Action Cost and Batch Size.</span></StateCard>
-          </div>
-          <p className="mt-3 border-l-2 border-slate-300 bg-slate-50 px-3 py-2 text-xs leading-5 text-slate-700">Simulation adjusts supported parameters only. Add or remove BOM items, Work Centers, or Routing operations in Master Data. Simulation-only economics are not sent.</p>
         </>
       )
     case 'important-concepts':
@@ -300,16 +327,12 @@ function HelpContent({
         <>
           <h3 className="text-sm font-semibold text-slate-900">Keep these pairs clear</h3>
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
-            <StateCard title="Save ≠ Export">Save = session checkpoint. Export = XLSX saved to the location you choose.</StateCard>
-            <StateCard title="Working ≠ Last Saved">Working = values in use. Last Saved = latest session checkpoint.</StateCard>
+            <StateCard title="Save ≠ Export">Save makes a session checkpoint. Export creates an XLSX you choose to keep.</StateCard>
+            <StateCard title="Working ≠ Last Saved">Working = values in use. Last Saved = session checkpoint.</StateCard>
             <StateCard title="Warning ≠ Blocker">Warning = review; you can continue. Blocker = resolve for readiness.</StateCard>
-            <StateCard title="Active Dataset ≠ Result After">Active Dataset = edit / Send / Reset target. Result After = comparison choice.</StateCard>
+            <StateCard title="Active Dataset ≠ Result Before / After">Active Dataset = edit / Send / Reset target. Results = comparison only.</StateCard>
           </div>
-          <div className="mt-3 grid gap-2 sm:grid-cols-2">
-            <StateCard title="Cost Breakdown">Reads current Master Data Working values.</StateCard>
-            <StateCard title="Browser session">Closing the browser ends it. Export data you want to keep.</StateCard>
-          </div>
-          <p className="mt-3 text-xs leading-5 text-slate-600">Changing Result Before or After changes the comparison, not the Send target.</p>
+          <p className="mt-3 border-l-2 border-slate-300 bg-slate-50 px-3 py-2 text-xs leading-5 text-slate-700">Closing the browser ends the current session. Export data you want to keep.</p>
         </>
       )
     case 'quick-reference':
@@ -321,8 +344,8 @@ function HelpContent({
           <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
             <HeaderTool Icon={Undo2} label="Undo" description="Undo the last supported action." />
             <HeaderTool Icon={Redo2} label="Redo" description="Redo the last undone action." />
-            <HeaderTool Icon={Info} label="Prepare Dataset" description="Check warnings and blockers." />
             <HeaderTool symbol="?" label="Help" description="Open this quick guide." />
+            <HeaderTool Icon={Info} label="Prepare Dataset" description="Check warnings and blockers." />
           </div>
         </>
       )
@@ -380,7 +403,7 @@ export const HelpDialog: React.FC<HelpDialogProps> = ({
   const faqExitTimerRef = useRef<number | null>(null)
   const scrollAreaRef = useRef<HTMLDivElement>(null)
   const activeSection = previewSection ?? selectedSection
-  const title = helpSections.find(section => section.id === activeSection)?.label ?? 'Getting Started'
+  const title = helpSections.find(section => section.id === activeSection)?.label ?? 'Workflow'
 
   useTransientInteraction(true, () => onClose())
 
@@ -491,7 +514,6 @@ export const HelpDialog: React.FC<HelpDialogProps> = ({
         <header className="flex min-h-12 shrink-0 items-center gap-3 border-b border-slate-200 px-3 py-2 sm:px-4">
           <div className="min-w-0 flex-1">
             <h2 id="app-help-title" className="text-sm font-semibold">Help</h2>
-            <p className="mt-0.5 text-[11px] text-slate-500">Quick help for this page</p>
           </div>
           <button
             type="button"

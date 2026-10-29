@@ -385,7 +385,8 @@ try {
   verify(await evaluate('document.activeElement?.getAttribute("aria-label") === "Help"'), 'Opening Help keeps keyboard focus on its trigger')
   verify(await evaluate('document.querySelector("nav[aria-label=\\\"Help sections\\\"] [aria-current=\\\"page\\\"]")?.textContent.trim() === "Master Data"'), 'Help opens Master Data while Master Data is active')
   verify(await evaluate('document.querySelector("#app-help-title")?.textContent.trim() === "Help"'), 'Help panel has a short title')
-  verify(await evaluate('document.querySelectorAll("nav[aria-label=\\\"Help sections\\\"] button").length === 8'), 'Help contains all eight requested sections')
+  verify(await evaluate('document.querySelectorAll("nav[aria-label=\\\"Help sections\\\"] button").length === 7'), 'Help contains seven sections')
+  verify(await evaluate('![...document.querySelectorAll("nav[aria-label=\\\"Help sections\\\"] button")].some(button => ["Getting Started", "Guided Workflow"].includes(button.textContent.trim()))'), 'Help no longer has separate Getting Started or Guided Workflow sections')
   const currentRoleVisible = await evaluate(`document.querySelector('main button[aria-label^="Current"][aria-pressed="true"]') !== null`)
   verify(currentRoleVisible, 'Selected Master Data role remains selected while Help is open')
   assert.deepEqual(await appSnapshot(), masterBaseline, 'Pinning Help changed the underlying page state')
@@ -407,18 +408,15 @@ try {
   await moveTo(await elementRect('#app-help-title'))
   await captureScreenshot('help-master-data-desktop.png')
 
-
-  await clickButton('Getting Started', 'nav[aria-label="Help sections"]')
-  await captureScreenshot('help-getting-started-desktop.png')
-  await clickButton('Guided Workflow', 'nav[aria-label="Help sections"]')
-  await captureScreenshot('help-guided-workflow-desktop.png')
+  verify(await evaluate('document.querySelector("#app-help-title")?.nextElementSibling === null'), 'Help header contains no page subtitle')
+  await clickButton('Workflow', 'nav[aria-label="Help sections"]')
+  await captureScreenshot('help-workflow-desktop.png')
 
   const sectionCases = [
-    ['Getting Started', 'Export'],
-    ['Guided Workflow', 'Import original XLSX into Reference'],
+    ['Workflow', 'Prepare datasets in Master Data'],
     ['Master Data', 'Last Saved'],
     ['Cost Breakdown', 'Standard Cost Gap'],
-    ['Simulation', 'Send follows the Active Dataset, not Result After'],
+    ['Simulation', 'Active Dataset ≠ Result Before / After'],
     ['Important Concepts', 'Save ≠ Export'],
     ['Quick Reference', 'Undo'],
     ['FAQ', 'Where should I start?']
@@ -428,46 +426,44 @@ try {
     const sectionText = await evaluate('document.querySelector("#app-help-section")?.innerText ?? ""')
     verify(sectionText.includes(expectedText), `${section} shows its expected quick-guide content`)
   }
-  await clickButton('Getting Started', 'nav[aria-label="Help sections"]')
-  const gettingStartedText = await evaluate('document.querySelector("#app-help-section")?.innerText ?? ""')
-  verify(gettingStartedText.includes('Master Data') && gettingStartedText.includes('Prepare data') && gettingStartedText.includes('Explain cost changes') && gettingStartedText.includes('Test what-if changes') && gettingStartedText.includes('Keep an XLSX'), 'Getting Started keeps the short page descriptions')
-  verify(await evaluate('document.querySelector(\'#app-help-section [role="img"]\')?.getAttribute("aria-label").includes("Master Data") === true'), 'Getting Started keeps its visual flow diagram')
-
-  await clickButton('Guided Workflow', 'nav[aria-label="Help sections"]')
-  verify(await evaluate('document.querySelectorAll("#app-help-section ol > li").length === 7'), 'Guided Workflow has exactly seven steps')
-  verify(await evaluate('[...document.querySelectorAll("#app-help-section ol > li")].every(step => step.querySelectorAll("svg").length === 1)'), 'Each workflow step has one app icon')
-  verify(await evaluate('Boolean(document.querySelector(\'#app-help-section li [data-help-icon="compare"]\'))'), 'Step 4 uses the compare icon')
-  verify(await evaluate('document.querySelector("#app-help-section ol > li:nth-child(6)")?.innerText.includes("Send") && document.querySelector("#app-help-section ol > li:nth-child(7)")?.innerText.includes("Export")'), 'Send and Export are separate steps')
-  verify(await evaluate('document.querySelector("#app-help-section ol > li:nth-child(5)")?.innerText.includes("without changing Current")'), 'Clone to Custom explains that Current stays unchanged')
-  verify(await evaluate('document.querySelector("#app-help-section")?.innerText.includes("Need to add or remove data? Use Master Data.") === true'), 'Workflow explains that structure changes belong in Master Data')
+  await clickButton('Workflow', 'nav[aria-label="Help sections"]')
+  const workflowText = await evaluate('document.querySelector("#app-help-section")?.innerText ?? ""')
+  verify(await evaluate('Boolean(document.querySelector("#app-help-section [data-help-workflow-diagram] [role=img]"))'), 'Workflow includes the app relationship diagram')
+  verify(await evaluate('document.querySelectorAll("#app-help-section ol > li").length === 6'), 'Workflow has exactly six steps')
+  verify(['Prepare datasets in Master Data', 'Check data with Prepare Dataset', 'Compare datasets in Cost Breakdown', 'Test supported changes in Simulation', 'Send to matching Master Data if needed', 'Export the dataset you want to keep'].every(step => workflowText.includes(step)), 'Workflow uses the neutral six-step wording')
+  verify(!workflowText.includes('Reference → Current') && !workflowText.includes('Current → Custom') && !workflowText.includes('Import original XLSX into Reference'), 'Workflow does not require a fixed dataset-role sequence')
+  verify(await evaluate('document.querySelectorAll("#app-help-section ol > li").length === 6 && [...document.querySelectorAll("#app-help-section ol > li")].every(step => step.querySelectorAll("svg").length === 0)'), 'Workflow steps stay compact without decorative page icons')
 
   await clickButton('Cost Breakdown', 'nav[aria-label="Help sections"]')
   const costContent = await evaluate('document.querySelector("#app-help-section")?.innerText ?? ""')
   verify(costContent.includes('After − Before') && costContent.includes('Standard Cost Gap'), 'Cost Breakdown shows the gap formula')
   verify(costContent.includes('CHANGED') && costContent.includes('ADDED') && costContent.includes('REMOVED'), 'Cost Breakdown explains row statuses')
   verify(costContent.includes('Full Gap') && costContent.includes('Selected contribution'), 'Cost Breakdown separates selected contribution from the full Gap')
-  verify(costContent.includes('including unsaved edits'), 'Cost Breakdown explains which Master Data values it reads')
+  verify(costContent.includes('Uses Master Data Working, including unsaved edits.'), 'Cost Breakdown explains which Master Data values it reads')
+  verify(await evaluate('document.querySelector("[data-help-cost-group=row-status]")?.contains(document.querySelector("[data-help-cost-group=gap]")) === false && document.querySelector("[data-help-cost-group=row-status]") !== null && document.querySelector("[data-help-cost-group=gap]") !== null'), 'Cost Breakdown keeps Row status and Gap in separate groups')
   await captureScreenshot('help-cost-breakdown-desktop.png')
 
   await clickButton('Simulation', 'nav[aria-label="Help sections"]')
   const simulationContent = await evaluate('document.querySelector("#app-help-section")?.innerText ?? ""')
-  verify(simulationContent.includes('Active Dataset') && simulationContent.includes('Result Before / After'), 'Simulation separates its target dataset from result choices')
-  verify(simulationContent.includes('Send follows the Active Dataset, not Result After') && simulationContent.includes('does not change the Send target'), 'Simulation explains the Send target')
+  verify(await evaluate('["edit-scenario", "result-comparison", "actions"].every(name => document.querySelector(`[data-help-simulation-block="${name}"]`))'), 'Simulation has separate Edit scenario, Result comparison, and Actions blocks')
+  verify(simulationContent.includes('Active Dataset ≠ Result Before / After') && simulationContent.includes('Changing Before / After does not change Active Dataset or Send target.'), 'Simulation makes the independent controls clear')
   verify(simulationContent.includes('Price') && simulationContent.includes('Usage') && simulationContent.includes('Loss') && simulationContent.includes('Manning') && simulationContent.includes('Capacity') && simulationContent.includes('Yield'), 'Simulation lists supported BOM and Routing changes')
   verify(simulationContent.includes('Selling Price') && simulationContent.includes('SG&A') && simulationContent.includes('Variable / Fixed Action Cost') && simulationContent.includes('Batch Size'), 'Simulation lists its economic inputs')
-  verify(simulationContent.includes('Simulation-only economics are not sent') && simulationContent.includes('Add or remove BOM items'), 'Simulation explains its scope and Send limits')
+  verify(simulationContent.includes('Simulation economics are not sent') && simulationContent.includes('Add or remove rows in Master Data.'), 'Simulation explains its scope and Send limits')
+  verify(await evaluate('document.querySelectorAll("#app-help-section [data-help-simulation-block=actions] .inline-flex").length === 2'), 'Simulation has one Send explanation and one Reset explanation in Actions')
+  verify((simulationContent.match(/matching Master Data Working/g) ?? []).length === 1, 'Simulation states the Send destination once')
+  verify(simulationContent.includes('Restores parameters, Selling Price, and SG&A') && simulationContent.includes('Clears Variable/Fixed Action Cost and Batch Size.'), 'Simulation Reset description matches its current behavior')
   await captureScreenshot('help-simulation-desktop.png')
 
   await clickButton('Important Concepts', 'nav[aria-label="Help sections"]')
   const conceptContent = await evaluate('document.querySelector("#app-help-section")?.innerText ?? ""')
-  verify(['Save ≠ Export', 'Working ≠ Last Saved', 'Warning ≠ Blocker', 'Active Dataset ≠ Result After'].every(pair => conceptContent.includes(pair)), 'Important Concepts shows all four ≠ pairs')
-  verify(conceptContent.includes('Closing the browser ends it') && conceptContent.includes('Export data you want to keep'), 'Important Concepts explains session limits')
-  verify(conceptContent.includes('not the Send target'), 'Important Concepts separates result choice from Send target')
+  verify(['Save ≠ Export', 'Working ≠ Last Saved', 'Warning ≠ Blocker', 'Active Dataset ≠ Result Before / After'].every(pair => conceptContent.includes(pair)), 'Important Concepts shows the four useful ≠ pairs')
+  verify(conceptContent.includes('Closing the browser ends the current session') && conceptContent.includes('Export data you want to keep'), 'Important Concepts explains session limits')
   await captureScreenshot('help-important-concepts-desktop.png')
 
   await clickButton('Quick Reference', 'nav[aria-label="Help sections"]')
   const headerToolLabels = await evaluate('[...document.querySelectorAll("#app-help-section [data-help-header-tool]")].map(node => node.getAttribute("data-help-header-tool"))')
-  verify(JSON.stringify(headerToolLabels) === JSON.stringify(['Undo', 'Redo', 'Prepare Dataset', 'Help']), 'Quick Reference names each header tool once')
+  verify(JSON.stringify(headerToolLabels) === JSON.stringify(['Undo', 'Redo', 'Help', 'Prepare Dataset']), 'Quick Reference follows the header tool order')
   verify(!await evaluate('document.querySelector("#app-help-section")?.innerText.includes("i · Prepare Dataset") || document.querySelector("#app-help-section")?.innerText.includes("? · Help")'), 'Quick Reference does not repeat i or ? in labels')
   await captureScreenshot('help-quick-reference-desktop.png')
 
@@ -539,13 +535,17 @@ try {
   verify(exportFaq.includes('Export saves the XLSX to the location you choose.'), 'Export FAQ matches the app’s choose-location behavior')
   verify(!exportFaq.includes('Downloads list'), 'Export FAQ does not describe browser-managed downloads')
   await captureScreenshot('help-faq-desktop.png')
-  await clickButton('Guided Workflow', 'nav[aria-label="Help sections"]')
-  verify(await evaluate('(() => { const step = [...document.querySelectorAll("#app-help-section li")].find(item => item.innerText.includes("Reference → Current")); return Boolean(step?.querySelector("svg")) })()'), 'Cost Breakdown workflow step shows a real compare icon')
-  verify(await evaluate('document.querySelector("#app-help-section")?.innerText.includes("Need to add or remove data? Use Master Data.") === true'), 'Workflow explains that structure changes belong in Master Data')
+  await clickButton('Master Data', 'nav[aria-label="Help sections"]')
+  const masterDataText = await evaluate('document.querySelector("#app-help-section")?.innerText ?? ""')
+  verify(masterDataText.includes('Reference') && masterDataText.includes('Baseline') && masterDataText.includes('Current') && masterDataText.includes('Latest') && masterDataText.includes('Custom') && masterDataText.includes('Alternative'), 'Master Data names the three independent dataset roles')
+  verify(masterDataText.includes('Roles are independent, not stages.') && masterDataText.includes('can apply to any role.'), 'Master Data does not imply that roles are workflow stages')
+  verify(await evaluate('["Saved and Draft", "Working and Last Saved", "Warning and Blocker"].every(label => [...document.querySelectorAll("#app-help-section [role=group]")].some(group => group.getAttribute("aria-label") === label))'), 'Master Data pairs values and statuses by meaning')
+  verify(await evaluate('["Saved", "Draft", "Working", "Last Saved", "Warning", "Blocker"].every(title => [...document.querySelectorAll("#app-help-section [role=group]")].some(group => group.innerText.includes(title)))'), 'Master Data paired groups include all six states')
+  verify(await evaluate('(() => { const groups = [...document.querySelectorAll("#app-help-section [role=group]")]; const tools = groups.find(group => group.getAttribute("aria-label") === "Master Data tools"); return ["Edit", "Import", "Clone", "Sizing", "Prepare Dataset", "Save", "Reset", "Clear", "Export"].every(label => [...(tools?.children ?? [])].some(item => item.innerText.includes(label))) })()'), 'Master Data keeps all nine real tool explanations')
+
+  await clickButton('Workflow', 'nav[aria-label="Help sections"]')
   await clickButton('Simulation', 'nav[aria-label="Help sections"]')
-  verify(await evaluate('document.querySelector("#app-help-section")?.innerText.includes("Simulation adjusts supported parameters only.") === true'), 'Simulation section explains its parameter-only scope')
-  verify(await evaluate('document.querySelector("#app-help-section")?.innerText.includes("Selling Price") && document.querySelector("#app-help-section")?.innerText.includes("Batch Size")'), 'Simulation section names the supported business inputs')
-  verify(await evaluate('document.querySelector("#app-help-section")?.innerText.includes("not Result After") && document.querySelector("#app-help-section")?.innerText.includes("not sent")'), 'Simulation section explains Send destination and excluded economics')
+  verify(await evaluate('document.querySelector("#app-help-section")?.innerText.includes("Active Dataset → matching Master Data Working") && document.querySelector("#app-help-section")?.innerText.includes("Simulation economics are not sent")'), 'Simulation section names the Send destination and excluded economics')
 
   await command('Emulation.setDeviceMetricsOverride', { width: 390, height: 420, deviceScaleFactor: 1, mobile: true })
   const compactGeometry = await evaluate(`(() => {
