@@ -88,7 +88,7 @@ async function evaluate(expression) {
     awaitPromise: true,
     returnByValue: true
   })
-  if (response.exceptionDetails) throw new Error(response.exceptionDetails.text ?? 'Browser expression failed')
+  if (response.exceptionDetails) throw new Error(`${response.exceptionDetails.exception?.description ?? response.exceptionDetails.text ?? 'Browser expression failed'}\nExpression: ${expression}`)
   return response.result?.value
 }
 
@@ -135,6 +135,34 @@ async function textElementRect(selector, text) {
     if (!element || element.getClientRects().length === 0) return null
     const rect = element.getBoundingClientRect()
     return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2, left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom, width: rect.width, height: rect.height }
+  })()`)
+}
+
+async function faqItemRect(question, part = 'button') {
+  return evaluate(`(() => {
+    const item = [...document.querySelectorAll('[data-faq-item]')].find(node => node.getAttribute('data-faq-item') === ${JSON.stringify(question)})
+    const element = ${JSON.stringify(part)} === 'answer' ? item?.querySelector('p:not([hidden])') : item?.querySelector('button')
+    if (!element || element.getClientRects().length === 0) return null
+    const rect = element.getBoundingClientRect()
+    return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2, left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom, width: rect.width, height: rect.height }
+  })()`)
+}
+
+async function emptyWorkspacePoint() {
+  return evaluate(`(() => {
+    const main = document.querySelector('main')
+    const dialog = document.querySelector('#app-help-dialog')?.getBoundingClientRect()
+    if (!main || !dialog) return null
+    const box = main.getBoundingClientRect()
+    const safe = 'a,button,input,select,textarea,[role="button"],[role="menuitem"],[role="dialog"],[role="slider"],[role="tooltip"],[data-grid-cell="true"],[data-safe-workspace-interaction="true"],[contenteditable="true"]'
+    for (let y = Math.ceil(box.top + 8); y < box.bottom - 8; y += 24) {
+      for (let x = Math.ceil(box.left + 8); x < box.right - 8; x += 24) {
+        if (x >= dialog.left && x <= dialog.right && y >= dialog.top && y <= dialog.bottom) continue
+        const target = document.elementFromPoint(x, y)
+        if (target && main.contains(target) && !target.closest(safe)) return { x, y, tag: target.tagName }
+      }
+    }
+    return null
   })()`)
 }
 
@@ -195,10 +223,15 @@ async function appSnapshot() {
       .map(element => ({ tag: element.tagName, id: element.id, role: element.getAttribute('role'), top: element.scrollTop, left: element.scrollLeft }))
     const page = [...document.querySelectorAll('header nav[aria-label="Main navigation"] button')]
       .find(button => button.getAttribute('aria-current') === 'page')?.textContent.trim()
+    const history = ['Undo', 'Redo'].map(label => {
+      const button = [...document.querySelectorAll('header button')].find(item => item.getAttribute('aria-label') === label)
+      return { label, disabled: button?.disabled ?? null }
+    })
     const selected = [...main.querySelectorAll('[aria-pressed="true"], [aria-selected="true"]')]
       .map(element => ({ label: element.getAttribute('aria-label'), text: element.textContent.trim() }))
     return {
       page,
+      history,
       mainHtmlHash: hash(main.innerHTML),
       mainTextHash: hash(main.innerText),
       mainScrollTop: main.scrollTop,
@@ -230,8 +263,9 @@ async function closeHelpAndVerify(baseline, method) {
   if (method === 'Escape') await pressEscape()
   else await clickButton('Close Help')
   await waitFor(async () => !(await helpOpen()), `Help closes with ${method}`)
-  const focusAfter = await evaluate('document.activeElement?.getAttribute("aria-label") || document.activeElement?.textContent.trim() || document.activeElement?.tagName || ""')
   const expectedFocusAfter = method === '×' || focusBefore === 'Help' || focusBefore === 'Close Help' ? 'Help' : focusBefore
+  await waitFor(async () => (await evaluate('document.activeElement?.getAttribute("aria-label") || document.activeElement?.textContent.trim() || document.activeElement?.tagName || ""')) === expectedFocusAfter, `Help focus is restored after ${method}`)
+  const focusAfter = await evaluate('document.activeElement?.getAttribute("aria-label") || document.activeElement?.textContent.trim() || document.activeElement?.tagName || ""')
   verify(focusAfter === expectedFocusAfter, 'Closing Help preserves focus or returns it to the Help button', { focusBefore, focusAfter })
   assert.deepEqual(await appSnapshot(), baseline, `Closing Help changed the underlying page state (${method})`)
   verify(true, `Underlying page data, selection, edits, simulation view, and scroll positions are unchanged after ${method}`)
@@ -288,7 +322,7 @@ try {
     }
   })()`)
 
-  const masterBaseline = await appSnapshot()
+  let masterBaseline = await appSnapshot()
   const helpRect = await buttonRect('Help')
   assert.ok(helpRect, 'Expected the separate Help button in the header')
   const headerGeometry = await evaluate(`(() => {
@@ -305,26 +339,41 @@ try {
   await moveTo(helpRect)
   await waitFor(() => evaluate('[...document.querySelectorAll(\'[role="tooltip"]\')].some(item => item.textContent.trim() === "Help" && getComputedStyle(item).display !== "none")'), 'Help tooltip')
   verify(true, 'Hovering over ? shows the Help tooltip')
-  await delay(180)
-  verify(!(await helpOpen()), 'Help preview waits for the hover delay')
+  await delay(550)
+  verify(!(await helpOpen()), 'Help does not preview before the 600–700 ms delay')
+  await moveTo({ x: 5, y: 500 })
+  await delay(150)
+  verify(!(await helpOpen()), 'Leaving ? early cancels the Help preview')
+  await moveTo(helpRect)
+  await waitFor(() => evaluate('[...document.querySelectorAll(\'[role="tooltip"]\')].some(item => item.textContent.trim() === "Help" && getComputedStyle(item).display !== "none")'), 'Help tooltip before delayed preview')
+  await delay(650)
   await waitFor(helpOpen, 'Help hover preview')
   verify(await evaluate('document.querySelector(\'[role="dialog"][aria-modal="true"]\') === null'), 'Help hover preview is non-modal')
   assert.deepEqual(await appSnapshot(), masterBaseline, 'Opening Help preview changed the underlying page state')
   verify(await evaluate('document.querySelector(\'button[aria-label="Help"]\')?.getAttribute("aria-pressed") !== "true"'), 'Hover preview does not pin Help')
   const previewRect = await elementRect('#app-help-dialog')
   assert.ok(previewRect, 'Expected the Help preview panel')
+  const centeredGeometry = await evaluate('(() => { const panel = document.querySelector("#app-help-dialog").getBoundingClientRect(); const trigger = document.querySelector("#header-help-trigger").getBoundingClientRect(); return { centerX: panel.left + panel.width / 2, centerY: panel.top + panel.height / 2, viewportCenterX: innerWidth / 2, viewportCenterY: innerHeight / 2, triggerCenterX: trigger.left + trigger.width / 2, triggerCenterY: trigger.top + trigger.height / 2, left: panel.left, top: panel.top } })()')
+  verify(Math.abs(centeredGeometry.centerX - centeredGeometry.viewportCenterX) <= 2 && Math.abs(centeredGeometry.centerY - centeredGeometry.viewportCenterY) <= 2, 'Help is centered in the viewport', centeredGeometry)
+  verify(Math.abs(centeredGeometry.centerX - centeredGeometry.triggerCenterX) > 100 && Math.abs(centeredGeometry.centerY - centeredGeometry.triggerCenterY) > 100, 'Help position is independent of the ? trigger', centeredGeometry)
+  const scrollExperiment = await evaluate('(() => { const main = document.querySelector("main"); const target = [main, ...(main?.querySelectorAll("*") ?? [])].find(node => node && node.scrollHeight > node.clientHeight + 10); if (!target) return null; const top = target.scrollTop; const max = target.scrollHeight - target.clientHeight; const next = top < max ? Math.min(max, top + 20) : Math.max(0, top - 20); target.scrollTop = next; window.__helpScrollRestore = { target, top }; return { changed: target.scrollTop !== top, before: top, after: target.scrollTop } })()')
+  verify(Boolean(scrollExperiment?.changed), 'A workspace scroll target is available for the position check', scrollExperiment)
+  await delay(80)
+  const afterWorkspaceScroll = await elementRect('#app-help-dialog')
+  verify(afterWorkspaceScroll?.left === previewRect.left && afterWorkspaceScroll?.top === previewRect.top, 'Workspace scrolling does not move Help', { before: previewRect, after: afterWorkspaceScroll })
+  await evaluate('(() => { const saved = window.__helpScrollRestore; if (saved) saved.target.scrollTop = saved.top; delete window.__helpScrollRestore })()')
   await moveTo(previewRect)
-  await delay(400)
+  await delay(350)
   verify(await helpOpen(), 'Pointer can move into the Help panel during its grace period')
   verify(await evaluate('[...document.querySelectorAll(\'[role="tooltip"]\')].some(item => item.textContent.trim() === "Help" && getComputedStyle(item).display !== "none") === false'), 'Help tooltip disappears when the pointer leaves ?')
   await moveTo({ x: 5, y: 5 })
   await waitFor(async () => !(await helpOpen()), 'Unpinned Help closes after the pointer leaves')
   verify(true, 'Unpinned preview closes after the pointer leaves both trigger and panel')
   assert.deepEqual(await appSnapshot(), masterBaseline, 'Closing Help preview changed the underlying page state')
-  await moveTo(helpRect)
-  await waitFor(() => evaluate('[...document.querySelectorAll(\'[role="tooltip"]\')].some(item => item.textContent.trim() === "Help" && getComputedStyle(item).display !== "none")'), 'Help tooltip before pin')
+  const pinStartedAt = Date.now()
   await clickAt(helpRect)
-  await waitFor(helpOpen, 'Pinned Help panel')
+  await waitFor(helpOpen, 'Pinned Help panel', 500)
+  verify(Date.now() - pinStartedAt < 500, 'Clicking ? pins Help immediately')
   verify(await evaluate('document.querySelector(\'button[aria-label="Help"]\')?.getAttribute("aria-pressed") === "true"'), 'Clicking ? pins Help open')
   const pinnedRect = await elementRect('#app-help-dialog')
   assert.ok(pinnedRect, 'Expected pinned Help panel')
@@ -340,16 +389,22 @@ try {
   const currentRoleVisible = await evaluate(`document.querySelector('main button[aria-label^="Current"][aria-pressed="true"]') !== null`)
   verify(currentRoleVisible, 'Selected Master Data role remains selected while Help is open')
   assert.deepEqual(await appSnapshot(), masterBaseline, 'Pinning Help changed the underlying page state')
-  const referenceRole = await elementRect('main button[aria-label^="Reference"]')
-  assert.ok(referenceRole, 'Expected the Reference dataset selector')
-  const canClickWorkspaceBehindHelp = await evaluate('(() => { const panel = document.querySelector("#app-help-dialog").getBoundingClientRect(); const button = document.querySelector(\'main button[aria-label^="Reference"]\').getBoundingClientRect(); const x = button.left + button.width / 2; const y = button.top + button.height / 2; return x < panel.left || x > panel.right || y < panel.top || y > panel.bottom })()')
-  verify(canClickWorkspaceBehindHelp, 'Help leaves workspace controls outside its panel')
-  await clickAt(referenceRole)
-  await waitFor(() => evaluate('document.querySelector(\'main button[aria-label^="Reference"]\')?.getAttribute("aria-pressed") === "true"'), 'Reference selection behind Help')
-  verify(await helpOpen(), 'Selecting a workspace dataset does not close pinned Help')
-  await clickAt(currentRole)
-  await waitFor(() => evaluate('document.querySelector(\'main button[aria-label^="Current"]\')?.getAttribute("aria-pressed") === "true"'), 'restore Current selection')
-  assert.deepEqual(await appSnapshot(), masterBaseline, 'Workspace interaction test did not restore the original state')
+  await clickButton('Cost Breakdown', 'header nav[aria-label="Main navigation"]')
+  await waitFor(() => evaluate('document.querySelector(\'header nav[aria-label="Main navigation"] button[aria-current="page"]\')?.textContent.trim() === "Cost Breakdown"'), 'Workspace navigation behind Help')
+  verify(await helpOpen(), 'Clicking a real workspace control does not close pinned Help')
+  verify(await evaluate('document.querySelector(\'nav[aria-label="Help sections"] [aria-current="page"]\')?.textContent.trim() === "Master Data"'), 'Workspace navigation does not switch the selected Help section')
+  await clickButton('Master Data', 'header nav[aria-label="Main navigation"]')
+  await waitFor(() => evaluate('document.querySelector(\'header nav[aria-label="Main navigation"] button[aria-current="page"]\')?.textContent.trim() === "Master Data"'), 'Restore Master Data page')
+  const blankPoint = await emptyWorkspacePoint()
+  assert.ok(blankPoint, 'Expected an empty workspace area outside the Help panel')
+  const stateBeforeEmptyWorkspaceClick = await appSnapshot()
+  await clickAt(blankPoint)
+  await waitFor(async () => !(await helpOpen()), 'Empty workspace click closes pinned Help')
+  assert.deepEqual(await appSnapshot(), stateBeforeEmptyWorkspaceClick, 'Workspace dismissal changed Master Data or Help state')
+  masterBaseline = stateBeforeEmptyWorkspaceClick
+  await clickAt(helpRect)
+  await waitFor(helpOpen, 'Reopen Help after workspace dismissal')
+  await moveTo(await elementRect('#app-help-title'))
   await captureScreenshot('help-master-data-desktop.png')
 
 
@@ -373,25 +428,117 @@ try {
     const sectionText = await evaluate('document.querySelector("#app-help-section")?.innerText ?? ""')
     verify(sectionText.includes(expectedText), `${section} shows its expected quick-guide content`)
   }
+  await clickButton('Getting Started', 'nav[aria-label="Help sections"]')
+  const gettingStartedText = await evaluate('document.querySelector("#app-help-section")?.innerText ?? ""')
+  verify(gettingStartedText.includes('Master Data') && gettingStartedText.includes('Prepare data') && gettingStartedText.includes('Explain cost changes') && gettingStartedText.includes('Test what-if changes') && gettingStartedText.includes('Keep an XLSX'), 'Getting Started keeps the short page descriptions')
+  verify(await evaluate('document.querySelector(\'#app-help-section [role="img"]\')?.getAttribute("aria-label").includes("Master Data") === true'), 'Getting Started keeps its visual flow diagram')
+
+  await clickButton('Guided Workflow', 'nav[aria-label="Help sections"]')
+  verify(await evaluate('document.querySelectorAll("#app-help-section ol > li").length === 7'), 'Guided Workflow has exactly seven steps')
+  verify(await evaluate('[...document.querySelectorAll("#app-help-section ol > li")].every(step => step.querySelectorAll("svg").length === 1)'), 'Each workflow step has one app icon')
+  verify(await evaluate('Boolean(document.querySelector(\'#app-help-section li [data-help-icon="compare"]\'))'), 'Step 4 uses the compare icon')
+  verify(await evaluate('document.querySelector("#app-help-section ol > li:nth-child(6)")?.innerText.includes("Send") && document.querySelector("#app-help-section ol > li:nth-child(7)")?.innerText.includes("Export")'), 'Send and Export are separate steps')
+  verify(await evaluate('document.querySelector("#app-help-section ol > li:nth-child(5)")?.innerText.includes("without changing Current")'), 'Clone to Custom explains that Current stays unchanged')
+  verify(await evaluate('document.querySelector("#app-help-section")?.innerText.includes("Need to add or remove data? Use Master Data.") === true'), 'Workflow explains that structure changes belong in Master Data')
+
+  await clickButton('Cost Breakdown', 'nav[aria-label="Help sections"]')
+  const costContent = await evaluate('document.querySelector("#app-help-section")?.innerText ?? ""')
+  verify(costContent.includes('After − Before') && costContent.includes('Standard Cost Gap'), 'Cost Breakdown shows the gap formula')
+  verify(costContent.includes('CHANGED') && costContent.includes('ADDED') && costContent.includes('REMOVED'), 'Cost Breakdown explains row statuses')
+  verify(costContent.includes('Full Gap') && costContent.includes('Selected contribution'), 'Cost Breakdown separates selected contribution from the full Gap')
+  verify(costContent.includes('including unsaved edits'), 'Cost Breakdown explains which Master Data values it reads')
+  await captureScreenshot('help-cost-breakdown-desktop.png')
+
+  await clickButton('Simulation', 'nav[aria-label="Help sections"]')
+  const simulationContent = await evaluate('document.querySelector("#app-help-section")?.innerText ?? ""')
+  verify(simulationContent.includes('Active Dataset') && simulationContent.includes('Result Before / After'), 'Simulation separates its target dataset from result choices')
+  verify(simulationContent.includes('Send follows the Active Dataset, not Result After') && simulationContent.includes('does not change the Send target'), 'Simulation explains the Send target')
+  verify(simulationContent.includes('Price') && simulationContent.includes('Usage') && simulationContent.includes('Loss') && simulationContent.includes('Manning') && simulationContent.includes('Capacity') && simulationContent.includes('Yield'), 'Simulation lists supported BOM and Routing changes')
+  verify(simulationContent.includes('Selling Price') && simulationContent.includes('SG&A') && simulationContent.includes('Variable / Fixed Action Cost') && simulationContent.includes('Batch Size'), 'Simulation lists its economic inputs')
+  verify(simulationContent.includes('Simulation-only economics are not sent') && simulationContent.includes('Add or remove BOM items'), 'Simulation explains its scope and Send limits')
+  await captureScreenshot('help-simulation-desktop.png')
+
+  await clickButton('Important Concepts', 'nav[aria-label="Help sections"]')
+  const conceptContent = await evaluate('document.querySelector("#app-help-section")?.innerText ?? ""')
+  verify(['Save ≠ Export', 'Working ≠ Last Saved', 'Warning ≠ Blocker', 'Active Dataset ≠ Result After'].every(pair => conceptContent.includes(pair)), 'Important Concepts shows all four ≠ pairs')
+  verify(conceptContent.includes('Closing the browser ends it') && conceptContent.includes('Export data you want to keep'), 'Important Concepts explains session limits')
+  verify(conceptContent.includes('not the Send target'), 'Important Concepts separates result choice from Send target')
+  await captureScreenshot('help-important-concepts-desktop.png')
+
+  await clickButton('Quick Reference', 'nav[aria-label="Help sections"]')
+  const headerToolLabels = await evaluate('[...document.querySelectorAll("#app-help-section [data-help-header-tool]")].map(node => node.getAttribute("data-help-header-tool"))')
+  verify(JSON.stringify(headerToolLabels) === JSON.stringify(['Undo', 'Redo', 'Prepare Dataset', 'Help']), 'Quick Reference names each header tool once')
+  verify(!await evaluate('document.querySelector("#app-help-section")?.innerText.includes("i · Prepare Dataset") || document.querySelector("#app-help-section")?.innerText.includes("? · Help")'), 'Quick Reference does not repeat i or ? in labels')
+  await captureScreenshot('help-quick-reference-desktop.png')
+
   await clickButton('Master Data', 'nav[aria-label="Help sections"]')
   const costSectionButton = await buttonRect('Cost Breakdown', 'nav[aria-label="Help sections"]')
   assert.ok(costSectionButton, 'Expected Cost Breakdown Help navigation item')
   await moveTo(costSectionButton)
-  await delay(260)
-  verify(await evaluate('document.querySelector("#app-help-section-title")?.textContent.trim() === "Cost Breakdown"'), 'Hover previews another Help section')
-  verify(await evaluate('document.querySelector(\'nav[aria-label="Help sections"] [aria-current="page"]\')?.textContent.trim() === "Master Data"'), 'Hover preview does not change the selected Help section')
+  const sectionBeforeDelay = await evaluate('new Promise(resolve => setTimeout(() => resolve(document.querySelector("#app-help-section-title")?.textContent.trim()), 210))')
+  verify(sectionBeforeDelay === 'Master Data', 'Section preview waits beyond the old 180 ms delay')
   const helpContentRect = await elementRect('#app-help-scroll')
   assert.ok(helpContentRect, 'Expected Help content area')
   await moveTo(helpContentRect)
-  await delay(80)
-  verify(await evaluate('document.querySelector("#app-help-section-title")?.textContent.trim() === "Master Data"'), 'Leaving Help navigation returns to the selected section')
+  await delay(350)
+  verify(await evaluate('document.querySelector("#app-help-section-title")?.textContent.trim() === "Master Data"'), 'Leaving a section trigger early cancels its preview')
+  await moveTo(costSectionButton)
+  await delay(300)
+  verify(await evaluate('document.querySelector("#app-help-section-title")?.textContent.trim() === "Cost Breakdown"'), 'Section preview opens after about 275 ms')
+  verify(await evaluate('document.querySelector(\'nav[aria-label="Help sections"] [aria-current="page"]\')?.textContent.trim() === "Master Data"'), 'Section preview does not change the selected section')
+  verify(await evaluate('document.querySelector(\'nav[aria-label="Help sections"] [data-previewing="true"]\')?.textContent.trim() === "Cost Breakdown"'), 'Previewed section is marked in the navigation')
+  const costDetailRect = await elementRect('#app-help-section')
+  assert.ok(costDetailRect, 'Expected the previewed section content')
+  await moveTo(costDetailRect)
+  await delay(350)
+  verify(await evaluate('document.querySelector("#app-help-section-title")?.textContent.trim() === "Cost Breakdown"'), 'Section preview stays open while the pointer is over its content')
+  const panelTitleRect = await elementRect('#app-help-title')
+  await moveTo(panelTitleRect)
+  await delay(350)
+  verify(await evaluate('document.querySelector("#app-help-section-title")?.textContent.trim() === "Master Data"'), 'Leaving the whole section interaction region returns to the selected section')
+  await clickButton('Simulation', 'nav[aria-label="Help sections"]')
+  verify(await evaluate('document.querySelector(\'nav[aria-label="Help sections"] [aria-current="page"]\')?.textContent.trim() === "Simulation"'), 'Clicking a section commits it')
 
   await clickButton('FAQ', 'nav[aria-label="Help sections"]')
-  verify(await evaluate('document.querySelectorAll("#app-help-section details").length === 7'), 'FAQ contains seven compact questions')
-  await clickTextElement('#app-help-section summary', 'Where is my exported XLSX?')
-  const exportFaq = await evaluate('document.querySelector("#app-help-section details[open]")?.innerText ?? ""')
+  verify(await evaluate('document.querySelectorAll("#app-help-section [data-faq-item]").length === 7'), 'FAQ contains seven questions')
+  const firstQuestion = 'Where should I start?'
+  const firstQuestionRect = await faqItemRect(firstQuestion)
+  await moveTo(firstQuestionRect)
+  const faqBeforeDelay = await evaluate('new Promise(resolve => setTimeout(() => resolve(document.querySelector("[data-faq-item=\\\"Where should I start?\\\"] button")?.getAttribute("aria-expanded")), 210))')
+  verify(faqBeforeDelay === 'false', 'FAQ preview waits beyond the old 180 ms delay')
+  await moveTo(helpContentRect)
+  await delay(350)
+  verify(await evaluate('[...document.querySelectorAll("[data-faq-item]")].find(item => item.getAttribute("data-faq-item") === "Where should I start?")?.querySelector("button")?.getAttribute("aria-expanded") === "false"'), 'Leaving a question early cancels its preview')
+  const exportQuestion = 'Where is my exported XLSX?'
+  await moveTo(await faqItemRect(exportQuestion))
+  await delay(300)
+  verify(await evaluate('[...document.querySelectorAll("[data-faq-item]")].find(item => item.getAttribute("data-faq-item") === "Where is my exported XLSX?")?.querySelector("button")?.getAttribute("aria-expanded") === "true"'), 'FAQ answer previews after about 275 ms')
+  verify(await evaluate('[...document.querySelectorAll("[data-faq-item]")].find(item => item.getAttribute("data-faq-item") === "Where is my exported XLSX?")?.getAttribute("data-previewing") === "true"'), 'FAQ hover answer is marked as a preview')
+  await moveTo(await faqItemRect(exportQuestion, 'answer'))
+  await delay(350)
+  verify(await evaluate('[...document.querySelectorAll("[data-faq-item]")].find(item => item.getAttribute("data-faq-item") === "Where is my exported XLSX?")?.querySelector("button")?.getAttribute("aria-expanded") === "true"'), 'FAQ stays open while the pointer moves into the answer')
+  const sendQuestion = 'Where does Simulation Send go?'
+  await moveTo(await faqItemRect(sendQuestion))
+  await delay(300)
+  verify(await evaluate('[...document.querySelectorAll("[data-faq-item]")].find(item => item.getAttribute("data-faq-item") === "Where does Simulation Send go?")?.getAttribute("data-previewing") === "true"'), 'Hovering another FAQ previews its answer')
+  await clickAt(await faqItemRect(sendQuestion))
+  verify(await evaluate('[...document.querySelectorAll("[data-faq-item]")].find(item => item.getAttribute("data-faq-item") === "Where does Simulation Send go?")?.getAttribute("data-previewing") === "false"'), 'Clicking an FAQ question commits its answer')
+  await moveTo(await elementRect('#app-help-section-title'))
+  await delay(350)
+  verify(await evaluate('[...document.querySelectorAll("[data-faq-item]")].find(item => item.getAttribute("data-faq-item") === "Where does Simulation Send go?")?.querySelector("button")?.getAttribute("aria-expanded") === "true"'), 'Committed FAQ stays open after the pointer leaves')
+  await moveTo(await faqItemRect(exportQuestion))
+  await delay(300)
+  verify(await evaluate('[...document.querySelectorAll("[data-faq-item]")].find(item => item.getAttribute("data-faq-item") === "Where is my exported XLSX?")?.querySelector("button")?.getAttribute("aria-expanded") === "true"'), 'Hovering another FAQ temporarily previews it')
+  await moveTo(await elementRect('#app-help-section-title'))
+  await delay(350)
+  verify(await evaluate('[...document.querySelectorAll("[data-faq-item]")].find(item => item.getAttribute("data-faq-item") === "Where is my exported XLSX?")?.querySelector("button")?.getAttribute("aria-expanded") === "false"') && await evaluate('[...document.querySelectorAll("[data-faq-item]")].find(item => item.getAttribute("data-faq-item") === "Where does Simulation Send go?")?.querySelector("button")?.getAttribute("aria-expanded") === "true"'), 'Leaving an FAQ preview returns to the committed answer')
+  await clickAt(await faqItemRect(sendQuestion))
+  verify(await evaluate('[...document.querySelectorAll("[data-faq-item]")].find(item => item.getAttribute("data-faq-item") === "Where does Simulation Send go?")?.querySelector("button")?.getAttribute("aria-expanded") === "false"'), 'Clicking the committed FAQ again closes it')
+  await clickAt(await faqItemRect(exportQuestion))
+  const exportFaq = await evaluate('[...document.querySelectorAll("[data-faq-item]")].find(item => item.getAttribute("data-faq-item") === "Where is my exported XLSX?")?.innerText ?? ""')
   verify(exportFaq.includes('Export saves the XLSX to the location you choose.'), 'Export FAQ matches the app’s choose-location behavior')
   verify(!exportFaq.includes('Downloads list'), 'Export FAQ does not describe browser-managed downloads')
+  await captureScreenshot('help-faq-desktop.png')
   await clickButton('Guided Workflow', 'nav[aria-label="Help sections"]')
   verify(await evaluate('(() => { const step = [...document.querySelectorAll("#app-help-section li")].find(item => item.innerText.includes("Reference → Current")); return Boolean(step?.querySelector("svg")) })()'), 'Cost Breakdown workflow step shows a real compare icon')
   verify(await evaluate('document.querySelector("#app-help-section")?.innerText.includes("Need to add or remove data? Use Master Data.") === true'), 'Workflow explains that structure changes belong in Master Data')
@@ -410,7 +557,7 @@ try {
   })()`)
   verify(Boolean(compactGeometry && compactGeometry.left >= 0 && compactGeometry.right <= compactGeometry.viewportWidth && compactGeometry.top >= 0 && compactGeometry.bottom <= compactGeometry.viewportHeight), 'Help stays within a compact screen viewport', compactGeometry)
   verify(Boolean(compactGeometry && compactGeometry.contentScrollHeight > compactGeometry.contentClientHeight), 'Help details scroll inside the panel on a compact screen', compactGeometry)
-  await captureScreenshot('help-faq-compact.png')
+  await captureScreenshot('help-simulation-compact.png')
   await pressEscape()
   await waitFor(async () => !(await helpOpen()), 'Escape close')
   await command('Emulation.clearDeviceMetricsOverride')
@@ -429,21 +576,12 @@ try {
   await openHelpAndVerify('Simulation', simulationBaseline)
   await closeHelpAndVerify(simulationBaseline, 'Escape')
 
-  await openHelpAndVerify('Simulation', simulationBaseline)
-  await clickButton('FAQ', 'nav[aria-label="Help sections"]')
-  await clickButton('Cost Breakdown', 'header nav[aria-label="Main navigation"]')
-  await waitFor(() => evaluate('document.querySelector("header nav[aria-label=\\\"Main navigation\\\"] button[aria-current=\\\"page\\\"]")?.textContent.trim() === "Cost Breakdown"'), 'Workspace navigation while Help is pinned')
-  verify(await helpOpen(), 'Pinned Help stays open while the workspace is interactive')
-  verify(await evaluate('document.querySelector("nav[aria-label=\\\"Help sections\\\"] [aria-current=\\\"page\\\"]")?.textContent.trim() === "FAQ"'), 'App navigation does not replace the selected Help section')
-  const afterWorkspaceNavigation = await appSnapshot()
-  verify(afterWorkspaceNavigation?.page === 'Cost Breakdown', 'Workspace navigation works behind pinned Help')
-  assert.notDeepEqual(afterWorkspaceNavigation, simulationBaseline, 'Workspace navigation should change the active page')
-  await closeHelpAndVerify(afterWorkspaceNavigation, 'Escape')
-
   const helpButton = await buttonRect('Help')
   assert.ok(helpButton, 'Expected the Help header button')
+  const headerPinStartedAt = Date.now()
   await clickAt(helpButton)
-  await waitFor(helpOpen, 'Help opened by click')
+  await waitFor(helpOpen, 'Help opened by click', 500)
+  verify(Date.now() - headerPinStartedAt < 500, 'Header click opens Help without the hover delay')
   verify(await evaluate('document.querySelector(\'button[aria-label="Help"]\')?.getAttribute("aria-pressed") === "true"'), 'Header click pins Help')
   await clickButton('Help')
   await waitFor(async () => !(await helpOpen()), 'Help toggles closed from its header button')

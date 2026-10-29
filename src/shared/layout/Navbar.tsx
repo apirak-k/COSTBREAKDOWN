@@ -111,7 +111,7 @@ export const Navbar: React.FC<NavbarProps> = ({ cbdReorderUndoRedo, simulationUn
     helpDismissTimerRef.current = window.setTimeout(() => {
       if (!helpPinned) setHelpOpen(false)
       helpDismissTimerRef.current = null
-    }, 320)
+    }, 300)
   }
 
   const handleHelpTriggerPointerEnter = () => {
@@ -124,7 +124,7 @@ export const Navbar: React.FC<NavbarProps> = ({ cbdReorderUndoRedo, simulationUn
     helpOpenTimerRef.current = window.setTimeout(() => {
       if (!suppressHelpPreviewRef.current) setHelpOpen(true)
       helpOpenTimerRef.current = null
-    }, 380)
+    }, 650)
   }
 
   const handleHelpTriggerPointerLeave = (event: React.PointerEvent<HTMLDivElement>) => {
