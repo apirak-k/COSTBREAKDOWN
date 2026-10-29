@@ -219,6 +219,7 @@ try {
   console.log('The legacy v1 workbook verifier is excluded: its generated root workbooks are absent and no current app path references them.')
 
   for (const file of selectedFiles) {
+    environment.COSTBREAKDOWN_VITE_CACHE_DIR = join(temporaryArtifacts, 'vite-cache', file)
     const [executable, args] = commandFor(file)
     let output = execute(executable, args)
     let retriedWithNativeTypeStripping = false

@@ -7,7 +7,7 @@ export default defineConfig({
   // Worktrees can share a hoisted node_modules directory. Keep Vite's optimized
   // dependency cache scoped to this checkout to prevent sibling dev servers
   // from invalidating each other's pre-bundled ExcelJS browser shims.
-  cacheDir: 'node_modules/.vite-cbd',
+  cacheDir: process.env.COSTBREAKDOWN_VITE_CACHE_DIR ?? 'node_modules/.vite-cbd',
   optimizeDeps: {
     include: ['buffer', 'process', 'exceljs/lib/exceljs.bare.js'],
   },
