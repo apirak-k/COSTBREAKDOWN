@@ -11,23 +11,24 @@ function builtInMockUserFeaturePlugin() {
       if (normalizedId.endsWith('/src/shared/layout/AppLayout.tsx')) {
         let transformed = code
         transformed = transformed.replace(
-          "  const handleLoadMockData = async (fixture: 'complete' | 'incomplete') => {\n    if (!import.meta.env.DEV) return\n",
-          "  const handleLoadMockData = async (fixture: 'complete' | 'incomplete') => {\n"
+          /(^|\r?\n)(\s*)if\s*\(!import\.meta\.env\.DEV\)\s*return\s*(?=\r?\n)/,
+          '$1'
         )
         transformed = transformed.replace(
-          '  const mockAction = import.meta.env.DEV ? (\n',
-          '  const mockAction = (\n'
+          /const\s+mockAction\s*=\s*import\.meta\.env\.DEV\s*\?\s*\(/,
+          'const mockAction = ('
         )
         transformed = transformed.replace(
           'aria-label="Development mock datasets"',
           'aria-label="Built-in mock datasets"'
         )
         transformed = transformed.replace(
-          '  ) : undefined\n  const referenceStandardCost',
-          '  )\n  const referenceStandardCost'
+          /\)\s*:\s*undefined(\r?\n\s*const referenceStandardCost)/,
+          ')$1'
         )
 
-        if (transformed === code || transformed.includes('const mockAction = import.meta.env.DEV')) {
+        if (transformed.includes('const mockAction = import.meta.env.DEV')
+          || /handleLoadMockData[\s\S]{0,200}if\s*\(!import\.meta\.env\.DEV\)\s*return/.test(transformed)) {
           throw new Error('Built-in Mock must remain a user-facing feature; AppLayout DEV guard was not removed.')
         }
         return transformed
@@ -35,11 +36,11 @@ function builtInMockUserFeaturePlugin() {
 
       if (normalizedId.endsWith('/src/state/store.tsx')) {
         const transformed = code.replace(
-          "  const loadDevelopmentMockData = (pair: SnapshotPair) => {\n    if (!import.meta.env.DEV) return\n",
-          "  const loadDevelopmentMockData = (pair: SnapshotPair) => {\n"
+          /(const\s+loadDevelopmentMockData\s*=\s*\(pair:\s*SnapshotPair\)\s*=>\s*\{\s*\r?\n)\s*if\s*\(!import\.meta\.env\.DEV\)\s*return\s*\r?\n/,
+          '$1'
         )
 
-        if (transformed === code || transformed.includes('const loadDevelopmentMockData = (pair: SnapshotPair) => {\n    if (!import.meta.env.DEV) return')) {
+        if (/loadDevelopmentMockData[\s\S]{0,200}if\s*\(!import\.meta\.env\.DEV\)\s*return/.test(transformed)) {
           throw new Error('Built-in Mock must remain available in production; store DEV guard was not removed.')
         }
         return transformed
@@ -53,12 +54,9 @@ function builtInMockUserFeaturePlugin() {
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [builtInMockUserFeaturePlugin(), react()],
-  // Built-in Complete/Incomplete Mock is a user-facing product feature. The
-  // pre-transform above protects production/offline builds from historical
-  // DEV-only guards until those legacy names/guards are removed from source.
-  // Worktrees can share a hoisted node_modules directory. Keep Vite's optimized
-  // dependency cache scoped to this checkout to prevent sibling dev servers
-  // from invalidating each other's pre-bundled ExcelJS browser shims.
+  // Complete/Incomplete Mock is a user-facing product feature and must remain
+  // available in production and standalone offline builds. This transform only
+  // neutralizes the historical DEV-only guards while source cleanup is pending.
   cacheDir: 'node_modules/.vite-cbd',
   optimizeDeps: {
     include: ['buffer', 'process', 'exceljs/lib/exceljs.bare.js'],
