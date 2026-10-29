@@ -1,8 +1,11 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import {
+  ArrowDown,
+  ArrowLeftRight,
   Copy,
   FileSpreadsheet,
+  FlaskConical,
   Info,
   Pencil,
   Redo2,
@@ -41,7 +44,10 @@ const helpSections: Array<{ id: HelpSectionId; label: string }> = [
 
 interface HelpDialogProps {
   initialSection: HelpSectionId
+  isPinned: boolean
   onClose: () => void
+  onPointerEnter: () => void
+  onPointerLeave: () => void
 }
 
 interface HelpTool {
@@ -51,36 +57,36 @@ interface HelpTool {
 }
 
 const masterDataTools: HelpTool[] = [
-  { label: 'Edit', description: 'Change the selected dataset’s Working values.', Icon: Pencil },
-  { label: 'Import', description: 'Load a compatible XLSX into the selected dataset.', Icon: FileSpreadsheet },
-  { label: 'Clone', description: 'Copy another dataset into the selected dataset’s Working values.', Icon: Copy },
-  { label: 'Sizing', description: 'Set table row counts or download an Excel template.', Icon: Table2 },
-  { label: 'Prepare Dataset', description: 'Review warnings and blockers, then navigate to an issue.', Icon: Info },
-  { label: 'Save', description: 'Checkpoint the selected dataset’s Working values for this session.', Icon: Save },
-  { label: 'Reset', description: 'Restore the selected dataset from its saved or initial reset state.', Icon: RotateCcw },
-  { label: 'Clear', description: 'Blank editable values while keeping the table structure and Last Saved.', Icon: Trash2 },
-  { label: 'Export', description: 'Create an XLSX from the selected dataset’s current Working values.', Icon: Upload }
+  { label: 'Edit', description: 'Change this dataset’s Working values.', Icon: Pencil },
+  { label: 'Import', description: 'Load an XLSX into this dataset.', Icon: FileSpreadsheet },
+  { label: 'Clone', description: 'Copy another dataset here.', Icon: Copy },
+  { label: 'Sizing', description: 'Set row counts or download a template.', Icon: Table2 },
+  { label: 'Prepare Dataset', description: 'Check warnings and blockers, then jump to an issue.', Icon: Info },
+  { label: 'Save', description: 'Save a checkpoint for this session.', Icon: Save },
+  { label: 'Reset', description: 'Restore saved values, or the starting values.', Icon: RotateCcw },
+  { label: 'Clear', description: 'Blank editable values. Keep rows and Last Saved.', Icon: Trash2 },
+  { label: 'Export', description: 'Save current values as an XLSX.', Icon: Upload }
 ]
 
 const quickTools: HelpTool[] = [
-  { label: 'Import', description: 'Load a compatible XLSX.', Icon: FileSpreadsheet },
-  { label: 'Clone', description: 'Copy one dataset into another.', Icon: Copy },
-  { label: 'Edit', description: 'Change Working values.', Icon: Pencil },
-  { label: 'Save', description: 'Create a session checkpoint.', Icon: Save },
-  { label: 'Reset', description: 'Restore saved or initial values.', Icon: RotateCcw },
+  { label: 'Import', description: 'Load an XLSX.', Icon: FileSpreadsheet },
+  { label: 'Clone', description: 'Copy a dataset.', Icon: Copy },
+  { label: 'Edit', description: 'Change values.', Icon: Pencil },
+  { label: 'Save', description: 'Save a session checkpoint.', Icon: Save },
+  { label: 'Reset', description: 'Restore saved or starting values.', Icon: RotateCcw },
   { label: 'Clear', description: 'Blank editable values.', Icon: Trash2 },
-  { label: 'Send', description: 'Send supported Simulation parameters to the matching Master Data dataset.', Icon: Send },
-  { label: 'Export', description: 'Create an XLSX to keep or share.', Icon: Upload }
+  { label: 'Send', description: 'Send supported changes to Master Data.', Icon: Send },
+  { label: 'Export', description: 'Save an XLSX where you choose.', Icon: Upload }
 ]
 
 const faqItems = [
   {
     question: 'Where should I start?',
-    answer: 'Start in Master Data. Prepare Reference, Current, and Custom as needed.'
+    answer: 'Start in Master Data. Prepare and check your data.'
   },
   {
     question: 'Do I need to Save before Export?',
-    answer: 'No. Export uses current Working values, including unsaved edits.'
+    answer: 'No. Export uses current Working values.'
   },
   {
     question: 'Why does Cost Breakdown change after editing Master Data?',
@@ -88,19 +94,19 @@ const faqItems = [
   },
   {
     question: 'Where does Simulation Send go?',
-    answer: 'It sends supported parameters to the Master Data dataset matching the Active Dataset.'
+    answer: 'It goes to the Master Data dataset that matches the Active Dataset.'
   },
   {
     question: 'Why did my Simulation scenario rebuild or reset?',
-    answer: 'When that role’s Master Data Working basis changes, its scenario rebuilds from the new basis.'
+    answer: 'If that role’s Master Data values change, its scenario rebuilds from them.'
   },
   {
     question: 'What happens when I close the browser?',
-    answer: 'The current session ends. Export the datasets you want to keep before closing it.'
+    answer: 'The current session ends. Export data you want to keep.'
   },
   {
     question: 'Where is my exported XLSX?',
-    answer: 'Check your browser’s Downloads list or its configured download folder.'
+    answer: 'Export saves the XLSX to the location you choose.'
   }
 ]
 
@@ -135,43 +141,65 @@ function HelpContent({ section }: { section: HelpSectionId }) {
       return (
         <>
           <h3 className="text-sm font-semibold text-slate-900">Start with Master Data</h3>
-          <p className="mt-1 text-xs leading-5 text-slate-600">Prepare data first, then compare costs or test a proposal.</p>
-          <div className="mt-4 grid gap-2 sm:grid-cols-3">
-            <div className="border border-slate-200 bg-slate-50 p-3"><h4 className="text-xs font-semibold text-slate-900">Master Data</h4><p className="mt-1 text-xs leading-5 text-slate-600">Prepare and check datasets.</p></div>
-            <div className="border border-slate-200 bg-slate-50 p-3"><h4 className="text-xs font-semibold text-slate-900">Cost Breakdown</h4><p className="mt-1 text-xs leading-5 text-slate-600">Understand why cost changed.</p></div>
-            <div className="border border-slate-200 bg-slate-50 p-3"><h4 className="text-xs font-semibold text-slate-900">Simulation</h4><p className="mt-1 text-xs leading-5 text-slate-600">Test what-if changes.</p></div>
+          <p className="mt-1 text-xs leading-5 text-slate-600">Prepare data, review a cost change or test an idea, then export what you want to keep.</p>
+          <div
+            role="img"
+            aria-label="Master Data prepares data. Cost Breakdown explains cost changes, or Simulation tests a change. Export saves the XLSX you choose."
+            className="mt-4 grid justify-items-stretch gap-2"
+          >
+            <div className="border border-slate-300 bg-slate-50 px-3 py-2">
+              <h4 className="text-xs font-semibold text-slate-900">Master Data</h4>
+              <p className="mt-1 text-xs leading-5 text-slate-600">Prepare data</p>
+            </div>
+            <ArrowDown aria-hidden="true" className="mx-auto h-4 w-4 shrink-0 text-slate-400" />
+            <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
+              <div className="border border-slate-300 bg-slate-50 px-3 py-2">
+                <h4 className="text-xs font-semibold text-slate-900">Cost Breakdown</h4>
+                <p className="mt-1 text-xs leading-5 text-slate-600">Why did cost change?</p>
+              </div>
+              <span className="text-xs text-slate-500">or</span>
+              <div className="border border-slate-300 bg-slate-50 px-3 py-2">
+                <h4 className="text-xs font-semibold text-slate-900">Simulation</h4>
+                <p className="mt-1 text-xs leading-5 text-slate-600">What if we change it?</p>
+              </div>
+            </div>
+            <ArrowDown aria-hidden="true" className="mx-auto h-4 w-4 shrink-0 text-slate-400" />
+            <div className="border border-slate-300 bg-slate-50 px-3 py-2">
+              <h4 className="text-xs font-semibold text-slate-900">Export</h4>
+              <p className="mt-1 text-xs leading-5 text-slate-600">Keep an XLSX</p>
+            </div>
           </div>
-          <p className="mt-3 text-xs leading-5 text-slate-600"><strong className="font-semibold text-slate-800">Export</strong> creates an XLSX you can keep.</p>
         </>
       )
     case 'guided-workflow':
       return (
         <>
-          <h3 className="text-sm font-semibold text-slate-900">From your workbook to a decision</h3>
-          <ol className="mt-3 space-y-2">
-            <li className="flex gap-3 text-xs leading-5 text-slate-700"><span className="w-5 shrink-0 font-mono text-slate-400">1</span><FileSpreadsheet aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-slate-500" /><span>Import original XLSX into <strong>Reference</strong>.</span></li>
-            <li className="flex gap-3 text-xs leading-5 text-slate-700"><span className="w-5 shrink-0 font-mono text-slate-400">2</span><Copy aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-slate-500" /><span>Clone <strong>Reference</strong> to <strong>Current</strong>.</span></li>
-            <li className="flex gap-3 text-xs leading-5 text-slate-700"><span className="w-5 shrink-0 font-mono text-slate-400">3</span><Pencil aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-slate-500" /><span>Edit Current, then check it with <strong>Prepare Dataset</strong>.</span></li>
-            <li className="flex gap-3 text-xs leading-5 text-slate-700"><span className="w-5 shrink-0 font-mono text-slate-400">4</span><span aria-hidden="true" className="w-4 shrink-0" /><span>Compare <strong>Reference → Current</strong> in Cost Breakdown.</span></li>
-            <li className="flex gap-3 text-xs leading-5 text-slate-700"><span className="w-5 shrink-0 font-mono text-slate-400">5</span><Copy aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-slate-500" /><span>Clone Current to Custom and test changes in Simulation.</span></li>
-            <li className="flex gap-3 text-xs leading-5 text-slate-700"><span className="w-5 shrink-0 font-mono text-slate-400">6</span><Send aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-slate-500" /><span>Send the supported proposal back to its matching Master Data dataset if needed.</span></li>
-            <li className="flex gap-3 text-xs leading-5 text-slate-700"><span className="w-5 shrink-0 font-mono text-slate-400">7</span><Upload aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-slate-500" /><span>Export the dataset you want to keep.</span></li>
+          <h3 className="text-sm font-semibold text-slate-900">From XLSX to a decision</h3>
+          <ol className="mt-3 space-y-2.5">
+            <li className="grid grid-cols-[1.25rem_1.25rem_minmax(0,1fr)] gap-x-2 text-xs leading-5 text-slate-700"><span className="font-mono text-slate-400">1</span><FileSpreadsheet aria-hidden="true" className="mt-0.5 h-4 w-4 text-slate-500" /><span><strong>Import original XLSX into Reference.</strong><br />Use it as your baseline.</span></li>
+            <li className="grid grid-cols-[1.25rem_1.25rem_minmax(0,1fr)] gap-x-2 text-xs leading-5 text-slate-700"><span className="font-mono text-slate-400">2</span><Copy aria-hidden="true" className="mt-0.5 h-4 w-4 text-slate-500" /><span><strong>Clone Reference to Current.</strong><br />Start from the same data.</span></li>
+            <li className="grid grid-cols-[1.25rem_1.25rem_minmax(0,1fr)] gap-x-2 text-xs leading-5 text-slate-700"><span className="font-mono text-slate-400">3</span><Pencil aria-hidden="true" className="mt-0.5 h-4 w-4 text-slate-500" /><span><strong>Edit Current, then use Prepare Dataset.</strong><br />Check warnings and blockers.</span></li>
+            <li className="grid grid-cols-[1.25rem_1.25rem_minmax(0,1fr)] gap-x-2 text-xs leading-5 text-slate-700"><span className="font-mono text-slate-400">4</span><ArrowLeftRight aria-hidden="true" className="mt-0.5 h-4 w-4 text-slate-500" /><span><strong>Review Reference → Current in Cost Breakdown.</strong><br />See what changed and why.</span></li>
+            <li className="grid grid-cols-[1.25rem_1.25rem_minmax(0,1fr)] gap-x-2 text-xs leading-5 text-slate-700"><span className="font-mono text-slate-400">5</span><Copy aria-hidden="true" className="mt-0.5 h-4 w-4 text-slate-500" /><span><strong>Clone Current to Custom.</strong><br />Make a copy for testing.</span></li>
+            <li className="grid grid-cols-[1.25rem_1.25rem_minmax(0,1fr)] gap-x-2 text-xs leading-5 text-slate-700"><span className="font-mono text-slate-400">6</span><FlaskConical aria-hidden="true" className="mt-0.5 h-4 w-4 text-slate-500" /><span><strong>Test changes in Simulation.</strong><br />Adjust supported parameters.</span></li>
+            <li className="grid grid-cols-[1.25rem_1.25rem_minmax(0,1fr)] gap-x-2 text-xs leading-5 text-slate-700"><span className="font-mono text-slate-400">7</span><span className="mt-0.5 flex gap-1 text-slate-500"><Send aria-hidden="true" className="h-4 w-4" /><Upload aria-hidden="true" className="h-4 w-4" /></span><span><strong>Send if needed, then Export.</strong><br />Send to Master Data before exporting if you want to keep the changes.</span></li>
           </ol>
+          <p className="mt-4 border-l-2 border-slate-300 bg-slate-50 px-3 py-2 text-xs leading-5 text-slate-700"><strong>Need to add or remove data?</strong> Use Master Data. Simulation changes supported values only.</p>
         </>
       )
     case 'master-data':
       return (
         <>
           <h3 className="text-sm font-semibold text-slate-900">Prepare and check your datasets</h3>
-          <p className="mt-1 text-xs leading-5 text-slate-600"><strong className="font-semibold text-slate-800">Reference</strong>, <strong className="font-semibold text-slate-800">Current</strong>, and <strong className="font-semibold text-slate-800">Custom</strong> are separate datasets. A typical setup uses Reference as the baseline, Current as the latest data, and Custom for an alternative.</p>
+          <p className="mt-1 text-xs leading-5 text-slate-600"><strong className="font-semibold text-slate-800">Reference</strong> is the baseline. <strong className="font-semibold text-slate-800">Current</strong> is the latest data. <strong className="font-semibold text-slate-800">Custom</strong> is a separate alternative.</p>
           <h4 className="mb-2 mt-4 text-xs font-semibold text-slate-800">Tools</h4>
           <HelpToolList tools={masterDataTools} label="Master Data tools" />
           <h4 className="mb-2 mt-4 text-xs font-semibold text-slate-800">Values and status</h4>
           <ul className="space-y-2 text-xs leading-5 text-slate-600">
-            <li><strong className="font-semibold text-slate-800">Working</strong> is the current dataset used by the analyses.</li>
-            <li><strong className="font-semibold text-slate-800">Last Saved</strong> is a checkpoint in this browser session.</li>
+            <li><strong className="font-semibold text-slate-800">Working</strong> is the current set of values.</li>
+            <li><strong className="font-semibold text-slate-800">Last Saved</strong> is a checkpoint for this session.</li>
             <li><strong className="font-semibold text-slate-800">Saved</strong> means Working matches Last Saved. <strong className="font-semibold text-slate-800">Draft</strong> means it differs or has no checkpoint.</li>
-            <li><strong className="font-semibold text-slate-800">Warning</strong> needs review. A <strong className="font-semibold text-slate-800">Blocker</strong> can keep the Reference/Current pair from being ready.</li>
+            <li><strong className="font-semibold text-slate-800">Warning</strong> means check an issue. A <strong className="font-semibold text-slate-800">Blocker</strong> can stop Reference and Current from being ready.</li>
           </ul>
         </>
       )
@@ -180,11 +208,11 @@ function HelpContent({ section }: { section: HelpSectionId }) {
         <>
           <h3 className="text-sm font-semibold text-slate-900">Why did the cost change?</h3>
           <ul className="mt-3 space-y-2 text-xs leading-5 text-slate-600">
-            <li><strong className="font-semibold text-slate-800">Before / After</strong> choose the two datasets to compare.</li>
+            <li><strong className="font-semibold text-slate-800">Before / After</strong> choose the datasets to compare.</li>
             <li><strong className="font-semibold text-slate-800">Standard Cost Gap = After − Before.</strong></li>
-            <li><strong className="font-semibold text-slate-800">CHANGED</strong> means the item differs; expand it to see Parameter Cost Effects.</li>
-            <li><strong className="font-semibold text-slate-800">ADDED</strong> appears only in After. <strong className="font-semibold text-slate-800">REMOVED</strong> appears only in Before.</li>
-            <li><strong className="font-semibold text-slate-800">Selected contribution</strong> focuses on chosen findings while the full Gap stays visible.</li>
+            <li><strong className="font-semibold text-slate-800">CHANGED</strong> means values differ. Expand it to see Parameter Cost Effects.</li>
+            <li><strong className="font-semibold text-slate-800">ADDED</strong> means After only. <strong className="font-semibold text-slate-800">REMOVED</strong> means Before only.</li>
+            <li><strong className="font-semibold text-slate-800">Selected contribution</strong> shows selected costs beside the full Gap.</li>
             <li>Cost Breakdown reads the latest Master Data <strong className="font-semibold text-slate-800">Working</strong> values.</li>
           </ul>
         </>
@@ -194,28 +222,29 @@ function HelpContent({ section }: { section: HelpSectionId }) {
         <>
           <h3 className="text-sm font-semibold text-slate-900">What if we changed this?</h3>
           <ul className="mt-3 space-y-2 text-xs leading-5 text-slate-600">
-            <li><strong className="font-semibold text-slate-800">Active Dataset</strong> is the scenario you edit, Send, or Reset.</li>
-            <li><strong className="font-semibold text-slate-800">Result Before / After</strong> choose what the result compares.</li>
+            <li><strong className="font-semibold text-slate-800">Active Dataset</strong> is the dataset you edit, Send, or Reset.</li>
+            <li><strong className="font-semibold text-slate-800">Result Before / After</strong> choose the two datasets in the result.</li>
             <li><strong className="font-semibold text-slate-800">BOM:</strong> Price, Usage, and Loss.</li>
             <li><strong className="font-semibold text-slate-800">Routing:</strong> Manning, Capacity, and Yield.</li>
-            <li><strong className="font-semibold text-slate-800">Business / Economic:</strong> Selling Price, SG&amp;A, Action Cost, and Batch Size.</li>
+            <li><strong className="font-semibold text-slate-800">Business &amp; Economic:</strong> Selling Price, SG&amp;A, Action Cost, and Batch Size.</li>
           </ul>
           <p className="mt-4 border-l-2 border-blue-500 bg-blue-50 px-3 py-2 text-xs font-semibold leading-5 text-slate-800">Send follows the Active Dataset, not Result After.</p>
-          <div className="mt-3 flex items-start gap-2 text-xs leading-5 text-slate-600"><Send aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-slate-500" /><p>Send copies supported BOM and Routing parameters to the matching Master Data Working dataset. Selling Price, SG&amp;A overrides, Action Costs, and Batch Size are not sent.</p></div>
-          <div className="mt-2 flex items-start gap-2 text-xs leading-5 text-slate-600"><RotateCcw aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-slate-500" /><p>Reset returns parameters and Selling Price / SG&amp;A to Master Data, then clears Action Costs and Batch Size.</p></div>
+          <div className="mt-3 flex items-start gap-2 text-xs leading-5 text-slate-600"><Send aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-slate-500" /><p>Send copies supported BOM and Routing parameters to the matching Master Data Working values. Selling Price, SG&amp;A, Action Cost, and Batch Size are not sent.</p></div>
+          <p className="mt-3 border-l-2 border-slate-300 bg-slate-50 px-3 py-2 text-xs leading-5 text-slate-700">Simulation adjusts supported parameters only. Add or remove BOM items, Work Centers, or Routing operations in Master Data.</p>
+          <div className="mt-2 flex items-start gap-2 text-xs leading-5 text-slate-600"><RotateCcw aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-slate-500" /><p>Reset restores this dataset’s Master Data values and clears Action Cost and Batch Size.</p></div>
         </>
       )
     case 'important-concepts':
       return (
         <>
-          <h3 className="text-sm font-semibold text-slate-900">Keep these differences in mind</h3>
+          <h3 className="text-sm font-semibold text-slate-900">Remember these</h3>
           <ul className="mt-3 space-y-2 text-xs leading-5 text-slate-700">
-            <li><strong>Save ≠ Export.</strong> Save creates a session checkpoint; Export creates an XLSX file.</li>
-            <li><strong>Working ≠ Last Saved.</strong> Working values can include unsaved changes.</li>
+            <li><strong>Save ≠ Export.</strong> Save makes a checkpoint. Export saves an XLSX.</li>
+            <li><strong>Working ≠ Last Saved.</strong> Working can have unsaved changes.</li>
             <li>Cost Breakdown reads current Master Data Working values.</li>
             <li>Simulation Send follows the Active Dataset.</li>
-            <li>Closing the browser ends the current session.</li>
-            <li>Export anything you want to keep.</li>
+            <li>Closing the browser ends this session.</li>
+            <li>Export data you want to keep.</li>
           </ul>
         </>
       )
@@ -226,9 +255,9 @@ function HelpContent({ section }: { section: HelpSectionId }) {
           <HelpToolList tools={quickTools} label="Quick reference tools" />
           <h4 className="mb-2 mt-4 text-xs font-semibold text-slate-800">Header</h4>
           <div className="grid gap-2 sm:grid-cols-2">
-            <HeaderTool Icon={Undo2} label="Undo" description="Undo a supported edit in the current workspace." />
-            <HeaderTool Icon={Redo2} label="Redo" description="Redo the last undone edit." />
-            <HeaderTool Icon={Info} label="i · Prepare Dataset" description="Review dataset readiness, warnings, and blockers." />
+            <HeaderTool Icon={Undo2} label="Undo" description="Undo the last supported action." />
+            <HeaderTool Icon={Redo2} label="Redo" description="Redo the last undone action." />
+            <HeaderTool Icon={Info} label="i · Prepare Dataset" description="Check warnings and blockers." />
             <HeaderTool label="? · Help" description="Open this quick guide." />
           </div>
         </>
@@ -250,68 +279,110 @@ function HelpContent({ section }: { section: HelpSectionId }) {
   }
 }
 
-export const HelpDialog: React.FC<HelpDialogProps> = ({ initialSection, onClose }) => {
-  const [activeSection, setActiveSection] = useState(initialSection)
-  const closeButtonRef = useRef<HTMLButtonElement>(null)
+export const HelpDialog: React.FC<HelpDialogProps> = ({
+  initialSection,
+  isPinned,
+  onClose,
+  onPointerEnter,
+  onPointerLeave
+}) => {
+  const [selectedSection, setSelectedSection] = useState(initialSection)
+  const [previewSection, setPreviewSection] = useState<HelpSectionId | null>(null)
+  const [position, setPosition] = useState<{ left: number; top: number } | null>(null)
+  const sectionHoverTimerRef = useRef<number | null>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
   const scrollAreaRef = useRef<HTMLDivElement>(null)
+  const activeSection = previewSection ?? selectedSection
   const title = helpSections.find(section => section.id === activeSection)?.label ?? 'Getting Started'
 
   useTransientInteraction(true, () => onClose())
 
-  useEffect(() => {
-    closeButtonRef.current?.focus({ preventScroll: true })
+  const updatePosition = useCallback(() => {
+    const trigger = document.getElementById('header-help-trigger')
+    const panel = panelRef.current
+    if (!trigger || !panel) return
+
+    const triggerRect = trigger.getBoundingClientRect()
+    const viewportWidth = document.documentElement.clientWidth || window.innerWidth
+    const viewportHeight = window.innerHeight
+    const panelWidth = panel.offsetWidth
+    const panelHeight = panel.offsetHeight
+    const left = Math.max(8, Math.min(triggerRect.right - panelWidth, viewportWidth - panelWidth - 8))
+    const preferredTop = triggerRect.bottom + 8
+    const top = preferredTop + panelHeight <= viewportHeight - 8
+      ? preferredTop
+      : Math.max(8, viewportHeight - panelHeight - 8)
+
+    setPosition({ left, top })
   }, [])
+
+  useLayoutEffect(() => {
+    updatePosition()
+    window.addEventListener('resize', updatePosition)
+    window.addEventListener('scroll', updatePosition, true)
+    return () => {
+      window.removeEventListener('resize', updatePosition)
+      window.removeEventListener('scroll', updatePosition, true)
+    }
+  }, [updatePosition])
 
   useEffect(() => {
     scrollAreaRef.current?.scrollTo({ top: 0 })
   }, [activeSection])
 
-  const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
-    if (event.key === 'Escape') {
-      event.preventDefault()
-      onClose()
-      return
-    }
-    if (event.key !== 'Tab') return
+  useEffect(() => () => {
+    if (sectionHoverTimerRef.current !== null) window.clearTimeout(sectionHoverTimerRef.current)
+  }, [])
 
-    const dialog = event.currentTarget
-    const focusable = [...dialog.querySelectorAll<HTMLElement>(
-      'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), summary, [tabindex]:not([tabindex="-1"])'
-    )].filter(element => element.getClientRects().length > 0 && !element.closest('[hidden]'))
-    const first = focusable[0]
-    const last = focusable[focusable.length - 1]
-    if (!first || !last) {
-      event.preventDefault()
-      return
-    }
-    if (event.shiftKey && (document.activeElement === first || !dialog.contains(document.activeElement))) {
-      event.preventDefault()
-      last.focus()
-    } else if (!event.shiftKey && (document.activeElement === last || !dialog.contains(document.activeElement))) {
-      event.preventDefault()
-      first.focus()
-    }
+  const clearSectionHoverTimer = () => {
+    if (sectionHoverTimerRef.current !== null) window.clearTimeout(sectionHoverTimerRef.current)
+    sectionHoverTimerRef.current = null
+  }
+
+  const previewSectionAfterHover = (sectionId: HelpSectionId) => {
+    clearSectionHoverTimer()
+    sectionHoverTimerRef.current = window.setTimeout(() => setPreviewSection(sectionId), 180)
+  }
+
+  const selectSection = (sectionId: HelpSectionId) => {
+    clearSectionHoverTimer()
+    setPreviewSection(null)
+    setSelectedSection(sectionId)
+  }
+
+  const returnToSelectedSection = () => {
+    clearSectionHoverTimer()
+    setPreviewSection(null)
   }
 
   if (typeof document === 'undefined') return null
+  const portalTarget = document.getElementById('header-help-portal-root')
+  if (!portalTarget) return null
 
   return createPortal(
-    <div className="fixed inset-0 z-[100] grid place-items-center bg-slate-900/55 p-3 sm:p-4" data-safe-workspace-interaction="true">
+    <div className="pointer-events-none fixed inset-0 z-[60]">
       <div
+        ref={panelRef}
         id="app-help-dialog"
+        data-pinned={isPinned}
         role="dialog"
-        aria-modal="true"
         aria-labelledby="app-help-title"
-        onKeyDown={handleKeyDown}
-        className="flex h-[min(46rem,calc(100dvh-1.5rem))] w-[min(64rem,calc(100vw-1.5rem))] min-h-0 flex-col border border-slate-300 bg-white text-slate-900 shadow-xl"
+        style={position ? { left: position.left, top: position.top } : { left: -10000, top: 0, visibility: 'hidden' }}
+        onPointerEnter={onPointerEnter}
+        onPointerLeave={event => {
+          const target = event.relatedTarget
+          const trigger = document.getElementById('header-help-trigger-root')
+          if (target instanceof Node && (event.currentTarget.contains(target) || trigger?.contains(target))) return
+          onPointerLeave()
+        }}
+        className="pointer-events-auto fixed z-[60] flex h-[min(38rem,calc(100dvh-4rem))] w-[min(48rem,calc(100vw-1rem))] min-h-0 flex-col border border-slate-300 bg-white text-slate-900 shadow-xl"
       >
         <header className="flex min-h-12 shrink-0 items-center gap-3 border-b border-slate-200 px-3 py-2 sm:px-4">
           <div className="min-w-0 flex-1">
-            <h2 id="app-help-title" className="text-sm font-semibold">Help &amp; User Guide</h2>
-            <p className="mt-0.5 text-[11px] text-slate-500">Quick help for the current workspace</p>
+            <h2 id="app-help-title" className="text-sm font-semibold">Help</h2>
+            <p className="mt-0.5 text-[11px] text-slate-500">Quick help for this page</p>
           </div>
           <button
-            ref={closeButtonRef}
             type="button"
             onClick={onClose}
             aria-label="Close Help"
@@ -322,16 +393,19 @@ export const HelpDialog: React.FC<HelpDialogProps> = ({ initialSection, onClose 
         </header>
 
         <div className="grid min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)] md:grid-cols-[13rem_minmax(0,1fr)] md:grid-rows-1">
-          <nav aria-label="Help sections" className="flex min-w-0 shrink-0 gap-1 overflow-x-auto border-b border-slate-200 p-2 md:flex-col md:overflow-y-auto md:border-b-0 md:border-r">
+          <nav aria-label="Help sections" onPointerLeave={returnToSelectedSection} className="flex min-w-0 shrink-0 gap-1 overflow-x-auto border-b border-slate-200 p-2 md:flex-col md:overflow-y-auto md:border-b-0 md:border-r">
             {helpSections.map(section => {
-              const active = activeSection === section.id
+              const active = selectedSection === section.id
               return (
                 <button
                   key={section.id}
                   type="button"
                   aria-current={active ? 'page' : undefined}
                   aria-controls="app-help-section"
-                  onClick={() => setActiveSection(section.id)}
+                  data-previewing={previewSection === section.id}
+                  onPointerEnter={() => previewSectionAfterHover(section.id)}
+                  onPointerLeave={clearSectionHoverTimer}
+                  onClick={() => selectSection(section.id)}
                   className={`min-h-8 shrink-0 border-l-2 px-2 text-left text-xs transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700 md:w-full ${active ? 'border-slate-900 bg-slate-100 font-semibold text-slate-900' : 'border-transparent text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}
                 >
                   {section.label}
@@ -349,6 +423,6 @@ export const HelpDialog: React.FC<HelpDialogProps> = ({ initialSection, onClose 
         </div>
       </div>
     </div>,
-    document.body
+    portalTarget
   )
 }

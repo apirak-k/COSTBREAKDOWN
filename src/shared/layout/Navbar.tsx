@@ -51,8 +51,13 @@ export const Navbar: React.FC<NavbarProps> = ({ cbdReorderUndoRedo, simulationUn
     scheduleDismissMasterDataPrepareDatasetPreview
   } = useAppStore()
   const prepareDatasetTriggerRef = useRef<HTMLButtonElement>(null)
+  const helpTriggerRootRef = useRef<HTMLDivElement>(null)
   const helpButtonRef = useRef<HTMLButtonElement>(null)
+  const helpOpenTimerRef = useRef<number | null>(null)
+  const helpDismissTimerRef = useRef<number | null>(null)
+  const suppressHelpPreviewRef = useRef(false)
   const [helpOpen, setHelpOpen] = useState(false)
+  const [helpPinned, setHelpPinned] = useState(false)
 
   const isMasterData = activeTab === 'master'
   const isCostBreakdown = activeTab === 'breakdown'
@@ -89,9 +94,73 @@ export const Navbar: React.FC<NavbarProps> = ({ cbdReorderUndoRedo, simulationUn
         : 'getting-started'
 
   const closeHelp = () => {
+    const panel = document.getElementById('app-help-dialog')
+    const focusHelpButton = panel?.contains(document.activeElement) || document.activeElement === helpButtonRef.current
+    if (helpOpenTimerRef.current !== null) window.clearTimeout(helpOpenTimerRef.current)
+    if (helpDismissTimerRef.current !== null) window.clearTimeout(helpDismissTimerRef.current)
+    helpOpenTimerRef.current = null
+    helpDismissTimerRef.current = null
+    suppressHelpPreviewRef.current = true
     setHelpOpen(false)
-    window.requestAnimationFrame(() => helpButtonRef.current?.focus({ preventScroll: true }))
+    setHelpPinned(false)
+    if (focusHelpButton) window.requestAnimationFrame(() => helpButtonRef.current?.focus({ preventScroll: true }))
   }
+
+  const scheduleHelpDismiss = () => {
+    if (helpDismissTimerRef.current !== null) window.clearTimeout(helpDismissTimerRef.current)
+    helpDismissTimerRef.current = window.setTimeout(() => {
+      if (!helpPinned) setHelpOpen(false)
+      helpDismissTimerRef.current = null
+    }, 320)
+  }
+
+  const handleHelpTriggerPointerEnter = () => {
+    if (helpOpenTimerRef.current !== null) window.clearTimeout(helpOpenTimerRef.current)
+    if (helpDismissTimerRef.current !== null) window.clearTimeout(helpDismissTimerRef.current)
+    helpOpenTimerRef.current = null
+    helpDismissTimerRef.current = null
+    suppressHelpPreviewRef.current = false
+    if (helpOpen || helpPinned) return
+    helpOpenTimerRef.current = window.setTimeout(() => {
+      if (!suppressHelpPreviewRef.current) setHelpOpen(true)
+      helpOpenTimerRef.current = null
+    }, 380)
+  }
+
+  const handleHelpTriggerPointerLeave = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (helpOpenTimerRef.current !== null) window.clearTimeout(helpOpenTimerRef.current)
+    helpOpenTimerRef.current = null
+    const target = event.relatedTarget
+    const panel = document.getElementById('app-help-dialog')
+    if (target instanceof Node && (helpTriggerRootRef.current?.contains(target) || panel?.contains(target))) return
+    if (helpOpen) scheduleHelpDismiss()
+  }
+
+  const handleHelpPanelPointerEnter = () => {
+    if (helpDismissTimerRef.current !== null) window.clearTimeout(helpDismissTimerRef.current)
+    helpDismissTimerRef.current = null
+  }
+
+  const handleHelpButtonClick = () => {
+    if (helpOpenTimerRef.current !== null) window.clearTimeout(helpOpenTimerRef.current)
+    if (helpDismissTimerRef.current !== null) window.clearTimeout(helpDismissTimerRef.current)
+    helpOpenTimerRef.current = null
+    helpDismissTimerRef.current = null
+    if (helpPinned) {
+      suppressHelpPreviewRef.current = true
+      setHelpPinned(false)
+      setHelpOpen(false)
+      return
+    }
+    suppressHelpPreviewRef.current = false
+    setHelpPinned(true)
+    setHelpOpen(true)
+  }
+
+  useEffect(() => () => {
+    if (helpOpenTimerRef.current !== null) window.clearTimeout(helpOpenTimerRef.current)
+    if (helpDismissTimerRef.current !== null) window.clearTimeout(helpDismissTimerRef.current)
+  }, [])
 
   useEffect(() => {
     if (masterDataPrepareDatasetRequested) {
@@ -171,7 +240,31 @@ export const Navbar: React.FC<NavbarProps> = ({ cbdReorderUndoRedo, simulationUn
               </button>
             </Tooltip>
             <div
-              className="relative flex shrink-0 items-center"
+              ref={helpTriggerRootRef}
+              id="header-help-trigger-root"
+              className="inline-flex shrink-0"
+              onPointerEnter={handleHelpTriggerPointerEnter}
+              onPointerLeave={handleHelpTriggerPointerLeave}
+            >
+              <Tooltip label="Help">
+                <button
+                  ref={helpButtonRef}
+                  id="header-help-trigger"
+                  type="button"
+                  onClick={handleHelpButtonClick}
+                  aria-label="Help"
+                  aria-haspopup="dialog"
+                  aria-expanded={helpOpen}
+                  aria-pressed={helpPinned}
+                  aria-controls="app-help-dialog"
+                  className={utilityButton}
+                >
+                  ?
+                </button>
+              </Tooltip>
+            </div>
+            <div
+              className="relative ml-1 flex shrink-0 items-center"
               onPointerEnter={previewMasterDataPrepareDataset}
               onPointerLeave={event => {
                 const relatedTarget = event.relatedTarget
@@ -208,24 +301,19 @@ export const Navbar: React.FC<NavbarProps> = ({ cbdReorderUndoRedo, simulationUn
                 className="absolute left-1/2 top-full z-[60] w-max -translate-x-1/2 pt-1"
               />
             </div>
-            <Tooltip label="Help" wrapperClassName="relative ml-1 inline-flex shrink-0">
-              <button
-                ref={helpButtonRef}
-                type="button"
-                onClick={() => setHelpOpen(true)}
-                aria-label="Help"
-                aria-haspopup="dialog"
-                aria-expanded={helpOpen}
-                aria-controls="app-help-dialog"
-                className={utilityButton}
-              >
-                ?
-              </button>
-            </Tooltip>
           </div>
         </div>
       </div>
-      {helpOpen && <HelpDialog initialSection={helpSectionForPage} onClose={closeHelp} />}
+      <div id="header-help-portal-root" className="pointer-events-none" />
+      {helpOpen && (
+        <HelpDialog
+          initialSection={helpSectionForPage}
+          isPinned={helpPinned}
+          onClose={closeHelp}
+          onPointerEnter={handleHelpPanelPointerEnter}
+          onPointerLeave={scheduleHelpDismiss}
+        />
+      )}
     </header>
   )
 }
