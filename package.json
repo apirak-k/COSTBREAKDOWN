@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:offline": "tsc -b && node scripts/build_offline_html.mjs",
     "preview": "vite preview",
     "excel": "node scripts/build_excel_models.js && node scripts/verify_excel_models.js",
     "verify:regressions": "node scripts/verify_regression_suite.mjs"
