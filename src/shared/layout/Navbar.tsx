@@ -1,9 +1,10 @@
-import React, { useEffect, useRef } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { Info, Redo2, Undo2 } from 'lucide-react'
 import { useAppStore } from '../../state'
 import { resolveHeaderProductContext } from './header-product-context'
 import { Tooltip } from '../ui/Tooltip'
 import { HeaderValue } from './HeaderValue'
+import { HelpDialog, type HelpSectionId } from './HelpDialog'
 
 const navItems = [
   { id: 'master', label: 'Master Data' },
@@ -50,6 +51,8 @@ export const Navbar: React.FC<NavbarProps> = ({ cbdReorderUndoRedo, simulationUn
     scheduleDismissMasterDataPrepareDatasetPreview
   } = useAppStore()
   const prepareDatasetTriggerRef = useRef<HTMLButtonElement>(null)
+  const helpButtonRef = useRef<HTMLButtonElement>(null)
+  const [helpOpen, setHelpOpen] = useState(false)
 
   const isMasterData = activeTab === 'master'
   const isCostBreakdown = activeTab === 'breakdown'
@@ -77,6 +80,18 @@ export const Navbar: React.FC<NavbarProps> = ({ cbdReorderUndoRedo, simulationUn
   const productContext = resolveHeaderProductContext(snapshotPair.current.product)
   const currentProductName = snapshotPair.current.product.productName?.trim() ?? ''
   const currentProductUom = snapshotPair.current.product.uom?.trim() ?? ''
+  const helpSectionForPage: HelpSectionId = activeTab === 'master'
+    ? 'master-data'
+    : activeTab === 'breakdown'
+      ? 'cost-breakdown'
+      : activeTab === 'simulation'
+        ? 'simulation'
+        : 'getting-started'
+
+  const closeHelp = () => {
+    setHelpOpen(false)
+    window.requestAnimationFrame(() => helpButtonRef.current?.focus({ preventScroll: true }))
+  }
 
   useEffect(() => {
     if (masterDataPrepareDatasetRequested) {
@@ -193,9 +208,24 @@ export const Navbar: React.FC<NavbarProps> = ({ cbdReorderUndoRedo, simulationUn
                 className="absolute left-1/2 top-full z-[60] w-max -translate-x-1/2 pt-1"
               />
             </div>
+            <Tooltip label="Help" wrapperClassName="relative ml-1 inline-flex shrink-0">
+              <button
+                ref={helpButtonRef}
+                type="button"
+                onClick={() => setHelpOpen(true)}
+                aria-label="Help"
+                aria-haspopup="dialog"
+                aria-expanded={helpOpen}
+                aria-controls="app-help-dialog"
+                className={utilityButton}
+              >
+                ?
+              </button>
+            </Tooltip>
           </div>
         </div>
       </div>
+      {helpOpen && <HelpDialog initialSection={helpSectionForPage} onClose={closeHelp} />}
     </header>
   )
 }

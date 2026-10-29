@@ -84,7 +84,7 @@ function StoreControls() {
   }
 
   return (
-    <div data-exact-decimal-test-controls="true" className="fixed right-1 top-1 z-[100] flex gap-1 bg-white p-1 text-[10px] shadow">
+    <div data-exact-decimal-test-controls="true" style={{ pointerEvents: 'none' }} className="fixed right-1 top-1 z-[100] flex gap-1 bg-white p-1 text-[10px] shadow">
       <button type="button" data-testid="exact-role-current" onClick={() => setMasterDataRole('current')}>Current</button>
       <button type="button" data-testid="exact-role-reference" onClick={() => setMasterDataRole('reference')}>Reference</button>
       <button type="button" data-testid="exact-product-away" onClick={() => createProductWithSizing({
@@ -103,7 +103,7 @@ function StoreControls() {
       <button type="button" data-testid="exact-reset-current" onClick={() => resetMasterDataWorkingDataset('current')}>Reset current</button>
       <button type="button" data-testid="exact-undo" onClick={undoMasterDataEdit}>Undo</button>
       <button type="button" data-testid="exact-redo" onClick={redoMasterDataEdit}>Redo</button>
-      <output data-testid="exact-decimal-state">{JSON.stringify(state)}</output>
+      <output data-testid="exact-decimal-state" style={{ pointerEvents: 'none' }}>{JSON.stringify(state)}</output>
       <div className="fixed left-0 top-0 opacity-0"><ExactSourceResetProbe /></div>
     </div>
   )
