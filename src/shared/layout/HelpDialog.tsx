@@ -2,10 +2,15 @@ import React, { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import {
   AlertTriangle,
-  ChevronDown,
+  ArrowRight,
+  ArrowUpDown,
   CircleX,
+  ClipboardCheck,
   Copy,
+  Database,
   FileSpreadsheet,
+  FlaskConical,
+  GitCompare,
   Info,
   Pencil,
   Redo2,
@@ -26,18 +31,14 @@ export type HelpSectionId =
   | 'master-data'
   | 'cost-breakdown'
   | 'simulation'
-  | 'important-concepts'
   | 'quick-reference'
-  | 'faq'
 
 const helpSections: Array<{ id: HelpSectionId; label: string }> = [
   { id: 'workflow', label: 'Workflow' },
   { id: 'master-data', label: 'Master Data' },
   { id: 'cost-breakdown', label: 'Cost Breakdown' },
   { id: 'simulation', label: 'Simulation' },
-  { id: 'important-concepts', label: 'Important Concepts' },
-  { id: 'quick-reference', label: 'Quick Reference' },
-  { id: 'faq', label: 'FAQ' }
+  { id: 'quick-reference', label: 'Quick Reference' }
 ]
 
 interface HelpDialogProps {
@@ -77,25 +78,15 @@ const quickTools: HelpTool[] = [
   { label: 'Export', description: 'Create an XLSX.', Icon: Upload }
 ]
 
-const faqItems = [
-  { question: 'Where should I start?', answer: 'Start in Master Data. Prepare and check your data.' },
-  { question: 'Do I need to Save before Export?', answer: 'No. Export uses current Working values and saves an XLSX where you choose.' },
-  { question: 'Why does Cost Breakdown change after editing Master Data?', answer: 'It reads Master Data Working values, including unsaved edits.' },
-  { question: 'Where does Simulation Send go?', answer: 'It sends supported BOM and Routing changes to the Master Data role that matches the Active Dataset.' },
-  { question: 'Why did my Simulation scenario rebuild or reset?', answer: 'If that dataset’s Master Data values change, its scenario rebuilds from them.' },
-  { question: 'What happens when I close the browser?', answer: 'The current session ends. Export data you want to keep.' },
-  { question: 'Where is my exported XLSX?', answer: 'Export saves the XLSX to the location you choose.' }
-]
-
 function HelpToolGrid({ tools, label, columns = 'sm:grid-cols-2 xl:grid-cols-3' }: {
   tools: HelpTool[]
   label: string
   columns?: string
 }) {
   return (
-    <div role="group" aria-label={label} className={'grid gap-2 ' + columns}>
+    <div role="group" aria-label={label} className={'grid items-stretch gap-2 ' + columns}>
       {tools.map(({ label: toolLabel, description, Icon }) => (
-        <div key={toolLabel} className="min-w-0 border border-slate-200 bg-white px-3 py-2">
+        <div key={toolLabel} className="h-full min-w-0 border border-slate-200 bg-white px-3 py-2">
           <div className="flex items-center gap-2 text-xs font-semibold text-slate-800">
             <Icon aria-hidden="true" className="h-4 w-4 shrink-0 text-slate-600" />
             <span>{toolLabel}</span>
@@ -114,7 +105,7 @@ function HeaderTool({ Icon, symbol, label, description }: {
   description: string
 }) {
   return (
-    <div data-help-header-tool={label} className="flex min-w-0 items-start gap-2 border border-slate-200 bg-slate-50 px-3 py-2">
+    <div data-help-header-tool={label} className="flex min-w-0 items-start gap-2 border border-slate-200 bg-white px-3 py-2">
       {Icon
         ? <Icon aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-slate-600" />
         : <span aria-hidden="true" className="mt-0.5 grid h-4 w-4 shrink-0 place-items-center text-xs font-bold text-slate-600">{symbol}</span>}
@@ -125,7 +116,7 @@ function HeaderTool({ Icon, symbol, label, description }: {
 
 function StateCard({ title, children, icon }: { title: string; children: React.ReactNode; icon?: React.ReactNode }) {
   return (
-    <div className="min-w-0 border border-slate-200 bg-slate-50 px-3 py-2">
+    <div className="h-full min-w-0 border border-slate-200 bg-white px-3 py-2">
       <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-800">
         {icon}
         <span>{title}</span>
@@ -145,74 +136,80 @@ function StatePair({
   second: { title: string; description: string; icon?: React.ReactNode }
 }) {
   return (
-    <div role="group" aria-label={label} className="grid min-w-0 gap-1 border border-slate-200 bg-slate-50 p-2">
+    <div role="group" aria-label={label} className="grid min-w-0 content-start gap-1.5">
       <StateCard title={first.title} icon={first.icon}>{first.description}</StateCard>
-      <span aria-hidden="true" className="text-center text-xs leading-3 text-slate-400">↕</span>
+      <ArrowUpDown aria-hidden="true" className="mx-auto h-3.5 w-3.5 text-slate-400" />
       <StateCard title={second.title} icon={second.icon}>{second.description}</StateCard>
     </div>
   )
 }
 
-function HelpContent({
-  section,
-  selectedFaq,
-  previewFaq,
-  onFaqPointerEnter,
-  onFaqPointerLeave,
-  onFaqToggle
-}: {
-  section: HelpSectionId
-  selectedFaq: string | null
-  previewFaq: string | null
-  onFaqPointerEnter: (question: string) => void
-  onFaqPointerLeave: () => void
-  onFaqToggle: (question: string) => void
-}) {
+function BranchConnector() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 600 44" preserveAspectRatio="none" className="h-11 w-full text-slate-400">
+      <defs>
+        <marker id="help-branch-arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+          <path d="M0 0 L7 3.5 L0 7" fill="none" stroke="currentColor" strokeWidth="1.25" />
+        </marker>
+      </defs>
+      <path d="M300 0V14 M100 14H500" fill="none" stroke="currentColor" strokeWidth="1.25" />
+      <path d="M100 14V40" fill="none" stroke="currentColor" strokeWidth="1.25" markerEnd="url(#help-branch-arrow)" />
+      <path d="M300 14V40" fill="none" stroke="currentColor" strokeWidth="1.25" markerEnd="url(#help-branch-arrow)" />
+      <path d="M500 14V40" fill="none" stroke="currentColor" strokeWidth="1.25" markerEnd="url(#help-branch-arrow)" />
+    </svg>
+  )
+}
+
+function HelpContent({ section }: { section: HelpSectionId }) {
   switch (section) {
     case 'workflow':
       return (
         <>
-          <section data-help-workflow-diagram aria-label="How the app areas connect" className="border border-slate-200 bg-slate-50 p-3">
-            <h3 className="mb-3 text-xs font-semibold text-slate-800">How the areas connect</h3>
-            <div role="img" aria-label="Master Data prepares datasets for Cost Breakdown, Simulation, or Export. Simulation can send supported changes back to the matching Master Data role." className="mx-auto max-w-3xl">
-              <div className="mx-auto max-w-sm border border-slate-300 bg-white px-3 py-2 text-center">
-                <p className="text-xs font-semibold text-slate-900">Master Data</p>
-                <p className="text-xs text-slate-600">Prepare and manage datasets</p>
+          <section data-help-workflow-diagram aria-label="How the app areas connect">
+            <h3 className="mb-2 text-xs font-semibold text-slate-800">How the app areas connect</h3>
+            <div role="group" aria-label="Master Data connects to Cost Breakdown, Simulation, and Export" className="mx-auto max-w-3xl">
+              <div className="grid grid-cols-3 gap-2">
+                <div className="col-start-2 text-center" data-help-diagram-node="Master Data">
+                  <StateCard title="Master Data">Prepare datasets.</StateCard>
+                </div>
               </div>
-              <div className="mt-1 grid grid-cols-3 gap-2 text-center">
-                <span aria-hidden="true" className="text-xs leading-4 text-slate-400">↓</span>
-                <span aria-hidden="true" className="text-xs leading-4 text-slate-400">↓</span>
-                <span aria-hidden="true" className="text-xs leading-4 text-slate-400">↓</span>
-                <div className="min-w-0 border border-slate-300 bg-white px-2 py-2">
-                  <p className="text-xs font-semibold text-slate-900">Cost Breakdown</p>
-                  <p className="mt-1 text-xs text-slate-600">Compare cost changes</p>
+              <BranchConnector />
+              <div className="grid grid-cols-3 items-stretch gap-2 text-center">
+                <div className="min-w-0" data-help-diagram-node="Cost Breakdown">
+                  <StateCard title="Cost Breakdown">Compare changes.</StateCard>
                 </div>
-                <div className="min-w-0 border border-slate-300 bg-white px-2 py-2">
-                  <p className="text-xs font-semibold text-slate-900">Simulation</p>
-                  <p className="mt-1 text-xs text-slate-600">Test supported changes</p>
-                  <p className="mt-2 border-t border-slate-200 pt-2 text-xs font-medium text-slate-700">Send → matching Master Data</p>
+                <div className="min-w-0" data-help-diagram-node="Simulation">
+                  <StateCard title="Simulation">Test changes.</StateCard>
                 </div>
-                <div className="min-w-0 border border-slate-300 bg-white px-2 py-2">
-                  <p className="text-xs font-semibold text-slate-900">Export</p>
-                  <p className="mt-1 text-xs text-slate-600">Save a chosen XLSX</p>
+                <div className="min-w-0" data-help-diagram-node="Export">
+                  <StateCard title="Export">Save XLSX.</StateCard>
                 </div>
+              </div>
+              <div data-help-send-flow className="mt-3 flex flex-wrap items-center justify-center gap-2 text-xs text-slate-600">
+                <span className="font-medium text-slate-800">Simulation</span>
+                <span className="flex flex-col items-center leading-4">
+                  <span>Send</span>
+                  <ArrowRight aria-hidden="true" className="h-4 w-8" />
+                </span>
+                <span className="font-medium text-slate-800">matching Master Data role</span>
               </div>
             </div>
           </section>
-          <section aria-label="Six-step workflow" className="mt-4">
-            <h3 className="mb-2 text-xs font-semibold text-slate-800">A simple workflow</h3>
-            <ol aria-label="Six steps to prepare, compare, test, send, and export" className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+          <section aria-label="Six-step workflow" className="mt-5">
+            <h3 className="mb-2 text-xs font-semibold text-slate-800">Workflow steps</h3>
+            <ol aria-label="Six workflow steps" className="relative grid max-w-3xl gap-1 before:absolute before:bottom-3 before:left-[0.7rem] before:top-3 before:w-px before:bg-slate-300">
               {[
-                'Prepare datasets in Master Data.',
-                'Check data with Prepare Dataset.',
-                'Compare datasets in Cost Breakdown.',
-                'Test supported changes in Simulation.',
-                'Send to matching Master Data if needed.',
-                'Export the dataset you want to keep.'
-              ].map((step, index) => (
-                <li key={step} className="flex min-w-0 items-start gap-2 border border-slate-200 bg-white px-3 py-2 text-xs leading-5 text-slate-700">
-                  <span aria-hidden="true" className="grid h-5 w-5 shrink-0 place-items-center bg-slate-100 font-mono text-[11px] font-semibold text-slate-600">{index + 1}</span>
-                  <span>{step}</span>
+                { label: 'Prepare datasets', Icon: Database },
+                { label: 'Check with Prepare Dataset', Icon: ClipboardCheck },
+                { label: 'Compare in Cost Breakdown', Icon: GitCompare },
+                { label: 'Test supported changes', Icon: FlaskConical },
+                { label: 'Send to matching Master Data', Icon: Send },
+                { label: 'Export dataset', Icon: Upload }
+              ].map(({ label, Icon }, index) => (
+                <li key={label} data-help-workflow-step={index + 1} className="relative flex min-w-0 items-center gap-2 py-1 text-xs leading-5 text-slate-700">
+                  <span aria-hidden="true" className="z-10 grid h-6 w-6 shrink-0 place-items-center rounded-full border border-slate-300 bg-white font-mono text-[11px] font-semibold text-slate-700">{index + 1}</span>
+                  <Icon aria-hidden="true" className="h-4 w-4 shrink-0 text-slate-600" />
+                  <span>{label}</span>
                 </li>
               ))}
             </ol>
@@ -222,21 +219,21 @@ function HelpContent({
     case 'master-data':
       return (
         <>
-          <section aria-label="Independent dataset roles" className="border border-slate-200 bg-slate-50 p-3">
-            <h3 className="text-xs font-semibold text-slate-800">Manage any dataset</h3>
-            <div className="mt-2 grid gap-2 sm:grid-cols-3">
+          <section data-help-master-roles aria-label="Independent dataset roles">
+            <h3 className="mb-2 text-xs font-semibold text-slate-800">Dataset roles</h3>
+            <div className="grid items-stretch gap-2 sm:grid-cols-3">
               <StateCard title="Reference">Baseline</StateCard>
               <StateCard title="Current">Latest</StateCard>
               <StateCard title="Custom">Alternative</StateCard>
             </div>
-            <p className="mt-2 text-xs font-semibold text-slate-700">Roles are independent, not stages.</p>
+            <p className="mt-3 text-xs font-semibold text-slate-700">Roles are independent, not stages.</p>
             <p className="mt-1 text-xs leading-5 text-slate-600">Import · Edit · Clone · Clear · Reset can apply to any role.</p>
-            <p className="mt-2 border-t border-slate-200 pt-2 text-xs leading-5 text-slate-600"><strong className="font-semibold text-slate-800">Clone:</strong> Source Working → Destination Working.</p>
+            <p className="mt-1 text-xs leading-5 text-slate-600"><strong className="font-semibold text-slate-800">Clone between roles:</strong> Source Working → Destination Working.</p>
           </section>
-          <h3 className="mb-2 mt-4 text-xs font-semibold text-slate-800">Tools</h3>
+          <h3 className="mb-2 mt-5 text-xs font-semibold text-slate-800">Tools</h3>
           <HelpToolGrid tools={masterDataTools} label="Master Data tools" />
-          <h3 className="mb-2 mt-4 text-xs font-semibold text-slate-800">Values and status</h3>
-          <div className="grid gap-2 sm:grid-cols-3">
+          <h3 className="mb-2 mt-5 text-xs font-semibold text-slate-800">Values and status</h3>
+          <div className="grid items-start gap-3 sm:grid-cols-3">
             <StatePair
               label="Saved and Draft"
               first={{ title: 'Saved', description: 'Working matches Last Saved.', icon: <span aria-hidden="true" className="h-2 w-2 rounded-full bg-emerald-500 ring-2 ring-inset ring-emerald-700/70" /> }}
@@ -249,7 +246,7 @@ function HelpContent({
             />
             <StatePair
               label="Warning and Blocker"
-              first={{ title: 'Warning', description: 'Review recommended. You can continue.', icon: <AlertTriangle aria-hidden="true" className="h-3.5 w-3.5 text-amber-700" /> }}
+              first={{ title: 'Warning', description: 'Review; you can continue.', icon: <AlertTriangle aria-hidden="true" className="h-3.5 w-3.5 text-amber-700" /> }}
               second={{ title: 'Blocker', description: 'Fix for readiness.', icon: <CircleX aria-hidden="true" className="h-3.5 w-3.5 text-rose-700" /> }}
             />
           </div>
@@ -258,131 +255,113 @@ function HelpContent({
     case 'cost-breakdown':
       return (
         <>
-          <h3 className="text-sm font-semibold text-slate-900">Why did the cost change?</h3>
-          <div aria-label="After minus Before equals Standard Cost Gap" className="mt-3 grid items-center gap-1 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto_minmax(0,1.2fr)] sm:gap-2">
-            <StateCard title="After">Choose a dataset.</StateCard>
-            <span aria-hidden="true" className="text-lg font-medium text-slate-500">−</span>
-            <StateCard title="Before">Choose a dataset.</StateCard>
-            <span aria-hidden="true" className="text-lg font-medium text-slate-500">=</span>
-            <StateCard title="Standard Cost Gap">After − Before</StateCard>
+          <div data-help-cost-formula aria-label="After minus Before equals Standard Cost Gap" className="grid items-center gap-1 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto_minmax(0,1.2fr)] sm:gap-2">
+            <StateCard title="After">Dataset.</StateCard>
+            <span aria-hidden="true" className="text-center text-lg font-medium text-slate-500">−</span>
+            <StateCard title="Before">Dataset.</StateCard>
+            <span aria-hidden="true" className="text-center text-lg font-medium text-slate-500">=</span>
+            <StateCard title="Standard Cost Gap">After − Before.</StateCard>
           </div>
-          <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
-            <section data-help-cost-group="row-status" aria-label="Row status" className="border border-slate-200 bg-slate-50 p-3">
-              <h4 className="mb-2 text-xs font-semibold text-slate-800">Row status</h4>
-              <div className="grid gap-2 sm:grid-cols-3">
-                <StateCard title="CHANGED">Values differ. Expand for Parameter Cost Effects.</StateCard>
-                <StateCard title="ADDED">In After only.</StateCard>
-                <StateCard title="REMOVED">In Before only.</StateCard>
-              </div>
-            </section>
-            <section data-help-cost-group="gap" aria-label="Gap" className="border border-slate-200 bg-slate-50 p-3">
-              <h4 className="mb-2 text-xs font-semibold text-slate-800">Gap</h4>
-              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
-                <StateCard title="Full Gap">All compared cost changes.</StateCard>
-                <StateCard title="Selected contribution">Contribution from selected rows.</StateCard>
-              </div>
-            </section>
-          </div>
+          <section data-help-cost-group="row-status" aria-label="Row status" className="mt-5">
+            <h3 className="mb-2 text-xs font-semibold text-slate-800">Row status</h3>
+            <div className="grid items-stretch gap-2 sm:grid-cols-3">
+              <StateCard title="CHANGED">Values differ. Expand for Parameter Cost Effects.</StateCard>
+              <StateCard title="ADDED">In After only.</StateCard>
+              <StateCard title="REMOVED">In Before only.</StateCard>
+            </div>
+          </section>
+          <section data-help-cost-group="gap" aria-label="Gap" className="mt-5">
+            <h3 className="mb-2 text-xs font-semibold text-slate-800">Gap</h3>
+            <div className="grid items-stretch gap-2 sm:grid-cols-2">
+              <StateCard title="Full Gap">All compared changes.</StateCard>
+              <StateCard title="Selected contribution">Selected rows only.</StateCard>
+            </div>
+          </section>
           <p className="mt-3 text-xs leading-5 text-slate-600">Uses Master Data Working, including unsaved edits.</p>
         </>
       )
     case 'simulation':
       return (
-        <>
-          <h3 className="text-sm font-semibold text-slate-900">What if we changed this?</h3>
-          <div className="mt-3 grid gap-3">
-            <section data-help-simulation-block="edit-scenario" aria-label="Edit scenario" className="border border-slate-200 bg-slate-50 p-3">
-              <h4 className="mb-2 text-xs font-semibold text-slate-800">Edit scenario</h4>
-              <StateCard title="Active Dataset">Edit / Send / Reset target.</StateCard>
-              <div className="mt-2 grid gap-2 sm:grid-cols-3">
-                <StateCard title="BOM">Price · Usage · Loss</StateCard>
-                <StateCard title="Routing">Manning · Capacity · Yield</StateCard>
-                <StateCard title="Economics">Selling Price · SG&amp;A · Variable / Fixed Action Cost · Batch Size</StateCard>
+        <div className="grid gap-5">
+          <section data-help-simulation-block="edit-scenario" aria-label="Edit scenario">
+            <h3 className="mb-2 text-xs font-semibold text-slate-800">Edit scenario</h3>
+            <div className="grid grid-cols-3 gap-2">
+              <div className="col-start-2 text-center">
+                <StateCard title="Active Dataset">Edit · Send · Reset target.</StateCard>
               </div>
-              <p className="mt-2 text-xs leading-5 text-slate-600">Simulation edits supported parameters of existing rows. Add or remove rows in Master Data.</p>
-            </section>
-            <section data-help-simulation-block="result-comparison" aria-label="Result comparison" className="border border-slate-200 bg-slate-50 p-3">
-              <h4 className="mb-2 text-xs font-semibold text-slate-800">Result comparison</h4>
-              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 border border-slate-200 bg-white px-3 py-2 text-xs">
-                <strong className="font-semibold text-slate-800">Result Before</strong>
-                <span aria-hidden="true" className="text-slate-400">→</span>
-                <strong className="font-semibold text-slate-800">Result After</strong>
-                <span className="ml-auto text-slate-500">Comparison only</span>
-              </div>
-              <p className="mt-2 text-xs font-semibold leading-5 text-slate-800">Active Dataset ≠ Result Before / After</p>
-              <p className="text-xs leading-5 text-slate-600">Changing Before / After does not change Active Dataset or Send target.</p>
-            </section>
-            <section data-help-simulation-block="actions" aria-label="Actions" className="border border-slate-200 bg-slate-50 p-3">
-              <h4 className="mb-2 text-xs font-semibold text-slate-800">Actions</h4>
-              <div className="grid gap-2 sm:grid-cols-2">
-                <StateCard title="Send"><span className="inline-flex items-start gap-1.5"><Send aria-hidden="true" className="mt-0.5 h-3.5 w-3.5 shrink-0" /><span>Active Dataset → matching Master Data Working. BOM/Routing parameters only; Simulation economics are not sent.</span></span></StateCard>
-                <StateCard title="Reset"><span className="inline-flex items-start gap-1.5"><RotateCcw aria-hidden="true" className="mt-0.5 h-3.5 w-3.5 shrink-0" /><span>Restores parameters, Selling Price, and SG&amp;A from this role’s Master Data Working. Clears Variable/Fixed Action Cost and Batch Size.</span></span></StateCard>
-              </div>
-            </section>
-          </div>
-        </>
-      )
-    case 'important-concepts':
-      return (
-        <>
-          <h3 className="text-sm font-semibold text-slate-900">Keep these pairs clear</h3>
-          <div className="mt-3 grid gap-2 sm:grid-cols-2">
-            <StateCard title="Save ≠ Export">Save makes a session checkpoint. Export creates an XLSX you choose to keep.</StateCard>
-            <StateCard title="Working ≠ Last Saved">Working = values in use. Last Saved = session checkpoint.</StateCard>
-            <StateCard title="Warning ≠ Blocker">Warning = review; you can continue. Blocker = resolve for readiness.</StateCard>
-            <StateCard title="Active Dataset ≠ Result Before / After">Active Dataset = edit / Send / Reset target. Results = comparison only.</StateCard>
-          </div>
-          <p className="mt-3 border-l-2 border-slate-300 bg-slate-50 px-3 py-2 text-xs leading-5 text-slate-700">Closing the browser ends the current session. Export data you want to keep.</p>
-        </>
+            </div>
+            <BranchConnector />
+            <div className="grid grid-cols-3 items-stretch gap-2">
+              <StateCard title="BOM">Price · Usage · Loss</StateCard>
+              <StateCard title="Routing">Manning · Capacity · Yield</StateCard>
+              <StateCard title="Economics">Selling Price · SG&amp;A · Action Cost · Batch Size</StateCard>
+            </div>
+            <p className="mt-2 text-xs leading-5 text-slate-600">Simulation edits existing rows. Add/remove rows in Master Data.</p>
+          </section>
+          <section data-help-simulation-block="result-comparison" aria-label="Result comparison">
+            <h3 className="mb-2 text-xs font-semibold text-slate-800">Result comparison</h3>
+            <div className="grid items-center gap-2 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1.3fr)]">
+              <StateCard title="Active Dataset">Edit / Send / Reset.</StateCard>
+              <span aria-hidden="true" className="text-center text-lg font-semibold text-slate-500">≠</span>
+              <StateCard title="Result Before → Result After">Comparison only.</StateCard>
+            </div>
+            <p className="mt-2 text-xs leading-5 text-slate-600">Changing comparison does not change Active Dataset or Send target.</p>
+          </section>
+          <section data-help-simulation-block="actions" aria-label="Actions">
+            <h3 className="mb-2 text-xs font-semibold text-slate-800">Actions</h3>
+            <div className="grid items-stretch gap-2 sm:grid-cols-2">
+              <StateCard title="Send" icon={<Send aria-hidden="true" className="h-3.5 w-3.5 text-slate-600" />}>
+                <span className="block">Active Dataset → matching Master Data Working.</span>
+                <span className="mt-1 block">BOM / Routing only · Economics stay in Simulation.</span>
+              </StateCard>
+              <StateCard title="Reset" icon={<RotateCcw aria-hidden="true" className="h-3.5 w-3.5 text-slate-600" />}>
+                <span className="block">Reload this role's Master Data Working.</span>
+                <span className="mt-1 block">Clear Action Cost and Batch Size.</span>
+              </StateCard>
+            </div>
+          </section>
+        </div>
       )
     case 'quick-reference':
       return (
         <>
-          <h3 className="text-sm font-semibold text-slate-900">Tools at a glance</h3>
+          <h3 className="mb-2 text-xs font-semibold text-slate-800">Key differences</h3>
+          <div className="grid items-stretch gap-2 sm:grid-cols-2">
+            <StateCard title="Save ≠ Export">
+              <span className="block">Save — Session checkpoint.</span>
+              <span className="mt-1 block">Export — XLSX saved where you choose.</span>
+            </StateCard>
+            <StateCard title="Working ≠ Last Saved">
+              <span className="block">Working — Values in use.</span>
+              <span className="mt-1 block">Last Saved — Session checkpoint.</span>
+            </StateCard>
+            <StateCard title="Warning ≠ Blocker">
+              <span className="block">Warning — Review; you can continue.</span>
+              <span className="mt-1 block">Blocker — Fix for readiness.</span>
+            </StateCard>
+            <StateCard title="Active Dataset ≠ Result Before / After">
+              <span className="block">Active Dataset — Edit / Send / Reset.</span>
+              <span className="mt-1 block">Results — Comparison only.</span>
+            </StateCard>
+          </div>
+          <h3 className="mb-2 mt-5 text-xs font-semibold text-slate-800">Tools at a glance</h3>
           <HelpToolGrid tools={quickTools} label="Quick reference tools" columns="sm:grid-cols-2 xl:grid-cols-4" />
-          <h4 className="mb-2 mt-4 text-xs font-semibold text-slate-800">Header</h4>
-          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-            <HeaderTool Icon={Undo2} label="Undo" description="Undo the last supported action." />
+          <h3 className="mb-2 mt-5 text-xs font-semibold text-slate-800">Header controls</h3>
+          <div className="grid items-stretch gap-2 sm:grid-cols-2 xl:grid-cols-4">
+            <HeaderTool Icon={Undo2} label="Undo" description="Undo a supported action." />
             <HeaderTool Icon={Redo2} label="Redo" description="Redo the last undone action." />
-            <HeaderTool symbol="?" label="Help" description="Open this quick guide." />
+            <HeaderTool symbol="?" label="Help" description="Open this guide." />
             <HeaderTool Icon={Info} label="Prepare Dataset" description="Check warnings and blockers." />
           </div>
-        </>
-      )
-    case 'faq':
-      return (
-        <>
-          <h3 className="text-sm font-semibold text-slate-900">Frequently asked questions</h3>
-          <div className="mt-3 divide-y divide-slate-200 border-y border-slate-200">
-            {faqItems.map(({ question, answer }, index) => {
-              const expanded = (previewFaq ?? selectedFaq) === question
-              const answerId = 'app-help-faq-answer-' + (index + 1)
-              return (
-                <div
-                  key={question}
-                  data-faq-item={question}
-                  data-previewing={previewFaq === question}
-                  onPointerEnter={() => onFaqPointerEnter(question)}
-                  onPointerLeave={onFaqPointerLeave}
-                  className="py-1"
-                >
-                  <button
-                    type="button"
-                    aria-controls={answerId}
-                    aria-expanded={expanded}
-                    onClick={() => onFaqToggle(question)}
-                    className="flex w-full items-center justify-between gap-3 py-2 text-left text-xs font-semibold leading-5 text-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
-                  >
-                    <span>{question}</span>
-                    <ChevronDown aria-hidden="true" className={'h-4 w-4 shrink-0 text-slate-500 transition-transform ' + (expanded ? 'rotate-180' : '')} />
-                  </button>
-                  <p id={answerId} hidden={!expanded} className="pb-2 pl-3 text-xs leading-5 text-slate-600">{answer}</p>
-                </div>
-              )
-            })}
+          <h3 className="mb-2 mt-5 text-xs font-semibold text-slate-800">Good to know</h3>
+          <div className="space-y-1 text-xs leading-5 text-slate-600">
+            <p>Closing the browser ends the session. Export to keep data.</p>
+            <p>A Master Data source change can rebuild its Simulation scenario.</p>
           </div>
         </>
       )
+    default:
+      return null
   }
 }
 
@@ -395,12 +374,8 @@ export const HelpDialog: React.FC<HelpDialogProps> = ({
 }) => {
   const [selectedSection, setSelectedSection] = useState(initialSection)
   const [previewSection, setPreviewSection] = useState<HelpSectionId | null>(null)
-  const [selectedFaq, setSelectedFaq] = useState<string | null>(null)
-  const [previewFaq, setPreviewFaq] = useState<string | null>(null)
   const sectionHoverTimerRef = useRef<number | null>(null)
   const sectionExitTimerRef = useRef<number | null>(null)
-  const faqHoverTimerRef = useRef<number | null>(null)
-  const faqExitTimerRef = useRef<number | null>(null)
   const scrollAreaRef = useRef<HTMLDivElement>(null)
   const activeSection = previewSection ?? selectedSection
   const title = helpSections.find(section => section.id === activeSection)?.label ?? 'Workflow'
@@ -412,7 +387,7 @@ export const HelpDialog: React.FC<HelpDialogProps> = ({
   }, [activeSection])
 
   useEffect(() => () => {
-    for (const timer of [sectionHoverTimerRef.current, sectionExitTimerRef.current, faqHoverTimerRef.current, faqExitTimerRef.current]) {
+    for (const timer of [sectionHoverTimerRef.current, sectionExitTimerRef.current]) {
       if (timer !== null) window.clearTimeout(timer)
     }
   }, [])
@@ -442,7 +417,7 @@ export const HelpDialog: React.FC<HelpDialogProps> = ({
     sectionExitTimerRef.current = window.setTimeout(() => {
       setPreviewSection(null)
       sectionExitTimerRef.current = null
-    }, 300)
+    }, 400)
   }
 
   const selectSection = (sectionId: HelpSectionId) => {
@@ -450,45 +425,6 @@ export const HelpDialog: React.FC<HelpDialogProps> = ({
     clearSectionExitTimer()
     setPreviewSection(null)
     setSelectedSection(sectionId)
-  }
-
-  const clearFaqHoverTimer = () => {
-    if (faqHoverTimerRef.current !== null) window.clearTimeout(faqHoverTimerRef.current)
-    faqHoverTimerRef.current = null
-  }
-
-  const clearFaqExitTimer = () => {
-    if (faqExitTimerRef.current !== null) window.clearTimeout(faqExitTimerRef.current)
-    faqExitTimerRef.current = null
-  }
-
-  const previewFaqAfterHover = (question: string) => {
-    clearFaqHoverTimer()
-    clearFaqExitTimer()
-    if (selectedFaq === question) {
-      setPreviewFaq(null)
-      return
-    }
-    faqHoverTimerRef.current = window.setTimeout(() => {
-      setPreviewFaq(question)
-      faqHoverTimerRef.current = null
-    }, 275)
-  }
-
-  const scheduleFaqPreviewExit = () => {
-    clearFaqHoverTimer()
-    clearFaqExitTimer()
-    faqExitTimerRef.current = window.setTimeout(() => {
-      setPreviewFaq(null)
-      faqExitTimerRef.current = null
-    }, 300)
-  }
-
-  const toggleFaq = (question: string) => {
-    clearFaqHoverTimer()
-    clearFaqExitTimer()
-    setPreviewFaq(null)
-    setSelectedFaq(current => current === question ? null : question)
   }
 
   if (typeof document === 'undefined') return null
@@ -526,9 +462,6 @@ export const HelpDialog: React.FC<HelpDialogProps> = ({
         </header>
 
         <div
-          id="app-help-interaction-region"
-          onPointerEnter={clearSectionExitTimer}
-          onPointerLeave={scheduleSectionPreviewExit}
           className="grid min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)] md:grid-cols-[12rem_minmax(0,1fr)] md:grid-rows-1"
         >
           <nav aria-label="Help sections" className="flex min-w-0 shrink-0 gap-1 overflow-x-auto border-b border-slate-200 p-2 md:flex-col md:overflow-y-auto md:border-b-0 md:border-r">
@@ -548,7 +481,7 @@ export const HelpDialog: React.FC<HelpDialogProps> = ({
                   aria-controls="app-help-section"
                   data-previewing={previewing}
                   onPointerEnter={() => previewSectionAfterHover(section.id)}
-                  onPointerLeave={clearSectionHoverTimer}
+                  onPointerLeave={scheduleSectionPreviewExit}
                   onClick={() => selectSection(section.id)}
                   className={'min-h-8 shrink-0 border-l-2 px-2 text-left text-xs transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-700 md:w-full ' + stateClass}
                 >
@@ -558,17 +491,16 @@ export const HelpDialog: React.FC<HelpDialogProps> = ({
             })}
           </nav>
 
-          <div id="app-help-scroll" ref={scrollAreaRef} className="min-h-0 min-w-0 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6">
+          <div
+            id="app-help-scroll"
+            ref={scrollAreaRef}
+            onPointerEnter={clearSectionExitTimer}
+            onPointerLeave={scheduleSectionPreviewExit}
+            className="min-h-0 min-w-0 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6"
+          >
             <section id="app-help-section" aria-labelledby="app-help-section-title" className="mx-auto max-w-5xl">
               <h2 id="app-help-section-title" className="mb-3 text-base font-semibold text-slate-900">{title}</h2>
-              <HelpContent
-                section={activeSection}
-                selectedFaq={selectedFaq}
-                previewFaq={previewFaq}
-                onFaqPointerEnter={previewFaqAfterHover}
-                onFaqPointerLeave={scheduleFaqPreviewExit}
-                onFaqToggle={toggleFaq}
-              />
+              <HelpContent section={activeSection} />
             </section>
           </div>
         </div>
