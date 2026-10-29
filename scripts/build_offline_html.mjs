@@ -112,8 +112,15 @@ for (const tag of scriptTags) {
   html = html.replace(tag, `<script${typeAttribute}>\n${safeScript}\n</script>`)
 }
 
+// Validate only the remaining HTML markup. The bundled JavaScript can contain
+// literal strings such as src="./assets/app.js"; those are just text inside the
+// script and must not be mistaken for external HTML asset references.
+const htmlMarkupOnly = html
+  .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '<script></script>')
+  .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, '<style></style>')
+
 const unresolvedBuiltAssets = [
-  ...html.matchAll(/\b(?:src|href)=["'][^"']*assets\/[^"']+["']/gi),
+  ...htmlMarkupOnly.matchAll(/\b(?:src|href)=["'][^"']*assets\/[^"']+["']/gi),
 ].map((match) => match[0])
 
 if (unresolvedBuiltAssets.length > 0) {
