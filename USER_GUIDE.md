@@ -12,15 +12,7 @@ Screenshots show the real app with example data. Numbers match the notes below e
 
 ## Open the app
 
-Extract the complete ZIP into a folder of your choice. Keep all package folders together.
-
-- `Windows/`: open **Start COSTBREAKDOWN.exe**. Finish with **Stop COSTBREAKDOWN.exe**.
-- `macOS/`: open **Start COSTBREAKDOWN.app**. Finish with **Stop COSTBREAKDOWN.app**.
-- `Linux/`: open **Start COSTBREAKDOWN.desktop**. Finish with **Stop COSTBREAKDOWN.desktop**.
-
-Start opens the browser. Starting the same package again reuses its server. Closing a browser tab alone does not stop it.
-
-The Linux `.desktop` files are launchers. You can leave them in the package folder.
+Double-click **COSTBREAKDOWN.html**. It opens directly in your browser from the file, with no local server or runtime installation.
 
 ## Prepare your data
 
@@ -147,28 +139,26 @@ Changing a dataset's source Working data rebuilds its scenario and assumptions. 
 
 ## Keep your work
 
-Working data, checkpoints, and scenarios belong to the current browser session. Export the data you want to keep before ending the session.
+Working data, checkpoints, and scenarios belong to the current browser session. Closing the browser ends that working session, so Export the data you want to keep as an XLSX file before closing it.
 
 | Master Data action | Effect |
 |---|---|
-| Save | Copies the active dataset's Working data into its Last Saved checkpoint. |
+| Save | Copies the active dataset's Working data into its Last Saved checkpoint for the current browser session. |
 | Reset | Restores Last Saved, or the initial reset state if no checkpoint exists. Import can establish that initial state. |
 | Clear | Blanks editable Working values while keeping the row structure. |
-| Export | Creates an Excel workbook from the active dataset's current Working values, including unsaved edits. |
+| Export | Creates a persistent XLSX file from the active dataset's current Working values, including unsaved edits. |
 
 Import, Clone, Clear, and Simulation Send leave Last Saved unchanged. Use the header Undo/Redo controls for supported Master Data Working edits.
 
 Save, Reset, and Clear act on the selected dataset. Hover over the control, or focus it and press **Alt + Down Arrow**, for the all-dataset action.
 
-Save does not create a file. Export does not require Save first. To keep a proposal's parameters, Send them to Master Data before Export. Record Simulation-only assumptions separately.
+Save is a browser-session checkpoint; it does not create a file. Export does not require Save first and creates an XLSX file you can keep after closing the browser. To keep a proposal's parameters, Send them to Master Data before Export. Record Simulation-only assumptions separately.
 
 ## Help opening the app
 
 | Problem | What to do |
 |---|---|
-| The app does not open | Extract the complete ZIP. Run the matching Stop, then Start again. |
-| macOS blocks the app | The app bundles are unsigned and not notarized. Ask your administrator for an approved build. |
-| Linux asks you to trust a launcher | Follow your company's desktop security policy. The `.desktop` file can stay inside the package. |
-| Windows says the folder is in use | Use that package's Stop launcher before moving or deleting its folder. |
+| The file opens as text or in an editor | Open `COSTBREAKDOWN.html` with your browser, or use the browser's Open File command. |
+| I need to keep work after closing the browser | Export the datasets you need as XLSX files before closing the browser. |
 
 [Back to COSTBREAKDOWN](README.md)
