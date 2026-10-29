@@ -1,38 +1,25 @@
 # Current Project Status and Roadmap — 2026-10-29
 
-Application behavior for the completed release work is accepted and feature-frozen. The accepted application baseline is `3a2d819c807da2b8766f71761851c860ae6098a3`. The cross-platform launcher/package update is complete: its implementation commit on `dev` is `9f4441dd7cf0ad4d3ea2cbdadcc815210f127acb`, followed by a documentation-only checkpoint update; the distribution-only `main` release commit is `1dcd7c0bf5ae5f1744a9d53dcef34c44bc6b997e`. This roadmap records current repository status; it does not authorize application changes.
+Application behavior remains accepted and unchanged. `dev` is the canonical development workspace. Offline Standalone HTML is the supported build candidate for the next user-facing `main` package; this roadmap records repository status and does not authorize application changes.
 
 ## Branch roles
 
 - `oldmain` is the old frontend reference.
-- `dev` is the development workspace for application source, tests/verifiers, scripts, build/packaging tooling, and technical documentation.
-- `main` is the clean user/company-ready package. **Main package cleanup is COMPLETE:** its tracked tree contains the user-facing runtime package rather than the development source workspace. It includes a single shared `app/` and OS-specific launchers/runtimes.
+- `dev` holds application source, tests, developer tooling, specifications, and the Offline HTML build.
+- `main` is unchanged and still contains the previous user-facing package. Prepare its replacement from `dist-offline/COSTBREAKDOWN.html` in the next phase.
 
 ## Completed and accepted
 
-- Numeric behavior, business logic, Import UI, cross-platform portable Start/Stop workflow, branch/workspace structure, and `main` package cleanup are complete. Do not reopen these without a new reproducible defect.
-- `Complete Mock` and `Incomplete Mock` remain supported in the user-facing application through Header `i` → `Prepare Dataset`.
-- The portable package has one shared built app. Windows exposes two EXEs; macOS exposes two `.app` bundles; Linux exposes two `.desktop` launchers, with architecture selection and bundled runtimes kept under `Linux/runtime/`.
-- The cross-platform build/static package verifier passed for 35 files; documentation link/image checks passed for 24 references. The final Windows package acceptance passed 40/40 with no warnings. Defender scans of the two Windows EXEs, internal PowerShell helper, full package, and ZIP reported no threats.
-- Linux amd64/arm64 selection, macOS bundle structure, ZIP executable permissions, and `main` Git executable modes were verified statically. Actual macOS/Linux runtime execution was not run because those environments were unavailable. A separate clean Windows machine acceptance remains unverified.
-- The accepted README/USER_GUIDE redesign and journey diagram are present on both branches. The user guide describes choosing the OS folder and using its matching Start and Stop launcher, with the OS-specific trust/signing notes.
-- The local Vite/CSS issue was caused by duplicate/stale dev servers and an incorrect branch/server state. After stopping those servers, one `npm run dev` on `dev` started at 5173 and displayed normally styled content; the CSS was transformed and the browser reported no runtime errors.
-- Local workspace cleanup was inspected, but deletion was blocked by tool policy. No files were deleted; optional manual cleanup candidates and preserved local verifier scripts are recorded in `HANDOFF.md`.
+- Product UI, business logic, calculations, imports/exports, persistence, and workflows remain unchanged.
+- `Complete Mock` and `Incomplete Mock` remain available in development and production builds.
+- `npm run build:offline` creates standalone `dist-offline/COSTBREAKDOWN.html`; it opens via `file://` without a server or end-user runtime.
+- Deprecated Windows/macOS/Linux Start/Stop launcher sources, binaries, builders, and launcher-only verifiers have been removed from `dev`. The previous `main` package was not changed.
+- Offline and normal builds, TypeScript, and diff checks passed. Platform-independent regression checks passed; the Excel COM workbook calculation remains blocked on macOS because it requires Windows PowerShell/Excel COM.
+- README, USER_GUIDE, and screenshots were intentionally left untouched; review their old launcher instructions during the `main` packaging phase.
 
-## Normal workflow
+## Next step
 
-- **Development:** `dev` → `npm run dev` → develop/test → commit/push `dev`.
-- **User-ready package:** `main` → open the folder for the user's operating system → launch **Start COSTBREAKDOWN** → use the matching **Stop COSTBREAKDOWN** when finished. Windows uses EXEs, macOS uses `.app`, and Linux uses `.desktop` launchers.
-- **Future release update:** develop on `dev` → verify → build/package → update the user-facing runtime contents of `main`.
-
-## Remaining work
-
-- Optional manual cleanup of ignored local clutter where safe; preserve `node_modules/`, `graphify-out/`, `.superpowers/`, and local verifier scripts. Do not delete tracked `src/` or `.planning/` while on `dev`.
-- Clean-machine acceptance on another Windows machine and actual macOS/Linux runtime checks before a company handoff.
-- Company-specific user documentation only when explicitly requested.
-- Final release/version packaging or tag only when explicitly ready to ship.
-
-Do not create `USER_GUIDE.pdf`, add an external sample workbook, or create a release/tag now. Do not perform normal source development directly on `main`.
+Prepare the user-facing `main` package from the tested Offline Standalone HTML artifact. Do not change `main`, release/tag, or create the final user package until that phase.
 
 # Operational Task Ledger — Master Data Refresh and Selected Comparison
 

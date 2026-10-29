@@ -132,11 +132,9 @@ const browserFiles = new Set([
   'verify_simulation_disclosure_browser.mjs',
   'verify_simulation_round4a_layout.mjs'
 ])
-const packagingVerifiers = new Set(['verify_cross_platform_portable_package.mjs'])
-
 const unclassified = readdirSync(scriptsDirectory)
   .filter(name => /^verify_.*\.(?:mjs|ts|js)$/.test(name))
-  .filter(name => !verifierFiles.includes(name) && !packagingVerifiers.has(name) && name !== 'verify_excel_models.js' && name !== 'verify_regression_suite.mjs')
+  .filter(name => !verifierFiles.includes(name) && name !== 'verify_excel_models.js' && name !== 'verify_regression_suite.mjs')
 assert.deepEqual(unclassified, [], `Classify new verification scripts before running the regression gate: ${unclassified.join(', ')}`)
 
 const missing = verifierFiles.filter(name => !readdirSync(scriptsDirectory).includes(name))
