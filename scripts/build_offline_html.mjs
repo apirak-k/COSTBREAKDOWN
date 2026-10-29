@@ -57,6 +57,16 @@ await build({
   },
 })
 
+const builtAppPath = resolve(outDir, 'assets/app.js')
+const builtApp = await readFile(builtAppPath, 'utf8')
+for (const requiredBuiltInMockLabel of ['Complete Mock', 'Incomplete Mock']) {
+  if (!builtApp.includes(requiredBuiltInMockLabel)) {
+    throw new Error(
+      `Offline build is missing the user-facing Built-in Mock action: ${requiredBuiltInMockLabel}`,
+    )
+  }
+}
+
 const indexPath = resolve(outDir, 'index.html')
 let html = await readFile(indexPath, 'utf8')
 
