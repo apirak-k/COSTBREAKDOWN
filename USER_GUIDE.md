@@ -37,7 +37,7 @@ Select the pencil for Edit mode. Enter the product details, then fill the tables
 
 | Table | Inputs |
 |---|---|
-| BOM | Material, Usage, Unit, Price, and Loss. |
+| Bill of Materials (BOM) | Material, Usage, Unit, Price, and Loss. |
 | Work Centers (WC) | Work Center, Labor Rate, and Burden Rate. |
 | Routing (RTG) | Process, Work Center, Manning, Capacity, and Yield. |
 
