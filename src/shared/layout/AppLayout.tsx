@@ -237,19 +237,18 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children, onNavigatePrepar
       ? 'Product Mismatch'
       : 'Product Match'
   const handleLoadMockData = async (fixture: 'complete' | 'incomplete') => {
-    if (!import.meta.env.DEV) return
     const fixtures = await import('../../features/master-data/fixtures/synthetic-review-data')
     loadDevelopmentMockData(fixture === 'complete'
       ? fixtures.createCompleteMasterDataMockPair()
       : fixtures.createIncompleteMasterDataMockPair())
     setMasterDataRole('current')
   }
-  const mockAction = import.meta.env.DEV ? (
-    <div role="group" aria-label="Development mock datasets" className="grid w-full grid-cols-2 divide-x divide-slate-200 text-[11px]">
+  const mockAction = (
+    <div role="group" aria-label="Built-in mock datasets" className="grid w-full grid-cols-2 divide-x divide-slate-200 text-[11px]">
       <button type="button" onClick={() => { void handleLoadMockData('complete') }} className="min-h-7 w-full px-1.5 text-center font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700">Complete Mock</button>
       <button type="button" onClick={() => { void handleLoadMockData('incomplete') }} className="min-h-7 w-full px-1.5 text-center font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-700">Incomplete Mock</button>
     </div>
-  ) : undefined
+  )
   const referenceStandardCost = referenceCurrentComparison.referenceCost.total
   const currentStandardCost = referenceCurrentComparison.currentCost.total
   const totalGap = referenceCurrentComparison.totalGap
