@@ -106,15 +106,20 @@ for (const tag of scriptTags) {
   if (!src) continue
 
   const script = await readFile(resolveBuiltAsset(src), 'utf8')
-  const safeScript = script.replace(/<\/script/gi, '<\\/script')
-  const type = getAttribute(tag, 'type')
-  const typeAttribute = type ? ` type="${type}"` : ''
-  html = html.replace(tag, `<script${typeAttribute}>\n${safeScript}\n</script>`)
+  const encodedScript = Buffer.from(script, 'utf8').toString('base64')
+
+  // Do not place the generated JavaScript directly inside <script>. Large
+  // bundles can contain text that the HTML parser interprets as markup and can
+  // prematurely terminate the script element. Keep the payload parser-safe as
+  // base64, reconstruct it in the browser, then import it from a Blob URL.
+  const bootstrap = `<script type="module">\nconst encoded = "${encodedScript}";\nconst binary = atob(encoded);\nconst bytes = new Uint8Array(binary.length);\nfor (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);\nconst blobUrl = URL.createObjectURL(new Blob([bytes], { type: "text/javascript" }));\nimport(blobUrl).finally(() => URL.revokeObjectURL(blobUrl));\n</script>`
+
+  html = html.replace(tag, bootstrap)
 }
 
-// Validate only the remaining HTML markup. The bundled JavaScript can contain
-// literal strings such as src="./assets/app.js"; those are just text inside the
-// script and must not be mistaken for external HTML asset references.
+// Validate only the remaining HTML markup. The bundled JavaScript payload is
+// base64 text, so generated asset paths inside the bundle cannot be mistaken
+// for real HTML references.
 const htmlMarkupOnly = html
   .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '<script></script>')
   .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, '<style></style>')
