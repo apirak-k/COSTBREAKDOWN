@@ -304,7 +304,7 @@ try {
 
   // Seed the actual app with its bundled development data so every simulation graph has values.
   await clickSelector('#header-prepare-dataset-trigger')
-  await waitVisible('[role="group"][aria-label="Development mock datasets"]', 'development dataset controls')
+  await waitVisible('[role="group"][aria-label="Built-in mock datasets"]', 'built-in dataset controls')
   await clickButtonText('Complete Mock')
   await waitFor(() => evaluate(`[...document.querySelectorAll('[aria-label^="Current dataset:"]')].some(e=>/[1-9] BOM items/.test(e.getAttribute('aria-label')||''))`), 'Complete Mock Current fixture')
   await clickButtonText('Simulation')

@@ -281,7 +281,7 @@ try {
   // Load the bundled complete fixture so Simulation has actual current BOM
   // records on both an empty-workspace build and a seeded build.
   await clickButton(`document.getElementById('header-prepare-dataset-trigger')`)
-  await waitFor(async () => Boolean(await evaluate(`!!document.querySelector('[role="group"][aria-label="Development mock datasets"]')`)), 'development dataset controls')
+  await waitFor(async () => Boolean(await evaluate(`!!document.querySelector('[role="group"][aria-label="Built-in mock datasets"]')`)), 'built-in dataset controls')
   await clickButton(`([...document.querySelectorAll('button')].find(button => button.innerText.trim() === 'Complete Mock'))`)
   await waitFor(async () => Boolean(await evaluate(`[...document.querySelectorAll('[aria-label^="Current dataset:"]')].some(element => /[1-9] BOM items/.test(element.getAttribute('aria-label') || ''))`)), 'complete Current fixture')
 

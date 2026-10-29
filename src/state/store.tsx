@@ -1543,7 +1543,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }
 
   const loadDevelopmentMockData = (pair: SnapshotPair) => {
-    if (!import.meta.env.DEV) return
     const source = activeSession
     const replaced = replaceDevelopmentMockWorkingState(source, pair)
     if (!replaced) return
