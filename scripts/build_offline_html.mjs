@@ -23,8 +23,19 @@ const baseOutput = Array.isArray(baseRollupOptions.output)
   ? {}
   : (baseRollupOptions.output ?? {})
 
+// The normal production build deliberately uses manualChunks for Excel code.
+// A single-file offline build must instead use inlineDynamicImports, and Rollup
+// does not allow those two options together. Remove the normal chunking rules
+// entirely for this build target rather than trying to override them with
+// undefined (Vite's config merge can retain the original value).
+const { output: _baseOutput, ...rollupWithoutOutput } = baseRollupOptions
+const { manualChunks: _manualChunks, ...outputWithoutManualChunks } = baseOutput
+
 await build({
   ...baseConfig,
+  // We already loaded the project config above. Prevent Vite from loading and
+  // merging vite.config.ts a second time, which would reintroduce manualChunks.
+  configFile: false,
   base: './',
   build: {
     ...baseBuild,
@@ -34,10 +45,9 @@ await build({
     assetsInlineLimit: 100_000_000,
     modulePreload: false,
     rollupOptions: {
-      ...baseRollupOptions,
+      ...rollupWithoutOutput,
       output: {
-        ...baseOutput,
-        manualChunks: undefined,
+        ...outputWithoutManualChunks,
         inlineDynamicImports: true,
         entryFileNames: 'assets/app.js',
         chunkFileNames: 'assets/[name].js',
