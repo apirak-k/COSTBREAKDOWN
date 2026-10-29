@@ -4,6 +4,10 @@ Prepare your data, choose an analysis, then keep the inputs you need.
 
 [Master Data](#prepare-your-data) · [Cost Breakdown](#explain-a-cost-change) · [Simulation](#try-a-change) · [Keep your work](#keep-your-work)
 
+![Excel import and export, Master Data Working values, Last Saved, Cost Breakdown, and Simulation inside the current browser session.](docs/images/data-session.svg)
+
+Excel brings inputs to Master Data. Cost Breakdown reads Working values; Simulation tests a proposal and can send supported changes back. Export creates a workbook you can keep.
+
 Screenshots show the real app with example data. Numbers match the notes below each image. Open an image at full size to read small controls.
 
 ## Open the app
@@ -144,8 +148,6 @@ Changing a dataset's source Working data rebuilds its scenario and assumptions. 
 ## Keep your work
 
 Working data, checkpoints, and scenarios belong to the current browser session. Export the data you want to keep before ending the session.
-
-![Excel files are outside the browser session. Working data feeds both analyses; Save, Reset, and Send act within the session.](docs/images/data-session.svg)
 
 | Master Data action | Effect |
 |---|---|
