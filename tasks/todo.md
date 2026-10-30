@@ -1,25 +1,25 @@
-# Current Project Status and Roadmap — 2026-10-29
+# Current Project Status and Roadmap — 2026-10-30
 
-Application behavior remains accepted and unchanged. `dev` is the canonical development workspace. Offline Standalone HTML is the supported build candidate for the next user-facing `main` package; this roadmap records repository status and does not authorize application changes.
+Application behavior remains accepted and unchanged. Version 1 is finalized as the single current public release, `v1.0.0`. `dev` is the full development workspace; `main` is the clean stable user-facing package. This roadmap records repository status and does not authorize application changes.
 
 ## Branch roles
 
 - `oldmain` is the old frontend reference.
-- `dev` holds application source, tests, developer tooling, specifications, and the Offline HTML build.
-- `main` is unchanged and still contains the previous user-facing package. Prepare its replacement from `dist-offline/COSTBREAKDOWN.html` in the next phase.
+- `dev` holds application source, tests, scripts, configs, specifications, internal documentation, and development records.
+- `main` contains `COSTBREAKDOWN.html`, the user-facing README and USER_GUIDE, and only their required image assets.
 
 ## Completed and accepted
 
 - Product UI, business logic, calculations, imports/exports, persistence, and workflows remain unchanged.
-- `Complete Mock` and `Incomplete Mock` remain available in development and production builds.
-- `npm run build:offline` creates standalone `dist-offline/COSTBREAKDOWN.html`; it opens via `file://` without a server or end-user runtime.
-- Deprecated Windows/macOS/Linux Start/Stop launcher sources, binaries, builders, and launcher-only verifiers have been removed from `dev`. The previous `main` package was not changed.
-- Offline and normal builds, TypeScript, and diff checks passed. Platform-independent regression checks passed; the Excel COM workbook calculation remains blocked on macOS because it requires Windows PowerShell/Excel COM.
-- README, USER_GUIDE, and screenshots were intentionally left untouched; review their old launcher instructions during the `main` packaging phase.
+- Built-in Complete Mock and Incomplete Mock remain in the application and internal requirements; user-facing README and USER_GUIDE intentionally do not cover them.
+- `main` has exactly 12 tracked files: the standalone HTML, README, USER_GUIDE, and nine referenced image assets. It has no development source, tests, scripts, internal specs, or task files.
+- The published `v1.0.0` tag points to `main`; the single GitHub Release has only `COSTBREAKDOWN.html` attached. Its digest matches both `main/COSTBREAKDOWN.html` and the current `dev/dist-offline/COSTBREAKDOWN.html`.
+- `dev/README.md` gives the current developer workflow and branch/release model. The internal requirements index retains the Mock requirement and the current branch model.
+- No application behavior or source code changed during Version 1 packaging.
 
-## Next step
+## Remaining optional work
 
-Prepare the user-facing `main` package from the tested Offline Standalone HTML artifact. Do not change `main`, release/tag, or create the final user package until that phase.
+Clean-machine acceptance on another Windows computer may be done before a company handoff. It was not performed as part of this repository release finalization.
 
 # Operational Task Ledger — Master Data Refresh and Selected Comparison
 

@@ -1,12 +1,13 @@
-## Current checkpoint — Offline Standalone HTML development build — 2026-10-29
+## Current checkpoint — Version 1 single-release state — 2026-10-30
 
-- **Branch roles:** `dev` remains the canonical development workspace for application source, tests, build tooling, and specifications. `main` is unchanged and still contains the previous user-facing package. `oldmain` is unchanged.
-- **Supported development distribution build:** Run `npm run build:offline` to produce ignored `dist-offline/COSTBREAKDOWN.html`. It opens through `file://` without a local server or end-user runtime. This is the candidate artifact for the next `main` packaging phase.
-- **Superseded packaging:** The Windows, macOS, and Linux Start/Stop launcher sources, binaries, package builder, ZIP/Mach-O helpers, and launcher-only acceptance verifiers were removed from `dev`. Historical launcher release and acceptance records below are retained as history.
-- **Application behavior:** Cleanup did not change application source, UI, business logic, calculations, imports/exports, persistence, or workflow. Built-in Complete and Incomplete Mock remain available.
-- **Validation:** `npm run build:offline`, `npm run build`, `npx tsc --noEmit --pretty false`, and `git diff --check` passed. The offline artifact was opened via `file://` in Chrome and mocks/navigation worked without runtime errors or external requests. The full regression suite passed all platform-independent checks; the Excel COM calculation remains Windows-only and environment-blocked on macOS.
-- **Documentation boundary:** README, USER_GUIDE, and screenshots were not changed in this cleanup. Their launcher instructions need review during the user-facing `main` preparation phase.
-- **Next phase:** Prepare the user-facing `main` package from the Offline Standalone HTML artifact. Do not change `main`, create a release/tag, or remove the existing `main` package until that phase.
+- **Branch roles:** `dev` is the full development workspace for source, tests, scripts, configs, specifications, internal documentation, and development records. `main` is the clean user-facing package. `oldmain` remains the archived frontend reference and was not changed.
+- **`main` package:** The tracked tree contains exactly 12 files: `COSTBREAKDOWN.html`, `README.md`, `USER_GUIDE.md`, and the nine image assets used by those documents. It contains no source, tests, scripts, internal specifications, or development-only documentation.
+- **Public release:** Version 1 is the only current public release: `v1.0.0`. The existing tag now points to `main` commit `df5fa27379993a811961b96b1b658d7cb5054cd0`; historical checkpoint tags were retained. The published GitHub Release has one manually attached application asset, `COSTBREAKDOWN.html`.
+- **Artifact identity:** `main/COSTBREAKDOWN.html` and the current `dev/dist-offline/COSTBREAKDOWN.html` have the same SHA-256: `2f7db029e7581404ee113e3df034b0221e4097fe99d06f5855cb1362708f09c8` (2,193,129 bytes). This is also the published release asset digest.
+- **Documentation:** `dev/README.md` is developer-oriented. The user-facing README and USER_GUIDE remain on `main`; their referenced image assets are present. Built-in Complete Mock and Incomplete Mock remain in the application and internal requirements; user-facing docs intentionally do not describe them.
+- **Behavior boundary:** Release packaging changed repository contents only. Application source, calculations, Help UI, Mock behavior, and approved product behavior were not changed.
+- **Verification:** `main` and `origin/main` are at `df5fa27379993a811961b96b1b658d7cb5054cd0`; local and remote `v1.0.0` resolve to that commit. The GitHub Release listing contains one published release with one application asset. Package allowlist, README/USER_GUIDE image references, asset identity, and clean `main` worktree were verified.
+- **Release status:** Version 1 finalization is complete. No further release-history operation is pending for this checkpoint.
 
 ## Previous checkpoint — Branch and package status — 2026-10-28
 
