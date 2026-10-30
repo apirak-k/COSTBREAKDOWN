@@ -12,7 +12,7 @@ Application behavior remains accepted and unchanged. Version 1 is finalized as t
 
 - Product UI, business logic, calculations, imports/exports, persistence, and workflows remain unchanged.
 - Built-in Complete Mock and Incomplete Mock remain in the application and internal requirements; user-facing README and USER_GUIDE intentionally do not cover them.
-- `main` has exactly 12 tracked files: the standalone HTML, README, USER_GUIDE, and nine referenced image assets. It has no development source, tests, scripts, internal specs, or task files.
+- `main` has exactly 8 tracked files: the standalone HTML, README, USER_GUIDE, and five referenced image assets. It has no development source, tests, scripts, internal specs, or task files.
 - The published `v1.0.0` tag points to `main`; the single GitHub Release has only `COSTBREAKDOWN.html` attached. Its digest matches both `main/COSTBREAKDOWN.html` and the current `dev/dist-offline/COSTBREAKDOWN.html`.
 - `dev/README.md` gives the current developer workflow and branch/release model. The internal requirements index retains the Mock requirement and the current branch model.
 - No application behavior or source code changed during Version 1 packaging.
