@@ -13,6 +13,7 @@
 - **`main`:** latest stable, complete source repository.
 - **End-user distribution:** GitHub Releases provide `COSTBREAKDOWN.html`, which opens directly in a modern browser through `file://` without installation or a local server.
 - **User guidance:** in-app Help is the primary detailed guide. README is the repository overview; USER_GUIDE is supplementary reference.
+- **Built-in Mock:** Complete Mock and Incomplete Mock remain available through Header `i` → Prepare Dataset for testing.
 - Development handoffs, planning notes, generated architecture exports, and task ledgers remain on `dev`; they are operational records, not product requirements.
 
 ## Canonical Specifications Map
