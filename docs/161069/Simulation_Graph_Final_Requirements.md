@@ -1,7 +1,7 @@
 # Simulation Graph — Final Requirements
 
 **Status:** Requirement CLOSED / Finalized  
-**Implementation status:** Implemented; Chrome responsive browser verification PASS at 1440×900, 1280×900, 768×900, and 390×844 (2026-10-17). Physical MacBook Neo display scaling, touch, and screen-reader behavior remain NOT VERIFIED; see HANDOFF.md.
+**Implementation status at the recorded checkpoint:** Implemented; Chrome responsive browser verification PASS at 1440×900, 1280×900, 768×900, and 390×844 (2026-10-17). Physical MacBook Neo display scaling, touch, and screen-reader behavior were NOT VERIFIED at that checkpoint. Later verification records are maintained on `dev`.
 **Primary concept:** `Simulation Cost Structure`
 
 ---

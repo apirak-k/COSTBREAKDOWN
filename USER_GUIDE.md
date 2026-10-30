@@ -1,6 +1,6 @@
 # COSTBREAKDOWN user guide
 
-Prepare your datasets, explain a cost difference, or test a proposed change. Use this guide for the task you are doing now.
+Prepare your datasets, explain a cost difference, or test a proposed change. The in-app **? Help** is the primary guide; this page adds screenshots and detailed examples.
 
 Screenshots use fictional example datasets. Open an image to view it at full size.
 
@@ -8,7 +8,7 @@ Screenshots use fictional example datasets. Open an image to view it at full siz
 
 ## Start and finish a session
 
-Extract the complete package, open your operating system's folder, and use **Start COSTBREAKDOWN**. Keep the package folders together. The launcher opens the app in your browser; starting the same package again reuses its running server.
+Open `COSTBREAKDOWN.html` in a modern browser. It runs directly from `file://` without installation or a local server. Your work stays in the current browser session.
 
 Choose a work area from the top navigation:
 
@@ -18,7 +18,7 @@ Choose a work area from the top navigation:
 | Cost Breakdown | Explain the difference between two datasets. |
 | Simulation | Test proposed parameter changes and economic assumptions. |
 
-Before ending a browser session, [export important datasets](#keep-your-work). Use the matching **Stop COSTBREAKDOWN** launcher from the same package when finished. Stop does not export data; closing a tab alone does not stop the server.
+Before ending the browser session, [export important datasets](#keep-your-work). Closing the browser session ends the current work session; Export creates the Excel file you can keep.
 
 ## Prepare your datasets
 
@@ -180,13 +180,11 @@ Save does not create a file. Export does not require Save first. Cost Breakdown 
 
 | What happened | What to do |
 |---|---|
-| The app does not open | Extract the complete ZIP and use your operating system's Start launcher. If needed, run the matching Stop from the same package, then Start again. |
-| The operating system blocks a launcher | Follow company security policy. The macOS apps are unsigned and not notarized; request an approved build if blocked. Some Linux desktop environments ask you to trust or allow a downloaded launcher first. Do not bypass security controls. |
+| The app does not open | Open `COSTBREAKDOWN.html` in a modern browser. If it still does not open, ask for an approved copy or support. |
 | Reference or Current is Incomplete | Open header i → Prepare Dataset, expand Blockers, and select an affected location. |
 | Import says Invalid | Use a compatible `.xlsx` workbook. Start with Download Template and preserve its required sheets and headings. |
 | A field cannot be edited | Check Master Data Edit mode, or the supported Simulation fields listed above. |
 | Send affected an unexpected role | Check the underlined active dataset beneath Cost Structure, then review that same role in Master Data. Result's After selector does not choose the Send destination. |
 | Data is missing in a new session | Import an exported workbook. Last Saved is a session checkpoint, not a permanent backup. |
-| Windows says the package folder is in use | Use that package's Stop launcher, then retry moving or deleting the folder. |
 
 [Back to the product overview](README.md)

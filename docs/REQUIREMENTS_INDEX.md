@@ -1,25 +1,19 @@
 # Requirements Index
 
-**Updated:** 2026-10-28
+**Updated:** 2026-10-30
 
 ## Final Logic Authority
 
 [`specs/FINAL_LOGIC_SPEC.md`](specs/FINAL_LOGIC_SPEC.md) is the latest authority for product logic and behavior, consolidating the user-finalized business logic decisions. It finalizes logic/behavior only; it does not replace the rest of the product contract. If an older specification, agreement, design document, implementation decision, or current code conflicts with Final Logic on product logic, follow Final Logic only for that conflicting behavior. Existing finalized or accepted UX/UI, layout, visual style, wording, interaction behavior, and other requirements remain valid when compatible. Absence from Final Logic does not automatically remove an older non-conflicting finalized requirement. Existing code is implementation evidence, not requirements authority.
 
-## Current Branch Workspace Status — 2026-10-28
+## Current Repository and Release Model — 2026-10-30
 
-- **Phase 2:** **EXTERNALLY ACCEPTED / CLOSED** after the user-reported `PHASE 2 FINAL EXTERNAL ACCEPTANCE: PASS` for commit `4c1d139f87bf7db6c5f1ad9f6337738674159012`. No Phase 2 implementation work is reopened.
-- **Excel Validation:** **PASS** for the current application's workbook generation, import, export, and round-trip behavior. Evidence and environment limits are tracked in [HANDOFF](../HANDOFF.md).
-- **Accepted application checkpoint:** `3a2d819c807da2b8766f71761851c860ae6098a3`. Application behavior for the completed release work is accepted and feature-frozen.
-- **Branch strategy:** `oldmain` is the old frontend reference; `dev` is the full development workspace for source, tests/verifiers, scripts, build/packaging tooling, and technical documentation; `main` is the clean user/company-ready runtime package, not the development source workspace. Details are in [HANDOFF](../HANDOFF.md).
-- **Main package cleanup:** **COMPLETE.** The tracked `main` tree contains `Start COSTBREAKDOWN.exe`, `Stop COSTBREAKDOWN.exe`, `Serve-COSTBREAKDOWN.ps1`, `index.html`, `assets/`, and `README.md`; it has no `src/` tree or `package.json`.
-- **Built-in test data:** `Complete Mock` and `Incomplete Mock` remain available through Header `i` → `Prepare Dataset` in the user-facing application.
-- **Portable Start/Stop:** **COMPLETE.** Portable acceptance passed 35/35 on this computer. A clean-machine acceptance test on another Windows machine has not been performed.
-- **Branch/workspace status:** local `main`, `dev`, and `oldmain` track `origin/main`, `origin/dev`, and `origin/oldmain`; all three local SHAs matched the live origin refs on 2026-10-28.
-- **Local Vite/CSS diagnosis:** the unstyled page was caused by duplicate/stale Vite servers and an incorrect branch/server state. After stopping the servers, a single `npm run dev` on `dev` started at 5173 with normal styling, transformed Tailwind/PostCSS CSS, and no browser console errors. No source defect was identified.
-- **Current Import UI:** Valid workbooks show filename, `Valid`, Product Name, BOM / Work Center / Routing row summary, and Import action, with no warning accordion/list. Invalid workbooks show an invalid icon, filename, and `Invalid`, with no red explanatory box or Import action. Parser warning generation and Master Data warning/blocker behavior remain intact.
-- **Local ignored cleanup:** cleanup commands were blocked by tool policy, so no local files were deleted. Optional manual cleanup candidates and paths that must be preserved are recorded in [HANDOFF](../HANDOFF.md).
-- **Current roadmap:** development stays on `dev`; use `main` only for the user-ready runtime package. Remaining work is optional safe cleanup of ignored local clutter, a clean-machine Windows acceptance test, company/final user documentation when explicitly requested, and final release/version packaging or tagging when explicitly ready to ship. Do not create a guide PDF, external sample workbook, or release/tag now.
+- **`oldmain`:** archived frontend reference; do not use for current product behavior.
+- **`dev`:** active development branch for application source, tests, scripts, and project work records.
+- **`main`:** latest stable, complete source repository.
+- **End-user distribution:** GitHub Releases provide `COSTBREAKDOWN.html`, which opens directly in a modern browser through `file://` without installation or a local server.
+- **User guidance:** in-app Help is the primary detailed guide. README is the repository overview; USER_GUIDE is supplementary reference.
+- Development handoffs, planning notes, generated architecture exports, and task ledgers remain on `dev`; they are operational records, not product requirements.
 
 ## Canonical Specifications Map
 
@@ -35,7 +29,6 @@ The active canonical specifications are:
 
 Supporting architecture and design documents:
 - [`SYSTEM_LOGIC_DIAGRAM.md`](SYSTEM_LOGIC_DIAGRAM.md) — Visual workflow diagrams (Mermaid and text).
-- [Repository architecture map](../.archify/architecture-costbreakdown-20261020-160711/costbreakdown-architecture.html) — Source-cited module and browser data-flow map rendered from approved baseline `07a2c86a15d8716beacc20e9761a8073feadf914`.
 - [`PROVISIONAL_IMPLEMENTATION_DECISIONS.md`](PROVISIONAL_IMPLEMENTATION_DECISIONS.md) — Reversible AI implementation and presentation details.
 - [`design.md`](../design.md) — Visual design tokens, typography, layout density, and styling system.
 
@@ -50,7 +43,7 @@ Use chronology and original decision status to resolve behavior:
 5. When sources conflict, compare their dates and explicit user decisions. A commit can help establish when an implementation changed, but a commit alone does not prove user intent. Existing code is implementation evidence only and creates no requirement.
 6. If two actual user decisions conflict and chronology cannot show which supersedes the other, record only that specific conflict for review. Do not reopen unrelated settled topics.
 
-`tasks/source-crosswalk-80.md` is traceability and implementation/verification status only. It is not a requirements source or an 80-feature backlog. `HANDOFF.md`, `tasks/plan.md`, and `tasks/todo.md` are operational records and cannot supersede a product decision.
+Development crosswalks, handoffs, and task ledgers are operational records kept on `dev`. They are not requirements sources and cannot supersede a product decision.
 
 ## Current Decision Status and AI Implementation Choices
 
@@ -93,7 +86,7 @@ The latest finalized logic establishes:
 
 This dated record preserves the status at that checkpoint. Its external-audit and Phase 2 status statements are historical; the current milestone status is recorded above under **Current Release Preparation Status**.
 
-`FINALIZED — USER DECISION`: the Selected Value / Decimal UX contract, including hover-preview-first priority, focus-owned writer, transient preview, and pinned read-only value lifecycles, is in [`CROSS_CUTTING.md`](specs/CROSS_CUTTING.md#numeric-display-and-editing). Master Data Round 2 retains its finalized 350ms Header preview dwell, prompt cancellation, stable Header numeric / `%` / spinner regions, and calm editable affordance. Round 3's shared no-focus `SelectedNumber` is transparent at rest, uses `#E9EEF4` only on direct pointer hover, and keeps Pin at `blue-100`; Candidate row hover alone does not trigger Number Hover. Eligible CHANGED-row whitespace—including unused space in numeric, `#`, and reorder cells—expands/collapses and preserves Pin, while each actual control performs only its own action. Header Preview still begins after the shared 350ms dwell. The same pin toggles off, and a genuinely blank/background click discards Pin while intentional controls preserve it. Round 1, Round 2 — Master Data, Round 3 — Cost Breakdown, and the original five-item Round 4A — Simulation UI Polish are CLOSED. The pre-Round-4B corrective gate is **EXTERNALLY ACCEPTED / CLOSED** and human visual acceptance **PASSED**; Round 4B — Simulation Selected Value / Decimal UX is **EXTERNALLY AUDITED / ACCEPTED / CLOSED**; The preceding three-fix corrective round PASSED for its own scope, as confirmed by the user; the separate follow-up is recorded in the current Handoff. The operational order, gates, history, and current checkpoint are recorded in [`PHASE_2_SELECTED_VALUE_DECIMAL_UX_PLAN.md`](PHASE_2_SELECTED_VALUE_DECIMAL_UX_PLAN.md); that plan and [`HANDOFF.md`](../HANDOFF.md) do not override this or other canonical product requirements. Numeric domains, formulas, dataset/comparison lifecycle, and history semantics remain unchanged.
+`FINALIZED — USER DECISION`: the Selected Value / Decimal UX contract, including hover-preview-first priority, focus-owned writer, transient preview, and pinned read-only value lifecycles, is in [`CROSS_CUTTING.md`](specs/CROSS_CUTTING.md#numeric-display-and-editing). Master Data Round 2 retains its finalized 350ms Header preview dwell, prompt cancellation, stable Header numeric / `%` / spinner regions, and calm editable affordance. Round 3's shared no-focus `SelectedNumber` is transparent at rest, uses `#E9EEF4` only on direct pointer hover, and keeps Pin at `blue-100`; Candidate row hover alone does not trigger Number Hover. Eligible CHANGED-row whitespace—including unused space in numeric, `#`, and reorder cells—expands/collapses and preserves Pin, while each actual control performs only its own action. Header Preview still begins after the shared 350ms dwell. The same pin toggles off, and a genuinely blank/background click discards Pin while intentional controls preserve it. Round 1, Round 2 — Master Data, Round 3 — Cost Breakdown, the original five-item Round 4A — Simulation UI Polish, and Round 4B — Simulation Selected Value / Decimal UX are CLOSED / ACCEPTED. Numeric domains, formulas, dataset/comparison lifecycle, and history semantics remain unchanged.
 
 Two additional global numeric UX decisions are recorded in [`CROSS_CUTTING.md`](specs/CROSS_CUTTING.md#numeric-display-and-editing): editing/focus must hydrate the authoritative full value rather than the rounded display string, and a directly edited source remains blue while its owning feature still treats that exact source as unresolved; calculated/derived-only changes retain normal text color. Master Data clears blue on successful owning Save. Simulation blur/focus loss and history-gesture commit do not resolve the mark; its existing history Undo/Redo restores provenance with the source value. Authoritative-full-value-on-edit and full-precision stepping are **IMPLEMENTED / EXTERNALLY ACCEPTED** from their separate prior corrections. The direct-edit blue-value indicator is **IMPLEMENTED / INTERNALLY VERIFIED / AWAITING EXTERNAL AUDIT AND ACCEPTANCE**. Header Value is a neutral read/edit bridge: only its directly edited owning source receives blue provenance text. The pre-Round-4B corrective gate is **EXTERNALLY ACCEPTED / CLOSED**; Round 4B is **EXTERNALLY AUDITED / ACCEPTED / CLOSED**. The latest finalized centerline direction requires actual numeric header text center = fixed numeric region/input center = ordinary decimal anchor across applicable Master Data, Cost Breakdown, and Simulation columns. Ordinary-first measured rendered fit replaces arbitrary integer capacities; suffixes remain stationary, fixed Simulation frames preserve their outer geometry, and numeric edits use the complete frame interior with native horizontal scrolling. Exact track proportions remain documented as reversible implementation choices. The pre-Round-4B correction did not implement Round 4B or the direct-edit blue-value indicator at that checkpoint.
 
@@ -119,4 +112,4 @@ Two additional global numeric UX decisions are recorded in [`CROSS_CUTTING.md`](
 3. Read the page-specific canonical specs: [Cross-Cutting](specs/CROSS_CUTTING.md), [Master Data](specs/MASTER_DATA.md), [Cost Breakdown](specs/COST_BREAKDOWN.md), [Candidate & RCA](specs/CANDIDATE.md), and [Simulation](specs/SIMULATION.md).
 4. Read [`PROVISIONAL_IMPLEMENTATION_DECISIONS.md`](PROVISIONAL_IMPLEMENTATION_DECISIONS.md) where relevant for reversible AI choices.
 5. Consult `agreements/` and `docs/history/` only for provenance, recovery of compatible finalized detail, or chronology. Do not copy superseded behavior as current.
-6. Read implementation/crosswalk/handoff documents only for operational records and verification evidence: [`tasks/source-crosswalk-80.md`](../tasks/source-crosswalk-80.md) and [`HANDOFF.md`](../HANDOFF.md). They do not define requirements.
+6. Treat implementation plans and test records on `dev` as operational evidence only. They do not define requirements.

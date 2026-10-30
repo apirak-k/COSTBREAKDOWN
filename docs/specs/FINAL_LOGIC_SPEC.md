@@ -772,7 +772,7 @@ The following older rules are **explicitly superseded** and must not be reintrod
 | 2 | Master Data and CBD implementation | Complete — lifecycle, comparisons, identity, selection, and persistence regressions pass |
 | 3 | Simulation role state, overrides, history, reset/send, and economics | Complete — phase/state/economics regressions pass |
 | 4 | Simulation graph, Result, and accepted UI integration | Complete — graph/story/result and focused UI regressions pass; accepted UI geometry remains frozen |
-| 5 | Final implementation audit, stale-flow cleanup, cross-page/doc closure, and regression | Complete — see the current `HANDOFF.md`; dependency advisories and Windows Excel COM recalculation remain recorded limitations |
+| 5 | Final implementation audit, stale-flow cleanup, cross-page/doc closure, and regression | Complete — see development verification records on `dev`; dependency advisories and Windows Excel COM recalculation remain recorded limitations |
 
 ---
 

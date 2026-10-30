@@ -1,7 +1,7 @@
 # Simulation BOM / RTG — Final UX Requirements
 
 **Status:** Requirement CLOSED / Finalized  
-**Prior implementation status (2026-10-17):** Five corrections implemented; 46 browser checks passed at tested sizes. Original MacBook Neo viewport/zoom remained unverified. The initially implemented 2026-10-20 table-search/pagination follow-up was corrected after visual review; the current contract is recorded in section 16 and its final verification in HANDOFF.md.
+**Prior implementation status (2026-10-17):** Five corrections implemented; 46 browser checks passed at tested sizes. Original MacBook Neo viewport/zoom remained unverified. The initially implemented 2026-10-20 table-search/pagination follow-up was corrected after visual review; the current contract is recorded in section 16. Later verification records are maintained on `dev`.
 **Scope:** Simulation page — BOM and RTG tables only
 
 ---

@@ -1859,7 +1859,7 @@ This document is intentionally comprehensive and should be treated as the conver
 
 - The user designated the 80-topic checklist, the two linked ChatGPT conversations, and this review context plus `MASTER_DATA_SPEC.md` as the current source set.
 - The older files in `agreements/` are outdated and are historical references only.
-- `tasks/source-crosswalk-80.md` remains the single row-by-row evidence/status ledger. The 80 rows are checked against source decisions; they are not 80 feature tickets to implement blindly.
+- The development-only `tasks/source-crosswalk-80.md` remains the row-by-row evidence/status ledger on `dev`. The 80 rows are checked against source decisions; they are not 80 feature tickets to implement blindly.
 - Mark a row PASS only when there is current implementation evidence. Keep unresolved or human-acceptance items distinct from completed AI implementation.
 
 ## Comparison and layout

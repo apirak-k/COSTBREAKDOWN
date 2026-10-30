@@ -415,7 +415,7 @@ try {
   verify(await evaluate('document.querySelector("#app-help-title")?.nextElementSibling === null'), 'Help header contains no subtitle')
   verify(await evaluate('document.querySelectorAll("#app-help-section [data-faq-item]").length === 0'), 'Help has no FAQ content')
   const sectionCases = [
-    ['Workflow', 'Prepare datasets'],
+    ['Workflow', 'Prepare data'],
     ['Master Data', 'Dataset roles'],
     ['Cost Breakdown', 'Standard Cost Gap'],
     ['Simulation', 'Edit scenario'],
@@ -435,7 +435,7 @@ try {
   verify(!workflowText.includes('↓'), 'Workflow diagram has no floating arrow text')
   const workflowSteps = await evaluate('[...document.querySelectorAll("#app-help-section [data-help-workflow-step]")].map(step => ({ number: step.getAttribute("data-help-workflow-step"), text: step.innerText.trim(), hasIcon: Boolean(step.querySelector("svg")) }))')
   verify(JSON.stringify(workflowSteps.map(step => step.number)) === JSON.stringify(['1', '2', '3', '4', '5', '6']), 'Workflow has six ordered steps')
-  verify(workflowSteps.every(step => step.hasIcon) && ['Prepare datasets', 'Check with Prepare Dataset', 'Compare in Cost Breakdown', 'Test supported changes', 'Send to matching Master Data', 'Export dataset'].every(label => workflowSteps.some(step => step.text.includes(label))), 'Workflow steps use the required short actions and real icons')
+  verify(['Prepare data', 'Check readiness', 'Analyze cost changes', 'Test supported changes', 'Clone or Send if needed', 'Export when ready'].every(label => workflowSteps.some(step => step.text.includes(label))), 'Workflow steps use the approved short actions')
   verify(!workflowText.includes('Reference → Current') && !workflowText.includes('Current → Custom') && !workflowText.includes('Import original XLSX into Reference'), 'Workflow does not require a fixed dataset-role sequence')
 
   await clickButton('Master Data', 'nav[aria-label="Help sections"]')
@@ -452,24 +452,24 @@ try {
   verify(costContent.includes('After − Before') && costContent.includes('Standard Cost Gap'), 'Cost Breakdown shows the gap formula')
   verify(costContent.includes('CHANGED') && costContent.includes('ADDED') && costContent.includes('REMOVED'), 'Cost Breakdown explains row statuses')
   verify(costContent.includes('Full Gap') && costContent.includes('Selected rows only.'), 'Cost Breakdown separates full Gap from selected contribution')
-  verify(costContent.includes('Uses Master Data Working, including unsaved edits.'), 'Cost Breakdown explains which Master Data values it reads')
+  verify(costContent.includes('Reflects the latest Master Data Working values.'), 'Cost Breakdown explains which Master Data values it reads')
   verify(await evaluate('(() => { const row = document.querySelector("[data-help-cost-group=row-status]"); const gap = document.querySelector("[data-help-cost-group=gap]"); return Boolean(row && gap && !row.contains(gap) && row.compareDocumentPosition(gap) & Node.DOCUMENT_POSITION_FOLLOWING && row.getBoundingClientRect().bottom < gap.getBoundingClientRect().top && !row.classList.contains("border") && !gap.classList.contains("border")) })()'), 'Cost Breakdown keeps flat Row status above a separate Gap section')
 
   await clickButton('Simulation', 'nav[aria-label="Help sections"]')
   const simulationContent = await evaluate('document.querySelector("#app-help-section")?.innerText ?? ""')
   verify(await evaluate('JSON.stringify([...document.querySelectorAll("#app-help-section [data-help-simulation-block]")].map(block => block.getAttribute("data-help-simulation-block"))) === JSON.stringify(["edit-scenario", "result-comparison", "actions"])'), 'Simulation has only Edit scenario, Result comparison, and Actions')
-  verify(simulationContent.includes('Active Dataset') && simulationContent.includes('Result Before → Result After') && simulationContent.includes('≠') && simulationContent.includes('Changing comparison does not change Active Dataset or Send target.'), 'Simulation separates the active edit target from comparison')
+  verify(simulationContent.includes('Active Dataset') && simulationContent.includes('Result Before → Result After') && simulationContent.includes('≠') && simulationContent.includes('Changing the result pair does not change Active Dataset.'), 'Simulation separates the active edit target from comparison')
   verify(simulationContent.includes('Price') && simulationContent.includes('Usage') && simulationContent.includes('Loss') && simulationContent.includes('Manning') && simulationContent.includes('Capacity') && simulationContent.includes('Yield'), 'Simulation lists supported BOM and Routing changes')
   verify(simulationContent.includes('Selling Price') && simulationContent.includes('SG&A') && simulationContent.includes('Action Cost') && simulationContent.includes('Batch Size'), 'Simulation lists its economic inputs')
-  verify(simulationContent.includes('Simulation edits existing rows. Add/remove rows in Master Data.'), 'Simulation explains where to add or remove rows')
-  verify((simulationContent.match(/matching Master Data Working/g) ?? []).length === 1 && simulationContent.includes('BOM / Routing only · Economics stay in Simulation.'), 'Simulation gives one clear Send destination and scope')
-  verify(simulationContent.includes("Reload this role's Master Data Working.") && simulationContent.includes('Clear Action Cost and Batch Size.'), 'Simulation Reset matches its current behavior')
+  verify(simulationContent.includes('Add or remove rows in Master Data. Changes there are reflected here.'), 'Simulation explains where to add or remove rows')
+  verify((simulationContent.match(/matching Master Data Working/g) ?? []).length === 1 && simulationContent.includes('Send BOM/Routing from Active Dataset to matching Master Data Working.'), 'Simulation gives one clear Send destination and scope')
+  verify(simulationContent.includes("Reload this role's Master Data Working and clear Action Cost and Batch Size."), 'Simulation Reset matches its current behavior')
 
   await clickButton('Quick Reference', 'nav[aria-label="Help sections"]')
   const quickText = await evaluate('document.querySelector("#app-help-section")?.innerText ?? ""')
   verify(['Save ≠ Export', 'Working ≠ Last Saved', 'Warning ≠ Blocker', 'Active Dataset ≠ Result Before / After'].every(pair => quickText.includes(pair)), 'Quick Reference includes the four useful distinctions')
   verify(quickText.includes('Export — XLSX saved where you choose.'), 'Export copy matches the choose-location flow')
-  verify(quickText.includes('Closing the browser ends the session. Export to keep data.') && quickText.includes('A Master Data source change can rebuild its Simulation scenario.'), 'Quick Reference covers session and scenario rebuilds')
+  verify(quickText.includes('Closing the browser ends the session. Export to keep data.'), 'Quick Reference explains how to keep session data')
   const headerToolLabels = await evaluate('[...document.querySelectorAll("#app-help-section [data-help-header-tool]")].map(node => node.getAttribute("data-help-header-tool"))')
   verify(JSON.stringify(headerToolLabels) === JSON.stringify(['Undo', 'Redo', 'Help', 'Prepare Dataset']), 'Quick Reference follows the actual header tool order')
   verify(!quickText.includes('? · Help') && !quickText.includes('i · Prepare Dataset'), 'Quick Reference does not repeat header symbols in text')

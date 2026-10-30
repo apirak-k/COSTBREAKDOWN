@@ -259,7 +259,7 @@ Historical dashboard periods, time-series data sources, Reference/Current-to-per
 
 ## Human Review Checkpoint
 
-The user visually accepted the final UI mini-round at baseline `07a2c86a15d8716beacc20e9761a8073feadf914` on 2026-10-20. That acceptance closes the visual product checkpoint; it does not replace the separate regression and browser verification evidence recorded in the current [`HANDOFF.md`](../../HANDOFF.md).
+The user visually accepted the final UI mini-round at baseline `07a2c86a15d8716beacc20e9761a8073feadf914` on 2026-10-20. That acceptance closes the visual product checkpoint; it does not replace the separate regression and browser verification evidence recorded for each source commit on the `dev` branch.
 
 ## Traceability
 
