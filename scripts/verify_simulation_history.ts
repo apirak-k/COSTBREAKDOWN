@@ -1,0 +1,381 @@
+import assert from 'node:assert/strict'
+import { createServer } from 'vite'
+
+const vite = await createServer({
+  server: { middlewareMode: true, hmr: false },
+  appType: 'custom',
+  logLevel: 'error',
+  optimizeDeps: { noDiscovery: true, entries: [] }
+})
+
+try {
+  const { createCompleteMasterDataMockPair } = await vite.ssrLoadModule('/src/features/master-data/fixtures/synthetic-review-data.ts')
+  const { calculateParameterSimulation, updateSimulationParameter } = await vite.ssrLoadModule('/src/features/simulation/simulation-engine.ts')
+  const {
+    createEmptySimulationState,
+    getEffectiveSimulationDataset,
+    reconcileSimulationState,
+    resetSimulationParameters,
+    setSimulationActiveDataset,
+    setSimulationComparison,
+    setSimulationEconomicInput,
+    toggleSimulationWorkingTarget
+  } = await vite.ssrLoadModule('/src/features/simulation/simulation-state.ts')
+  const {
+    applySimulationEditableSnapshot,
+    captureSimulationEditableSnapshot,
+    clearSimulationHistory,
+    clearSimulationHistoryChronologyRoles,
+    createSimulationHistory,
+    createSimulationHistoryChronology,
+    isSimulationEditableSnapshotEqual,
+    peekSimulationHistoryChronology,
+    recordSimulationHistory,
+    recordSimulationHistoryChronology,
+    redoSimulationHistory,
+    takeSimulationHistoryChronology,
+    undoSimulationHistory
+  } = await vite.ssrLoadModule('/src/features/simulation/simulation-history.ts')
+  const { calculateEconomicSimulation } = await vite.ssrLoadModule('/src/features/simulation/simulation-economics.ts')
+
+  const sourcePair = createCompleteMasterDataMockPair()
+  const sources = { ...sourcePair, custom: { ...sourcePair.current, id: 'synthetic-custom' } }
+  const base = createEmptySimulationState(sources)
+  const view = (state, role = 'current') => getEffectiveSimulationDataset(sources, state, role)
+  assert.equal(base.schemaVersion, 2)
+  assert.deepEqual([base.activeDataset, base.comparisonBefore, base.comparisonAfter], ['custom', 'current', 'custom'])
+  assert.deepEqual(view(base, 'current').economicInputs, {
+    fixedActionCost: '', variableActionCostPerPiece: '', batchSize: '',
+    sellingPriceOverride: String(sources.current.product.sellingPrice),
+    sgaPercentOverride: String(sources.current.product.sgaPercent)
+  }, 'Current Economic and Business drafts start from Current Working defaults')
+  assert.ok(view(base).snapshot.bom.length && view(base).snapshot.routing.length, 'fixture has populated BOM and Routing rows')
+  const firstBom = view(base).snapshot.bom[0]
+  const firstRouting = view(base).snapshot.routing[0]
+  const currentBasis = view(base).basisFingerprint
+  const emptyHistory = createSimulationHistory(currentBasis)
+  const baseValues = captureSimulationEditableSnapshot(sources, base, 'current')
+
+  const criticalDecimal = '123456789012345.123456789'
+  const exactEdit = updateSimulationParameter(base, sources, firstBom.id, 'bom.price', Number(criticalDecimal), 'current', criticalDecimal)
+  assert.equal(view(exactEdit).snapshot.bom[0].price, Number(criticalDecimal),
+    'Simulation calculations retain the existing JavaScript number representation')
+  assert.equal(view(exactEdit).snapshot.bom[0].exactDecimalInputs?.price, criticalDecimal,
+    'Simulation snapshot carries the exact accepted price independently of the number')
+  const reconstructedExact = reconcileSimulationState(JSON.parse(JSON.stringify(exactEdit)), sources)
+  assert.equal(view(reconstructedExact).snapshot.bom[0].exactDecimalInputs?.price, criticalDecimal,
+    'Simulation state reconstruction retains every authoritative decimal digit')
+  const exactBefore = captureSimulationEditableSnapshot(sources, base, 'current')
+  const exactAfter = captureSimulationEditableSnapshot(sources, exactEdit, 'current')
+  const exactHistory = recordSimulationHistory(emptyHistory, exactBefore, exactAfter)
+  const exactUndo = undoSimulationHistory(exactHistory, exactAfter)
+  assert.ok(exactUndo.snapshot && isSimulationEditableSnapshotEqual(exactUndo.snapshot, exactBefore),
+    'Simulation Undo snapshot retains exact decimal edit state')
+  const exactUndone = applySimulationEditableSnapshot(sources, exactEdit, exactUndo.snapshot!, 'current')
+  assert.ok(exactUndone)
+  const exactRedo = redoSimulationHistory(exactUndo.history, exactUndo.snapshot!)
+  assert.ok(exactRedo.snapshot && isSimulationEditableSnapshotEqual(exactRedo.snapshot, exactAfter),
+    'Simulation Redo snapshot restores the exact decimal string')
+  const exactRedone = applySimulationEditableSnapshot(sources, exactUndone, exactRedo.snapshot!, 'current')
+  assert.ok(exactRedone)
+  assert.equal(view(exactRedone).snapshot.bom[0].exactDecimalInputs?.price, criticalDecimal,
+    'Redo reapplies every exact decimal digit to the reconstructed Simulation row')
+
+  const priceSource = 'simulation:current:bom:sample:price'
+  const usageSource = 'simulation:current:bom:sample:consumption'
+  const priceProvenance = { [priceSource]: String(firstBom.price) }
+  const exactHistoryWithProvenance = recordSimulationHistory(emptyHistory, exactBefore, exactAfter, {}, priceProvenance)
+  assert.equal(exactHistoryWithProvenance.undo.length, 1, 'direct-source metadata remains inside the existing single edit entry')
+  const provenanceUndo = undoSimulationHistory(exactHistoryWithProvenance, exactAfter)
+  assert.deepEqual(provenanceUndo.directEditSources, {},
+    'Undo restores source provenance to its pre-edit state')
+  assert.deepEqual(redoSimulationHistory(provenanceUndo.history, exactBefore).directEditSources, priceProvenance,
+    'Redo restores source provenance with the edited exact value')
+  const bothChanged = updateSimulationParameter(exactEdit, sources, firstBom.id, 'bom.consumption',
+    (firstBom.consumption ?? 0) + 0.1, 'current')
+  const bothChangedSnapshot = captureSimulationEditableSnapshot(sources, bothChanged, 'current')
+  const bothProvenance = { ...priceProvenance, [usageSource]: String(firstBom.consumption) }
+  const sequentialHistory = recordSimulationHistory(
+    exactHistoryWithProvenance,
+    exactAfter,
+    bothChangedSnapshot,
+    priceProvenance,
+    bothProvenance
+  )
+  const undoUsageWithProvenance = undoSimulationHistory(sequentialHistory, bothChangedSnapshot)
+  assert.deepEqual(undoUsageWithProvenance.directEditSources, priceProvenance,
+    'Undo of a later source preserves the earlier direct-source provenance')
+  assert.deepEqual(redoSimulationHistory(undoUsageWithProvenance.history, undoUsageWithProvenance.snapshot!).directEditSources, bothProvenance,
+    'Redo restores both sources without adding or regrouping history entries')
+
+  const exactSellingPriceDraft = setSimulationEconomicInput(base, 'sellingPriceOverride', criticalDecimal, 'current')
+  const exactEconomicView = view(exactSellingPriceDraft)
+  const exactEconomicCalculation = calculateEconomicSimulation(
+    exactEconomicView.snapshot,
+    calculateParameterSimulation(exactEconomicView.baselineSnapshot, exactEconomicView.snapshot).afterCost,
+    null,
+    exactEconomicView.economicInputs
+  )
+  assert.equal(exactEconomicView.economicInputs.sellingPriceOverride, criticalDecimal,
+    'Economic editor application state retains the accepted selling price text')
+  assert.equal(exactEconomicCalculation.business.sellingPrice, Number(criticalDecimal),
+    'Economic calculations continue to use the numeric representation of the exact text')
+
+  const unchanged = recordSimulationHistory(emptyHistory, baseValues, baseValues)
+  assert.equal(unchanged.undo.length, 0, 'a no-op edit does not create a history entry')
+  let noOpChronology = createSimulationHistoryChronology()
+  if (unchanged !== emptyHistory) noOpChronology = recordSimulationHistoryChronology(noOpChronology, 'current', unchanged.undo.length)
+  assert.deepEqual(noOpChronology, createSimulationHistoryChronology(), 'a no-op edit does not enter cross-role chronology')
+
+  let chronologicalRoles = createSimulationHistoryChronology()
+  chronologicalRoles = recordSimulationHistoryChronology(chronologicalRoles, 'current', 1)
+  chronologicalRoles = recordSimulationHistoryChronology(chronologicalRoles, 'custom', 1)
+  assert.deepEqual(chronologicalRoles.undo, ['current', 'custom'], 'cross-role chronology records Current A then Custom B')
+  let chronologyStep = takeSimulationHistoryChronology(chronologicalRoles, 'undo')
+  assert.equal(chronologyStep.role, 'custom', 'first Header Undo targets the newest Custom action B')
+  chronologyStep = takeSimulationHistoryChronology(chronologyStep.chronology, 'undo')
+  assert.equal(chronologyStep.role, 'current', 'second Header Undo falls back to the previous Current action A')
+  assert.deepEqual(chronologyStep.chronology.undo, [], 'all chronological Undo entries are consumed')
+  assert.deepEqual(chronologyStep.chronology.redo, ['custom', 'current'], 'Undo stores inverse Redo order')
+  chronologyStep = takeSimulationHistoryChronology(chronologyStep.chronology, 'redo')
+  assert.equal(chronologyStep.role, 'current', 'first Header Redo restores Current action A')
+  chronologyStep = takeSimulationHistoryChronology(chronologyStep.chronology, 'redo')
+  assert.equal(chronologyStep.role, 'custom', 'second Header Redo restores Custom action B')
+  assert.deepEqual(chronologyStep.chronology.redo, [], 'all chronological Redo entries are consumed')
+
+  const rolePermutation = ['reference', 'current', 'custom'] as const
+  let permutation = createSimulationHistoryChronology()
+  rolePermutation.forEach(role => { permutation = recordSimulationHistoryChronology(permutation, role, 1) })
+  assert.equal(peekSimulationHistoryChronology(permutation, 'undo'), 'custom', 'latest role permutation Undo starts at Custom')
+  permutation = takeSimulationHistoryChronology(permutation, 'undo').chronology
+  assert.equal(peekSimulationHistoryChronology(permutation, 'undo'), 'current', 'next role permutation Undo falls back to Current')
+  permutation = takeSimulationHistoryChronology(permutation, 'undo').chronology
+  assert.equal(peekSimulationHistoryChronology(permutation, 'undo'), 'reference', 'next role permutation Undo falls back to Reference')
+  permutation = takeSimulationHistoryChronology(permutation, 'undo').chronology
+  assert.deepEqual(permutation.redo, ['custom', 'current', 'reference'], 'Reference / Current / Custom Redo order reverses Undo')
+  assert.equal(takeSimulationHistoryChronology(permutation, 'redo').role, 'reference')
+  assert.equal(takeSimulationHistoryChronology(takeSimulationHistoryChronology(permutation, 'redo').chronology, 'redo').role, 'current')
+
+  let sameRoleChronology = createSimulationHistoryChronology()
+  sameRoleChronology = recordSimulationHistoryChronology(sameRoleChronology, 'current', 1)
+  sameRoleChronology = recordSimulationHistoryChronology(sameRoleChronology, 'current', 2)
+  assert.deepEqual(sameRoleChronology.undo, ['current', 'current'], 'multiple actions in one role remain individually chronological')
+  const beforeVisibleRoleSwitch = structuredClone(sameRoleChronology)
+  setSimulationActiveDataset(base, 'custom')
+  assert.deepEqual(sameRoleChronology, beforeVisibleRoleSwitch, 'switching visible role without editing does not rewrite history ownership')
+  let sameRoleUndo = takeSimulationHistoryChronology(sameRoleChronology, 'undo')
+  assert.equal(sameRoleUndo.role, 'current')
+  sameRoleUndo = takeSimulationHistoryChronology(sameRoleUndo.chronology, 'undo')
+  assert.equal(sameRoleUndo.role, 'current', 'multiple same-role actions undo in reverse order')
+
+  let branchChronology = createSimulationHistoryChronology()
+  branchChronology = recordSimulationHistoryChronology(branchChronology, 'current', 1)
+  branchChronology = recordSimulationHistoryChronology(branchChronology, 'custom', 1)
+  branchChronology = takeSimulationHistoryChronology(branchChronology, 'undo').chronology
+  branchChronology = recordSimulationHistoryChronology(branchChronology, 'current', 2)
+  assert.deepEqual(branchChronology.undo, ['current', 'current'], 'a new Current edit appends to cross-role chronology')
+  assert.deepEqual(branchChronology.redo, ['custom'], 'a new edit clears only that role’s Redo, preserving another role’s local Redo')
+  assert.deepEqual(clearSimulationHistoryChronologyRoles(branchChronology, ['current']), { undo: [], redo: ['custom'] },
+    'basis invalidation removes only stale role chronology')
+
+  const usageChanged = updateSimulationParameter(base, sources, firstBom.id, 'bom.consumption', (firstBom.consumption ?? 0) + 0.1, 'current')
+  const usageValues = captureSimulationEditableSnapshot(sources, usageChanged, 'current')
+  const usageHistory = recordSimulationHistory(emptyHistory, baseValues, usageValues)
+  assert.equal(usageHistory.undo.length, 1, 'one committed Usage edit creates one entry')
+  const undoUsage = undoSimulationHistory(usageHistory, usageValues)
+  assert.ok(undoUsage.snapshot, 'Undo returns the previous editable values')
+  assert.equal(undoUsage.history.undo.length, 0)
+  assert.equal(undoUsage.history.redo.length, 1)
+  assert.ok(isSimulationEditableSnapshotEqual(undoUsage.snapshot, baseValues))
+  const redoUsage = redoSimulationHistory(undoUsage.history, undoUsage.snapshot)
+  assert.ok(redoUsage.snapshot, 'Redo returns the edited values')
+  assert.ok(isSimulationEditableSnapshotEqual(redoUsage.snapshot, usageValues))
+
+  const typedEconomics = setSimulationEconomicInput(usageChanged, 'batchSize', '100', 'current')
+  const businessChanged = setSimulationEconomicInput(typedEconomics, 'sellingPriceOverride', '275', 'current')
+  const historyAfterBatch = recordSimulationHistory(usageHistory, usageValues,
+    captureSimulationEditableSnapshot(sources, typedEconomics, 'current'))
+  const historyAfterPrice = recordSimulationHistory(historyAfterBatch,
+    captureSimulationEditableSnapshot(sources, typedEconomics, 'current'),
+    captureSimulationEditableSnapshot(sources, businessChanged, 'current'))
+  assert.equal(historyAfterPrice.undo.length, 3, 'separate committed edits preserve chronological order')
+  const undoPrice = undoSimulationHistory(historyAfterPrice,
+    captureSimulationEditableSnapshot(sources, businessChanged, 'current'))
+  assert.equal(undoPrice.snapshot?.economicInputs.sellingPriceOverride,
+    view(usageChanged).economicInputs.sellingPriceOverride)
+  const undoBatch = undoSimulationHistory(undoPrice.history, undoPrice.snapshot!)
+  assert.equal(undoBatch.snapshot?.economicInputs.batchSize, view(base).economicInputs.batchSize)
+
+  const branched = recordSimulationHistory(undoPrice.history, undoPrice.snapshot!, baseValues)
+  assert.equal(branched.redo.length, 0, 'a new edit after Undo clears Redo')
+
+  const timelineStates = [base]
+  let timeline = base
+  timeline = updateSimulationParameter(timeline, sources, firstBom.id, 'bom.consumption', (firstBom.consumption ?? 0) + 0.15, 'current')
+  timelineStates.push(timeline)
+  timeline = updateSimulationParameter(timeline, sources, firstRouting.id, 'routing.yield', (firstRouting.yield ?? 1) - 0.02, 'current')
+  timelineStates.push(timeline)
+  timeline = setSimulationEconomicInput(timeline, 'fixedActionCost', '350', 'current')
+  timelineStates.push(timeline)
+  timeline = setSimulationEconomicInput(timeline, 'variableActionCostPerPiece', '2.5', 'current')
+  timelineStates.push(timeline)
+  timeline = setSimulationEconomicInput(timeline, 'batchSize', '30', 'current')
+  timelineStates.push(timeline)
+  timeline = setSimulationEconomicInput(timeline, 'sellingPriceOverride', '275', 'current')
+  timelineStates.push(timeline)
+  timeline = setSimulationEconomicInput(timeline, 'sgaPercentOverride', '12', 'current')
+  timelineStates.push(timeline)
+  let orderedHistory = createSimulationHistory(currentBasis)
+  for (let index = 0; index < timelineStates.length - 1; index++) {
+    orderedHistory = recordSimulationHistory(
+      orderedHistory,
+      captureSimulationEditableSnapshot(sources, timelineStates[index], 'current'),
+      captureSimulationEditableSnapshot(sources, timelineStates[index + 1], 'current')
+    )
+  }
+  assert.equal(orderedHistory.undo.length, 7, 'BOM, Routing, Economic, and Business edits share one role timeline')
+  let orderedValues = captureSimulationEditableSnapshot(sources, timelineStates[7], 'current')
+  for (let index = 6; index >= 0; index--) {
+    const operation = undoSimulationHistory(orderedHistory, orderedValues)
+    assert.ok(operation.snapshot, `Undo ${7 - index} restores the previous chronological edit`)
+    orderedHistory = operation.history
+    orderedValues = operation.snapshot!
+    assert.ok(isSimulationEditableSnapshotEqual(orderedValues,
+      captureSimulationEditableSnapshot(sources, timelineStates[index], 'current')))
+  }
+  for (let index = 1; index <= 7; index++) {
+    const operation = redoSimulationHistory(orderedHistory, orderedValues)
+    assert.ok(operation.snapshot, `Redo ${index} reapplies the next chronological edit`)
+    orderedHistory = operation.history
+    orderedValues = operation.snapshot!
+    assert.ok(isSimulationEditableSnapshotEqual(orderedValues,
+      captureSimulationEditableSnapshot(sources, timelineStates[index], 'current')))
+  }
+
+  let mixed = updateSimulationParameter(base, sources, firstBom.id, 'bom.consumption', (firstBom.consumption ?? 0) + 0.2, 'current')
+  mixed = updateSimulationParameter(mixed, sources, firstRouting.id, 'routing.yield', Math.max(0.01, (firstRouting.yield ?? 1) - 0.01), 'current')
+  mixed = setSimulationEconomicInput(mixed, 'batchSize', '120', 'current')
+  mixed = setSimulationEconomicInput(mixed, 'fixedActionCost', '350', 'current')
+  mixed = setSimulationEconomicInput(mixed, 'variableActionCostPerPiece', '3.5', 'current')
+  mixed = setSimulationEconomicInput(mixed, 'sellingPriceOverride', '275', 'current')
+  mixed = setSimulationEconomicInput(mixed, 'sgaPercentOverride', '12', 'current')
+  mixed = setSimulationActiveDataset(mixed, 'current')
+  const beforeReset = captureSimulationEditableSnapshot(sources, mixed, 'current')
+  const reset = resetSimulationParameters(mixed, sources)
+  const afterReset = captureSimulationEditableSnapshot(sources, reset, 'current')
+  assert.deepEqual(afterReset.bom, baseValues.bom, 'Reset restores the complete Current BOM editable snapshot')
+  assert.deepEqual(afterReset.routing, baseValues.routing, 'Reset restores the complete Current Routing editable snapshot')
+  assert.deepEqual(afterReset.economicInputs, baseValues.economicInputs,
+    'Reset clears Simulation-only economics and restores Selling Price/SG&A from Current Working')
+  assert.deepEqual(view(reset).parameterOverrides, {}, 'Reset clears only the active role parameter overrides')
+  const resetHistory = recordSimulationHistory(createSimulationHistory(currentBasis), beforeReset, afterReset)
+  assert.equal(resetHistory.undo.length, 1, 'Reset of parameter overrides creates one history transaction')
+  const undoReset = undoSimulationHistory(resetHistory, afterReset)
+  assert.ok(undoReset.snapshot && isSimulationEditableSnapshotEqual(undoReset.snapshot, beforeReset),
+    'one role-local Undo restores all pre-Reset BOM, Routing, and Economic edits')
+  const redoReset = redoSimulationHistory(undoReset.history, undoReset.snapshot!)
+  assert.ok(redoReset.snapshot && isSimulationEditableSnapshotEqual(redoReset.snapshot, afterReset), 'Redo reapplies Reset')
+  const noOpResetHistory = recordSimulationHistory(resetHistory, afterReset,
+    captureSimulationEditableSnapshot(sources, resetSimulationParameters(reset, sources), 'current'))
+  assert.equal(noOpResetHistory.undo.length, resetHistory.undo.length, 'a no-op Reset creates no new entry')
+  const clonedHistory = clearSimulationHistory(undoReset.history, 'new-product-basis')
+  assert.equal(clonedHistory.undo.length, 0, 'a changed role basis starts a clean history')
+  assert.equal(clonedHistory.redo.length, 0)
+  assert.equal(clonedHistory.basisFingerprint, 'new-product-basis')
+
+  const selected = toggleSimulationWorkingTarget(base, sources, 'bom', firstBom.id, 'current')
+  const selectedValues = captureSimulationEditableSnapshot(sources, selected, 'current')
+  assert.ok(isSimulationEditableSnapshotEqual(selectedValues, baseValues), 'row selection is excluded from history')
+  assert.equal(recordSimulationHistory(emptyHistory, baseValues, selectedValues).undo.length, 0, 'selection alone creates no entry')
+  const selectedEdit = updateSimulationParameter(selected, sources, firstBom.id, 'bom.price', (firstBom.price ?? 0) + 3, 'current')
+  const selectedEditValues = captureSimulationEditableSnapshot(sources, selectedEdit, 'current')
+  const selectedHistory = recordSimulationHistory(createSimulationHistory(currentBasis), selectedValues, selectedEditValues)
+  const selectedUndo = undoSimulationHistory(selectedHistory, selectedEditValues)
+  const stateAfterUndo = applySimulationEditableSnapshot(sources, selectedEdit, selectedUndo.snapshot!, 'current')
+  assert.ok(stateAfterUndo, 'snapshot application resolves the row by stable ID in the selected role')
+  assert.deepEqual(view(stateAfterUndo).workingSelection, view(selectedEdit).workingSelection, 'Undo does not rewind row selection')
+  assert.deepEqual(view(stateAfterUndo).snapshot.rates, view(selectedEdit).snapshot.rates,
+    'Undo retains Current Working rates instead of a cloned SIM rate set')
+  assert.ok(isSimulationEditableSnapshotEqual(captureSimulationEditableSnapshot(sources, stateAfterUndo, 'current'), selectedValues))
+  assert.notEqual(
+    calculateParameterSimulation(sources.current, view(stateAfterUndo).snapshot).afterCost.total,
+    calculateParameterSimulation(sources.current, view(selectedEdit).snapshot).afterCost.total,
+    'derived cost recalculates from the restored editable values'
+  )
+
+  const invalidCapacity = updateSimulationParameter(base, sources, firstRouting.id, 'routing.capacity', 0, 'current')
+  assert.equal(invalidCapacity, base, 'rejected capacity values do not enter authoritative state')
+  assert.equal(recordSimulationHistory(emptyHistory, baseValues,
+    captureSimulationEditableSnapshot(sources, invalidCapacity, 'current')).undo.length, 0)
+  const invalidYield = updateSimulationParameter(base, sources, firstRouting.id, 'routing.yield', 0, 'current')
+  assert.equal(invalidYield, base, 'rejected yield values do not enter authoritative state')
+  const staleUndo = undoSimulationHistory(usageHistory, baseValues)
+  assert.equal(staleUndo.snapshot, null, 'Undo refuses to apply against an unexpected current value')
+  assert.equal(staleUndo.history.undo.length, usageHistory.undo.length)
+
+  const referenceBase = createEmptySimulationState(sources)
+  const currentEdit = updateSimulationParameter(base, sources, firstBom.id, 'bom.price', (firstBom.price ?? 0) + 5, 'current')
+  const withTwoRoleEdits = updateSimulationParameter(currentEdit, sources, sources.reference.bom[0].id,
+    'bom.price', (sources.reference.bom[0].price ?? 0) + 7, 'reference')
+  const referenceBefore = captureSimulationEditableSnapshot(sources, referenceBase, 'reference')
+  const referenceAfter = captureSimulationEditableSnapshot(sources, withTwoRoleEdits, 'reference')
+  const referenceHistory = recordSimulationHistory(
+    createSimulationHistory(view(referenceBase, 'reference').basisFingerprint), referenceBefore, referenceAfter
+  )
+  const referenceUndo = undoSimulationHistory(referenceHistory, referenceAfter)
+  const restoredReference = applySimulationEditableSnapshot(sources, withTwoRoleEdits, referenceUndo.snapshot!, 'reference')
+  assert.ok(restoredReference)
+  assert.ok(isSimulationEditableSnapshotEqual(captureSimulationEditableSnapshot(sources, restoredReference, 'reference'), referenceBefore),
+    'Reference Undo restores Reference only')
+  assert.equal(view(restoredReference, 'current').snapshot.bom[0].price,
+    view(withTwoRoleEdits, 'current').snapshot.bom[0].price, 'Reference history cannot cross-edit Current overrides')
+  assert.equal(view(restoredReference, 'reference').snapshot.bom[0].price,
+    sources.reference.bom[0].price, 'Reference override is cleared by its own history operation')
+
+  const splitContext = setSimulationComparison(
+    setSimulationActiveDataset(base, 'current'), 'reference', 'custom'
+  )
+  const splitCurrentEdit = updateSimulationParameter(splitContext, sources, firstBom.id,
+    'bom.price', (firstBom.price ?? 0) + 9, 'current')
+  const splitCustomEdit = setSimulationEconomicInput(splitCurrentEdit, 'sellingPriceOverride', '444', 'custom')
+  const activeMoved = setSimulationActiveDataset(splitCustomEdit, 'reference')
+  assert.deepEqual([activeMoved.comparisonBefore, activeMoved.comparisonAfter], ['reference', 'reference'],
+    'activeDataset preserves Result Before and synchronizes Result After')
+  assert.equal(view(activeMoved, 'custom').economicInputs.sellingPriceOverride, '444',
+    'the Custom economic draft remains intact after Active moves Result After to Reference')
+
+  const currentSplitBefore = captureSimulationEditableSnapshot(sources, splitContext, 'current')
+  const currentSplitAfter = captureSimulationEditableSnapshot(sources, splitCurrentEdit, 'current')
+  const customSplitBefore = captureSimulationEditableSnapshot(sources, splitCurrentEdit, 'custom')
+  const customSplitAfter = captureSimulationEditableSnapshot(sources, splitCustomEdit, 'custom')
+  const currentSplitHistory = recordSimulationHistory(
+    createSimulationHistory(view(base, 'current').basisFingerprint), currentSplitBefore, currentSplitAfter
+  )
+  const customSplitHistory = recordSimulationHistory(
+    createSimulationHistory(view(base, 'custom').basisFingerprint), customSplitBefore, customSplitAfter
+  )
+  const undoCustomEconomic = undoSimulationHistory(customSplitHistory, customSplitAfter)
+  assert.ok(undoCustomEconomic.snapshot, 'Undo targets the role that owns the After Economic edit')
+  const afterEconomicUndo = applySimulationEditableSnapshot(sources, splitCustomEdit, undoCustomEconomic.snapshot!, 'custom')
+  assert.ok(afterEconomicUndo)
+  assert.equal(view(afterEconomicUndo, 'current').snapshot.bom[0].price, view(splitCurrentEdit, 'current').snapshot.bom[0].price,
+    'undoing Custom Economics leaves Current parameter edits untouched')
+  const undoCurrentParameter = undoSimulationHistory(currentSplitHistory, currentSplitAfter)
+  assert.ok(undoCurrentParameter.snapshot, 'Current parameter edit retains its own history')
+  const afterParameterUndo = applySimulationEditableSnapshot(sources, afterEconomicUndo, undoCurrentParameter.snapshot!, 'current')
+  assert.ok(afterParameterUndo)
+  assert.equal(view(afterParameterUndo, 'current').snapshot.bom[0].price, view(base, 'current').snapshot.bom[0].price,
+    'Current parameter Undo restores the active editor role')
+  assert.equal(view(afterParameterUndo, 'custom').economicInputs.sellingPriceOverride,
+    view(base, 'custom').economicInputs.sellingPriceOverride,
+    'Current parameter Undo does not mutate Custom Economic history')
+
+  const differentProductHistory = createSimulationHistory('another-product')
+  assert.equal(differentProductHistory.undo.length, 0, 'a second product has an independent empty history')
+  assert.equal(clearSimulationHistory(usageHistory, 'new-current-basis').undo.length, 0,
+    'a changed Master dataset basis clears old role history')
+
+  console.log('PASS: Simulation history covers exact decimal reconstruction, Undo/Redo, calculation values, chronology, Reset, branching, product and role scope, economics, rates, selection, validation, and recalculation.')
+} finally {
+  await vite.close()
+}

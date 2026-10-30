@@ -1,164 +1,190 @@
 # COSTBREAKDOWN user guide
 
-Prepare your data, choose an analysis, then keep the inputs you need.
+Prepare your datasets, explain a cost difference, or test a proposed change. The in-app **? Help** is the primary guide; this page adds screenshots and detailed examples.
 
-[Master Data](#prepare-your-data) · [Cost Breakdown](#explain-a-cost-change) · [Simulation](#try-a-change) · [Keep your work](#keep-your-work)
+Screenshots use fictional example datasets. Open an image to view it at full size.
 
-![Excel import and export, Master Data Working values, Last Saved, Cost Breakdown, and Simulation inside the current browser session.](docs/images/data-session.svg)
+[Start](#start-and-finish-a-session) · [Prepare data](#prepare-your-datasets) · [Resolve issues](#resolve-warnings-and-blockers) · [Compare costs](#explain-a-cost-difference) · [Simulate](#try-a-what-if-scenario) · [Save and Export](#keep-your-work) · [Troubleshooting](#troubleshooting)
 
-Excel brings inputs to Master Data. Cost Breakdown reads Working values; Simulation tests a proposal and can send supported changes back. Export creates a workbook you can keep.
+## Start and finish a session
 
-Screenshots show the real app with example data. Numbers match the notes below each image. Open an image at full size to read small controls.
+Open `COSTBREAKDOWN.html` in a modern browser. It runs directly from `file://` without installation or a local server. Your work stays in the current browser session.
 
-## Open the app
+Choose a work area from the top navigation:
 
-Double-click **COSTBREAKDOWN.html**. It opens directly in your browser from the file, with no local server or runtime installation.
-
-## Prepare your data
-
-Open **Master Data**. Choose the dataset that should receive your changes before editing or importing.
-
-![Master Data in Edit mode with two BOM rows selected, a numeric field focused, and dataset controls visible.](docs/images/master-data.png)
-
-| Marker | What to do |
+| Work area | Use it for |
 |---|---|
-| 1 | Choose Reference, Current, or Custom. Each holds its own data. |
-| 2 | Use View/Edit and the dataset actions. Hover over an icon to see its name. |
-| 3 | Search rows. Choose BOM, WC, RTG, or All to change the table view. |
-| 4 | Select row numbers for group actions in Edit mode. Rows 1 and 3 are selected here. |
-| 5 | Use Value to preview supported numbers or edit the focused numeric field. |
-| 6 | Open Prepare Dataset to check readiness, warnings, and blockers. |
+| Master Data | Prepare the inputs used by the analyses. |
+| Cost Breakdown | Explain the difference between two datasets. |
+| Simulation | Test proposed parameter changes and economic assumptions. |
 
-Reference can hold your baseline, Current your latest inputs, and Custom an alternative. You can compare any two datasets.
+Before ending the browser session, [export important datasets](#keep-your-work). Closing the browser session ends the current work session; Export creates the Excel file you can keep.
 
-### Enter data or use Excel
+## Prepare your datasets
 
-Select the pencil for Edit mode. Enter the product details, then fill the tables:
+### Choose where the data belongs
 
-| Table | Inputs |
+In **Master Data**, select **Reference**, **Current**, or **Custom** before editing or importing. Each is an independent dataset. A useful starting arrangement is an agreed baseline in Reference, the latest data in Current, and an alternative in Custom. Custom has no fixed business status.
+
+![Master Data: dataset choices at marker 1, View/Edit at 2, dataset actions at 3, search and table filters at 4, and editable tables at 5.](docs/images/master-data.png)
+
+Select the pencil control for **Edit** mode. Enter product information and work through the tables:
+
+| Table | Inputs to prepare |
 |---|---|
-| Bill of Materials (BOM) | Material, Usage, Unit, Price, and Loss. |
-| Work Centers (WC) | Work Center, Labor Rate, and Burden Rate. |
-| Routing (RTG) | Process, Work Center, Manning, Capacity, and Yield. |
+| BOM | Material, Usage, Unit, Price, and Loss. |
+| Work Centers (WC) | Work Center identity, Labor Rate, and Burden Rate. |
+| Routing (RTG) | Process, its Work Center, Manning, Capacity, and Yield. |
 
-Each Routing Work Center must refer to the intended center in the same dataset.
+Routing must link to the intended Work Center in the same dataset. Use notes for context, search to find rows, and BOM / WC / RTG / All to control which tables are shown. You can add, delete, and reorder rows in Edit mode.
 
-To start from Excel:
+### Start from another dataset
 
-1. Open **Sizing**, set the row counts, and choose **Download Template**.
-2. Fill the workbook in Excel. Keep the required sheets and headings.
-3. Select the destination dataset in Master Data and open **Import**.
-4. Choose your `.xlsx` file. Review its status, row counts, and warnings.
-5. Choose **Import** to apply a valid workbook. Selecting a file alone does not replace data.
+Select the **destination** dataset, open **Clone from**, and choose the source. For example, select Custom and clone from Current to prepare an alternative.
 
-Import replaces the destination's Working data. Invalid workbooks cannot be applied. Expand **Import warnings** to read a long list.
+Clone replaces the destination's current **Working** values. Its **Last Saved** checkpoint stays unchanged. Review the destination before continuing.
 
-**Apply Sizing** changes row counts in Master Data. Download Template uses the form's counts without requiring Apply Sizing first. Limits are BOM 1,000, Work Centers 500, and Routing 500. Reducing counts removes rows from the end, so check your data first.
+### Bring data in from Excel
 
-To copy existing data, select the destination, open **Clone from**, and choose the source. For example, clone Current into Custom to prepare an alternative. Clone replaces the destination's Working data.
+1. Open **Sizing** in Master Data. Set the BOM, Work Center, and Routing row counts.
+2. Choose **Download Template**, then fill the workbook in Excel. Keep the required sheets and headings intact.
+3. Return to Master Data and select the **destination** dataset.
+4. Open **Import**, choose a compatible `.xlsx` file, and review the workbook summary and warnings.
+5. Choose **Import** in the dialog to apply a valid workbook. Selecting the file alone does not replace your data.
 
-You can add, delete, and reorder rows in Edit mode. Selecting rows supports group actions; it does not limit analysis or Export.
+![Import dialog showing the destination dataset and the area for choosing an Excel workbook.](docs/images/import.png)
 
-### Check the data
+Import replaces the selected dataset's Working values and leaves Last Saved unchanged. An invalid workbook cannot be applied. If the warning list is long, expand **Import warnings** and scroll within it.
 
-Open **i**, then expand a Warning or Blocker category. Select an affected location to reach its dataset, table, row, and field.
+You can also use **Apply Sizing** to change row counts directly in Master Data. Download Template uses the counts in the form without requiring Apply Sizing first. The limits are **BOM 1,000**, **Work Centers 500**, and **Routing 500** rows. Review existing data before reducing a table's size. [View the Sizing dialog](docs/images/sizing.png).
 
-- **Warnings:** review generated names and renamed duplicates.
-- **Blockers:** fill the required inputs identified by the issue.
+## Resolve warnings and blockers
 
-The readiness indicator concerns Reference and Current. Custom's issues do not determine that pair's readiness. Check Product Match / Product Mismatch before comparing.
+Open the header **i** button to view **Prepare Dataset**. Select a dataset row to filter its issues, then expand a Warning or Blocker category.
 
-**Saved** means Working matches Last Saved. **Draft** means it differs, or no checkpoint exists. These labels describe the checkpoint state, not whether the inputs are complete.
+![Prepare Dataset: the header i button at marker 1, dataset readiness at 2, and expandable issue categories at 3.](docs/images/prepare-dataset.png)
 
-### Read and edit numbers
-
-Numbers may be shortened or use scientific notation. Hover over a supported number to preview it in **Value**. Click a read-only number to pin or unpin it.
-
-Focus an editable numeric field to see its input value. You can also edit that field through Value. Display formatting does not change stored values.
-
-## Explain a cost change
-
-Open **Cost Breakdown**. The default pair is Before = Reference and After = Current. Analysis uses current Master Data Working values, including unsaved edits.
-
-![Cost Breakdown with MAT-A selected, its Selected contribution visible, and its parameter details expanded.](docs/images/cost-breakdown.png)
-
-| Marker | What to do |
+| Issue | What to check |
 |---|---|
-| 7 | Choose Before and After. Either can use any of the three datasets. |
-| 8 | Read the cost overview and Work Center contributions. |
-| 9 | Read Selected beside the full Gap to see the contribution of chosen findings. |
-| 10 | Select a BOM or Routing row number. Select it again to remove it from the focus. |
-| 11 | Expand a CHANGED row to compare its inputs and Parameter Cost Effects. |
-| 12 | Choose BOM, RTG, or All. Filter and sort to find the rows you need. |
+| Generated identity | A row received a generated name. Confirm that it identifies the intended material, Work Center, or process. |
+| Auto-renamed duplicate | A duplicate name was renamed. Check whether the rows represent distinct items and give them appropriate identities. |
+| Missing required value | Enter the required data shown by the Blocker. |
 
-**Standard Cost Gap = After − Before.** A positive Gap means After costs more. A negative Gap means it costs less.
+Select an affected location to open the correct dataset and table, select the row, and focus the target field. Correct it in Edit mode, then review the issue list again. [See a field reached through an issue](docs/images/jump-to-field.png).
 
-In this example, the full Gap is **+16.05**. MAT-A contributes **+4.20**, caused by its Price changing from **10.00** to **12.00**. Selecting more findings combines their contributions while the full Gap stays visible.
+The overall readiness indicator concerns **Reference and Current**. Custom's issues are shown but do not determine that pair's readiness. Warnings call for review; Blockers can keep the pair from being ready. Check **Product Match / Product Mismatch** to confirm that you are comparing the intended product.
 
-For CHANGED rows, parameter columns show After minus Before. ADDED and REMOVED rows show values from the side where they exist. UNCHANGED rows have no business change.
+## Explain a cost difference
 
-Changing the comparison pair or its source data clears the selected findings. Selected Comparison belongs to Cost Breakdown; it does not change data or control Simulation.
+Open **Cost Breakdown** and choose **Before** and **After**. The default is **Reference → Current**; either side can use any of the three datasets. Analysis uses the latest Master Data **Working** values, so you can compare edits before saving a checkpoint.
 
-## Try a change
+**Standard Cost Gap = After − Before.** A positive Gap means After costs more; a negative Gap means it costs less. Standard Cost combines Material, Labor, and Burden.
 
-Open **Simulation** to test a proposal. To test a copy of Current, clone it into Custom in Master Data first.
+Read the cost overview, then use the BOM and Routing findings to locate the contributors. The Work Center panel supplies conversion-cost context. Filter by table or status, and sort the findings as needed.
 
-A new Simulation starts with Custom active and Result set to Current → Custom.
+Findings are marked **ADDED**, **REMOVED**, **CHANGED**, or **UNCHANGED**. Expand a changed finding to inspect Before, After, and **Parameter Cost Effect** details.
 
-![Simulation with Custom active, a changed BOM Price, and action costs and Batch Size entered.](docs/images/simulation.png)
+### Focus on a few findings
 
-| Marker | What to do |
+Select a numbered row button on the left of a BOM or Routing finding. The overview shows its **Selected** contribution beside the full Gap. Select more findings to study them together; select a row again to remove it from the focus.
+
+![Selected Comparison: marker 1 selects a finding; marker 2 shows its contribution beside the full Gap.](docs/images/selected-comparison.png)
+
+Here, the selected finding contributes **+4.20** to the full **+16.05** Standard Cost Gap. The full comparison remains visible.
+
+Changing the Before/After pair or its Working data clears the selected membership. Selected Comparison belongs to Cost Breakdown. It does not change Master Data or control Simulation.
+
+## Try a what-if scenario
+
+For a separate proposal, a useful starting point is **Master Data → Custom → Clone from → Current**. Then open **Simulation**. Simulation initially has **Custom active** and compares **Current → Custom** in Result.
+
+![Simulation: active dataset beneath Cost Structure at marker 1, Result comparison at 2, BOM and Routing parameters at 3 and 4, assumptions at 5, and Send/Reset at 6.](docs/images/simulation.png)
+
+### Choose the workspace and the comparison
+
+| Control | What it determines |
 |---|---|
-| 13 | Choose the active dataset below Cost Structure. The underlined dataset is used for editing, Send, and Reset. |
-| 14 | Choose the Before and After scenarios displayed in Result. |
-| 15 | Read Cost Structure. Use its legend to show or hide components; Show all restores them. |
-| 16 | Try BOM Price, Usage, and Loss, or Routing Manning, Capacity, and Yield. Expand rows for effect details. |
-| 17 | Set Selling Price, SG&A, action costs, and Batch Size for profit and break-even analysis. |
-| 18 | Send the active proposal to Master Data, or Reset that scenario. |
+| Underlined dataset beneath Cost Structure | The active dataset for editing, Send, and Reset. |
+| Before / After in Result | The two scenarios displayed in Result. |
 
-Choosing an active dataset also sets Result's After. You can then change the Result pair separately. **Send follows the active dataset, even when Result's After shows another dataset.**
+Selecting a dataset beneath Cost Structure also sets Result's After dataset. You can then change the Result pair independently. **Send still follows the underlined active dataset**, even if Result's After selector shows another role.
 
-Here, Custom's MAT-A Price is **11.00**, compared with **12.00** in its Master Data inputs. Result shows how the proposal changes cost and profit. Break-even compares cumulative parameter savings with total action cost across production quantities.
+### Change the proposal and read the result
 
-Select rows to bring them to the top of the scenario table. This does not filter Result or limit Send.
+Edit **BOM Price, Usage, and Loss**, or **Routing Manning, Capacity, and Yield**. Work Center rates, identities, and table structure are changed in Master Data. Simulation row statuses compare the active scenario with that role's Master Data basis.
 
-### Use or discard the proposal
+Use the Business and Economic panel for **Selling Price**, **SG&A %**, **Variable Action Cost**, **Fixed Action Cost**, and **Batch Size**. These assumptions are used only by Simulation for profit and break-even analysis.
+
+- **Cost Structure** shows cost components and business outcomes across the datasets. Use the legend to show or hide components; Show all restores them.
+- **Result** compares the chosen Before and After scenarios, including Standard Cost and Operating Profit.
+- **Break-even** compares cumulative parameter savings with total action cost across production quantities. Review where the lines meet and the outcome at your Batch Size.
+
+Simulation starts from Master Data Working values. If you change a role's Working data in Master Data, that role's existing scenario is rebuilt from the updated basis. Review or finish the scenario before changing its source data.
+
+### Keep or discard the proposal
+
+To use the parameter changes, confirm the active dataset and choose **Send** (the paper-plane icon). Return to the **same role** in Master Data to review the result. Send copies supported BOM/Routing parameters into Working values; it leaves Last Saved unchanged. Selling Price / SG&A overrides, action costs, and Batch Size are not sent to Master Data. Updating the Working basis through Send can also reset that role's scenario assumptions.
+
+Use **Save** in Master Data to checkpoint the sent values, or **Export** to create an Excel copy.
+
+To discard the active scenario, choose **Reset**. It restores that role's parameter values to the current Master Data basis and restores its business/economic defaults. It keeps the active dataset and Result selectors unchanged.
+
+The secondary **Send all datasets** and **Reset all** actions are available by hovering over the control, or focusing it and pressing **Alt + Down Arrow**:
 
 | Action | Effect |
 |---|---|
-| Send | Copies supported BOM/Routing parameters into the active dataset's Master Data Working values. |
-| Reset | Restores the active scenario from its current Master Data inputs and default assumptions. Keeps the active dataset and Result pair. |
-| Send all datasets | Sends each scenario's supported parameters to its matching Master Data dataset. |
-| Reset all | Resets all scenarios and restores active Custom with Result Current → Custom. |
+| Send all datasets | Sends each Simulation role's supported parameters to its matching Master Data Working role. |
+| Reset all | Resets all three scenarios and restores active Custom with Result Current → Custom. |
 
-Hover over Send or Reset, or focus it and press **Alt + Down Arrow**, to access the all-dataset actions.
-
-Work Center rates, names, and row structure are edited in Master Data. Selling Price / SG&A overrides, action costs, and Batch Size stay in Simulation. Send does not copy them back.
-
-Changing a dataset's source Working data rebuilds its scenario and assumptions. This can also happen after Send. Review or record your proposal before changing its source data. Simulation Reset actions leave Master Data unchanged.
+Simulation Reset actions leave Master Data unchanged.
 
 ## Keep your work
 
-Working data, checkpoints, and scenarios belong to the current browser session. Closing the browser ends that working session, so Export the data you want to keep as an XLSX file before closing it.
+Working values, Last Saved checkpoints, and Simulation belong to the current browser session. There is no permanent shared database. **Export important work before ending the session.**
 
-| Master Data action | Effect |
+```mermaid
+flowchart TB
+    File["Excel workbook<br/>On your device"]
+    subgraph Session["Current browser session"]
+        Working["Master Data<br/>Working values"]
+        Saved["Last Saved"]
+        Compare["Cost Breakdown"]
+        Simulate["Simulation<br/>What-if values"]
+        Working -->|Save| Saved
+        Saved -->|Reset| Working
+        Working -->|Read| Compare
+        Working -->|Basis| Simulate
+        Simulate -->|"Send parameters"| Working
+    end
+    File -->|Import| Working
+    Working -->|Export| File
+```
+
+Each role has its own Last Saved checkpoint and Simulation scenario. Send returns supported parameters to the matching Working role.
+
+### Save a checkpoint during the session
+
+**Save** copies the selected Master Data dataset's Working values into Last Saved. **Reset** restores that checkpoint. If none exists, Reset uses the dataset's initial reset basis, which can be established by Import.
+
+**Clear** blanks editable Working values while keeping the table structure and Last Saved. Clone, Import, and Simulation Send also leave Last Saved unchanged. Use the header Undo/Redo controls to step through supported Master Data Working edits.
+
+Save, Reset, and Clear act on the selected role. Their all-dataset actions apply to Reference, Current, and Custom together; access them by hovering over the control or pressing **Alt + Down Arrow** while it has focus.
+
+### Export a file to keep or share
+
+In **Master Data**, select the dataset and choose **Export**. The workbook contains its current Working data, including unsaved edits and parameters received through Send. Repeat for each dataset you need to keep.
+
+Save does not create a file. Export does not require Save first. Cost Breakdown and Simulation have no separate Export command; send supported scenario parameters back to Master Data before exporting them. Simulation-only economic assumptions are not included through Send.
+
+## Troubleshooting
+
+| What happened | What to do |
 |---|---|
-| Save | Copies the active dataset's Working data into its Last Saved checkpoint for the current browser session. |
-| Reset | Restores Last Saved, or the initial reset state if no checkpoint exists. Import can establish that initial state. |
-| Clear | Blanks editable Working values while keeping the row structure. |
-| Export | Creates a persistent XLSX file from the active dataset's current Working values, including unsaved edits. |
+| The app does not open | Open `COSTBREAKDOWN.html` in a modern browser. If it still does not open, ask for an approved copy or support. |
+| Reference or Current is Incomplete | Open header i → Prepare Dataset, expand Blockers, and select an affected location. |
+| Import says Invalid | Use a compatible `.xlsx` workbook. Start with Download Template and preserve its required sheets and headings. |
+| A field cannot be edited | Check Master Data Edit mode, or the supported Simulation fields listed above. |
+| Send affected an unexpected role | Check the underlined active dataset beneath Cost Structure, then review that same role in Master Data. Result's After selector does not choose the Send destination. |
+| Data is missing in a new session | Import an exported workbook. Last Saved is a session checkpoint, not a permanent backup. |
 
-Import, Clone, Clear, and Simulation Send leave Last Saved unchanged. Use the header Undo/Redo controls for supported Master Data Working edits.
-
-Save, Reset, and Clear act on the selected dataset. Hover over the control, or focus it and press **Alt + Down Arrow**, for the all-dataset action.
-
-Save is a browser-session checkpoint; it does not create a file. Export does not require Save first and creates an XLSX file you can keep after closing the browser. To keep a proposal's parameters, Send them to Master Data before Export. Record Simulation-only assumptions separately.
-
-## Help opening the app
-
-| Problem | What to do |
-|---|---|
-| The file opens as text or in an editor | Open `COSTBREAKDOWN.html` with your browser, or use the browser's Open File command. |
-| I need to keep work after closing the browser | Export the datasets you need as XLSX files before closing the browser. |
-
-[Back to COSTBREAKDOWN](README.md)
+[Back to the product overview](README.md)

@@ -1,0 +1,111 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@media (max-width: 639px) {
+  .simulation-story-chart {
+    height: auto;
+  }
+
+  .simulation-story-chart text {
+    font-size: 16px !important;
+  }
+}
+
+@layer base {
+  input::placeholder,
+  textarea::placeholder {
+    color: #94a3b8;
+    font-size: inherit;
+    font-style: normal;
+    font-weight: 400;
+    line-height: inherit;
+    opacity: 1;
+  }
+}
+
+@layer components {
+  .app-workspace-frame {
+    @apply mx-auto w-full max-w-[1440px] px-3 sm:px-4 lg:px-6;
+  }
+}
+
+:root {
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  color-scheme: light;
+  background-color: #f1f5f9;
+  color: #0f172a;
+}
+
+html {
+  overflow: hidden;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow: hidden;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+table thead th {
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+:focus-visible:not(:disabled) {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+::selection {
+  color: #0f172a;
+  background: #dbeafe;
+}
+
+/* Tabular numbers for financial and engineering precision */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+.search-clear-control::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+  display: none;
+}
+
+/* Refined custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

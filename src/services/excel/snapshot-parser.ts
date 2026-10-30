@@ -1,0 +1,689 @@
+import * as XLSX from 'xlsx'
+import {
+  CostSnapshot,
+  DataConfidence,
+  FieldEvidence,
+  SnapshotBOMItem,
+  SnapshotImportResult,
+  SnapshotRoutingStep,
+  SnapshotWorkCenterRate,
+  MasterDataRole,
+  DataQualityStatus,
+  getFieldConfidence
+} from '../../core'
+import { normalizeMasterDataSnapshot } from '../../core/utils/master-data-effective'
+import { getMasterDataSnapshotValidationErrors } from '../../core/utils/master-data-validation'
+import { compareExactDecimals, divideExactDecimals, exactDecimalNumberText, exactDecimalToNumber, exactDecimalToString, multiplyExactDecimals, parseExactDecimal } from '../../core/utils/exact-decimal'
+import { readExactNumericCells, type ExactNumericCellValues } from './exact-numeric-cells'
+
+type CellValue = string | number | boolean | Date | null
+type Row = CellValue[]
+type NumericResult = { value: number | null; quality: DataQualityStatus; exactValue?: string }
+
+const REQUIRED_DATA_SHEETS = ['META', 'BOM', 'WORK_CENTER', 'ROUTING'] as const
+
+const META_LABELS: [string, string[]][] = [
+  ['Product Name', ['product name', 'product description', 'description', 'name']],
+  ['UOM', ['uom', 'unit']],
+  ['Selling Price', ['selling price', 'selling price (thb)']],
+  ['SG&A %', ['sg&a %', 'sg&a (%)', 'sg&a', 'sga %', 'sga (%)', 'sga percent', 'sga percentage']],
+  ['Dataset Remark', ['dataset remark', 'remark']]
+]
+
+function normalizeLabel(value: CellValue | undefined): string {
+  return String(value ?? '').trim().toLowerCase().replace(/[\s_\-/]+/g, '')
+}
+
+function textValue(value: CellValue | undefined): string {
+  if (value === null || value === undefined) return ''
+  if (value instanceof Date) return value.toISOString().slice(0, 10)
+  return String(value).trim()
+}
+
+function numberValue(
+  value: CellValue | undefined,
+  label: string,
+  rowNumber: number,
+  warnings: string[]
+): NumericResult {
+  if (value === null || value === undefined || textValue(value) === '') {
+    warnings.push(`Missing ${label} at row ${rowNumber}`)
+    return { value: null, quality: 'missing' }
+  }
+  const exactValue = numericText(value)
+  const parsed = Number(exactValue)
+  if (!Number.isFinite(parsed)) {
+    warnings.push(`Invalid ${label} at row ${rowNumber}`)
+    return { value: null, quality: 'invalid' }
+  }
+  return { value: parsed, quality: 'valid', exactValue: meaningfulExactInput(exactValue, parsed) }
+}
+
+function meaningfulExactInput(exactValue: string, numericValue: number): string | undefined {
+  const exact = parseExactDecimal(exactValue)
+  const numeric = parseExactDecimal(numericValue)
+  if (!exact || !numeric) return undefined
+  if (compareExactDecimals(exact, numeric) !== 0) return exactValue
+  const cleanedNumber = parseExactDecimal(exactDecimalNumberText(numericValue) ?? numericValue)
+  return cleanedNumber && compareExactDecimals(exact, cleanedNumber) !== 0 ? exactValue : undefined
+}
+
+function numericText(value: CellValue | undefined): string {
+  return typeof value === 'number' ? String(value) : textValue(value).replace(/,/g, '')
+}
+
+function fractionPercentValue(
+  value: CellValue | undefined,
+  label: string,
+  rowNumber: number,
+  warnings: string[]
+): NumericResult {
+  if (typeof value === 'string' && value.trim().endsWith('%')) {
+    const exactValue = value.trim().slice(0, -1).replace(/,/g, '').trim()
+    const percent = parseExactDecimal(exactValue)
+    const fraction = percent ? divideExactDecimals(percent, parseExactDecimal(100)!) : null
+    const parsed = fraction ? exactDecimalToNumber(fraction) : null
+    if (parsed === null || !Number.isFinite(parsed)) {
+      warnings.push(`Invalid ${label} at row ${rowNumber}`)
+      return { value: null, quality: 'invalid' }
+    }
+    const stored = parseExactDecimal(parsed)
+    return {
+      value: parsed,
+      quality: 'valid',
+      exactValue: fraction && stored && compareExactDecimals(fraction, stored) !== 0 ? exactValue : undefined
+    }
+  }
+  const result = numberValue(value, label, rowNumber, warnings)
+  if (result.value === null || result.exactValue === undefined) return result
+  const fraction = parseExactDecimal(result.exactValue)
+  const exactPercent = fraction ? multiplyExactDecimals(fraction, parseExactDecimal(100)!) : null
+  const cleanedStored = result.value === null
+    ? null
+    : parseExactDecimal(exactDecimalNumberText(result.value) ?? result.value)
+  const exactFraction = fraction
+  const needsExactValue = exactPercent && exactFraction && cleanedStored
+    ? compareExactDecimals(exactFraction, cleanedStored) !== 0
+    : false
+  return exactPercent && needsExactValue ? { ...result, exactValue: exactDecimalToString(exactPercent) } : { ...result, exactValue: undefined }
+}
+
+function optionalNumberValue(
+  value: CellValue | undefined,
+  label: string,
+  rowNumber: number,
+  warnings: string[]
+): number | null {
+  if (value === null || value === undefined || textValue(value) === '') return null
+  const parsed = typeof value === 'number' ? value : Number(textValue(value).replace(/,/g, ''))
+  if (!Number.isFinite(parsed)) {
+    warnings.push(`Invalid ${label} at row ${rowNumber}`)
+    return null
+  }
+  return parsed
+}
+
+function percentagePointValue(value: CellValue | undefined, label: string, rowNumber: number, warnings: string[]): NumericResult {
+  if (value === null || value === undefined || textValue(value) === '') return { value: null, quality: 'missing' }
+  if (typeof value === 'string' && value.trim().endsWith('%')) {
+    const exactValue = value.trim().slice(0, -1).replace(/,/g, '').trim()
+    const parsed = Number(exactValue)
+    if (!Number.isFinite(parsed)) {
+      warnings.push(`Invalid ${label} at row ${rowNumber}`)
+      return { value: null, quality: 'invalid' }
+    }
+    return { value: parsed, quality: 'valid', exactValue }
+  }
+  return numberValue(value, label, rowNumber, warnings)
+}
+
+function findSheetName(workbook: XLSX.WorkBook, wanted: string): string | undefined {
+  return workbook.SheetNames.find(name => normalizeLabel(name) === normalizeLabel(wanted))
+}
+
+function rowsFor(workbook: XLSX.WorkBook, sheetName: string, exactNumericCells: ExactNumericCellValues = {}): Row[] {
+  const actualName = findSheetName(workbook, sheetName)
+  if (!actualName) return []
+  const sheet = workbook.Sheets[actualName]
+  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: null, raw: true }) as Row[]
+  const rawValues = exactNumericCells[actualName]
+  if (!rawValues) return rows
+  rows.forEach((row, rowIndex) => row.forEach((value, columnIndex) => {
+    if (typeof value !== 'number') return
+    const address = XLSX.utils.encode_cell({ r: rowIndex, c: columnIndex })
+    const exactValue = rawValues.get(address)
+    if (exactValue !== undefined) row[columnIndex] = exactValue
+  }))
+  return rows
+}
+
+function findHeaderRow(rows: Row[], groups: string[][]): number {
+  return rows.findIndex(row => {
+    const labels = row.map(normalizeLabel)
+    return groups.every(group => group.some(alias => labels.includes(normalizeLabel(alias))))
+  })
+}
+
+function columnMap(row: Row): Map<string, number> {
+  const map = new Map<string, number>()
+  row.forEach((value, index) => {
+    const label = normalizeLabel(value)
+    if (label) map.set(label, index)
+  })
+  return map
+}
+
+function additionalFields(row: Row, headers: Row, knownAliases: string[]): Record<string, unknown> | undefined {
+  const known = new Set(knownAliases.map(normalizeLabel))
+  const fields: Record<string, unknown> = {}
+  const keyCounts = new Map<string, number>()
+
+  headers.forEach((header, index) => {
+    const label = textValue(header).trim()
+    const normalized = normalizeLabel(header)
+    if (!label || !normalized || known.has(normalized)) return
+
+    const occurrence = (keyCounts.get(normalized) ?? 0) + 1
+    keyCounts.set(normalized, occurrence)
+    const key = occurrence === 1 ? label : `${label} (${occurrence})`
+    fields[key] = row[index] ?? null
+  })
+
+  return Object.keys(fields).length > 0 ? fields : undefined
+}
+
+function columnIndex(map: Map<string, number>, aliases: string[]): number {
+  for (const alias of aliases) {
+    const index = map.get(normalizeLabel(alias))
+    if (index !== undefined) return index
+  }
+  return -1
+}
+
+function cell(row: Row, map: Map<string, number>, aliases: string[]): CellValue | undefined {
+  const index = columnIndex(map, aliases)
+  return index >= 0 ? row[index] : undefined
+}
+
+function metaValues(rows: Row[]): Map<string, string> {
+  const values = new Map<string, string>()
+  const keyValueHeaderIndex = findHeaderRow(rows, [['key', 'field', 'name'], ['value']])
+  if (keyValueHeaderIndex >= 0) {
+    rows.slice(keyValueHeaderIndex + 1).forEach(row => {
+      const key = textValue(row[0]).trim()
+      if (key) values.set(key, textValue(row[1]))
+    })
+    return values
+  }
+
+  if (hasLabelValueMeta(rows)) {
+    rows.forEach(row => {
+      const label = normalizeLabel(row[0])
+      const field = META_LABELS.find(([, aliases]) => aliases.some(alias => normalizeLabel(alias) === label))
+      if (field) values.set(field[0], textValue(row[1]))
+    })
+    return values
+  }
+
+  const remarkHeaderIndex = findHeaderRow(rows, [['remark', 'dataset remark']])
+  if (remarkHeaderIndex >= 0) {
+    const map = columnMap(rows[remarkHeaderIndex])
+    const index = columnIndex(map, ['remark', 'dataset remark'])
+    const row = rows.slice(remarkHeaderIndex + 1).find(candidate => candidate.some(value => textValue(value) !== ''))
+    values.set('Remark', index >= 0 && row ? textValue(row[index]) : '')
+  }
+  return values
+}
+
+function hasLabelValueMeta(rows: Row[]): boolean {
+  const labels = new Set(rows.map(row => normalizeLabel(row[0])))
+  const hasField = (name: string) => {
+    const field = META_LABELS.find(([canonical]) => canonical === name)
+    return Boolean(field && field[1].some(alias => labels.has(normalizeLabel(alias))))
+  }
+  return hasField('Product Name') && hasField('UOM')
+}
+
+function metaValue(meta: Map<string, string>, aliases: string[]): string {
+  for (const alias of aliases) {
+    const normalizedAlias = normalizeLabel(alias)
+    const value = [...meta.entries()].find(([key]) => normalizeLabel(key) === normalizedAlias)?.[1]
+    if (value) return value
+  }
+  return ''
+}
+
+function additionalMetaFields(meta: Map<string, string>): Record<string, unknown> | undefined {
+  const known = new Set([
+    'format version', 'template version', 'version',
+    'product code', 'productcode', 'code',
+    'product name', 'productname', 'product description', 'productdescription', 'description', 'name',
+    'uom', 'unit', 'selling price', 'sellingprice', 'selling price (thb)',
+    'sg&a %', 'sg&a (%)', 'sga', 'sga %', 'sga (%)', 'sga percent',
+    'mat', 'labor', 'burden', 'standard cost', 'sga amount', 'op',
+    'customer', 'customer application',
+    'remark', 'dataset remark', 'note',
+    'source ref', 'sourceref', 'source',
+    'effective date', 'effectivedate',
+    'snapshot id', 'snapshotid', 'id', 'comparison role',
+    'status', 'dataset status'
+  ].map(normalizeLabel))
+  const fields = Object.fromEntries([...meta.entries()].filter(([key]) => !known.has(normalizeLabel(key))))
+  return Object.keys(fields).length > 0 ? fields : undefined
+}
+
+function parseStatus(value: string, warnings: string[]): CostSnapshot['status'] {
+  const normalized = value.trim().toLowerCase()
+  if (normalized === 'draft' || normalized === 'active' || normalized === 'archived') return normalized
+  if (normalized) warnings.push(`Unknown snapshot status "${value}"; imported as draft`)
+  return 'draft'
+}
+
+function parseConfidence(value: CellValue | undefined): DataConfidence | undefined {
+  const normalized = textValue(value).toLowerCase()
+  if (normalized === 'verified' || normalized === 'estimated' || normalized === 'missing') return normalized
+  return undefined
+}
+
+function evidence(
+  value: unknown,
+  sourceRef: string,
+  explicitConfidence: DataConfidence | undefined,
+  quality: DataQualityStatus | undefined
+): FieldEvidence {
+  const resolvedQuality = quality ?? (textValue(value as CellValue) === '' ? 'missing' : 'valid')
+  return {
+    status: explicitConfidence ?? getFieldConfidence(value, sourceRef),
+    quality: resolvedQuality,
+    sourceRef: sourceRef || undefined,
+    basis: explicitConfidence
+      ? 'Imported row confidence'
+      : sourceRef
+        ? 'Derived from imported value and source reference'
+        : 'No source reference provided',
+    sourceValue: value,
+    workingValue: value
+  }
+}
+
+function productFromSheet(
+  rows: Row[],
+  meta: Map<string, string>,
+  warnings: string[]
+): { product: CostSnapshot['product']; rowCount: number } {
+  const labelValueMeta = hasLabelValueMeta(rows)
+  const headerIndex = findHeaderRow(rows, [
+    ['product name', 'productname', 'product description', 'productdescription', 'description', 'name'],
+    ['uom', 'unit']
+  ])
+  const header = headerIndex >= 0 ? rows[headerIndex] : []
+  const map = columnMap(header)
+  const dataRows = headerIndex >= 0
+    ? rows.slice(headerIndex + 1).filter(candidate => candidate.some(value => textValue(value) !== ''))
+    : []
+  const row = dataRows[0] ?? []
+  const productCode = textValue(cell(row, map, ['product code', 'productcode', 'code']))
+  const productName = textValue(cell(row, map, ['product name', 'productname', 'product description', 'productdescription', 'description', 'name'])) || metaValue(meta, ['product name', 'productname', 'product description', 'productdescription'])
+  const productDescription = productName
+  const uom = textValue(cell(row, map, ['uom', 'unit'])) || metaValue(meta, ['uom', 'unit'])
+  const customer = textValue(cell(row, map, ['customer', 'customer application'])) || metaValue(meta, ['customer'])
+  const effectiveDate = textValue(cell(row, map, ['effective date', 'effectivedate'])) || metaValue(meta, ['effective date', 'effectivedate'])
+  const note = textValue(cell(row, map, ['note']))
+  const rowNumber = headerIndex >= 0 ? headerIndex + 2 : 1
+  const sellingPriceInput = cell(row, map, ['selling price', 'sellingprice', 'selling price (thb)']) ?? metaValue(meta, ['selling price', 'selling price (thb)'])
+  const sgaPercentInput = cell(row, map, ['sg&a %', 'sg&a (%)', 'sg&a (% of selling price)', 'sga (% of selling price)', 'sga % of selling price', 'sga percent', 'sga']) ?? metaValue(meta, ['sg&a %', 'sg&a (%)', 'sga percent', 'sga'])
+  const sellingPrice = optionalNumberValue(sellingPriceInput, 'Selling Price', rowNumber, warnings)
+  const sgaPercent = percentagePointValue(sgaPercentInput, 'SG&A percentage', rowNumber, warnings)
+  const exactProductInputs: NonNullable<CostSnapshot['product']['exactDecimalInputs']> = {
+    ...(sellingPrice === null ? {} : (() => {
+      const exact = meaningfulExactInput(numericText(sellingPriceInput), sellingPrice)
+      return exact === undefined ? {} : { sellingPrice: exact }
+    })()),
+    ...(sgaPercent.exactValue === undefined ? {} : { sgaPercent: sgaPercent.exactValue })
+  }
+
+  return {
+    product: {
+      productName,
+      sellingPrice,
+      sgaPercent: sgaPercent.value,
+      ...(Object.keys(exactProductInputs).length ? { exactDecimalInputs: exactProductInputs } : {}),
+      productCode,
+      productDescription,
+      uom,
+      note,
+      customer,
+      effectiveDate,
+      additionalFields: additionalFields(row, header, [
+        'product code', 'productcode', 'code',
+        'product name', 'productname', 'product description', 'productdescription', 'description', 'name',
+        'uom', 'unit', 'selling price', 'sellingprice', 'selling price (thb)',
+        'sg&a %', 'sg&a (%)', 'sg&a (% of selling price)', 'sga (% of selling price)', 'sga % of selling price', 'sga percent', 'sga',
+        'mat', 'labor', 'burden', 'standard cost', 'sga amount', 'op',
+        'note', 'customer', 'customer application', 'effective date', 'effectivedate'
+      ])
+    },
+    rowCount: labelValueMeta ? 1 : dataRows.length
+  }
+}
+
+function parseWorkCenters(
+  rows: Row[],
+  fallbackSource: string,
+  fallbackDate: string,
+  warnings: string[]
+): SnapshotWorkCenterRate[] {
+  const headerIndex = findHeaderRow(rows, [
+    ['wc', 'work center code', 'workcentercode', 'work center'],
+    ['labor', 'labor rate'],
+    ['burden', 'burden rate'],
+    ['note']
+  ])
+  if (headerIndex < 0) {
+    warnings.push('WORK_CENTER header not found')
+    return []
+  }
+  const map = columnMap(rows[headerIndex])
+  const rates: SnapshotWorkCenterRate[] = []
+  let blankIdentityCount = 0
+  rows.slice(headerIndex + 1).forEach((row, index) => {
+    const rowNumber = headerIndex + index + 2
+    const code = textValue(cell(row, map, ['wc', 'work center code', 'workcentercode', 'work center']))
+    const blankIdentityOrdinal = code ? undefined : ++blankIdentityCount
+    const sourceRef = textValue(cell(row, map, ['source ref', 'sourceref', 'source'])) || fallbackSource
+    const explicitConfidence = parseConfidence(cell(row, map, ['confidence', 'status']))
+    const laborRate = numberValue(cell(row, map, ['labor', 'labor rate', 'laborrate']), 'Labor', rowNumber, warnings)
+    const burdenRate = numberValue(cell(row, map, ['burden', 'burden rate', 'burdenrate']), 'Burden', rowNumber, warnings)
+    const exactDecimalInputs = {
+      ...(laborRate.exactValue === undefined ? {} : { laborRate: laborRate.exactValue }),
+      ...(burdenRate.exactValue === undefined ? {} : { burdenRate: burdenRate.exactValue })
+    }
+    const effectiveDate = textValue(cell(row, map, ['effective date', 'effectivedate'])) || fallbackDate
+    const suppliedId = textValue(cell(row, map, ['id', 'work center id', 'workcenterid']))
+    const id = suppliedId || (blankIdentityOrdinal ? `rate-placeholder-${blankIdentityOrdinal}` : `rate-${rowNumber}`)
+    rates.push({
+      id,
+      workCenterCode: code,
+      description: textValue(cell(row, map, ['work center name', 'workcentername', 'description', 'work center description', 'workcenterdescription'])) || code,
+      laborRate: laborRate.value,
+      burdenRate: burdenRate.value,
+      ...(Object.keys(exactDecimalInputs).length ? { exactDecimalInputs } : {}),
+      effectiveDate,
+      note: textValue(cell(row, map, ['note'])),
+      sourceRef,
+      confidence: {
+        laborRate: evidence(laborRate.value, sourceRef, explicitConfidence, laborRate.quality),
+        burdenRate: evidence(burdenRate.value, sourceRef, explicitConfidence, burdenRate.quality)
+      },
+      additionalFields: additionalFields(row, rows[headerIndex], [
+        'work center code', 'workcentercode', 'work center', 'wc',
+        'labor', 'labor rate', 'laborrate', 'burden', 'burden rate', 'burdenrate',
+        'description', 'work center name', 'workcentername', 'work center description', 'workcenterdescription',
+        'effective date', 'effectivedate', 'id', 'work center id', 'workcenterid',
+        'source ref', 'sourceref', 'source', 'confidence', 'status', 'note'
+      ])
+    })
+  })
+  if (rates.length === 0) warnings.push('No Work Center rows found')
+  return rates
+}
+
+function parseBOM(
+  rows: Row[],
+  fallbackSource: string,
+  warnings: string[]
+): SnapshotBOMItem[] {
+  const headerIndex = findHeaderRow(rows, [
+    ['name', 'material name', 'description', 'material description', 'item code', 'itemcode', 'material code', 'material'],
+    ['usage', 'consumption', 'quantity'],
+    ['unit', 'uom'],
+    ['price', 'material price'],
+    ['loss', 'loss rate'],
+    ['note']
+  ])
+  if (headerIndex < 0) {
+    warnings.push('BOM header not found')
+    return []
+  }
+  const map = columnMap(rows[headerIndex])
+  const items: SnapshotBOMItem[] = []
+  let blankIdentityCount = 0
+  rows.slice(headerIndex + 1).forEach((row, index) => {
+    const rowNumber = headerIndex + index + 2
+    const name = textValue(cell(row, map, ['name', 'material name', 'description', 'material description']))
+    const blankIdentityOrdinal = name ? undefined : ++blankIdentityCount
+    const itemCode = textValue(cell(row, map, ['item code', 'itemcode', 'material code', 'material'])) || name
+    const sourceRef = textValue(cell(row, map, ['source ref', 'sourceref', 'source'])) || fallbackSource
+    const explicitConfidence = parseConfidence(cell(row, map, ['confidence', 'status']))
+    const consumption = numberValue(cell(row, map, ['consumption', 'usage', 'quantity']), 'consumption', rowNumber, warnings)
+    const price = numberValue(cell(row, map, ['price', 'material price']), 'price', rowNumber, warnings)
+    const loss = fractionPercentValue(cell(row, map, ['loss', 'loss rate']), 'loss', rowNumber, warnings)
+    const exactDecimalInputs = {
+      ...(consumption.exactValue === undefined ? {} : { consumption: consumption.exactValue }),
+      ...(price.exactValue === undefined ? {} : { price: price.exactValue }),
+      ...(loss.exactValue === undefined ? {} : { loss: loss.exactValue })
+    }
+    const description = name
+    const unit = textValue(cell(row, map, ['unit', 'uom']))
+    if (!unit) warnings.push(`Missing unit at row ${rowNumber}`)
+    const suppliedId = textValue(cell(row, map, ['id', 'bom id', 'bomid']))
+    items.push({
+      id: suppliedId || (blankIdentityOrdinal ? `bom-placeholder-${blankIdentityOrdinal}` : `bom-${rowNumber}`),
+      itemCode,
+      description,
+      consumption: consumption.value,
+      unit,
+      price: price.value,
+      loss: loss.value,
+      ...(Object.keys(exactDecimalInputs).length ? { exactDecimalInputs } : {}),
+      note: textValue(cell(row, map, ['note'])),
+      sourceRef,
+      confidence: {
+        consumption: evidence(consumption.value, sourceRef, explicitConfidence, consumption.quality),
+        price: evidence(price.value, sourceRef, explicitConfidence, price.quality),
+        loss: evidence(loss.value, sourceRef, explicitConfidence, loss.quality)
+      },
+      additionalFields: additionalFields(row, rows[headerIndex], [
+        'name', 'material name', 'item code', 'itemcode', 'material', 'material code',
+        'consumption', 'usage', 'quantity', 'price', 'material price',
+        'loss', 'loss rate', 'description', 'material description', 'unit', 'uom',
+        'id', 'bom id', 'bomid', 'source ref', 'sourceref', 'source', 'confidence', 'status', 'note'
+      ])
+    })
+  })
+  if (items.length === 0) warnings.push('No BOM rows found')
+  return items
+}
+
+function parseRouting(
+  rows: Row[],
+  fallbackSource: string,
+  warnings: string[]
+): SnapshotRoutingStep[] {
+  const headerIndex = findHeaderRow(rows, [
+    ['process', 'process name', 'description'],
+    ['wc', 'work center code', 'work center id', 'work center'],
+    ['manning', 'headcount'],
+    ['capacity', 'cap'],
+    ['yield', 'yield rate'],
+    ['note']
+  ])
+  if (headerIndex < 0) {
+    warnings.push('ROUTING header not found')
+    return []
+  }
+  const map = columnMap(rows[headerIndex])
+  const steps: SnapshotRoutingStep[] = []
+  const usedIds = new Set<string>()
+  let blankIdentityCount = 0
+  rows.slice(headerIndex + 1).forEach((row, index) => {
+    const rowNumber = headerIndex + index + 2
+    const operationCode = textValue(cell(row, map, ['operation code', 'operationcode', 'operation']))
+    const processCode = textValue(cell(row, map, ['process code', 'processcode']))
+    const processName = textValue(cell(row, map, ['process', 'process name', 'description']))
+    const blankIdentityOrdinal = processName ? undefined : ++blankIdentityCount
+    const suppliedId = textValue(cell(row, map, ['id', 'routing id', 'routingid']))
+    const preferredId = suppliedId || (processName
+      ? operationCode || processCode || processName
+      : `routing-placeholder-${blankIdentityOrdinal}`)
+    let id = preferredId
+    if (usedIds.has(id)) {
+      id = `routing-${rowNumber}`
+      while (usedIds.has(id)) id = `${id}-imported`
+    }
+    usedIds.add(id)
+    const sourceRef = textValue(cell(row, map, ['source ref', 'sourceref', 'source'])) || fallbackSource
+    const explicitConfidence = parseConfidence(cell(row, map, ['confidence', 'status']))
+    const sequence = optionalNumberValue(cell(row, map, ['sequence', 'seq', 'op seq']), 'sequence', rowNumber, warnings)
+    const manning = numberValue(cell(row, map, ['manning', 'headcount']), 'manning', rowNumber, warnings)
+    const capacity = numberValue(cell(row, map, ['capacity', 'cap']), 'capacity', rowNumber, warnings)
+    const yieldValue = fractionPercentValue(cell(row, map, ['yield', 'yield rate']), 'yield', rowNumber, warnings)
+    const exactDecimalInputs = {
+      ...(manning.exactValue === undefined ? {} : { manning: manning.exactValue }),
+      ...(capacity.exactValue === undefined ? {} : { capacity: capacity.exactValue }),
+      ...(yieldValue.exactValue === undefined ? {} : { yield: yieldValue.exactValue })
+    }
+    const workCenterId = textValue(cell(row, map, ['work center id', 'workcenterid', 'work center code', 'work center', 'wc']))
+    if (!workCenterId) warnings.push(`Missing workCenterId at row ${rowNumber}`)
+    steps.push({
+      id,
+      operationCode: operationCode || undefined,
+      sequence: sequence ?? undefined,
+      processCode: processCode || undefined,
+      processName,
+      workCenterId: workCenterId || undefined,
+      manning: manning.value,
+      capacity: capacity.value,
+      yield: yieldValue.value,
+      ...(Object.keys(exactDecimalInputs).length ? { exactDecimalInputs } : {}),
+      note: textValue(cell(row, map, ['note'])),
+      sourceRef,
+      confidence: {
+        manning: evidence(manning.value, sourceRef, explicitConfidence, manning.quality),
+        capacity: evidence(capacity.value, sourceRef, explicitConfidence, capacity.quality),
+        yield: evidence(yieldValue.value, sourceRef, explicitConfidence, yieldValue.quality)
+      },
+      additionalFields: additionalFields(row, rows[headerIndex], [
+        'operation code', 'operationcode', 'operation', 'id', 'routing id', 'routingid',
+        'process code', 'processcode',
+        'sequence', 'seq', 'op seq', 'manning', 'headcount', 'capacity', 'cap', 'yield', 'yield rate',
+        'process name', 'process', 'description', 'work center id', 'workcenterid',
+        'work center code', 'work center', 'wc', 'source ref', 'sourceref', 'source', 'confidence', 'status', 'note'
+      ])
+    })
+  })
+  if (steps.length === 0) warnings.push('No Routing rows found')
+  return steps
+}
+
+function isCanonicalWorkbook(workbook: XLSX.WorkBook): boolean {
+  const hasDataSheets = REQUIRED_DATA_SHEETS.every(sheet => Boolean(findSheetName(workbook, sheet)))
+  if (!hasDataSheets) return false
+  const metaRows = rowsFor(workbook, 'META')
+  return hasLabelValueMeta(metaRows) || findHeaderRow(metaRows, [
+    ['product name', 'productname', 'product description', 'productdescription'],
+    ['uom', 'unit']
+  ]) >= 0
+}
+
+/** Parses the canonical one-snapshot workbook without defaulting blank numeric cells to zero. */
+export function parseSnapshotWorkbookData(
+  data: ArrayBuffer,
+  role: MasterDataRole,
+  exactNumericCells: ExactNumericCellValues = {}
+): SnapshotImportResult {
+  const workbook = XLSX.read(data, { type: 'array', cellDates: true })
+  const warnings: string[] = []
+
+  if (!isCanonicalWorkbook(workbook)) {
+    return {
+      success: false,
+      message: 'Dataset workbook not recognized. Required sheets: META, BOM, WORK_CENTER, ROUTING, with Product Name and UOM in META.',
+      format: undefined,
+      warnings: ['Workbook is not in the canonical one-Product/one-Dataset format.'],
+      role
+    }
+  }
+
+  const metaRows = rowsFor(workbook, 'META', exactNumericCells)
+  const meta = metaValues(metaRows)
+  const productResult = productFromSheet(metaRows, meta, warnings)
+  const product = productResult.product
+  if (productResult.rowCount !== 1) {
+    return {
+      success: false,
+      message: `META must describe exactly one Product; found ${productResult.rowCount}.`,
+      format: 'canonical',
+      warnings,
+      role
+    }
+  }
+  const sourceRef = metaValue(meta, ['source ref', 'sourceref', 'source'])
+  const effectiveDate = product.effectiveDate || metaValue(meta, ['effective date', 'effectivedate'])
+  const snapshotId = metaValue(meta, ['snapshot id', 'snapshotid', 'id']) || `${product.productName || 'snapshot'}:${role}`
+  const status = parseStatus(metaValue(meta, ['status', 'dataset status']), warnings)
+  const rates = parseWorkCenters(rowsFor(workbook, 'WORK_CENTER', exactNumericCells), sourceRef, effectiveDate, warnings)
+  const bom = parseBOM(rowsFor(workbook, 'BOM', exactNumericCells), sourceRef, warnings)
+  const routing = parseRouting(rowsFor(workbook, 'ROUTING', exactNumericCells), sourceRef, warnings)
+  const missingTableHeaders = warnings.filter(warning => /^(?:BOM|WORK_CENTER|ROUTING) header not found$/.test(warning))
+  if (missingTableHeaders.length > 0) {
+    return {
+      success: false,
+      message: 'Dataset workbook not recognized. Required table headers are missing or incomplete.',
+      format: 'canonical',
+      warnings: [...warnings],
+      role
+    }
+  }
+
+  let snapshot: CostSnapshot = {
+    id: snapshotId,
+    product,
+    effectiveDate,
+    sourceRef: sourceRef || 'Imported Excel (source not provided)',
+    ...(role === 'custom' ? {} : { comparisonRole: role }),
+    status,
+    remark: metaValue(meta, ['remark', 'dataset remark']),
+    rates,
+    bom,
+    routing,
+    additionalFields: additionalMetaFields(meta),
+    warnings
+  }
+
+  snapshot = normalizeMasterDataSnapshot(snapshot)
+
+  const validationErrors = getMasterDataSnapshotValidationErrors(snapshot)
+  if (validationErrors.length > 0) {
+    return {
+      success: false,
+      message: 'Import rejected: correct invalid numeric values and unavailable Routing Work Centers before importing.',
+      format: 'canonical',
+      warnings: [...warnings, ...validationErrors],
+      role
+    }
+  }
+
+  return {
+    success: true,
+    message: `Imported ${role} snapshot: ${snapshot.rates.length} Work Centers, ${snapshot.bom.length} BOM Items, ${snapshot.routing.length} Routing Steps.`,
+    format: 'canonical',
+    snapshot,
+    warnings,
+    role
+  }
+}
+
+export async function parseSnapshotExcelInputFile(
+  file: File,
+  role: MasterDataRole
+): Promise<SnapshotImportResult> {
+  const data = await file.arrayBuffer()
+  let exactNumericCells: ExactNumericCellValues = {}
+  try {
+    exactNumericCells = await readExactNumericCells(data)
+  } catch {
+    // BIFF workbooks can still be parsed canonically, but do not expose XLSX XML lexemes.
+  }
+  return parseSnapshotWorkbookData(data, role, exactNumericCells)
+}

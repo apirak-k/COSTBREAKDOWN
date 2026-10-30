@@ -1,0 +1,441 @@
+import assertBase from 'node:assert/strict'
+let assertionCount = 0
+const regressionFailures = []
+const assert = new Proxy(assertBase, {
+  get(target, key) {
+    const member = target[key]
+    if (typeof member !== 'function') return member
+    return (...args) => {
+      const result = member(...args)
+      assertionCount += 1
+      return result
+    }
+  }
+})
+
+function regressionEqual(actual, expected, message) {
+  assertionCount += 1
+  try {
+    assertBase.equal(actual, expected, message)
+  } catch (error) {
+    regressionFailures.push(`${message}: ${error.message}`)
+  }
+}
+
+function regressionTrue(actual, message) {
+  regressionEqual(actual, true, message)
+}
+
+import { readFileSync, readdirSync } from 'node:fs'
+import { resolve } from 'node:path'
+import React from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
+import { createServer } from 'vite'
+
+const vite = await createServer({
+  server: { middlewareMode: true, hmr: false },
+  appType: 'custom',
+  logLevel: 'error',
+  optimizeDeps: { noDiscovery: true, entries: [] }
+})
+
+function sourceFiles(directory) {
+  return readdirSync(directory, { withFileTypes: true }).flatMap(entry => {
+    const path = resolve(directory, entry.name)
+    return entry.isDirectory() ? sourceFiles(path) : /\.[jt]sx?$/.test(entry.name) ? [path] : []
+  })
+}
+
+try {
+  const { formatCurrency, formatNumber, formatParam, formatPercent, formatVariance } = await vite.ssrLoadModule('/src/core/utils/formatters.ts')
+  const {
+    formatNumericInputValue,
+    normalizeSingleCellNumericPaste,
+    isNumericDraftSyntax,
+    numericCaretForPlace,
+    parseNumericDraft,
+    resolveNumericWheelStepDirection,
+    resolveNumericStepPlace,
+    stepNumericValue,
+    stepNumericDraftValue
+  } = await vite.ssrLoadModule('/src/shared/ui/numeric-input-rules.ts')
+
+  for (const [input, expected] of [
+    ['44.621', '44.621'],
+    ['44.621\r\n', '44.621'],
+    ['0\r\n', '0'],
+    ['123.4567890123456789\r\n', '123.4567890123456789'],
+    ['-44.621\r\n', '-44.621']
+  ]) assert.equal(normalizeSingleCellNumericPaste(input), expected,
+    `single-cell clipboard normalization preserves ${JSON.stringify(input)}`)
+  for (const input of ['44.621\t55.000', '44.621\r\n55.000', '44.621\r\n\r\n']) {
+    assert.equal(normalizeSingleCellNumericPaste(input), null,
+      `multi-cell clipboard content is not collapsed into a numeric scalar: ${JSON.stringify(input)}`)
+  }
+  const {
+    filterInvalidMasterDataNumericChanges,
+    getMasterDataSnapshotValidationErrors,
+    isMasterDataNumericInputValid,
+    isMasterDataNumericValueValid
+  } = await vite.ssrLoadModule('/src/core/utils/master-data-validation.ts')
+  const { NumericInput } = await vite.ssrLoadModule('/src/shared/ui/NumericInput.tsx')
+  const { formatBusinessNumber, formatFullNumericValue, formatFocusedNumericValue, formatHeaderNumericValue, areNumericValuesEquivalent } = await vite.ssrLoadModule('/src/shared/ui/numeric-display.ts')
+  regressionEqual(formatFocusedNumericValue(5e-13), '0.0000000000005', 'focused NumericInput draft retains every significant digit of 5e-13')
+  regressionEqual(formatFocusedNumericValue(9.000000000000004), '9.00', 'Number-only whole value hides ULP residue in the focused draft')
+  regressionEqual(formatFocusedNumericValue(28.999999999999996), '29.00', 'Number-only value immediately below a whole hides ULP residue')
+  regressionEqual(formatFocusedNumericValue(0.29 * 100), '29.00', 'percentage display conversion does not expose multiplication residue')
+  regressionEqual(formatFocusedNumericValue(9.000000000000004, true), '9', 'integer-domain fallback removes ULP residue during hydration')
+  regressionEqual(formatFocusedNumericValue(9.25, true), '9.25', 'integer-domain fallback leaves a meaningful non-integral Number unchanged')
+  regressionTrue(areNumericValuesEquivalent(9.000000000000004, 9), 'semantic comparison absorbs clear whole-number floating point noise')
+  regressionTrue(!areNumericValuesEquivalent(5e-13, 0), 'semantic comparison distinguishes a legitimate tiny value from zero')
+  regressionTrue(areNumericValuesEquivalent(-0, 0), 'semantic comparison preserves ordinary zero equivalence for negative zero')
+  regressionTrue(formatBusinessNumber(5e-13) !== '0.00', 'compact presentation preserves a legitimate tiny value instead of formatting it as zero')
+  regressionTrue(formatBusinessNumber(Number.MIN_VALUE) !== '0.00', 'compact presentation preserves the smallest positive finite value instead of formatting it as zero')
+  regressionTrue(!areNumericValuesEquivalent(Number.MIN_VALUE, 0), 'semantic comparison distinguishes the smallest positive finite value from zero')
+  regressionTrue(areNumericValuesEquivalent(20.000000000000004, 20), 'semantic comparison absorbs clear floating point noise around a whole number')
+  assert.ok(areNumericValuesEquivalent(0.09, 0.09000000000000004), 'machine noise differences are equivalent (UNCHANGED)')
+  assert.ok(!areNumericValuesEquivalent(0.09, 0.091), 'intentional differences are not equivalent (CHANGED)')
+  for (const ordinaryVal of [4, 5, 8, 12, 15]) {
+    assert.equal(formatBusinessNumber(ordinaryVal), `${ordinaryVal}.00`, `ordinary value ${ordinaryVal} formats as 2dp`)
+  }
+  for(const [value,expected] of [[110,'110.00'],[110.5,'110.50'],[110.123456,'110.123456'],[0.0045,'0.0045'],[0.00003,'0.00003'],[-0,'0.00']]) {
+    assert.equal(formatFocusedNumericValue(value),expected,'focused committed decimals retain authoritative digits and minimum 2dp')
+    assert.equal(Number(formatFocusedNumericValue(value)),value===0?0:value,'focused text round trips exactly')
+  }
+  assert.equal(formatFocusedNumericValue(110,true),'110','semantic integer focus stays integer')
+  for(const value of [Number.MIN_VALUE,Number.MAX_VALUE,1e21]) assert.equal(Number(formatFocusedNumericValue(value)),value,'extreme focused representation round trips')
+  const { numericColumnPresentation, numericScientificFitFloor } = await vite.ssrLoadModule('/src/shared/ui/numeric-column-layout.ts')
+  // Deliberately unequal glyph widths prove this is rendered fit, not character count.
+  const proportionalMeasure = text => [...text].reduce((width, glyph) => width + (glyph === '1' ? 3 : glyph === '8' ? 9 : 6), 0)
+  const measuredColumn = (value, width, options = {}, reserveEnd = 0) => numericColumnPresentation(value, options, width, proportionalMeasure, reserveEnd)
+  assert.equal(measuredColumn(111111, 100).text, '111111.00', 'six narrow integer glyphs remain ordinary when they fit')
+  assert.equal(measuredColumn(888888, 100).notation, 'scientific', 'the same count of wider glyphs falls back only when measured width exceeds its half')
+  assert.equal(measuredColumn(1000000, 160, { integerDigits: 3 }).text, '1000000.00', 'provisional digit limits do not control numeric-column presentation')
+  assert.equal(measuredColumn(0.0008, 66).notation, 'scientific', 'actual wider fractional glyphs must fit as well as the reserved four-place region')
+  assert.equal(measuredColumn(0.0045, 100).text, '0.0045', 'four-place tiny ordinary values retain their exact presentation')
+  assert.equal(measuredColumn(0.00003, 100).text, '3.00E-5', 'tiny scientific policy is preserved before layout fit')
+  assert.equal(measuredColumn(-0, 100).text, '0.00', 'numeric-column negative zero stays normalized')
+  assert.equal(measuredColumn(100, 100, {}, 32).notation, 'scientific', 'reserved marker space participates in the fractional-region fit')
+  assert.ok(numericScientificFitFloor(proportionalMeasure) >= proportionalMeasure('-9.99E+308') + 2, 'scientific floor covers signed three-digit exponents with safe insets')
+  assert.equal(formatHeaderNumericValue(3, true), '3', 'semantic integer Header source retains whole count presentation')
+  const numericInputSource = readFileSync(resolve(process.cwd(), 'src/shared/ui/NumericInput.tsx'), 'utf8')
+  const { BusinessNumber } = await vite.ssrLoadModule('/src/shared/ui/BusinessNumber.tsx')
+  const presentationMarkup = value => renderToStaticMarkup(React.createElement(BusinessNumber, { value }))
+  assert.match(presentationMarkup(12.3), /padding-inline-end:2ch/, 'ordinary 2dp reserves the two unused decimal positions')
+  assert.doesNotMatch(presentationMarkup(0.0045), /padding-inline-end/, 'ordinary 4dp uses the complete decimal region')
+  assert.match(presentationMarkup(1e-9), /data-numeric-presentation="scientific"/, 'scientific token has its own alignment class')
+  assert.doesNotMatch(presentationMarkup(1e-9), /padding-inline-end/, 'scientific whole token uses the right edge')
+  const simulationSource = readFileSync(resolve(process.cwd(), 'src/features/simulation/SimulationPage.tsx'), 'utf8')
+  assert.doesNotMatch(simulationSource, /updateSimulationInputFrame|--simulation-input-frame-shift|measureText/, 'Simulation frames never derive their position from formatted content')
+
+  assert.equal(formatNumber(12), '12.00')
+  assert.equal(formatNumber(12.5), '12.50')
+  assert.equal(formatNumber(12.34), '12.34')
+  assert.equal(formatNumber(0), '0.00')
+  assert.equal(formatPercent(0.981), '98.10%')
+  assert.equal(formatCurrency(12.5), '12.50 THB')
+  assert.equal(formatVariance(0), '0.00')
+  assert.equal(formatVariance(-12.5), '-12.50')
+  assert.equal(formatParam(12.5, false), '12.50')
+  assert.equal(formatNumber(3, 0), '3', 'semantic integers retain zero decimal places')
+  assert.equal(formatNumericInputValue(12), '12.00')
+  assert.equal(formatNumericInputValue(12.5), '12.50')
+  assert.equal(formatNumericInputValue(12.3456), '12.35', 'display remains two decimal places regardless of stored precision')
+  assert.equal(formatNumericInputValue(0.123456), '0.12', 'higher internal precision is not shown as extra display decimals')
+  assert.equal(formatNumericInputValue(0.0001), '0.0001', 'small domain-valid Capacity values stay visibly positive')
+  assert.equal(formatNumericInputValue(0.25), '0.25', 'adaptive precision does not pad ordinary values')
+  assert.equal(formatNumericInputValue(0.0001), '0.0001', 'all shared editors use adaptive display without a field-specific precision exception')
+  assert.equal(formatNumericInputValue(3, { integer: true }), '3')
+
+  for (const value of [null, undefined, NaN, Infinity, -Infinity]) {
+    assert.equal(formatBusinessNumber(value), '—', 'missing or non-finite values stay unavailable')
+    assert.equal(formatFullNumericValue(value), '', 'missing or non-finite values never become Header numbers')
+    assert.equal(formatHeaderNumericValue(value), '', 'missing or non-finite values never become Header presentations')
+    assert.equal(formatNumericInputValue(value), '', 'unavailable numeric editors stay blank rather than becoming zero')
+  }
+  const adaptiveExamples = [
+    [12.345678, '12.35'], [0.03456, '0.03'], [0.004567, '0.0046'],
+    [0.000123, '0.0001'], [0.00003, '3.00E-5'], [0.000001, '1.00E-6'],
+    [0, '0.00'], [-0, '0.00'], [-0.004567, '-0.0046'],
+    [-0.00003, '-3.00E-5'], [Number.MIN_VALUE, '4.94E-324']
+  ]
+  for (const [value, expected] of adaptiveExamples) {
+    assert.equal(formatBusinessNumber(value), expected, `adaptive presentation of ${value}`)
+    assert.equal(formatNumericInputValue(value), expected, 'NumericInput shares the canonical adaptive formatter')
+  }
+  assert.equal(formatBusinessNumber(0.004567, { percent: true }), '0.0046%')
+  assert.equal(formatBusinessNumber(-0.00003, { percent: true }), '-3.00E-5%')
+  assert.equal(formatBusinessNumber(0, { percent: true }), '0.00%')
+  const bodyPrecisionRegressions = [
+    [12.345678, '12.35'],
+    [0.004567, '0.0046'],
+    [0.00003, '3.00E-5'],
+    [1E-7, '1.00E-7'],
+    [20.000000000000004, '20.00']
+  ]
+  for (const [value, expected] of bodyPrecisionRegressions) {
+    assert.equal(formatBusinessNumber(value), expected, `body compact precision regression for ${value}`)
+    assert.equal(formatNumericInputValue(value), expected, 'numeric body editor preserves its two → four → scientific display policy')
+  }
+  const headerPrecisionRegressions = [
+    [20.000000000000004, '20.00'],
+    [20.369999999999997, '20.37'],
+    [20.50000000000001, '20.50'],
+    [20.123456789, '20.12345679'],
+    [27.3456789, '27.3456789'],
+    [0.00003, '0.00003'],
+    [1e-9, '1.00e-9'],
+    [Number.MIN_VALUE, '4.94e-324'],
+    [27, '27.00'],
+    [98, '98.00'], [55, '55.00'], [8, '8.00'], [0, '0.00'], [-0, '0.00'],
+    [-123.12345678, '-123.12345678']
+  ]
+  for (const [value, expected] of headerPrecisionRegressions) {
+    assert.equal(formatHeaderNumericValue(value), expected, `Header precision regression for ${value}`)
+  }
+  assert.equal(formatHeaderNumericValue(0.20000000000000004 * 100), '20.00', 'Header removes actual percentage display-unit conversion noise')
+  assert.equal(formatBusinessNumber(3, { integer: true }), '3', 'semantic counts remain whole')
+  assert.equal(formatBusinessNumber(0, { integer: true }), '0')
+  assert.equal(formatBusinessNumber(1000, { integer: true }), '1000')
+  assert.equal(formatBusinessNumber(1e21), '1.00E+21', 'large compact values use scientific presentation')
+  assert.equal(formatBusinessNumber(Number.MAX_VALUE), '1.80E+308', 'extreme finite values stay compact')
+  for (const value of [12.3456789123, 0.00456789123, 1e-7, -1e-7, 1e21, Number.MIN_VALUE, Number.MAX_VALUE]) {
+    assert.equal(Number(formatFullNumericValue(value)), value, 'full-value text round trips to exactly the current numeric model')
+  }
+
+  for (const [value, expected] of [[12, '12.00'], [12.3, '12.30'], [-0, '0.00'], [0.00004, '4.00E-5'], [-0.00004, '-4.00E-5'], [12345678.9, '12345678.90'], [-12345678.9, '-12345678.90'], [123456789.12, '1.23E+8'], [99999999.999, '1.00E+8'], [999999999, '1.00E+9']]) {
+    assert.equal(formatBusinessNumber(value), expected)
+  }
+  assert.equal(formatBusinessNumber(12345678, { integer: true }), '12345678')
+  assert.equal(formatBusinessNumber(123456789, { integer: true }), '1.23E+8')
+  assert.equal(formatBusinessNumber(99999999.999, { integerDigits: 9 }), '100000000.00', 'explicit static capacity applies after rounding')
+  assert.equal(formatBusinessNumber(1000000, { integerDigits: 6 }), '1.00E+6', 'a narrower fixed set can use scientific sooner')
+  assert.equal(formatBusinessNumber(100, { percent: true }), '100.00%')
+  assert.equal(formatBusinessNumber(0.00004, { percent: true }), '4.00E-5%')
+
+  assert.equal(isNumericDraftSyntax('12.34'), true)
+  assert.equal(isNumericDraftSyntax('12.345'), true, 'decimal input is not limited by display precision')
+  assert.equal(isNumericDraftSyntax('12.3456789'), true, 'high-precision decimal input is accepted')
+  assert.equal(isNumericDraftSyntax('0.000000123'), true, 'small high-precision decimal input is accepted')
+  assert.equal(isNumericDraftSyntax('99.123456789'), true, 'long decimal input is accepted')
+  assert.equal(isNumericDraftSyntax('12.3456789', { integer: true }), false, 'semantic integer input remains whole')
+  assert.equal(isNumericDraftSyntax('12abc'), false)
+  assert.equal(isNumericDraftSyntax('-1', { min: 0 }), false)
+  assert.deepEqual(parseNumericDraft(''), { kind: 'blank' })
+  assert.deepEqual(parseNumericDraft('12.5'), { kind: 'valid', value: 12.5 })
+  assert.deepEqual(parseNumericDraft('12.3456789'), { kind: 'valid', value: 12.3456789 }, 'accepted input keeps its exact model value')
+  assert.deepEqual(parseNumericDraft('0.000000123'), { kind: 'valid', value: 0.000000123 }, 'small decimal input keeps its actual value')
+  const smallestPositiveDraft = `0.${'0'.repeat(323)}5`
+  assert.deepEqual(parseNumericDraft(smallestPositiveDraft, { min: 0, minExclusive: true }), { kind: 'valid', value: Number.MIN_VALUE },
+    'smallest positive representable decimal remains valid')
+
+  const positiveDecimal = { min: 0, minExclusive: true }
+  assert.equal(parseNumericDraft('0', positiveDecimal, true).kind, 'transient')
+  assert.equal(parseNumericDraft('0.', positiveDecimal, true).kind, 'transient')
+  assert.deepEqual(parseNumericDraft('0.25', positiveDecimal, true), { kind: 'valid', value: 0.25 })
+  assert.equal(parseNumericDraft('0.00', positiveDecimal, true).kind, 'transient', 'zero remains uncommitted in an exclusive-positive field')
+  assert.equal(parseNumericDraft('0', { integer: true, min: 1 }).kind, 'out-of-domain', 'integer minimum rejects zero immediately')
+  assert.equal(parseNumericDraft('100.01', { min: 0, minExclusive: true, max: 100 }).kind, 'out-of-domain')
+
+  assert.equal(stepNumericValue(12.34, 1, 1), 13.34)
+  assert.equal(stepNumericValue(12.34, -1, 1), 11.34)
+  assert.equal(stepNumericValue(12.34, 1, 0.01), 12.35)
+  assert.equal(stepNumericValue(12.34, -1, 0.01), 12.33)
+  const exactLarge = '123456789012345.123456789'
+  const exactUnitUp = stepNumericDraftValue(exactLarge, 1, 0, { min: 0 })
+  assert.equal(exactUnitUp?.draft, '123456789012346.123456789', 'exact unit-place stepping preserves every fractional digit')
+  assert.equal(exactUnitUp?.value, Number('123456789012346.123456789'), 'exact stepping still emits the calculation Number')
+  assert.equal(stepNumericDraftValue(exactUnitUp.draft, -1, 0, { min: 0 })?.draft, exactLarge,
+    'exact unit-place decrement restores the original decimal')
+  const exactSubPrecisionUp = stepNumericDraftValue(exactLarge, 1, -9, { min: 0 })
+  assert.equal(exactSubPrecisionUp?.draft, '123456789012345.123456790', 'last-digit stepping changes exact text below Number precision')
+  assert.equal(exactSubPrecisionUp?.value, Number(exactLarge), 'sub-precision exact changes may share the existing calculation Number')
+  assert.equal(stepNumericDraftValue(exactSubPrecisionUp.draft, -1, -9, { min: 0 })?.draft, exactLarge,
+    'sub-precision decrement restores every accepted digit')
+  assert.equal(stepNumericDraftValue('12.3456789', 1, -2, { min: 0 })?.draft, '12.3556789',
+    'ordinary exact stepping keeps untouched digits')
+  assert.equal(stepNumericDraftValue('0.00000123456789', 1, -9, { min: 0 })?.draft, '0.00000123556789',
+    'small exact decimals retain their untouched digits while stepping')
+  assert.equal(stepNumericDraftValue('12.3400', 1, -2, { min: 0 })?.draft, '12.3500',
+    'exact stepping preserves accepted trailing zeroes')
+  assert.equal(stepNumericDraftValue('125', 1, 1, { integer: true })?.draft, '135',
+    'integer stepping retains its caret-selected tens place')
+  assert.equal(resolveNumericWheelStepDirection(-1), 1, 'negative deltaY means wheel up and increments')
+  assert.equal(resolveNumericWheelStepDirection(1), -1, 'positive deltaY means wheel down and decrements')
+  assert.equal(stepNumericValue(3, 1, 1, { integer: true }), 4)
+  assert.equal(stepNumericValue(3, -1, 1, { integer: true }), 2)
+  assert.equal(stepNumericValue(25, 1, 10, { integer: true }), 35, 'integer spinner steps preserve the active tens place')
+  assert.equal(stepNumericValue(25, -1, 100, { integer: true }), -75, 'integer spinner steps preserve the active hundreds place')
+  assert.equal(stepNumericValue(null, 1, 1, { integer: true, min: 1, max: 200 }), 1)
+  assert.equal(stepNumericValue(1, -1, 1, { integer: true, min: 1, max: 200 }), null)
+  assert.equal(stepNumericValue(0.25, -1, 1, positiveDecimal), null, 'decrementing across a positive-only lower boundary clears instead of coercing to 0.01')
+  assert.equal(stepNumericValue(0.01, -1, 0.01, positiveDecimal), null)
+  assert.equal(stepNumericValue(0.0001, -1, 0.0001, positiveDecimal, { stopAtMinimum: true }), 0.0001,
+    'Simulation spinner preserves an arbitrarily small positive value at the zero boundary')
+  assert.equal(stepNumericValue(Number.MIN_VALUE, -1, 1, positiveDecimal, { stopAtMinimum: true }), Number.MIN_VALUE,
+    'Simulation spinner preserves the smallest representable positive value')
+  assert.equal(stepNumericValue(0.01, -1, 1, positiveDecimal, { stopAtMinimum: true }), 0.01,
+    'Simulation spinner stops before a decrement would cross zero')
+  assert.equal(stepNumericValue(null, -1, 0.01, positiveDecimal, { stopAtMinimum: true }), null,
+    'an unavailable positive-only value remains unavailable when decreasing')
+  assert.equal(stepNumericValue(100, 1, 0.01, { min: 0, max: 100 }), 100)
+
+  for (const [parameter, domain, minimum] of [
+    ['Price', { min: 0 }, 0],
+    ['Usage', { min: 0 }, 0],
+    ['Loss', { min: 0, max: 100 }, 0],
+    ['Manning', { min: 0 }, 0],
+    ['Capacity', positiveDecimal, 0.01],
+    ['Yield', { ...positiveDecimal, max: 100 }, 0.01]
+  ]) {
+    let value = minimum + 0.02
+    for (let count = 0; count < 10; count += 1) {
+      value = stepNumericValue(value, -1, 0.01, domain, { stopAtMinimum: true })
+      assert.ok(value !== null && value >= minimum, `${parameter} repeated decrement remains calculable`)
+    }
+    assert.equal(value, minimum, `${parameter} repeated decrement stops at its valid minimum`)
+  }
+
+  const decimalDraft = '123.45'
+  assert.deepEqual(resolveNumericStepPlace(decimalDraft, 0), { exponent: 2, step: 100 }, 'caret on the first digit steps by hundreds')
+  assert.deepEqual(resolveNumericStepPlace(decimalDraft, 1), { exponent: 1, step: 10 }, 'caret on the second digit steps by tens')
+  assert.deepEqual(resolveNumericStepPlace(decimalDraft, 2), { exponent: 0, step: 1 }, 'caret on the integer units digit steps by units')
+  assert.deepEqual(resolveNumericStepPlace(decimalDraft, 3), { exponent: 0, step: 1 }, 'caret on the decimal separator falls back to units')
+  assert.deepEqual(resolveNumericStepPlace(decimalDraft, 4), { exponent: -1, step: 0.1 }, 'caret on tenths steps by tenths')
+  assert.deepEqual(resolveNumericStepPlace(decimalDraft, 5), { exponent: -2, step: 0.01 }, 'caret on hundredths steps by hundredths')
+  assert.deepEqual(resolveNumericStepPlace(decimalDraft, 6), { exponent: -2, step: 0.01 }, 'caret after the last decimal digit uses the last digit place')
+  assert.deepEqual(resolveNumericStepPlace(decimalDraft, null), { exponent: 0, step: 1 }, 'a selected range has no single active digit and falls back to units')
+  assert.deepEqual(resolveNumericStepPlace('125', 0, { integer: true }), { exponent: 2, step: 100 })
+  assert.deepEqual(resolveNumericStepPlace('125', 1, { integer: true }), { exponent: 1, step: 10 })
+  assert.deepEqual(resolveNumericStepPlace('125', 2, { integer: true }), { exponent: 0, step: 1 })
+  assert.deepEqual(resolveNumericStepPlace('125', 3, { integer: true }), { exponent: 0, step: 1 })
+  assert.deepEqual(resolveNumericStepPlace('', 0), { exponent: 0, step: 1 }, 'blank input uses the unit-step fallback')
+  assert.deepEqual(resolveNumericStepPlace(decimalDraft, null), { exponent: 0, step: 1 }, 'an unavailable caret uses the unit-step fallback')
+  assert.equal(numericCaretForPlace('109.00', 1), 1, 'caret restoration stays on tens after a new digit is added')
+  assert.equal(numericCaretForPlace('123.45', -2), 5, 'caret restoration maps a decimal place to its new digit')
+  assert.equal(stepNumericValue(190, 1, 100, { integer: true, min: 1, max: 200 }), 200, 'integer active-place increment respects the maximum')
+  assert.equal(stepNumericValue(5, -1, 10, { integer: true, min: 1, max: 200 }), null, 'integer active-place decrement preserves lower-bound clear behavior')
+  assert.equal(stepNumericValue(null, 1, 0.1, positiveDecimal), 0.1, 'blank positive decimals start at the active valid step')
+
+  assert.equal(isMasterDataNumericValueValid('loss', 0.123456), true, 'canonical values may keep precision beyond display precision')
+  assert.equal(isMasterDataNumericInputValid('loss', 0.1234), true, 'two decimal percentage input maps to four internal decimal places')
+  assert.equal(isMasterDataNumericInputValid('loss', 0.12345), true, 'Loss input validation does not impose a decimal-count limit')
+  assert.equal(isMasterDataNumericInputValid('consumption', 0), true, 'zero remains valid where the domain permits it')
+  assert.equal(isMasterDataNumericInputValid('capacity', 0), false)
+  assert.equal(isMasterDataNumericInputValid('capacity', 0.25), true)
+  assert.equal(isMasterDataNumericInputValid('capacity', -1), false)
+  assert.equal(isMasterDataNumericInputValid('yield', 1), true)
+  assert.equal(isMasterDataNumericInputValid('yield', 1.0001), false)
+  assert.equal(isMasterDataNumericInputValid('price', 12.3456789), true, 'Price accepts high precision within its domain')
+  assert.equal(isMasterDataNumericInputValid('price', -2), false, 'negative Price remains outside its domain')
+
+  const acceptedChanges = filterInvalidMasterDataNumericChanges({ price: -2, consumption: 1.23456789, loss: 0.01234567, note: 'kept' })
+  assert.deepEqual(acceptedChanges, { consumption: 1.23456789, loss: 0.01234567, note: 'kept' }, 'paste drops out-of-domain edits while retaining valid high-precision values')
+  const importedPreciseSnapshot = {
+    id: 'numeric-input-verifier',
+    effectiveDate: '2026-10-11',
+    sourceRef: 'numeric-input-verifier',
+    status: 'active',
+    product: { productCode: 'NUM', productName: 'Numeric fixture', productDescription: 'Numeric fixture', uom: 'pc', customer: '', effectiveDate: '2026-10-11', sellingPrice: null, sgaPercent: null },
+    // Imported Number-only row intentionally has no exactDecimalInputs sidecar.
+    bom: [{ id: 'b1', itemCode: 'b1', description: 'Material', consumption: 1.23456, unit: 'pc', price: 9.000000000000004, loss: 0.29, confidence: {} }],
+    rates: [],
+    routing: []
+  }
+  assert.deepEqual(getMasterDataSnapshotValidationErrors(importedPreciseSnapshot), [], 'import validation preserves valid source precision rather than rounding data')
+  assert.equal(importedPreciseSnapshot.bom[0].price, 9.000000000000004, 'imported Number value remains unchanged in the snapshot')
+  assert.equal(importedPreciseSnapshot.bom[0].loss, 0.29, 'imported percentage ratio remains unchanged in the snapshot')
+  assert.equal(Object.hasOwn(importedPreciseSnapshot.bom[0], 'exactDecimalInputs'), false, 'imported Number-only rows use the no-sidecar fallback')
+  regressionEqual(formatFocusedNumericValue(importedPreciseSnapshot.bom[0].price), '9.00', 'imported whole Number fallback does not show residue')
+  regressionEqual(formatFocusedNumericValue(importedPreciseSnapshot.bom[0].loss * 100), '29.00', 'imported percentage Number fallback does not show ×100 residue')
+  regressionEqual(formatFocusedNumericValue(12.3456789), '12.3456789', 'intentional long decimal Number input is not globally rounded')
+
+  const { updateSimulationParameter } = await vite.ssrLoadModule('/src/features/simulation/simulation-engine.ts')
+  const { createEmptySimulationState, getEffectiveSimulationDataset, reconcileSimulationState, setSimulationActiveDataset } = await vite.ssrLoadModule('/src/features/simulation/simulation-state.ts')
+  const simulationSources = {
+    reference: importedPreciseSnapshot,
+    current: importedPreciseSnapshot,
+    custom: importedPreciseSnapshot
+  }
+  const simulationState = createEmptySimulationState(simulationSources)
+  assert.equal(updateSimulationParameter(simulationState, simulationSources, 'b1', 'bom.price', -1), simulationState, 'Simulation rejects an invalid negative edit without coercing it')
+  assert.equal(updateSimulationParameter(simulationState, simulationSources, 'b1', 'bom.loss', 1.01), simulationState, 'Simulation rejects Loss above 100%')
+  assert.equal(updateSimulationParameter(simulationState, simulationSources, 'b1', 'bom.consumption', -0.1), simulationState, 'Simulation rejects negative Usage')
+  const currentSimulationState = setSimulationActiveDataset(simulationState, 'current')
+  const validSimulationEdit = updateSimulationParameter(currentSimulationState, simulationSources, 'b1', 'bom.price', 12.34)
+  assert.equal(getEffectiveSimulationDataset(simulationSources, validSimulationEdit, 'current').snapshot.bom[0].price, 12.34,
+    'a valid two-place Current Simulation override is applied as entered')
+  const preciseSimulationEdit = updateSimulationParameter(currentSimulationState, simulationSources, 'b1', 'bom.price', 12.3456789)
+  assert.equal(getEffectiveSimulationDataset(simulationSources, preciseSimulationEdit, 'current').snapshot.bom[0].price, 12.3456789,
+    'Current Simulation stores the full high-precision Price value')
+  const preciseUsageEdit = updateSimulationParameter(currentSimulationState, simulationSources, 'b1', 'bom.consumption', 1.23456789)
+  assert.equal(getEffectiveSimulationDataset(simulationSources, preciseUsageEdit, 'current').snapshot.bom[0].consumption, 1.23456789,
+    'Current Simulation stores high-precision Usage')
+  const tinySimulationEdit = updateSimulationParameter(currentSimulationState, simulationSources, 'b1', 'bom.price', 5e-13)
+  const tinySavedSimulationState = JSON.parse(JSON.stringify(tinySimulationEdit))
+  const tinyReloadedSimulationState = reconcileSimulationState(tinySavedSimulationState, simulationSources)
+  regressionEqual(getEffectiveSimulationDataset(simulationSources, tinyReloadedSimulationState, 'current').snapshot.bom[0].price, 5e-13,
+    'Current Simulation persists and reloads a legitimate tiny Price without zero-normalizing authoritative data')
+
+  const { calculateMultiplicativeCostAttribution } = await vite.ssrLoadModule('/src/core/calculations/multiplicative-cost-attribution.ts')
+  const residualAttribution = calculateMultiplicativeCostAttribution(21, 25.2, [
+    { key: 'price', baseline: 10, target: 12 },
+    { key: 'usage', baseline: 2, target: 2 },
+    { key: 'loss', baseline: 1.05, target: 1.05 }
+  ])
+  regressionEqual(residualAttribution.effects?.loss, 0,
+    'context-specific reconciliation does not assign floating-point residue to an untouched Loss factor')
+  const equivalentAttribution = calculateMultiplicativeCostAttribution(21, 21.000000000000004, [
+    { key: 'price', baseline: 9, target: 9.000000000000004 },
+    { key: 'usage', baseline: 2, target: 2 }
+  ])
+  regressionEqual(equivalentAttribution.totalEffect, 0, 'ULP-equivalent inputs suppress derived calculation residue without changing authoritative inputs')
+  regressionEqual(equivalentAttribution.effects?.price, 0, 'ULP-equivalent factor differences do not fabricate a multiplicative effect')
+  const unreconciledAttribution = calculateMultiplicativeCostAttribution(21, 25, [
+    { key: 'price', baseline: 9, target: 9 }
+  ])
+  regressionEqual(unreconciledAttribution.effects, null, 'unreconciled cost gaps without a changed factor are unavailable instead of assigned to an unchanged factor')
+
+  const decimalMarkup = renderToStaticMarkup(React.createElement(NumericInput, { value: 12.5, onValueChange() {}, 'aria-label': 'Price' }))
+  const integerMarkup = renderToStaticMarkup(React.createElement(NumericInput, { value: 3, integer: true, onValueChange() {}, 'aria-label': 'Rows' }))
+  const preciseMarkup = renderToStaticMarkup(React.createElement(NumericInput, { value: 12.3456789, onValueChange() {}, 'aria-label': 'Precise field' }))
+  assert.match(decimalMarkup, /type="text"[^>]*inputMode="decimal"[^>]*role="spinbutton"[^>]*value="12\.50"/)
+  assert.match(integerMarkup, /type="text"[^>]*inputMode="numeric"[^>]*role="spinbutton"[^>]*value="3"/)
+  assert.match(preciseMarkup, /value="12\.35"/, 'a precise model value renders with two display decimals')
+  assert.doesNotMatch(numericInputSource, /precision\s*=\s*2/, 'shared numeric editor has no decimal-place acceptance default')
+  assert.doesNotMatch(decimalMarkup + integerMarkup, /data-numeric-stepper|Increase Price|Decrease Price|Increase Rows|Decrease Rows/, 'ordinary numeric editors have no inline visible spinner')
+  const headerMarkup = renderToStaticMarkup(React.createElement(NumericInput, {
+    value: 12.3456789123, onValueChange() {}, showStepper: true, displayMode: 'header', 'aria-label': 'Selected value'
+  }))
+  assert.match(headerMarkup, /value="12\.34567891"/, 'editable Header presentation is capped at eight decimals')
+  assert.match(headerMarkup, /Increase Selected value/, 'editable Header mode exposes its spinner')
+  assert.match(headerMarkup, /Decrease Selected value/, 'editable Header mode exposes both stepping directions')
+  assert.match(numericInputSource, /parsedPaste\.kind === 'transient'/, 'paste rejects incomplete/zero-prefix drafts instead of bypassing Poka-Yoke')
+  assert.match(numericInputSource, /selectionStart[\s\S]*selectionEnd[\s\S]*hasSelection[\s\S]*resolveNumericStepPlace\(raw, hasSelection \? null : selectionStart, domain\)/, 'a non-collapsed selection falls back to the unit place')
+  assert.match(numericInputSource, /numericCaretForPlace\(draft, exponent, Boolean\(integer\)\)[\s\S]*setSelectionRange\(caret, caret\)/, 'caret returns to the same place after a step changes digit count')
+  assert.match(numericInputSource, /onClick=/, 'inset arrows remain clickable for a single step')
+  assert.match(numericInputSource, /if \(document\.activeElement !== input \|\| event\.deltaY === 0 \|\| !canStepRef\.current\) return[\s\S]*event\.preventDefault\(\)[\s\S]*applyStep\(resolveNumericWheelStepDirection\(event\.deltaY\)\)/,
+    'focused wheel uses the shared active-place direction and leaves unfocused scrolling alone')
+  assert.match(numericInputSource, /applyStep\(event\.key === 'ArrowUp' \? 1 : -1\)/, 'ArrowUp/Down uses the shared active-place step')
+  assert.match(numericInputSource, /className=\{`absolute[^`]*right-[^`]*`\}/, 'arrow controls are positioned inside the input wrapper')
+  assert.match(numericInputSource, /onPointerDown=/, 'press-and-hold starts repeat stepping')
+  assert.match(numericInputSource, /onPointerUp=/, 'repeat stepping stops on pointer release')
+  assert.match(numericInputSource, /onPointerLeave=/, 'repeat stepping stops when the pointer leaves the arrow')
+  assert.match(numericInputSource, /onPointerCancel=/, 'repeat stepping stops when pointer input is cancelled')
+  assert.match(numericInputSource, /setInterval\(|setTimeout\(/, 'press-and-hold repeats through a timer')
+  assert.doesNotMatch(numericInputSource, /spinnerStep|wheelStep|border-l/, 'no fixed spinner/wheel step props or heavy spinner rail remain')
+
+  const appSources = sourceFiles(resolve(process.cwd(), 'src'))
+    .map(path => readFileSync(path, 'utf8'))
+    .join('\n')
+  assert.doesNotMatch(appSources, /<input\b[^>]*\btype\s*=\s*['"]number['"]/s, 'editable application numbers use the shared editor rather than native number inputs')
+  assert.doesNotMatch(appSources, /type="number"/, 'no source component opts back into browser-native number controls')
+
+  if (regressionFailures.length > 0) {
+    for (const failure of regressionFailures) console.error(`FAIL ${failure}`)
+    throw new Error(`${regressionFailures.length} pre-round-4B numeric regression assertion(s) failed`)
+  }
+  console.log(`Numeric input verification passed: ${assertionCount}/${assertionCount} assertions`)
+} finally {
+  await vite.close()
+}

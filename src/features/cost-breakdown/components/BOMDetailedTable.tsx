@@ -1,0 +1,217 @@
+import {
+  calculateBOMParameterCostEffects,
+  calculateSnapshotBOMDetail,
+  getCanonicalComparisonStatus,
+  getComparisonStatusLabels,
+  getComparisonFindingKey,
+  isMasterDataNumericValueValid
+} from '../../../core'
+import type { ComparisonFinding, ComparisonStatus, SnapshotBOMItem } from '../../../core'
+import { SelectedNumber } from '../../../shared/ui/selected-value'
+import { formatBusinessNumber } from '../../../shared/ui/numeric-display'
+
+export interface BOMItemizedRow {
+  key: string
+  finding?: ComparisonFinding
+  reference?: SnapshotBOMItem
+  current?: SnapshotBOMItem
+  referenceCost: number | null
+  currentCost: number | null
+  gap: number | null
+}
+
+interface BOMRecordDetailsProps {
+  row: BOMItemizedRow
+  beforeRoleLabel?: string
+  afterRoleLabel?: string
+  selectionIdPrefix?: string
+  detailId?: string
+}
+
+function validFactorValue(field: 'consumption' | 'price' | 'loss', value: number | null | undefined): number | null {
+  return value !== null && value !== undefined && Number.isFinite(value) && isMasterDataNumericValueValid(field, value)
+    ? value
+    : null
+}
+
+export function getBOMComparisonLabel(finding: ComparisonFinding): ComparisonStatus | null {
+  return getComparisonStatusLabels(finding)[0] ?? null
+}
+
+function comparisonValues(finding: ComparisonFinding | undefined, reference?: SnapshotBOMItem, current?: SnapshotBOMItem) {
+  if (!finding) return calculateSnapshotBOMDetail(
+    { reference, current }, { allowOneSidedNumberProjectionMatch: true }
+  )
+  const effect = finding.costEffect
+  return effect
+    ? { referenceCost: effect.reference.material, currentCost: effect.current.material, costGap: effect.gap.material }
+    : { referenceCost: null, currentCost: null, costGap: null }
+}
+
+export function buildBOMItemizedRows(
+  referenceItems: SnapshotBOMItem[],
+  currentItems: SnapshotBOMItem[],
+  findings: ComparisonFinding[]
+): BOMItemizedRow[] {
+  const referenceById = new Map(referenceItems.map(item => [item.id, item]))
+  const findingByCurrentId = new Map(
+    findings.filter(finding => finding.currentId).map(finding => [finding.currentId as string, finding])
+  )
+
+  const currentRows = currentItems.map(current => {
+    const finding = findingByCurrentId.get(current.id)
+    const reference = finding?.referenceId ? referenceById.get(finding.referenceId) : undefined
+    const detail = comparisonValues(finding, reference, current)
+    return {
+      key: finding ? getComparisonFindingKey('bom', finding) : `bom:${current.id}`,
+      finding,
+      reference,
+      current,
+      referenceCost: detail.referenceCost,
+      currentCost: detail.currentCost,
+      gap: detail.costGap
+    }
+  })
+  const referenceOnlyRows = findings
+    .filter(finding => !finding.currentId && finding.referenceId)
+    .map(finding => {
+      const reference = finding.referenceId ? referenceById.get(finding.referenceId) : undefined
+      const detail = comparisonValues(finding, reference)
+      return {
+        key: getComparisonFindingKey('bom', finding),
+        finding,
+        reference,
+        referenceCost: detail.referenceCost,
+        currentCost: detail.currentCost,
+        gap: detail.costGap
+      }
+    })
+
+  return [...currentRows, ...referenceOnlyRows]
+}
+
+/**
+ * Emits detail lines into the Candidate table's existing tbody. Keeping these
+ * as rows (instead of a nested table) preserves the parent's shared column grid.
+ */
+export function BOMRecordDetails({
+  row,
+  beforeRoleLabel = 'Reference',
+  afterRoleLabel = 'Current',
+  selectionIdPrefix = `cbd:detail:${row.key}`,
+  detailId
+}: BOMRecordDetailsProps) {
+  const { reference, current, finding } = row
+  const status = getCanonicalComparisonStatus(finding)
+  const isMatchedChange = finding?.matchStatus === 'matched' && status === 'CHANGED'
+  const effect = isMatchedChange
+    ? calculateBOMParameterCostEffects(
+        {
+          usage: reference?.consumption ?? null,
+          price: reference?.price ?? null,
+          loss: reference?.loss ?? null,
+          exactInputs: {
+            usage: reference?.exactDecimalInputs?.consumption,
+            price: reference?.exactDecimalInputs?.price,
+            loss: reference?.exactDecimalInputs?.loss
+          }
+        },
+        {
+          usage: current?.consumption ?? null,
+          price: current?.price ?? null,
+          loss: current?.loss ?? null,
+          exactInputs: {
+            usage: current?.exactDecimalInputs?.consumption,
+            price: current?.exactDecimalInputs?.price,
+            loss: current?.exactDecimalInputs?.loss
+          }
+        },
+        { allowOneSidedNumberProjectionMatch: true }
+      )
+    : null
+  const effects = effect?.status === 'available' ? effect.effects : null
+  const parameterValues = [
+    {
+      field: 'consumption' as const,
+      reference: reference?.consumption,
+      current: current?.consumption,
+      effect: effects?.usage
+    },
+    {
+      field: 'price' as const,
+      reference: reference?.price,
+      current: current?.price,
+      effect: effects?.price
+    },
+    {
+      field: 'loss' as const,
+      reference: reference?.loss,
+      current: current?.loss,
+      effect: effects?.loss
+    }
+  ]
+
+  const renderNumericValue = (
+    value: number | null | undefined,
+    label: string,
+    side: 'before' | 'after' | 'effect',
+    field: string,
+    percentage = false
+  ) => {
+    if (value === null || value === undefined || !Number.isFinite(value)) return '—'
+    const displayValue = percentage ? value * 100 : value
+    const visible = formatBusinessNumber(displayValue, { percent: percentage, signPositive: side === 'effect' })
+    return <SelectedNumber numericColumn signPositive={side === 'effect'}
+      value={displayValue}
+      percentage={percentage}
+      selectionId={`${selectionIdPrefix}:${side}:${field}`}
+      aria-label={`${label} ${field} ${visible}`}
+      className={percentage && field === 'loss' ? 'mx-auto !w-[58.5%] text-right' : 'text-right'}
+    />
+  }
+
+  const renderDetailRow = (label: string, side: 'before' | 'after' | 'effect', id?: string) => {
+    const effectRow = side === 'effect'
+    const separatorClass = effectRow ? 'border-b border-slate-200' : ''
+    return <tr
+    key={label}
+    id={id}
+    style={side === 'before' ? undefined : {
+      backgroundImage: 'linear-gradient(#e2e8f0, #e2e8f0)',
+      backgroundSize: '92% 1px',
+      backgroundPosition: 'center top',
+      backgroundRepeat: 'no-repeat'
+    }}
+    className={effectRow
+      ? 'bg-white font-bold text-slate-950'
+      : 'bg-white font-normal text-slate-600'}
+  >
+    <td aria-hidden="true" className={`px-1 py-1.5 ${effectRow ? 'border-b border-slate-200' : ''}`} />
+    <th scope="row" className={`truncate px-2.5 py-1.5 text-left font-sans ${separatorClass} ${effectRow ? 'font-bold' : 'font-normal'}`}><span className="ml-2 inline-block whitespace-nowrap border-l-2 border-slate-300 pl-3">{label}</span></th>
+    <td aria-hidden="true" className={`px-2 py-1.5 ${separatorClass}`} />
+    {parameterValues.map(item => <td key={item.field} className={`${separatorClass} whitespace-nowrap px-1 py-1.5 text-right`}>
+      {effectRow
+        ? <span className={item.field === 'loss' ? 'grid grid-cols-[minmax(0,1fr)_0.6rem] gap-1' : 'block'}>{renderNumericValue(item.effect, label, side, item.field)}{item.field === 'loss' && <span aria-hidden="true" />}</span>
+        : renderNumericValue(
+            validFactorValue(item.field, side === 'before' ? item.reference : item.current),
+            label,
+            side,
+            item.field,
+            item.field === 'loss'
+          )}
+    </td>)}
+    <td className={`${separatorClass} whitespace-nowrap px-1 py-1.5 text-right ${effectRow ? 'font-mono tabular-nums' : ''}`}>
+      {effectRow ? renderNumericValue(row.gap, label, side, 'gap') : ''}
+    </td>
+    <td aria-hidden="true" className={`px-2 py-1.5 ${separatorClass}`} />
+    <td aria-hidden="true" className={`px-1 py-1.5 ${separatorClass}`} />
+    <td aria-hidden="true" className={`px-1 py-1.5 ${separatorClass}`} />
+    </tr>
+  }
+
+  return <>
+    {renderDetailRow(beforeRoleLabel, 'before', detailId)}
+    {renderDetailRow(afterRoleLabel, 'after')}
+    {renderDetailRow('Parameter Cost Effect', 'effect')}
+  </>
+}
