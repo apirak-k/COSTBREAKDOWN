@@ -1,13 +1,15 @@
-import React, { cloneElement, useCallback, useEffect, useRef, useState } from 'react'
+import React, { cloneElement, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 
 interface TooltipProps {
   label: string
   children: React.ReactElement<{ 'aria-describedby'?: string }>
   wrapperClassName?: string
+  showOnFocus?: boolean
+  dismissSignal?: number
 }
 
-export const Tooltip: React.FC<TooltipProps> = ({ label, children, wrapperClassName = 'relative inline-flex' }) => {
+export const Tooltip: React.FC<TooltipProps> = ({ label, children, wrapperClassName = 'relative inline-flex', showOnFocus = true, dismissSignal }) => {
   const wrapperRef = useRef<HTMLSpanElement>(null)
   const tooltipRef = useRef<HTMLSpanElement>(null)
   const [visible, setVisible] = useState(false)
@@ -46,6 +48,10 @@ export const Tooltip: React.FC<TooltipProps> = ({ label, children, wrapperClassN
     }
   }, [positionTooltip, visible])
 
+  useLayoutEffect(() => {
+    if (dismissSignal !== undefined) setVisible(false)
+  }, [dismissSignal])
+
   const describedBy = [children.props['aria-describedby'], tooltipId].filter(Boolean).join(' ')
 
   return (
@@ -54,7 +60,11 @@ export const Tooltip: React.FC<TooltipProps> = ({ label, children, wrapperClassN
       className={wrapperClassName}
       onPointerEnter={() => { positionTooltip(); setVisible(true) }}
       onPointerLeave={() => setVisible(false)}
-      onFocusCapture={() => { positionTooltip(); setVisible(true) }}
+      onFocusCapture={() => {
+        if (!showOnFocus) return
+        positionTooltip()
+        setVisible(true)
+      }}
       onBlurCapture={event => {
         if (event.relatedTarget instanceof Node && event.currentTarget.contains(event.relatedTarget)) return
         setVisible(false)

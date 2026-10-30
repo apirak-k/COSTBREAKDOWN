@@ -58,6 +58,7 @@ export const Navbar: React.FC<NavbarProps> = ({ cbdReorderUndoRedo, simulationUn
   const suppressHelpPreviewRef = useRef(false)
   const [helpOpen, setHelpOpen] = useState(false)
   const [helpPinned, setHelpPinned] = useState(false)
+  const [helpTooltipDismissSignal, setHelpTooltipDismissSignal] = useState(0)
 
   const isMasterData = activeTab === 'master'
   const isCostBreakdown = activeTab === 'breakdown'
@@ -101,6 +102,7 @@ export const Navbar: React.FC<NavbarProps> = ({ cbdReorderUndoRedo, simulationUn
     helpOpenTimerRef.current = null
     helpDismissTimerRef.current = null
     suppressHelpPreviewRef.current = true
+    setHelpTooltipDismissSignal(signal => signal + 1)
     setHelpOpen(false)
     setHelpPinned(false)
     if (focusHelpButton) window.requestAnimationFrame(() => helpButtonRef.current?.focus({ preventScroll: true }))
@@ -148,6 +150,7 @@ export const Navbar: React.FC<NavbarProps> = ({ cbdReorderUndoRedo, simulationUn
     helpDismissTimerRef.current = null
     if (helpPinned) {
       suppressHelpPreviewRef.current = true
+      setHelpTooltipDismissSignal(signal => signal + 1)
       setHelpPinned(false)
       setHelpOpen(false)
       return
@@ -246,7 +249,7 @@ export const Navbar: React.FC<NavbarProps> = ({ cbdReorderUndoRedo, simulationUn
               onPointerEnter={handleHelpTriggerPointerEnter}
               onPointerLeave={handleHelpTriggerPointerLeave}
             >
-              <Tooltip label="Help">
+              <Tooltip label="Help" showOnFocus={false} dismissSignal={helpTooltipDismissSignal}>
                 <button
                   ref={helpButtonRef}
                   id="header-help-trigger"

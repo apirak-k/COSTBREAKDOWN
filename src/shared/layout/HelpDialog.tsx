@@ -2,15 +2,10 @@ import React, { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import {
   AlertTriangle,
-  ArrowRight,
   ArrowUpDown,
   CircleX,
-  ClipboardCheck,
   Copy,
-  Database,
   FileSpreadsheet,
-  FlaskConical,
-  GitCompare,
   Info,
   Pencil,
   Redo2,
@@ -56,7 +51,7 @@ interface HelpTool {
 }
 
 const masterDataTools: HelpTool[] = [
-  { label: 'Edit', description: 'Change Working values.', Icon: Pencil },
+  { label: 'Edit', description: 'Edit Working values across selected rows.', Icon: Pencil },
   { label: 'Import', description: 'Load XLSX into this dataset.', Icon: FileSpreadsheet },
   { label: 'Clone', description: 'Copy Working values to another role.', Icon: Copy },
   { label: 'Sizing', description: 'Set row counts or download a template.', Icon: Table2 },
@@ -76,6 +71,15 @@ const quickTools: HelpTool[] = [
   { label: 'Clear', description: 'Blank editable values.', Icon: Trash2 },
   { label: 'Send', description: 'Simulation → matching Master Data.', Icon: Send },
   { label: 'Export', description: 'Create an XLSX.', Icon: Upload }
+]
+
+const workflowSteps: Array<{ title: string; description: string }> = [
+  { title: 'Prepare data', description: 'Add, edit, or remove rows in Master Data.' },
+  { title: 'Check readiness', description: 'Review warnings and blockers with Prepare Dataset.' },
+  { title: 'Analyze cost changes', description: 'Compare Before and After in Cost Breakdown.' },
+  { title: 'Test supported changes', description: 'Try supported parameters in Simulation.' },
+  { title: 'Clone or Send if needed', description: 'Reuse data or send tested changes back to Master Data.' },
+  { title: 'Export when ready', description: 'Save the dataset as an XLSX.' }
 ]
 
 function HelpToolGrid({ tools, label, columns = 'sm:grid-cols-2 xl:grid-cols-3' }: {
@@ -114,10 +118,10 @@ function HeaderTool({ Icon, symbol, label, description }: {
   )
 }
 
-function StateCard({ title, children, icon }: { title: string; children: React.ReactNode; icon?: React.ReactNode }) {
+function StateCard({ title, children, icon, titleClassName = 'text-slate-800' }: { title: string; children: React.ReactNode; icon?: React.ReactNode; titleClassName?: string }) {
   return (
     <div className="h-full min-w-0 border border-slate-200 bg-white px-3 py-2">
-      <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-800">
+      <div className={'flex items-center gap-1.5 text-xs font-semibold ' + titleClassName}>
         {icon}
         <span>{title}</span>
       </div>
@@ -165,51 +169,38 @@ function HelpContent({ section }: { section: HelpSectionId }) {
     case 'workflow':
       return (
         <>
-          <section data-help-workflow-diagram aria-label="How the app areas connect">
-            <h3 className="mb-2 text-xs font-semibold text-slate-800">How the app areas connect</h3>
+          <section data-help-workflow-diagram aria-label="System flow">
+            <h3 className="mb-2 text-xs font-semibold text-slate-800">System flow</h3>
             <div role="group" aria-label="Master Data connects to Cost Breakdown, Simulation, and Export" className="mx-auto max-w-3xl">
               <div className="grid grid-cols-3 gap-2">
-                <div className="col-start-2 text-center" data-help-diagram-node="Master Data">
-                  <StateCard title="Master Data">Prepare datasets.</StateCard>
+                <div className="col-start-2 min-w-0 text-left" data-help-diagram-node="Master Data">
+                  <StateCard title="Master Data">Add, edit, or remove rows.</StateCard>
                 </div>
               </div>
               <BranchConnector />
-              <div className="grid grid-cols-3 items-stretch gap-2 text-center">
+              <div className="grid grid-cols-3 items-stretch gap-2 text-left">
                 <div className="min-w-0" data-help-diagram-node="Cost Breakdown">
-                  <StateCard title="Cost Breakdown">Compare changes.</StateCard>
+                  <StateCard title="Cost Breakdown">Analyze cost changes.</StateCard>
                 </div>
                 <div className="min-w-0" data-help-diagram-node="Simulation">
-                  <StateCard title="Simulation">Test changes.</StateCard>
+                  <StateCard title="Simulation">Test supported parameter changes.</StateCard>
                 </div>
                 <div className="min-w-0" data-help-diagram-node="Export">
-                  <StateCard title="Export">Save XLSX.</StateCard>
+                  <StateCard title="Export">Save as XLSX.</StateCard>
                 </div>
-              </div>
-              <div data-help-send-flow className="mt-3 flex flex-wrap items-center justify-center gap-2 text-xs text-slate-600">
-                <span className="font-medium text-slate-800">Simulation</span>
-                <span className="flex flex-col items-center leading-4">
-                  <span>Send</span>
-                  <ArrowRight aria-hidden="true" className="h-4 w-8" />
-                </span>
-                <span className="font-medium text-slate-800">matching Master Data role</span>
               </div>
             </div>
           </section>
-          <section aria-label="Six-step workflow" className="mt-5">
-            <h3 className="mb-2 text-xs font-semibold text-slate-800">Workflow steps</h3>
-            <ol aria-label="Six workflow steps" className="relative grid max-w-3xl gap-1 before:absolute before:bottom-3 before:left-[0.7rem] before:top-3 before:w-px before:bg-slate-300">
-              {[
-                { label: 'Prepare datasets', Icon: Database },
-                { label: 'Check with Prepare Dataset', Icon: ClipboardCheck },
-                { label: 'Compare in Cost Breakdown', Icon: GitCompare },
-                { label: 'Test supported changes', Icon: FlaskConical },
-                { label: 'Send to matching Master Data', Icon: Send },
-                { label: 'Export dataset', Icon: Upload }
-              ].map(({ label, Icon }, index) => (
-                <li key={label} data-help-workflow-step={index + 1} className="relative flex min-w-0 items-center gap-2 py-1 text-xs leading-5 text-slate-700">
-                  <span aria-hidden="true" className="z-10 grid h-6 w-6 shrink-0 place-items-center rounded-full border border-slate-300 bg-white font-mono text-[11px] font-semibold text-slate-700">{index + 1}</span>
-                  <Icon aria-hidden="true" className="h-4 w-4 shrink-0 text-slate-600" />
-                  <span>{label}</span>
+          <section className="mt-5">
+            <h3 className="mb-2 text-xs font-semibold text-slate-800">Suggested steps</h3>
+            <ol aria-label="Suggested steps" className="grid gap-y-0.5">
+              {workflowSteps.map(({ title, description }, index) => (
+                <li key={title} data-help-workflow-step={index + 1} className="flex min-w-0 items-start gap-2 py-1.5">
+                  <span aria-hidden="true" className="w-5 shrink-0 text-right text-xs font-medium leading-5 text-slate-400">{index + 1}</span>
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold leading-5 text-slate-800">{title}</p>
+                    <p className="text-xs leading-4 text-slate-600">{description}</p>
+                  </div>
                 </li>
               ))}
             </ol>
@@ -229,6 +220,7 @@ function HelpContent({ section }: { section: HelpSectionId }) {
             <p className="mt-3 text-xs font-semibold text-slate-700">Roles are independent, not stages.</p>
             <p className="mt-1 text-xs leading-5 text-slate-600">Import · Edit · Clone · Clear · Reset can apply to any role.</p>
             <p className="mt-1 text-xs leading-5 text-slate-600"><strong className="font-semibold text-slate-800">Clone between roles:</strong> Source Working → Destination Working.</p>
+            <p className="mt-1 text-xs leading-5 text-slate-600">Changes here are reflected in Cost Breakdown and Simulation.</p>
           </section>
           <h3 className="mb-2 mt-5 text-xs font-semibold text-slate-800">Tools</h3>
           <HelpToolGrid tools={masterDataTools} label="Master Data tools" />
@@ -265,9 +257,9 @@ function HelpContent({ section }: { section: HelpSectionId }) {
           <section data-help-cost-group="row-status" aria-label="Row status" className="mt-5">
             <h3 className="mb-2 text-xs font-semibold text-slate-800">Row status</h3>
             <div className="grid items-stretch gap-2 sm:grid-cols-3">
-              <StateCard title="CHANGED">Values differ. Expand for Parameter Cost Effects.</StateCard>
-              <StateCard title="ADDED">In After only.</StateCard>
-              <StateCard title="REMOVED">In Before only.</StateCard>
+              <StateCard title="CHANGED" titleClassName="text-amber-700">Expand for Before/After and Parameter Cost Effect.</StateCard>
+              <StateCard title="ADDED" titleClassName="text-sky-700">In After only.</StateCard>
+              <StateCard title="REMOVED" titleClassName="text-rose-700">In Before only.</StateCard>
             </div>
           </section>
           <section data-help-cost-group="gap" aria-label="Gap" className="mt-5">
@@ -277,7 +269,7 @@ function HelpContent({ section }: { section: HelpSectionId }) {
               <StateCard title="Selected contribution">Selected rows only.</StateCard>
             </div>
           </section>
-          <p className="mt-3 text-xs leading-5 text-slate-600">Uses Master Data Working, including unsaved edits.</p>
+          <p className="mt-3 text-xs leading-5 text-slate-600">Reflects the latest Master Data Working values.</p>
         </>
       )
     case 'simulation':
@@ -286,8 +278,8 @@ function HelpContent({ section }: { section: HelpSectionId }) {
           <section data-help-simulation-block="edit-scenario" aria-label="Edit scenario">
             <h3 className="mb-2 text-xs font-semibold text-slate-800">Edit scenario</h3>
             <div className="grid grid-cols-3 gap-2">
-              <div className="col-start-2 text-center">
-                <StateCard title="Active Dataset">Edit · Send · Reset target.</StateCard>
+              <div className="col-start-2 min-w-0 text-left">
+                <StateCard title="Active Dataset">Target for Edit, Send, and Reset.</StateCard>
               </div>
             </div>
             <BranchConnector />
@@ -296,27 +288,27 @@ function HelpContent({ section }: { section: HelpSectionId }) {
               <StateCard title="Routing">Manning · Capacity · Yield</StateCard>
               <StateCard title="Economics">Selling Price · SG&amp;A · Action Cost · Batch Size</StateCard>
             </div>
-            <p className="mt-2 text-xs leading-5 text-slate-600">Simulation edits existing rows. Add/remove rows in Master Data.</p>
+            <p className="mt-2 text-xs leading-5 text-slate-600">Add or remove rows in Master Data. Changes there are reflected here.</p>
           </section>
           <section data-help-simulation-block="result-comparison" aria-label="Result comparison">
             <h3 className="mb-2 text-xs font-semibold text-slate-800">Result comparison</h3>
-            <div className="grid items-center gap-2 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1.3fr)]">
-              <StateCard title="Active Dataset">Edit / Send / Reset.</StateCard>
-              <span aria-hidden="true" className="text-center text-lg font-semibold text-slate-500">≠</span>
+            <div className="grid items-stretch gap-2 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
               <StateCard title="Result Before → Result After">Comparison only.</StateCard>
+              <span aria-hidden="true" className="text-center text-lg font-semibold text-slate-500">≠</span>
+              <StateCard title="Active Dataset">Edit, Send, and Reset target.</StateCard>
             </div>
-            <p className="mt-2 text-xs leading-5 text-slate-600">Changing comparison does not change Active Dataset or Send target.</p>
+            <p className="mt-2 text-xs leading-5 text-slate-600">Changing the result pair does not change Active Dataset.</p>
+            <p className="mt-3 text-xs font-semibold text-slate-700">Chart</p>
+            <p className="mt-1 text-xs leading-5 text-slate-600">Click a legend item to show or hide its graph data; this changes the chart view, not the result.</p>
           </section>
           <section data-help-simulation-block="actions" aria-label="Actions">
             <h3 className="mb-2 text-xs font-semibold text-slate-800">Actions</h3>
             <div className="grid items-stretch gap-2 sm:grid-cols-2">
               <StateCard title="Send" icon={<Send aria-hidden="true" className="h-3.5 w-3.5 text-slate-600" />}>
-                <span className="block">Active Dataset → matching Master Data Working.</span>
-                <span className="mt-1 block">BOM / Routing only · Economics stay in Simulation.</span>
+                Send BOM/Routing from Active Dataset to matching Master Data Working.
               </StateCard>
               <StateCard title="Reset" icon={<RotateCcw aria-hidden="true" className="h-3.5 w-3.5 text-slate-600" />}>
-                <span className="block">Reload this role's Master Data Working.</span>
-                <span className="mt-1 block">Clear Action Cost and Batch Size.</span>
+                Reload this role's Master Data Working and clear Action Cost and Batch Size.
               </StateCard>
             </div>
           </section>
@@ -346,7 +338,8 @@ function HelpContent({ section }: { section: HelpSectionId }) {
           </div>
           <h3 className="mb-2 mt-5 text-xs font-semibold text-slate-800">Tools at a glance</h3>
           <HelpToolGrid tools={quickTools} label="Quick reference tools" columns="sm:grid-cols-2 xl:grid-cols-4" />
-          <h3 className="mb-2 mt-5 text-xs font-semibold text-slate-800">Header controls</h3>
+          <h3 className="mb-2 mt-5 text-xs font-semibold text-slate-800">Header</h3>
+          <p className="mb-2 text-xs leading-5 text-slate-600"><strong className="font-semibold text-slate-800">Value</strong> — Shows the selected numeric value. Edit it here when available.</p>
           <div className="grid items-stretch gap-2 sm:grid-cols-2 xl:grid-cols-4">
             <HeaderTool Icon={Undo2} label="Undo" description="Undo a supported action." />
             <HeaderTool Icon={Redo2} label="Redo" description="Redo the last undone action." />
@@ -356,7 +349,8 @@ function HelpContent({ section }: { section: HelpSectionId }) {
           <h3 className="mb-2 mt-5 text-xs font-semibold text-slate-800">Good to know</h3>
           <div className="space-y-1 text-xs leading-5 text-slate-600">
             <p>Closing the browser ends the session. Export to keep data.</p>
-            <p>A Master Data source change can rebuild its Simulation scenario.</p>
+            <p>Select rows to limit the contribution shown.</p>
+            <p>Master Data drives Cost Breakdown and Simulation.</p>
           </div>
         </>
       )
