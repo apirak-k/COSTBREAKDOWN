@@ -8,10 +8,10 @@
 
 ## Current Repository and Release Model — 2026-10-30
 
-- **`oldmain`:** archived frontend reference; do not use for current product behavior.
-- **`dev`:** active development branch for application source, tests, scripts, and project work records.
-- **`main`:** latest stable, complete source repository.
-- **End-user distribution:** GitHub Releases provide `COSTBREAKDOWN.html`, which opens directly in a modern browser through `file://` without installation or a local server.
+- **`oldmain`:** archived frontend reference; do not use for current product behavior or modify.
+- **`dev`:** full development branch for application source, tests, scripts, configs, internal requirements/specifications, documentation, and development records.
+- **`main`:** clean stable user-facing branch containing `COSTBREAKDOWN.html`, the user README and guide, and only the image assets those documents use.
+- **Public release:** Version 1 is the only current public release, named `v1.0.0`. Its only manually attached application asset is `COSTBREAKDOWN.html`, which opens directly in a modern browser through `file://` without installation or a local server.
 - **User guidance:** in-app Help is the primary detailed guide. README is the repository overview; USER_GUIDE is supplementary reference.
 - **Built-in Mock:** Complete Mock and Incomplete Mock remain available through Header `i` → Prepare Dataset for testing.
 - Development handoffs, planning notes, generated architecture exports, and task ledgers remain on `dev`; they are operational records, not product requirements.
